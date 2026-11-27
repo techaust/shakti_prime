@@ -5,9 +5,9 @@
 | Branch | `feat/u2-purchase-orders` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): supplier rates, stock in, the moving average, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC |
-| State | briefed |
-| Next step | the builder |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; built on the seat by Opus 5.5 at high effort (start and early check) |
+| State | early check (the `receipt` opening waits for X4) |
+| Next step | the lead reads the early check; X4 merges; the builder continues |
 
 ## Brief
 Build [phase3 §7.2](../../03-roadmap-appendix/phase3.md#72-u2-purchase-orders-and-goods-receipt) as written, with questions 2 (a), 5 (a) and 8 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -77,6 +77,98 @@ X4 now also moves the serial rules of `app.stock_move()` into a table (`app.stoc
 Shared registration points take one line or one block each, kept together under a comment naming your slice; the lead merges them. They are `en.json`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event catalogue and worker registry, the state machine registry, the import kinds' registry, the print document registry, the testing lists, `nav.ts`, `turbo.json` and `.env.example`.
 
 ## Report
+
+### 27-11-2026, seat (early check)
+Built on the seat in `/home/user/shakti-wt/u2-purchase-orders` (Postgres 54331). Skills loaded: `add-table`, `add-command`.
+
+**Where it stands.** Everything of the early check is committed except the `receipt` opening, which needs X4's two tables: X4 has not merged (its branch holds `wip: x4 serial moves as data` only). Per the addendum I stop here. One more ledger point needs the lead (below, "Blocker for the lead").
+
+**Built (files).**
+- Schema `packages/db/src/schema/procurement.ts`: `reorder_rules`, `purchase_orders`, `po_lines`, `po_line_rates`, `goods_receipts`, `goods_receipt_lines`, `goods_receipt_line_rates`; `serials.vendor_id` and `serials.receipt_line_id` get their foreign keys and `serials_receipt_line_idx` (the comments in `stock.ts` said they arrive with U1 and U2). Series kind `goods_receipt` (code `GRN`) in the check, `DocTypeSchema` and `WORKSHOP_DEFAULTS.numbering`.
+- Migrations `0240_u2_purchase_orders.sql` (generated; the widened `document_sequences_doc_type_check` is `NOT VALID`) and `0241_u2_purchase_orders_rls.sql` (custom).
+- **House pattern for rates: a separate restricted table** (as H1's `stock_movement_costs` and U1's `vendor_quotes`), not column grants: `po_line_rates` (`unit_rate`, `amount`, `quote_id`) and `goods_receipt_line_rates` (`unit_rate`, append-only, written only by the receipt definer). So `po_lines` and `goods_receipt_lines` carry no value at all, and both pools apply one policy.
+- Definers (all `search_path = ''`, execute revoked from `public`, `readonly_reporter`, `app_reader`): `app.goods_receipt_post(receipt, serials)` (checks `procurement.grn.write:entity` and the company, copies each order line's rate to the receipt line, builds the `receipt` batch at rate ÷ unit factor per stock unit and calls `app.stock_move()`, then stamps the new serials' vendor, receipt line and supplier warranty from the IST receipt date), `app.goods_receipt_unpost(receipt)` (refuses `goods_receipt_moved_on` when a serial is no longer `in_stock` in its bin or moved since, or the line's item left the bin since, or the bin's free quantity is below the line; then a `reversal` per movement), `app.reorder_shortfalls(company)` and `app.reorder_draft_po(...)` (both `procurement.reorder.draft:all`, the first under a per-company advisory lock held to the end of the transaction). Guards `app.purchase_orders_guard()` and `app.po_lines_guard()`. `app.next_document_no()` redefined from 0201's latest with `goods_receipt` → `procurement.grn.write` and `purchase_order` also for `procurement.reorder.draft`. `app.platform_only_permissions()` redefined from 0222's latest (all 19 keys) plus `procurement.reorder.draft`. **`app.stock_move()` is not redefined.**
+- Permissions: `procurement.po.approve` (catalogue, scopes, seed Executive all and Inventory Manager entity, SECURITY §3.2 row, `AGENT_FORBIDDEN_PERMISSIONS`); `procurement.reorder.draft` (platform-only: `PLATFORM_ONLY_PERMISSIONS`, `PERMISSION_SCOPES`, `SYSTEM_MATRIX`, seed label, SECURITY §3.2 and §3.3 rows).
+- `WORKSHOP_DEFAULTS.procurement`: `poApprovalFromRupees: 200_000`, `overdueAfterDays: 7`.
+- Machine `packages/domain/src/state-machines/machines/purchase-order.ts` (`purchase_order`, in `MACHINES_IN_USE`), `docs/state-machines/purchase-order.md` by `machines:docs`.
+- Contracts `packages/contracts/src/procurement/orders.ts`; events `procurement.po.drafted`, `.approved`, `.sent`, `.cancelled`, `.closed`, `procurement.receipt.posted`, `.reversed` (ids, codes, counts only); `inventory.stock.moved` also from `procurement.grn.post` and `.reverse`.
+- Commands `packages/domain/src/commands/procurement/{po-shared,orders,receipts,reorder}.ts`: `procurement.po.create`, `.update`, `.approve` (also needs `procurement.rate.read`), `.send`, `.cancel`, `.close`, `procurement.grn.post`, `.reverse`, `procurement.reorder_rule.set`, `.remove`, `procurement.reorder.draft` (platform, `auditWhen: 'changed'`). Pure helpers `packages/domain/src/procurement/po-totals.ts` (`poLineAmount`, `stockUnitCost`, `purchaseOrderTotals` by the tax engine) and `receipt-moves.ts`.
+- Web registrations only (no screen yet): activity-log names, fields and values (`apps/web/src/screens/audit.ts`, `activity-details.tsx`, `contract-values.ts`), 33 error sentences in `en.json`.
+- Documents: DATABASE §4.3 and §6.5 rows, the append-only list; `pnpm db:docs` regenerated.
+
+**The policies (from `0241`).**
+```sql
+-- rates: only procurement.rate.read in the row's company, both pools
+create policy po_line_rates_read on po_line_rates for select to app_user, app_reader using (
+  entity_id = any ((select app.entity_ids())::int[])
+  and (select app.has_perm('procurement.rate.read:entity')));
+create policy po_line_rates_insert ... with check (company and rate.read and po.write
+  and created_by = (select app.user_id()) and the order is a draft);   -- update and delete alike
+create policy goods_receipt_line_rates_read on goods_receipt_line_rates for select
+  to app_user, app_reader using (same as po_line_rates_read);         -- no write grant at all
+-- orders and lines: read without values by stock readers (GM, Store Manager) and order writers
+create policy purchase_orders_read on purchase_orders for select to app_user, app_reader using (
+  entity_id = any ((select app.entity_ids())::int[])
+  and ((select app.has_perm('inventory.stock.read:entity'))
+       or (select app.has_perm('procurement.po.write:entity'))));
+create policy purchase_orders_insert ... with check (company and po.write and state = 'draft'
+  and source = 'manual' and created_by = drafted_by = (select app.user_id())
+  and approved_by is null and sent_at is null);
+create policy purchase_orders_update ... using/with check (company and (po.write or po.approve
+  or grn.write)) and updated_by = (select app.user_id());  -- the guard decides what each grant may change
+create policy po_lines_insert/delete ... (company and po.write and the order is a draft);
+create policy po_lines_update ... (company and (po.write or grn.write));  -- guard: only qty_received after draft
+-- receipts: read as orders plus grn.write; inserted posted by the caller; updated only to reversed
+create policy goods_receipts_reverse on goods_receipts for update to app_user
+  using (company and grn.write and state = 'posted')
+  with check (company and grn.write and state = 'reversed' and reversed_by = (select app.user_id()));
+-- reorder_rules: read as orders, written with po.write in the company
+```
+`app.purchase_orders_guard()`: company, number, source and creator fixed; terms only in draft and only by a `procurement.po.write` holder who becomes `drafted_by`; approval once, sending once; the state moves only along the machine's pairs; `approved` needs `procurement.po.approve`, `approved_by` the caller, not the drafter unless `app.role` is `executive`, and every line with a rate row and a GST rate; send, cancel and close need `procurement.po.write`; receiving moves need `procurement.grn.write`. The ₹2,00,000 limit is checked in the command only (the total comes from the tax engine), as the guard comment says.
+
+**Tests added.**
+- `packages/db/tests/security/purchase-orders.test.ts`: 11 cases (two `it.each` over both pools): rates for every role key on `app_user` and `app_reader` (only Executive, Inventory Manager and Accounts read `po_line_rates` and `goods_receipt_line_rates`); GM and Store Manager read orders, lines, receipts and receipt lines with no rate, another company's people nothing; no value column on the four rows; no grant to `readonly_reporter`; fail closed with no context; the guard (a rate by a writer without the rate grant, self-approval, a line without GST, a sent order's terms and lines, an illegal move, a receipt rate's immutability); the definers refused to GM, Store, Accounts, an agent, another company, a receipt already in stock; the reorder definers refused to every person, Executive included; no execute for the reporting or reading role.
+- The seven tables in `ENTITY_TABLES`, a row per company in `entity-matrix-fixture.ts`, rules in `role-entity-matrix.test.ts`, `NARROWER` in `grants.test.ts`, nine pairs in `enum-sync.test.ts`.
+- `packages/domain/tests/commands/purchase-orders.test.ts`: 25 cases: denied and another-company cases for all eleven commands; create (number, amount, no rate in audit or event), the quote fill (company's quote before the group's, `po_quote_missing`), a rate refused without `procurement.rate.read`; update keeping rates and making the editor the drafter; **approval**: another Inventory Manager below the limit, refused at ₹1,69,491.53 + 18 % (= ₹2,00,000 after rounding) with `po_approval_limit` and approved there by an Executive, self-approval refused (`po_self_approval`) but an Executive's own above the limit approved, an incomplete order refused; send by email to a vendor's person, cancel with and without a reason; **a receipt with one serial missing refused** (`goods_receipt_serial_missing`, `missing: 1`, nothing written); repeated, off-pattern, over-order and wrong-bin refusals; **the moving average**: 10 m on hand at ₹100, 0.3 coils of 100 m at ₹20,000 received → 30 m at ₹200, average ₹175.0000 = (10 × 100 + 30 × 200) / 40, the movement's cost ₹200.0000, no rate in events or audit; serials received with vendor and receipt line; reversal back to ₹50.0000 from ₹61.2000 = (2 × 50 + 8 × 64) / 10; reversal refused once stock moved on; **reorder drafts**: one order per preferred vendor and hub (2 orders, 1 item without a vendor counted), quantities in purchase units (250 m in coils of 100 → 3), no `po_line_rates` row, drafted by the workers principal, a second run drafts nothing; refused to every person and another company.
+- Unit: `po-totals.test.ts` 6, `purchase-order.test.ts` 6, five guard cases and a fixture in `machines.test.ts`; `agent-refusals.test.ts` inputs for the ten people-only commands.
+
+**Checks run.**
+- Unit: `@shakti/domain` `vitest run src` 112 files, 2924 passed; `@shakti/contracts` 25 files, 340 passed.
+- `pnpm --filter @shakti/db exec vitest run --config vitest.security.config.ts` on `purchase-orders`, `grants`, `enum-sync`, `role-entity-matrix`: 4 files, 340 passed.
+- `pnpm --filter @shakti/domain exec vitest run --config vitest.security.config.ts tests/commands/purchase-orders.test.ts`: 21 passed, 4 failed on `stock_reason_not_open`, as expected without X4. **With X4's opening simulated** (the `receipt` grant, `receipt` creating serials and `receipt` among the reversible reasons, patched into the slot database's `app.stock_move()` by hand and restored byte for byte afterwards, never committed): 25 passed.
+- `agent-refusals.test.ts`: 60 passed. Web `errors-catalogue`, `audit`, `contract-values`: 29 passed. `pnpm copy-lint`: clean. Typecheck of contracts, db, domain and web: clean. ESLint on every touched folder: clean. Prettier: clean.
+- `pnpm test:security` (through the lock): db 63 files, 1826 passed; domain 111 files, 1540 passed and 4 failed, the four receipt tests on `stock_reason_not_open` (X4); turbo stopped before web, so `pnpm --filter web test:security` ran on its own: 39 files, 461 passed. No full `pnpm lint`, `pnpm build` or `js-budget` yet: no screen or route is built.
+
+**Blocker for the lead: a receipt's reversal.** `app.stock_move()` refuses to reverse a movement whose reason is not in `('opening', 'adjust_gain', 'adjust_loss', 'damage', 'count', 'transfer')` (0231, kept by X4's redefinition), so `procurement.grn.reverse` is refused with `stock_reversal_not_allowed`. The ledger's own reversal is the right path (it takes the receipt's cost back out of the average, which an issue at the average would not). It needs `'receipt'` in that list, a body change I may not make. Either X4 (still open) or H2's body change could add it; my command, definer and tests are written for it. Without it, `procurement.grn.reverse` stays refused and its two tests fail. Also: a `reversal` needs `inventory.stock.adjust:entity` (H1's registry row), so a custom role with `procurement.grn.write` and not `inventory.stock.adjust` cannot reverse; the seed gives both to the same roles.
+
+**What I add once X4 merges** (one migration of my own, after taking `main` in):
+```sql
+insert into app.stock_reason_grants (reason, permission, opened_by)
+values ('receipt', 'procurement.grn.write:entity', 'u2-purchase-orders') on conflict (reason) do nothing;
+insert into app.stock_reason_serial_moves (reason, direction, from_states, creates, to_state, opened_by)
+values ('receipt', 'in', '{}', true, 'in_stock', 'u2-purchase-orders') on conflict (reason, direction) do nothing;
+```
+with its grant test.
+
+**Decisions the brief did not settle.**
+- Seven tables, not five: the two rate side tables are the house pattern (above).
+- `drafted_by` is whoever last wrote the draft (the workers principal for an unedited reorder draft), so the Inventory Manager who fills a reorder draft's rates cannot approve it alone.
+- "Executive" for the self-approval and limit rules is the role key `executive` (`app.role` in the guard).
+- `procurement.po.approve` also requires `procurement.rate.read` (the approver weighs the total), and is agent-forbidden.
+- A line's GST rate is resolved by the tax engine (item row, else HSN) when the line is written and stored as `tax_rate_id`/`tax_rate_pct`; with none in force the line has none and approval is refused (`po_lines_incomplete`), never a default rate. The supply is intra-state when the vendor's state equals the hub's state; an unregistered vendor (no state) is taken as within the state.
+- Unit rates keep four decimals as quotes do; the amount rounds half-up to the paisa; the tax engine taxes each line's amount.
+- Updating a draft's lines replaces them as a set; a line whose rate is left out keeps its item's previous rate only for a caller who reads rates (otherwise nothing is read and the rate is dropped).
+- A rate filled from a quote takes the vendor's live quote on the IST day, the company's own before the group's, lowest first.
+- Receiving needs the order `sent` or `partially_received`; one line per order line per receipt; no over-receipt; bins: receiving (default), storage or quarantine of the order's hub; quantities in the purchase unit, the ledger in stock units (`qty × unit_factor`); tracked items in whole units.
+- A serial number the item already has (any company) is refused, so a serial of a reversed receipt cannot be received again until the lead decides otherwise.
+- Reorder: free stock counts storage and receiving bins (goods received and not yet put away), on order counts draft to partially received; one draft per company, preferred vendor and hub; quantities rounded up to whole purchase units when a purchase unit holds several stock units; items without a preferred active vendor are counted, not drafted.
+- Reorder rules need a writer, so `procurement.reorder_rule.set` and `.remove` (`procurement.po.write`) exist beside the brief's commands.
+- Close is allowed from partially received or received, always with a reason; a receipt of a closed order cannot be reversed (the machine has no move).
+- No `unmaskedFields` on receipt serials or invoice numbers (as H1's stock commands); a 12-digit serial with a valid Aadhaar check digit would be masked. Flagged, not changed.
+
+**Not yet built (after the early check):** the notice to the Inventory Manager on a reorder draft and the daily and on-issue triggers (workers), the mailer and PDF for `send`, the queries and DTOs for the screens, the scan field, the purchase order PDF template, the screens and journeys, `EXPLAIN (ANALYZE)` evidence for the lists, docs/06-api.md.
+
+**Shared registration points touched** (each under a U2 comment): permission catalogue and seed, `SYSTEM_MATRIX`, `WORKSHOP_DEFAULTS`, event catalogue, machine registry, testing lists, `en.json`. Migration redefinitions to recheck at the merge: `app.platform_only_permissions()` (H2 adds `inventory.reservations.process`), `app.next_document_no()` and `document_sequences_doc_type_check` (R3 adds `warranty_claim`).
 
 ## Review
 
