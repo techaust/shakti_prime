@@ -111,7 +111,7 @@ const ROW_COLUMNS = {
   step: sql<{ key: string; title: string | null } | null>`${currentStep(schema.projects.id)}`,
 };
 
-type ListedRow = {
+interface ListedRow {
   id: string;
   entityId: number;
   projectNo: string;
@@ -122,7 +122,7 @@ type ListedRow = {
   updatedAt: Date;
   ownerName: string | null;
   step: { key: string; title: string | null } | null;
-};
+}
 
 async function toRows(ctx: ProjectReadContext, rows: readonly ListedRow[]) {
   const customers = await customersOf(
