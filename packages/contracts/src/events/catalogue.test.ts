@@ -78,6 +78,8 @@ describe('the event catalogue', () => {
         'procurement.po.drafted',
         // U2: the purchase order mailer.
         'procurement.po.sent',
+        // A sheet of QR labels (Q1).
+        'print.labels.requested',
         'sales.order.confirmed',
         'sales.order.credit_held',
         'sales.quote.accepted',

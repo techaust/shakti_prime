@@ -7,11 +7,21 @@ import { lightColor } from './styles';
 /** Medium error correction: survives a scuffed or partly covered label. */
 const LEVEL = 'M';
 
-export async function qrSvg(payload: string): Promise<string> {
+/**
+ * The light border a scanner needs round a code, in modules (ISO/IEC 18004 asks for four). A label
+ * draws it inside the code's own picture, so nothing printed beside the code can come into it.
+ */
+export const QUIET_ZONE = 4;
+
+/**
+ * A QR code as SVG, drawn with `quietZone` light modules round it (none by default, for a page
+ * whose own white space round the code is wide enough).
+ */
+export async function qrSvg(payload: string, quietZone = 0): Promise<string> {
   return QRCode.toString(payload, {
     type: 'svg',
     errorCorrectionLevel: LEVEL,
-    margin: 0,
+    margin: quietZone,
     color: { dark: lightColor('text'), light: lightColor('bg') },
   });
 }

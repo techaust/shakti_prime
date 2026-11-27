@@ -599,7 +599,8 @@
     "goods_receipt_moved_on": "Some of this receipt’s stock has already moved on, so the receipt cannot be reversed. Correct the stock with an adjustment instead.",
     "reorder_rule_exists": "This item already has a reorder rule at this hub. Change that rule instead.",
     "reorder_rule_whole_units": "Items with serial numbers are reordered in whole units.",
-    "reorder_rule_missing": "This reorder rule could not be found."
+    "reorder_rule_missing": "This reorder rule could not be found.",
+    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -2041,7 +2042,9 @@
       "goodsReceiptReverse": "Goods receipt reversed",
       "reorderRuleSet": "Reorder rule set",
       "reorderRuleRemove": "Reorder rule removed",
-      "reorderDraft": "Purchase orders drafted to reorder"
+      "reorderDraft": "Purchase orders drafted to reorder",
+      "labelPrint": "Labels printed",
+      "labelReprint": "Label printed again"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2113,7 +2116,8 @@
       "purchaseOrderCancelled": "Purchase order cancelled",
       "purchaseOrderClosed": "Purchase order closed",
       "goodsReceiptPosted": "Goods received",
-      "goodsReceiptReversed": "Goods receipt reversed"
+      "goodsReceiptReversed": "Goods receipt reversed",
+      "labelsRequested": "Labels sent for printing"
     },
     "sheet": {
       "title": "{action}",
@@ -2468,7 +2472,10 @@
       "vendorInvoiceDate": "Vendor’s invoice date",
       "reverseReason": "Why it was reversed",
       "reorderLevel": "Reorder level",
-      "reorderQty": "Quantity to reorder"
+      "reorderQty": "Quantity to reorder",
+      "labelKind": "Kind of label",
+      "labelCount": "Labels on the sheet",
+      "labelNote": "Why it was printed again"
     },
     "values": {
       "percent": "{value}%",
@@ -2672,6 +2679,11 @@
       "poSentVia": {
         "email": "Email",
         "by_hand": "By hand"
+      },
+      "labelKind": {
+        "serial": "Serial number",
+        "bin": "Bin",
+        "package": "Package"
       }
     }
   },
@@ -2724,7 +2736,12 @@
     "label": {
       "serial": "Serial number",
       "item": "Item code",
-      "scan": "Scan for warranty"
+      "hub": "Hub",
+      "dispatch": "Dispatch number",
+      "package": "Package",
+      "packageOf": "{n} of {count}",
+      "place": "Deliver to",
+      "fileName": "{count, plural, one {# label} other {# labels}}.pdf"
     },
     "company": {
       "gstin": "GSTIN",
@@ -3662,7 +3679,8 @@
       "whatsapp_media": "File sent on WhatsApp",
       "call_recording": "Call recording",
       "call_transcript": "Call transcript",
-      "vendor_quote": "Supplier quote"
+      "vendor_quote": "Supplier quote",
+      "label_sheet": "Labels to print"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -7180,6 +7198,30 @@
       "saved": "Reorder rule saved.",
       "remove": "Remove",
       "removeLabel": "Remove the rule for {hub}"
+    },
+    "labels": {
+      "printLabels": "Print labels for {name}",
+      "firstLabel": "Print the label",
+      "reprintLabel": "Print the label again",
+      "printHubTitle": "Bin labels for {name}",
+      "printHubIntro": "{count, plural, one {One label} other {# labels}}, one for each bin of this hub. Open the sheet when it is ready and print it on the hub's label printer.",
+      "printBinTitle": "Label for bin {bin}",
+      "printBinIntro": "One label for this bin of {hub}. Open it when it is ready and print it on the hub's label printer.",
+      "printSerialTitle": "Label for {serial}",
+      "printSerialIntro": "One label for this serial number. Open it when it is ready and print it on the hub's label printer.",
+      "reprintBinTitle": "New label for bin {bin}",
+      "reprintBinIntro": "A new label for this bin of {hub}. Say why it needs one; the reason is kept with the bin's history.",
+      "reprintSerialTitle": "New label for {serial}",
+      "reprintSerialIntro": "A new label for this serial number. Say why it needs one; the reason is kept with the serial's history.",
+      "note": "Why it needs a new label",
+      "noteHelper": "Such as a torn, faded or lost label. 3 to 300 characters.",
+      "noteInvalid": "Say why in 3 to 300 characters.",
+      "printSubmit": "Print labels",
+      "printOneSubmit": "Print the label",
+      "working": "Printing {count, plural, one {the label} other {# labels}}. This takes a few seconds.",
+      "ready": "{count, plural, one {The label is} other {The labels are}} ready to print.",
+      "slow": "The labels are taking longer than usual. Close this and try again in a minute.",
+      "openLabels": "Open the labels"
     }
   },
   "scan": {

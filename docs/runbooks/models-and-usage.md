@@ -5,7 +5,7 @@ Which Claude model and effort level each task runs on, how many agents run at on
 **At a glance.** Opus 5.5 at high effort runs every task: the lead session, every agent and every check. No other model or effort is used. The number of agents at once follows the machine's resources: two on the PC with at most one driving a browser, and as many as the cloud VM's free memory and processors allow on a cloud day (§3). Before any agent, the lead reads the 5-hour window against the gate (§5); after the session, `tools/integration/agent-usage.py` shows what each run cost and whether it ran at its setting (§7).
 
 ## 1. Principles
-- The plan is the claude.ai Team plan with a Premium seat: no weekly limit, and a 5-hour window shared by every model. Extra usage stays off; only the owner switches it on.
+- The plan is the claude.ai Team plan with a Premium seat: a 5-hour window shared by every model, and a weekly limit (imposed by Claude on Team Premium seats; the owner, 27-11-2026), each account with its own reset. Extra usage stays off; only the owner switches it on.
 - One model and one effort do all the work: Opus 5.5 (`claude-opus-5-5`) at high, pinned in every agent file. Sonnet 5.5, Haiku 5.5 and Fable 5.1 are not used, and neither are the low, medium, xhigh and max efforts. The pin stays on Opus 5.5 for the whole project; only when Anthropic retires it does its successor in the Opus family take its place, at high, and the lead tells the owner.
 - Rework and test re-runs cost more than any setting (§7), so the brief carries the review's checklist and builders test their own screens before they report.
 - A session runs entirely on the PC or entirely in a cloud session, as the owner chooses that day; the model, the effort and the gate are the same in both places, and only the number of agents at once differs (§3).
@@ -76,7 +76,7 @@ The PC runs every check of `integrate.sh` but only the slice's own journeys (`E2
 5. **`main` taken early:** when `main` has moved since the slice branched, it is merged into the slice before the review, not after.
 
 ## 5. The budget gate
-Before starting any agent, the lead reads one number: the 5-hour window (the plan has no weekly limit). On the PC it reads it with the session's usage tool. In a cloud session, which cannot read it, the owner posts it at the session's start and whenever the lead asks before an agent, in one line: `usage: 5h 12`. The limit is the owner's (29-10-2026).
+Before starting any agent, the lead reads two numbers per account: the 5-hour window and the weekly bar (Claude's weekly limit on Team Premium seats, 27-11-2026; the weekly row of the table below). On the PC it reads it with the session's usage tool. In a cloud session, which cannot read it, the owner posts it at the session's start and whenever the lead asks before an agent, in one line: `usage: 5h 12`. The limit is the owner's (29-10-2026).
 
 | Reading | What runs |
 |---|---|
@@ -84,6 +84,7 @@ Before starting any agent, the lead reads one number: the 5-hour window (the pla
 | The 5-hour window over 95 % | Nothing new starts until it resets; a review or a running agent continues and commits as it goes |
 | A cloud reading older than two hours | One agent at a time |
 | No cloud reading that day | Nothing new; the lead finishes, reviews and merges what is in flight, asks again, and never guesses a reading |
+| The weekly bar, each account (27-11-2026) | At or under its straight line to its reset (100 % × hours since the reset ÷ 168, plus 5 points); above it, one agent fewer (to one); more than 10 points under, up to five where the 5-hour bar and the VM allow |
 | Seats (each account read alone, from the owner's one line for all five; 27-11-2026) | Under two hours old: as above, up to the seat file's `max_agents`; two to five hours old: finished agents replaced, none added; older or none that day: at most two agents; a usage-limit stop pauses that account's lanes for five hours |
 
 The usage card also shows a Fable bar where the plan has one. It stays at 0 %; a higher reading means a conversation or an agent ran on Fable 5.1, and the lead tells the owner.

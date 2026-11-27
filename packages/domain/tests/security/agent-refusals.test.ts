@@ -390,6 +390,14 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     note: 'Refused gain',
   },
   'inventory.stock.reverse': { entityId: 1, movementId: newId() },
+  // Q1 labels: printing a sheet of labels is a person's work at the hub.
+  'inventory.label.print': { entityId: 1, labelKind: 'bin', ids: [newId()] },
+  'inventory.label.reprint': {
+    entityId: 1,
+    labelKind: 'serial',
+    ids: [newId()],
+    note: 'Refused reprint',
+  },
   // The Agent Inbox and agent settings: a person decides, never an agent (SECURITY §3.3).
   ...Object.fromEntries(
     [

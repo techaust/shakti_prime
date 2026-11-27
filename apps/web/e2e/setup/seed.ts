@@ -59,6 +59,8 @@ import { ensurePurchaseOrderJourneys } from './purchase-orders';
 import { ensureScreenPopJourneys } from './screen-pop';
 import { ensureShadowPackJourney } from './shadow-pack';
 import { ensureStockJourneys } from './stock';
+// Q1 labels
+import { ensureLabelJourneys } from './labels';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
@@ -916,6 +918,9 @@ await ensureStockJourneys(ids.executive ?? '');
 // U2: the purchase orders the journeys receive and the snapshot company's order, after the hubs.
 progress('the purchase orders');
 await ensurePurchaseOrderJourneys(ids.executive ?? '');
+// Q1 labels: a serial per project, in the stock journeys' first bin.
+progress('the labels journeys');
+await ensureLabelJourneys(ids.executive ?? '');
 
 progress('the Lead Converter workspace');
 // One converter of company 2 per project, none of them a handover target, each with three leads
