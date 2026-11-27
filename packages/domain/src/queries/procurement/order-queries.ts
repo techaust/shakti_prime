@@ -514,9 +514,10 @@ export interface PurchaseOrderMail {
  * platform-only `procurement.po.mail` and no person's grant: through `app.purchase_order_for_mail()`
  * only, one order of the worker's company that a person sent by email, with its rates for the
  * vendor's copy, the vendor's person and the sender's address. Undefined for an order that is not
- * that (never approved, sent by hand, cancelled since), so nothing is mailed.
+ * that (never approved, sent by hand, cancelled since), so nothing is mailed. Read on `app_user`
+ * (`pool: 'app_user'`): `app_reader` may not run the definer, as no worker definer of its kind.
  */
-export async function getPurchaseOrderForMail(
+export async function purchaseOrderForMail(
   ctx: QueryContext,
   input: { purchaseOrderId: string; vendorContactId: string; sentBy: string },
   now: Date = new Date(),

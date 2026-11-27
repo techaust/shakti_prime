@@ -242,7 +242,7 @@ export { poLineAmount, purchaseOrderTotals, stockUnitCost } from './procurement/
 export {
   getPurchaseOrder,
   getPurchaseOrderPrint,
-  getPurchaseOrderForMail,
+  purchaseOrderForMail,
   getReceiveGoods,
   listGoodsReceipts,
   listPurchaseOrders,

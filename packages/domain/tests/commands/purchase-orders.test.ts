@@ -32,7 +32,7 @@ import {
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import {
   getPurchaseOrder,
-  getPurchaseOrderForMail,
+  purchaseOrderForMail,
   getPurchaseOrderPrint,
   listGoodsReceipts,
   listPurchaseOrders,
@@ -963,7 +963,7 @@ describe('the purchase order mailer’s read (review finding 4)', () => {
     principalFor('system:workers', entityIds, { id: SYSTEM_WORKERS_PRINCIPAL_ID });
   const readMail = (who: Principal, purchaseOrderId: string) =>
     asPrincipal(who, (context) =>
-      getPurchaseOrderForMail(context, {
+      purchaseOrderForMail(context, {
         purchaseOrderId,
         vendorContactId: contact,
         sentBy: buyer.id,

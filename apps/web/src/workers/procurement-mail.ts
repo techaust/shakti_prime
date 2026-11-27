@@ -2,7 +2,7 @@ import type { DeliveredEvent, Principal } from '@shakti/contracts';
 import {
   executeCommand,
   executeQuery,
-  getPurchaseOrderForMail,
+  purchaseOrderForMail,
   notifyEvent,
   type Logger,
   type Mailer,
@@ -23,7 +23,7 @@ interface MailRead {
 }
 
 export interface PurchaseOrderMailDeps {
-  /** The vendor's copy, as the worker (`getPurchaseOrderForMail`). */
+  /** The vendor's copy, as the worker (`purchaseOrderForMail`). */
   read: (input: MailRead) => Promise<PurchaseOrderMail | undefined>;
   mailer: Mailer;
   /** The order's PDF from its print data (`purchaseOrderPdf`, Chromium). */
@@ -46,8 +46,9 @@ function defaultDeps(principal: Principal, requestId: string): PurchaseOrderMail
       executeQuery(
         principal,
         { entityIds: [entityId], requestId },
-        (q) => getPurchaseOrderForMail(q, input),
-        { name: 'procurement.po.mail' },
+        (q) => purchaseOrderForMail(q, input),
+        // The definer is the worker's, not the reading role's: on app_user, as the media sweep's.
+        { name: 'procurement.po.mail', pool: 'app_user' },
       ),
     mailer: defaultAuthDeps().mailer,
     pdf: async (data, id) => {

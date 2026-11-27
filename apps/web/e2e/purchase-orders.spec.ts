@@ -59,6 +59,10 @@ test.describe('as the Inventory Manager of company 1', () => {
     // 100 m at ₹72.50 within Rajasthan at 18 %: ₹7,250 + ₹652.50 + ₹652.50.
     await expect(page.getByText('₹7,250.00').first()).toBeVisible();
     await expect(page.getByText('₹8,555.00')).toBeVisible();
+    // A draft never prints: no Download PDF, and its PDF address answers not found.
+    await expect(page.getByRole('link', { name: 'Download PDF' })).toHaveCount(0);
+    const draftPdf = await page.request.get(`${new URL(page.url()).pathname}/pdf`);
+    expect(draftPdf.status()).toBe(404);
     // Nobody approves an order they drafted, unless they are an Executive.
     await page.getByRole('button', { name: 'Approve' }).click();
     await expect(
