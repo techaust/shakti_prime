@@ -5,9 +5,9 @@
 | Branch | `feat/f1-field-foundation` on GitHub, from `main` after the approved design (#295), with the lead's commit adding `apps/field/package.json` and the lockfile |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): authentication, tokens, device revocation |
-| Usage | briefed 27-11-2026; built by the slice builder on Opus 5.5 at high effort (27-11-2026, early check and done; the fix round, 27-11-2026, Opus 5.5 at high) |
-| State | fixes done |
-| Next step | the reviewer re-checks finding 1's fix (`cf117266`), then integration on a fresh database (the journey and the Linux baselines of `field-phones.spec.ts`) |
+| Usage | briefed 27-11-2026; built by the slice builder on Opus 5.5 at high effort (27-11-2026, early check and done; the fix rounds 1 and 2, 27-11-2026, Opus 5.5 at high) |
+| State | fixes 2 done |
+| Next step | the lead reads the second round's diff (`5fd64d1f..`), then integration on a fresh database (the journey and the Linux baselines of `field-phones.spec.ts`) |
 
 ## Brief
 Build [phase4 §6.4](../../03-roadmap-appendix/phase4.md#64-f1-field-app-foundation-and-mobile-sign-in) as written, with question 7 (a): ADR 0012 accepted. Change its status line to "Accepted (27-11-2026, Phase 4 design)", with one correction if you find one (WatermelonDB uses its own SQLite adapter, not expo-sqlite: say which the app uses). Follow [AGENTS §5](../../../AGENTS.md#5-domain-commands) and [AGENTS §6](../../../AGENTS.md#6-database-changes). Points the design leaves to you, settled here:
@@ -253,6 +253,40 @@ Every finding the lead marked to fix (1, 2, 3, 5, 6, 7, 8), finding 4 recorded, 
 - A bare `unauthorized` after the retry signs the phone out with a new sentence, "Your sign-in on this phone has ended. Please sign in again." (field catalogue), rather than "Something went wrong on our side".
 - Sentry's Expo config plugin (`@sentry/react-native/expo`) is not added: it uploads source maps, which nothing here does. The DSN and environment come from `EXPO_PUBLIC_SENTRY_DSN` and `EXPO_PUBLIC_SENTRY_ENVIRONMENT` per EAS profile; none is set in `eas.json` yet (the owner's Sentry project).
 - The local database still holds 0243 as first applied (a valid check); a fresh database gets it `NOT VALID`, as the import kinds' checks already are.
+
+### 27-11-2026, cloud worktree of the lead's VM: fixes 2
+Findings 9 and 11 of the re-check, as the lead's triage asks; finding 10 recorded. An earlier agent on this lane pushed the two fix commits and was stopped before its checks and this report; I read both diffs against `5fd64d1f`, found them complete against the triage, formatted one test file (`pnpm format:check` failed on it) and ran the checks. Skills loaded: none (no new command or table).
+
+**Finding 9 (medium), `e6edc437`.**
+- `redact()` and its field rules (`IDENTITY_KEYS`, `normaliseKey`, `CODE_KEYS`, `isCodeKey`, `isMeasureKey`, `isLongNumber`, `fieldKind`, `keepsAsCode`, `scrubValue`, `redactError`) move unchanged from `packages/domain/src/ports/redaction.ts` to `packages/contracts/src/masking/redaction.ts` (pure, no import beyond the masking folder); the only difference is the import of `redactText` from its sibling. The domain module re-exports them, so `@shakti/domain/redaction` (the web's Sentry scrub and error reports, the logger) is unchanged. One copy, no second list.
+- `apps/field/src/observability/sentry-scrub.ts`: `scrubFields()` drops the fields only a phone carries (its PIN, authenticator and backup codes, which `redact` would keep as codes; the installation id; headers and bodies; an address cut to its path) and then runs `redact()`. A number of ten digits or more becomes `[number]`, every identity key `[redacted]`, text is scrubbed as the logs are (a phone in text to its last four digits).
+- Tests: `sentry-scrub.test.ts` gains *hides a number of ten digits or more and every identity field, as the web does* (each of `IDENTITY_KEYS`, and `panNumber`, `aadhaarNumber`, `accountNo`, `bank_account_number`, `ifscCode`, `uid`, a numeric `mobile`, `phone` and `whatsapp`, in extra, contexts, breadcrumbs and spans); `sentry.test.ts`'s token field now reads `[redacted]` rather than being dropped.
+
+**Finding 11 (low), `4b1db1f2`.**
+- `admin.role.permissions.set`: `revokeHolderSessions` signs every holder's phone out, the editor's included, with `role_changed` and `revoked_by` the editor, in the command's transaction, through `signOutPhones()` (now shared with `revokeUserSessions()` in `admin/shared.ts`). Should the policy hold a phone back, the save is refused with `role_holders_kept`, as for sessions (`livePhoneCount()` before, the signed-out count after).
+- An authenticator enrolment: `finishEnrolment()` calls `authDeviceStore.signOutEverywhere(userId, 'totp_enrolled', now)`, as the triage asks. `totp_enrolled` joins `MOBILE_ACCOUNT_CHANGE_REASONS`, the phones' reasons check (new migration, `NOT VALID`), the schema, the Phones sheet's labels (`en.json`: "Authenticator app set up") and `docs/data`.
+- Tests: `admin-roles.test.ts`, the change test checks every holder's phone signed out with the editor as `revoked_by` and a bystander's phone untouched, and the archived-company test checks its holder's phone; `mobile-auth.test.ts` gains *when they set up an authenticator app* (enrols on the website, calls `finishEnrolment()`, then the phone's row reads `totp_enrolled` and `/me` and a refresh are refused). `createTestMobileDevice()` joins `@shakti/db/testing`, replacing the copy in `field-foundation.test.ts`.
+- SECURITY §2 (Sessions and Mobile) names both paths; DATABASE's `mobile_devices` row lists the account-change reasons, `totp_enrolled` included.
+
+**Finding 10: recorded** in SECURITY §2, Mobile, as a known limit (accepted 27-11-2026), and in the comments of `sentry.ts` and `sentry-scrub.ts`.
+
+**Tests added in this round.** `apps/field`: 1 (31 in 7 files); `mobile-auth.test.ts`: 1 (30); `admin-roles.test.ts`: phone assertions in 2 existing tests.
+
+**Checks** (all through the lock, on 54333):
+- `pnpm db:migrate` applied the new migration (the reasons check now lists `totp_enrolled`, `convalidated = f`); `pnpm db:seed` passed.
+- Security, db: `mobile-devices`, `enum-sync`, `app-reader`, `role-entity-matrix`: 4 files, 112 passed. db docs (`src/docs`): 2 files, 23 passed.
+- Security, domain: `admin-roles`, `field-foundation`, `admin-two-factor`, `admin-users`: 4 files, 38 passed; `audit-trail`: 13 passed.
+- Security, web: `mobile-auth`, `auth`, `actions`: 3 files, 105 passed.
+- Unit: contracts 340, db 162, domain 2,809, web 1,242 passed and 1 skipped, voice-agent 23, field 31 (7 suites).
+- Typecheck of contracts, db, domain, field and web: clean. `pnpm lint` (whole repository, `--max-warnings 0`): clean. `pnpm copy-lint`: clean. `pnpm format:check`: clean after formatting `mobile-auth.test.ts`.
+- **Not run:** the whole `pnpm test:security`, `pnpm build`, `js-budget` and the journey `field-phones.spec.ts`. `e2e:seed` refuses this database because 0243 changed on disk after it ran here; **a fresh database is needed** for the journey, at integration. The screens changed only by one reason label.
+
+**`EXPLAIN (ANALYZE)`** of `livePhoneCount()`'s statement (38 phones on this database, so the planner chose a sequential scan, 0.065 ms; with `enable_seqscan` off): Bitmap Index Scan on `mobile_devices_user_device_unique` for `user_id = any(...)`, `revoked_at is null` as a filter, 0.076 ms. The sign-out's statement is the one measured in the first round.
+
+**Decisions the triage did not settle (for the lead).**
+- The editor's own phones are signed out by a role-permissions edit (their website session is kept, as before): a phone cannot be named as the one to keep, and the editor may hold the role.
+- An enrolment's phone sign-out has its own reason, `totp_enrolled`, which the website sessions already use, rather than reusing `totp_reset`.
+- A token field (`refreshToken`) now reaches Sentry as `[redacted]`, as on the web, rather than being dropped; the phone's own secret fields are still dropped.
 
 ## Review
 

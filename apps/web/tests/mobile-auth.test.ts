@@ -187,7 +187,11 @@ async function enrolAuthenticator(user: { email: string }) {
     returnHeaders: true,
   });
   web.set('cookie', cookieHeader(first.headers));
-  const before = await resolveSessionPrincipal(web, undefined, { auth, keyValue, now: () => clock });
+  const before = await resolveSessionPrincipal(web, undefined, {
+    auth,
+    keyValue,
+    now: () => clock,
+  });
   const enrol = await auth.api.enableTwoFactor({
     body: { password: PASSWORD, method: 'totp' },
     headers: web,
