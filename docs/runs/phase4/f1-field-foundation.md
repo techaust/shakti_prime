@@ -240,4 +240,17 @@ Also explain `pnpm peers check`'s missing `expo`, `react` and `react-native` pee
 - The Android Gradle build: unproved until the first CI run.
 - `EXPLAIN` figures: taken from the builder's report.
 
+**The lead's triage (27-11-2026):**
+- **To fix in the one fix round:**
+  - **1:** the principal cache key carries the user id, for example `mobile:<installation>:<user id>`, and a cached entry is used only when `cached.principal.id === userId`. Add a test: two people sign in in turn on one installation, and each gets their own principal and leads.
+  - **2:** every path that ends a person's website sessions also signs out their phones: a password change with `revokeOtherSessions`, the reset, the Executive's authenticator reset, and `revokeUserSessions`. Do it in one shared helper, with a test per path.
+  - **3:** the app keeps the access token's expiry and refreshes before use when it is within a minute of it. Sign-out refreshes first when needed, so the server's row is ended.
+  - **5:** an unreadable `FIELD_MIN_APP_VERSION` is reported in `productionConfigProblems()`.
+  - **6:** send the model and OS version.
+  - **7:** lock again after 5 minutes in the background (`AppState`).
+  - **8:** fix the comment, and add `integration_unavailable` to both endpoints and API §3.1.
+  - The six packages, as the note above says.
+- **4: accepted and recorded.** The reuse rule depends on it, and the installation id is exposed only to whoever already holds the phone's token. Record it in SECURITY §2 as a known limit.
+- **Finding 1 is critical, so the reviewer re-checks the fix diff.**
+
 ## Integration
