@@ -543,7 +543,8 @@ export const SNAPSHOT_VENDORS = {
  * each run: per journey project, in company 1, two confirmed orders of the journeys' customer with
  * its site, each with its project of the five standard steps, all open, run by the Project
  * Manager. The first the Project Manager moves; on the second the Field Engineer is named, and
- * nobody moves it. Every name here is a test value for these journeys alone.
+ * nobody moves it. A third order, of a customer of its own, has no project until the Project
+ * Manager starts one. Every name here is a test value for these journeys alone.
  */
 export const PROJECT_JOURNEY = {
   entityId: 1,
@@ -571,6 +572,28 @@ export const PROJECT_JOURNEY = {
       'desktop-dark': '01990000-0000-7000-8000-0000e2e00211',
       phone: '01990000-0000-7000-8000-0000e2e00212',
     },
+  },
+  /**
+   * Per journey project, a confirmed order with no project, of a customer of its own, which the
+   * Project Manager starts a project for from the order page and then finds on Account 360.
+   */
+  start: {
+    soNo: {
+      'desktop-light': 'JRN/SO/2098-99/0021',
+      'desktop-dark': 'JRN/SO/2098-99/0022',
+      phone: 'JRN/SO/2098-99/0023',
+    },
+    orderIds: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00300',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00301',
+      phone: '01990000-0000-7000-8000-0000e2e00302',
+    },
+    accountIds: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00030',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00031',
+      phone: '01990000-0000-7000-8000-0000e2e00032',
+    },
+    customer: 'Journey new project customer',
   },
   customer: 'Journey project customer',
   village: 'Journey village',

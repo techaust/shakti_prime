@@ -72,6 +72,9 @@ describe('the event catalogue', () => {
         'messaging.message.received',
         'platform.probe.requested',
         'print.document.requested',
+        // J1: a project kept for its cancelled order, told to its Project Manager.
+        'projects.project.order_cancelled',
+        'sales.order.cancelled',
         'sales.order.confirmed',
         'sales.order.credit_held',
         'sales.quote.accepted',

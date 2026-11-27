@@ -1,7 +1,9 @@
 // J1's project journey fixtures (`e2e/projects.spec.ts`), written by the seed on the host as the
 // table owner, afresh each run: the journeys' customer of company 1 with a site, and per journey
 // project two confirmed orders, each with its project of the five standard steps, all open, run by
-// the Project Manager; the Field Engineer is on the second. Fixed ids, so a run replaces the last.
+// the Project Manager; the Field Engineer is on the second; and a third confirmed order, of a
+// customer of its own, with no project (a journey starts one). Fixed ids, so a run replaces the
+// last, and the projects a journey started go with the seed's orders.
 // Every name here is a test value for these journeys alone.
 import { asMigrator, tierId } from '@shakti/db/testing';
 import { PROJECT_JOURNEY, PROJECTS } from '../support/users';
@@ -23,9 +25,11 @@ export async function ensureProjectJourneys(people: {
   await asMigrator((m) =>
     m.begin(async (tx) => {
       const like = `${P}%`;
-      await tx`delete from project_assignments where project_id::text like ${like}`;
-      await tx`delete from project_milestones where project_id::text like ${like}`;
-      await tx`delete from projects where id::text like ${like}`;
+      // The seed's projects, and those a journey started on the seed's orders.
+      const projects = tx`select id from projects where id::text like ${like} or sales_order_id::text like ${like}`;
+      await tx`delete from project_assignments where project_id in (${projects})`;
+      await tx`delete from project_milestones where project_id in (${projects})`;
+      await tx`delete from projects where id::text like ${like} or sales_order_id::text like ${like}`;
       await tx`delete from sales_orders where id::text like ${like}`;
       await tx`insert into accounts (id, type, name, created_by)
         values (${ACCOUNT}, 'farm', ${PROJECT_JOURNEY.customer}, ${people.executive})
@@ -37,6 +41,25 @@ export async function ensureProjectJourneys(people: {
         values (${SITE}, ${ACCOUNT}, 'borewell', ${PROJECT_JOURNEY.village}, 'Jaipur', ${people.executive})
         on conflict (id) do nothing`;
       for (const [i, project] of PROJECTS.entries()) {
+        // The order the Project Manager starts a project for, of a customer of its own.
+        const start = PROJECT_JOURNEY.start;
+        const account = start.accountIds[project];
+        const startSite = id(0x0050 + i);
+        await tx`insert into accounts (id, type, name, created_by)
+          values (${account}, 'farm', ${start.customer}, ${people.executive})
+          on conflict (id) do nothing`;
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+          values (${id(0x0040 + i)}, ${account}, ${e}, ${people.executive}, ${people.executive})
+          on conflict (id) do nothing`;
+        await tx`insert into customer_sites (id, account_id, type, village, district, created_by)
+          values (${startSite}, ${account}, 'borewell', ${PROJECT_JOURNEY.village}, 'Jaipur', ${people.executive})
+          on conflict (id) do nothing`;
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, account_type, site_id,
+                   tier_id, place_of_supply_state, supply_kind, state, subtotal, cgst, sgst, igst,
+                   tax_total, round_off, grand_total, confirmed_at, confirmed_by, created_by)
+          values (${start.orderIds[project]}, ${e}, ${start.soNo[project]}, '2098-99', ${account}, 'farm',
+                  ${startSite}, ${tierId('retail')}, '08', 'intra', 'confirmed', 0, 0, 0, 0, 0, 0, 0,
+                  now(), ${people.executive}, ${people.executive})`;
         const pairs = [
           {
             no: PROJECT_JOURNEY.managed[project],

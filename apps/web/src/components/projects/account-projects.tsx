@@ -19,10 +19,10 @@ export async function AccountProjects({ projects }: { projects: readonly Project
       ? t('suryaGharStep')
       : r.stepKey === null
         ? t('noStep')
-      : (r.stepTitle ??
-        (isOneOf(DEFAULT_PROJECT_STEPS, r.stepKey)
-          ? t(`defaultSteps.${r.stepKey}`)
-          : wordsOf(r.stepKey)));
+        : (r.stepTitle ??
+          (isOneOf(DEFAULT_PROJECT_STEPS, r.stepKey)
+            ? t(`defaultSteps.${r.stepKey}`)
+            : wordsOf(r.stepKey)));
   return (
     <section
       aria-labelledby="account-projects"

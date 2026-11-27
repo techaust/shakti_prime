@@ -721,7 +721,11 @@ describe('the project reads: the list, the page, Account 360, the order link, ch
       });
     }
     for (const key of WORKSHOP_DEFAULTS.projects.standardSteps) {
-      await run(manager, completeMilestone, { entityId: E, projectId: finished, milestoneKey: key });
+      await run(manager, completeMilestone, {
+        entityId: E,
+        projectId: finished,
+        milestoneKey: key,
+      });
     }
     await run(manager, completeProject, { entityId: E, projectId: finished });
     // The finished project is the newest change, and still comes after the open one.
@@ -760,9 +764,9 @@ describe('the project reads: the list, the page, Account 360, the order link, ch
     );
     expect(own.owners.map((o) => o.id)).toEqual([manager.id]);
     expect(
-      (
-        await asPrincipal(engineer, (ctx) => listProjectFilters(ctx, { entityId: E }))
-      ).owners.every((o) => o.id === manager.id),
+      (await asPrincipal(engineer, (ctx) => listProjectFilters(ctx, { entityId: E }))).owners.every(
+        (o) => o.id === manager.id,
+      ),
     ).toBe(true);
     const people = await asPrincipal(manager, (ctx) => listProjectPeople(ctx, { entityId: E }));
     expect(people.people.map((p) => p.id)).toEqual(
@@ -835,7 +839,11 @@ describe('projects.project.cancel_for_order: the project of a cancelled order (J
       assigneeIds: [engineer.id],
     });
     const [first] = WORKSHOP_DEFAULTS.projects.standardSteps;
-    await run(engineer, completeMilestone, { entityId: E, projectId: ownedId, milestoneKey: first });
+    await run(engineer, completeMilestone, {
+      entityId: E,
+      projectId: ownedId,
+      milestoneKey: first,
+    });
     await cancelOrder(owned);
     expect(await close(owned)).toEqual({ outcome: 'kept', projectId: ownedId });
     expect((await read(manager, ownedId)).state).toBe('active');

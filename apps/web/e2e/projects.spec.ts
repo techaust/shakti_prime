@@ -15,7 +15,9 @@ import { PROJECT_JOURNEY, PROJECTS, SNAPSHOT_COMPANY } from './support/users';
 // project, in company 1, two projects of the journeys' customer with the five standard steps all
 // open (`e2e/setup/projects.ts`): the Project Manager's, which the Project Manager takes through
 // its first steps, puts on hold and resumes; and one the Field Engineer is on, which nobody moves,
-// so the engineer's list shows the same rows every run. No name or number here is client data.
+// so the engineer's list shows the same rows every run. A third order per journey project, of a
+// customer of its own, has no project: the Project Manager starts one from the order page and
+// finds it on Account 360. No name or number here is client data.
 
 const NOT_FOUND = /^We couldn[’']t find this screen$/;
 
@@ -81,6 +83,53 @@ test.describe('as the Project Manager, a drafted project', () => {
     await page.getByRole('button', { name: 'Resume' }).click();
     await expect(page.getByText('Project resumed.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Mark done' })).toHaveCount(1);
+  });
+});
+
+test.describe('as the Project Manager, an order with no project', () => {
+  test.use(signedInAs('projectManager'));
+
+  test('starts its project from the order page, then finds it on Account 360', async ({ page }) => {
+    const project = projectName();
+    const start = PROJECT_JOURNEY.start;
+    const soNo = start.soNo[project];
+    const customerPage = `/customers/${start.accountIds[project]}?company=${String(PROJECT_JOURNEY.entityId)}`;
+
+    // Account 360 before: no project with this company yet.
+    await page.goto(customerPage);
+    const section = page.getByRole('region', { name: 'Projects' });
+    await expect(section.getByText('No projects with this company yet.')).toBeVisible();
+
+    await page.goto(`/orders/${String(PROJECT_JOURNEY.entityId)}/${start.orderIds[project]}`);
+    await expect(page.getByRole('heading', { name: soNo, level: 1 })).toBeVisible();
+    await (await hydrated(page.getByRole('button', { name: 'Start project' }))).click();
+    const dialog = page.getByRole('dialog', { name: `Start a project for ${soNo}` });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel('Business line').selectOption({ label: 'Farmer pumps' });
+    await expectNoAxeViolations(page);
+    await snap(page, 'project-start-dialog', { element: dialog });
+    await dialog.getByRole('button', { name: 'Start project' }).click();
+    await expect(page.getByText('Project started.')).toBeVisible();
+    // The new project's page, with its number from the company's series.
+    const heading = page.getByRole('heading', { level: 1 });
+    await expect(heading).toHaveText(/\/PRJ\//);
+    const projectNo = (await heading.textContent())?.trim() ?? '';
+    await expect(page.getByText('Farmer pumps', { exact: true }).first()).toBeVisible();
+
+    // The order now links its project.
+    await page.goto(`/orders/${String(PROJECT_JOURNEY.entityId)}/${start.orderIds[project]}`);
+    await expect(page.getByRole('link', { name: `Project ${projectNo}` })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Start project' })).toHaveCount(0);
+
+    // Account 360 lists it with its status and current step.
+    await page.goto(customerPage);
+    await expect(section.getByRole('link', { name: projectNo })).toBeVisible();
+    await expect(section).toContainText('In progress');
+    await expectNoAxeViolations(page);
+    await snap(page, 'account-projects', {
+      element: section,
+      mask: [section.getByRole('link', { name: projectNo })],
+    });
   });
 });
 
