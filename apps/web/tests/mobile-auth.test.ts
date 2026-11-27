@@ -391,13 +391,16 @@ describe('POST /auth/mobile/token', () => {
 });
 
 describe('POST /auth/mobile/refresh', () => {
-  it('rotates both tokens, and a rotated token presented again ends the family', async () => {
+  it('rotates both tokens, and a rotated token presented again after 120 seconds ends the family', async () => {
     const { user, phone, tokens } = await engineerOnPhone();
     const second = await pair(await refresh(tokens.refreshToken, phone.deviceId));
     expect(second.refreshToken).not.toBe(tokens.refreshToken);
     expect(second.accessToken).not.toBe(tokens.accessToken);
     expect((await me(second.accessToken)).status).toBe(200);
+    // the app goes on with the new pair
+    const third = await pair(await refresh(second.refreshToken, phone.deviceId));
 
+    // the first token, two rotations back, is reuse at once
     expect(await reasonOf(await refresh(tokens.refreshToken, phone.deviceId))).toEqual({
       status: 401,
       code: 'unauthorized',
@@ -407,10 +410,10 @@ describe('POST /auth/mobile/refresh', () => {
       revoked_reason: 'refresh_reused',
     });
     // Every token of the family is dead: the refresh token and the access token alike.
-    expect(await reasonOf(await refresh(second.refreshToken, phone.deviceId))).toMatchObject({
+    expect(await reasonOf(await refresh(third.refreshToken, phone.deviceId))).toMatchObject({
       reason: 'device_revoked',
     });
-    expect(await reasonOf(await me(second.accessToken))).toMatchObject({
+    expect(await reasonOf(await me(third.accessToken))).toMatchObject({
       reason: 'device_revoked',
     });
     const [event] = await asMigrator(
@@ -420,23 +423,52 @@ describe('POST /auth/mobile/refresh', () => {
     expect(event?.outcome).toBe('denied');
   });
 
-  it('gives a new pair to only one of two refreshes sent at once with the same token', async () => {
+  it('answers a retry of a lost answer within 120 seconds with the same pair, and ends the family after', async () => {
+    const { user, phone, tokens } = await engineerOnPhone();
+    const start = clock;
+    try {
+      // The answer of this refresh never reaches the phone.
+      const lost = await pair(await refresh(tokens.refreshToken, phone.deviceId));
+      clock = new Date(start.getTime() + 90 * 1000);
+      const retry = await pair(await refresh(tokens.refreshToken, phone.deviceId));
+      expect(retry.refreshToken).toBe(lost.refreshToken);
+      expect(retry.refreshTokenExpiresAt).toBe(lost.refreshTokenExpiresAt);
+      expect((await me(retry.accessToken)).status).toBe(200);
+      // the family goes on from the retried pair
+      const next = await pair(await refresh(retry.refreshToken, phone.deviceId));
+
+      // The same lost answer once more, 121 seconds after the rotation it belongs to: reuse.
+      const again = await engineerOnPhone();
+      clock = new Date(clock.getTime() + 1000);
+      const rotated = await pair(await refresh(again.tokens.refreshToken, again.phone.deviceId));
+      clock = new Date(clock.getTime() + 121 * 1000);
+      expect(
+        await reasonOf(await refresh(again.tokens.refreshToken, again.phone.deviceId)),
+      ).toMatchObject({ reason: 'refresh_reused' });
+      expect(
+        await reasonOf(await refresh(rotated.refreshToken, again.phone.deviceId)),
+      ).toMatchObject({
+        reason: 'device_revoked',
+      });
+      expect((await me(next.accessToken)).status).toBe(200);
+      expect(await phoneRow(user.id, phone.deviceId)).toMatchObject({ revoked_at: null });
+    } finally {
+      clock = start;
+    }
+  });
+
+  it('gives two refreshes sent at once with the same token the same new refresh token, never two', async () => {
     const { phone, tokens } = await engineerOnPhone();
     const answers = await Promise.all([
       refresh(tokens.refreshToken, phone.deviceId),
       refresh(tokens.refreshToken, phone.deviceId),
     ]);
-    const statuses = answers.map((a) => a.status).sort();
-    expect(statuses).toEqual([200, 401]);
-    const won = answers.find((a) => a.status === 200);
-    const lost = answers.find((a) => a.status === 401);
-    if (won === undefined || lost === undefined) throw new Error('expected one of each');
-    expect(await reasonOf(lost)).toMatchObject({ reason: 'refresh_reused' });
-    // The winner's pair belongs to the ended family too: the person signs in again.
-    const winner = await pair(won);
-    expect(await reasonOf(await refresh(winner.refreshToken, phone.deviceId))).toMatchObject({
-      reason: 'device_revoked',
-    });
+    expect(answers.map((a) => a.status)).toEqual([200, 200]);
+    const [first, second] = await Promise.all(answers.map((a) => pair(a)));
+    expect(first?.refreshToken).toBe(second?.refreshToken);
+    // the family goes on from that one token
+    const next = await pair(await refresh(first?.refreshToken ?? '', phone.deviceId));
+    expect((await me(next.accessToken)).status).toBe(200);
   });
 
   it('refuses a live token sent with another installation’s id, and ends its family', async () => {

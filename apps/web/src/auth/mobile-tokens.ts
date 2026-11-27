@@ -6,7 +6,7 @@ import {
   type StaffRoleKey,
 } from '@shakti/contracts';
 import { jwtVerify, SignJWT } from 'jose';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { BOS_JWT_ALGORITHM } from '../realtime/claims';
 import type { MobileKeys } from './mobile-keys';
 
@@ -86,6 +86,16 @@ export async function verifyMobileAccessToken(
 /** A new refresh token: 256 random bits in base64url, 43 characters (`RefreshTokenSchema`). */
 export function newRefreshToken(): string {
   return randomBytes(32).toString('base64url');
+}
+
+/**
+ * The refresh token a rotation hands out for `previous`: an HMAC of it under the pair's refresh
+ * key, as unguessable as a random one to anyone without the key, and the same for the same
+ * previous token. So a retry of a refresh whose answer was lost (the phone on a weak network)
+ * gets the very token the rotation stored the hash of, with no token kept by the server.
+ */
+export function nextRefreshToken(previous: string, keys: Pick<MobileKeys, 'refreshKey'>): string {
+  return createHmac('sha256', keys.refreshKey).update(`refresh\n${previous}`).digest('base64url');
 }
 
 /** What the server keeps of a refresh token: its SHA-256 in hex. */

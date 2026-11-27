@@ -1,4 +1,5 @@
 import { importJWK, type CryptoKey } from 'jose';
+import { createHash } from 'node:crypto';
 import { BOS_JWT_ALGORITHM } from '../realtime/claims';
 import { signingKey, SigningKeyError, type Env } from '../realtime/keys';
 
@@ -18,6 +19,12 @@ export interface MobileKeys {
   kid: string;
   privateKey: CryptoKey;
   publicKey: CryptoKey;
+  /**
+   * The secret a rotation derives the next refresh token from (`nextRefreshToken`), taken from the
+   * private key, so a retry whose answer was lost gets the same token again without the server
+   * keeping it. It changes with the pair.
+   */
+  refreshKey: Buffer;
 }
 
 function valueOf(env: Env, name: string): string | undefined {
@@ -94,7 +101,9 @@ export async function parseMobileKeys(env: Env = process.env): Promise<MobileKey
   if (publicKey instanceof Uint8Array) {
     throw new SigningKeyError(MOBILE_KEY_ENV.public, 'is not an asymmetric key');
   }
-  return { kid: signing.kid, privateKey: signing.privateKey, publicKey };
+  const { d } = JSON.parse(privateRaw) as { d: string };
+  const refreshKey = createHash('sha256').update('shakti-field-refresh\n').update(d).digest();
+  return { kid: signing.kid, privateKey: signing.privateKey, publicKey, refreshKey };
 }
 
 let cached: { source: string; keys: Promise<MobileKeys | undefined> } | undefined;

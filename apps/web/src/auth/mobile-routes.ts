@@ -39,6 +39,7 @@ import { verifyMobileCredentials } from './mobile-sign-in';
 import {
   MOBILE_REFRESH_SECONDS,
   newRefreshToken,
+  nextRefreshToken,
   refreshTokenHash,
   signMobileAccessToken,
 } from './mobile-tokens';
@@ -281,8 +282,9 @@ export async function mobileRefreshRoute(
     if ('kind' in setup) return refused(setup, requestId);
 
     const now = (deps.now ?? (() => new Date()))();
-    const refreshToken = newRefreshToken();
-    const refreshExpiresAt = new Date(now.getTime() + MOBILE_REFRESH_SECONDS * 1000);
+    // Derived from the presented token, so a retry of a lost answer gets the same one again.
+    const refreshToken = nextRefreshToken(body.refreshToken, setup.keys);
+    let refreshExpiresAt = new Date(now.getTime() + MOBILE_REFRESH_SECONDS * 1000);
     const outcome = await deps.devices.rotate({
       deviceId: body.deviceId,
       presentedHash: refreshTokenHash(body.refreshToken),
@@ -305,8 +307,10 @@ export async function mobileRefreshRoute(
     }
     if (outcome.kind === 'revoked')
       return refused(refuse('unauthorized', 'device_revoked'), requestId);
-    if (outcome.kind !== 'rotated')
+    if (outcome.kind === 'retried') refreshExpiresAt = outcome.expiresAt;
+    else if (outcome.kind !== 'rotated') {
       return refused(refuse('unauthorized', 'refresh_expired'), requestId);
+    }
 
     const resolved = await resolveMobilePrincipal(
       outcome.userId,

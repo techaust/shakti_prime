@@ -39,6 +39,13 @@ export const mobileDevices = pgTable(
     appVersion: text('app_version').notNull(),
     /** SHA-256 of the current refresh token, in hex; the token itself is never stored. */
     refreshTokenHash: text('refresh_token_hash').notNull(),
+    /**
+     * The hash the last rotation replaced, and when: the same token presented again within
+     * 120 seconds is a retry whose answer was lost and gets that rotation's pair again; later it is
+     * reuse and ends the family.
+     */
+    previousRefreshTokenHash: text('previous_refresh_token_hash'),
+    refreshRotatedAt: timestamp('refresh_rotated_at', { withTimezone: true }),
     /** Set at sign-in and kept by every rotation; presenting a retired token revokes it. */
     refreshFamilyId: uuid('refresh_family_id').notNull(),
     refreshExpiresAt: timestamp('refresh_expires_at', { withTimezone: true }).notNull(),
@@ -70,6 +77,14 @@ export const mobileDevices = pgTable(
       sql`${t.appVersion} ~ '^[0-9]{1,4}\\.[0-9]{1,4}\\.[0-9]{1,6}$'`,
     ),
     check('mobile_devices_refresh_token_hash_check', sql`${t.refreshTokenHash} ~ '^[0-9a-f]{64}$'`),
+    check(
+      'mobile_devices_previous_hash_check',
+      sql`${t.previousRefreshTokenHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      'mobile_devices_rotation_pair_check',
+      sql`(${t.previousRefreshTokenHash} is null) = (${t.refreshRotatedAt} is null)`,
+    ),
     check(
       'mobile_devices_push_token_length_check',
       sql`char_length(${t.pushToken}) between 1 and 4096`,

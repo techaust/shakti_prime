@@ -9,9 +9,20 @@ import { and, eq, isNull, ne } from 'drizzle-orm';
  * other person's live row on the same installation.
  */
 
+/**
+ * How long after a rotation the token it replaced is still taken as a retry whose answer was lost,
+ * rather than as reuse (the lead's decision of 27-11-2026 on the early check).
+ */
+export const RETRY_SECONDS = 120;
+
 /** What happened to a refresh token presented with its installation's id. */
 export type RotateOutcome =
   | { kind: 'rotated'; userId: string; deviceId: string }
+  /**
+   * The token the last rotation replaced, presented again within `RETRY_SECONDS` of it: a retry
+   * whose answer was lost. Nothing changes; the route answers that rotation's pair again.
+   */
+  | { kind: 'retried'; userId: string; deviceId: string; expiresAt: Date }
   /** The installation's live token, past its 30 days: the person signs in again. */
   | { kind: 'expired' }
   /**
@@ -84,6 +95,8 @@ export const authDeviceStore: DeviceStore = {
         appVersion: input.device.appVersion,
         refreshTokenHash: input.refreshHash,
         refreshFamilyId: newId(),
+        previousRefreshTokenHash: null,
+        refreshRotatedAt: null,
         refreshExpiresAt: input.expiresAt,
         signedInAt: input.now,
         pushToken: input.device.pushToken ?? null,
@@ -112,6 +125,8 @@ export const authDeviceStore: DeviceStore = {
           userId: d.userId,
           hash: d.refreshTokenHash,
           expiresAt: d.refreshExpiresAt,
+          previousHash: d.previousRefreshTokenHash,
+          rotatedAt: d.refreshRotatedAt,
         })
         .from(d)
         .where(and(eq(d.deviceId, input.deviceId), isNull(d.revokedAt)))
@@ -124,11 +139,29 @@ export const authDeviceStore: DeviceStore = {
           .set({
             refreshTokenHash: input.newHash,
             refreshExpiresAt: input.expiresAt,
+            previousRefreshTokenHash: live.hash,
+            refreshRotatedAt: input.now,
             appVersion: input.appVersion,
             lastSeenAt: input.now,
           })
           .where(eq(d.id, live.id));
         return { kind: 'rotated', userId: live.userId, deviceId: input.deviceId };
+      }
+      // The token the last rotation replaced, again, soon after: its answer was lost on the way.
+      // The rotation's token is derived from this one, so the same new hash proves it is that
+      // rotation's retry; the pair is answered again and the row stays as it is.
+      if (
+        live?.previousHash === input.presentedHash &&
+        live.rotatedAt !== null &&
+        input.now.getTime() - live.rotatedAt.getTime() <= RETRY_SECONDS * 1000 &&
+        live.hash === input.newHash
+      ) {
+        return {
+          kind: 'retried',
+          userId: live.userId,
+          deviceId: input.deviceId,
+          expiresAt: live.expiresAt,
+        };
       }
       const [holder] = await tx
         .select({ id: d.id, userId: d.userId, revokedAt: d.revokedAt })

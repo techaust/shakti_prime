@@ -84,6 +84,7 @@ describe('mobile_devices fail closed', () => {
     const [row] = await withoutContext<Record<string, boolean>>(sql`
       select has_column_privilege('app_user', 'mobile_devices', 'refresh_token_hash', 'SELECT') as hash,
              has_column_privilege('app_user', 'mobile_devices', 'refresh_family_id', 'SELECT') as family,
+             has_column_privilege('app_user', 'mobile_devices', 'previous_refresh_token_hash', 'SELECT') as previous,
              has_column_privilege('app_user', 'mobile_devices', 'device_id', 'SELECT') as device,
              has_column_privilege('app_user', 'mobile_devices', 'push_token', 'SELECT') as push,
              has_column_privilege('app_reader', 'mobile_devices', 'refresh_token_hash', 'SELECT') as reader_hash,
@@ -96,6 +97,7 @@ describe('mobile_devices fail closed', () => {
     expect(row).toEqual({
       hash: false,
       family: false,
+      previous: false,
       device: false,
       push: false,
       reader_hash: false,
