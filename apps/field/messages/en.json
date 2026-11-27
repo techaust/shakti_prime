@@ -1,0 +1,71 @@
+{
+  "app": {
+    "name": "Shakti Field"
+  },
+  "signIn": {
+    "title": "Sign in",
+    "intro": "Use the email and password you use for Shakti Prime on the website.",
+    "email": "Email",
+    "password": "Password",
+    "code": "Code from your authenticator app",
+    "codeHint": "Open the authenticator app on your phone and type the 6-digit code for Shakti Prime.",
+    "submit": "Sign in",
+    "pending": "Signing in…"
+  },
+  "unlock": {
+    "chooseTitle": "Choose a PIN",
+    "chooseIntro": "You'll use these 4 digits to open the app. Pick numbers that are easy for you to remember and hard for others to guess.",
+    "confirmTitle": "Type the PIN again",
+    "confirmIntro": "Type the same 4 digits once more.",
+    "enterTitle": "Open Shakti Field",
+    "enterIntro": "Type your 4-digit PIN.",
+    "pin": "PIN",
+    "submit": "Continue",
+    "biometric": "Use fingerprint",
+    "biometricPrompt": "Open Shakti Field",
+    "mismatch": "The two PINs don't match. Choose your PIN again.",
+    "wrong": "That PIN is not right. {count, plural, one {You have # try left.} other {You have # tries left.}}",
+    "tooManyTries": "Too many wrong PINs. For your safety you've been signed out. Sign in again with your email and password.",
+    "pinLength": "Your PIN is 4 digits."
+  },
+  "today": {
+    "title": "Today",
+    "emptyTitle": "Nothing planned for today",
+    "emptyBody": "Your visits and jobs will show here once your manager schedules them.",
+    "offline": "You're offline. You can keep working; your changes will be sent when you're back online."
+  },
+  "settings": {
+    "title": "Settings",
+    "signedInAs": "Signed in as {name}",
+    "version": "App version {version}",
+    "signOut": "Sign out",
+    "signOutConfirm": "You'll need your email and password to sign in again.",
+    "signingOut": "Signing out…"
+  },
+  "update": {
+    "title": "Update the app",
+    "body": "This version of Shakti Field is too old to keep working. Update it from the Play Store, then open it again.",
+    "yours": "Your version {version}. Oldest version that works: {minimum}.",
+    "open": "Open the Play Store"
+  },
+  "tabs": {
+    "today": "Today",
+    "settings": "Settings"
+  },
+  "errors": {
+    "invalid_credentials": "That email and password don't match. Check them and try again.",
+    "totp_required": "Type the code from your authenticator app.",
+    "totp_invalid": "That code didn't work. Wait for a new code in your authenticator app and type it.",
+    "totp_setup_required": "Your role needs an authenticator app. Set it up on the website first, then sign in here.",
+    "account_locked": "Too many tries. Wait a few minutes before you try again.",
+    "account_suspended": "This account is not active. Ask your manager to check it.",
+    "refresh_expired": "You've been away for a while. Please sign in again.",
+    "refresh_reused": "For your safety this phone was signed out. Please sign in again.",
+    "device_revoked": "This phone was signed out. Please sign in again.",
+    "rate_limited": "Too many tries. Wait a few minutes before you try again.",
+    "offline": "No internet connection. Check your signal and try again.",
+    "unavailable": "Signing in isn't working right now. Try again in a few minutes.",
+    "validation_failed": "Check the email and password and try again.",
+    "unexpected": "Something went wrong on our side. Try again in a few minutes."
+  }
+}
