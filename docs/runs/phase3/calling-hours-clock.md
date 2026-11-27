@@ -154,4 +154,15 @@ Shared registration points take one line or one block each, kept together under 
 - **Other checks:** `pnpm build`, `js-budget` and the whole-repository lint were not re-run here. The builder reports them green.
 - **CI:** #284's CI logs and artifacts were not read: this session has no network beyond the push.
 
+**The lead's triage (27-11-2026):**
+- **M2, settled by the lead from #284's CI annotations:** run 45272652862 (`eaa6c148`, 23-11-2026 21:44 UTC, before 09:20 IST), job 138036312995, phone project.
+  - It failed `e2e/click-to-dial.spec.ts:86`, "keeps a lead's dialled call when another lead's call is saved (T3 re-check 12)", at line 59, which is flaky then failed.
+  - That is the moved-clock path this slice made deterministic. Record it in the Report.
+- **Fix in the one fix round: M1, L1, L2 and L3.**
+  - **M1:** measure the offset against the time the dial's answer carries.
+  - **L1:** each test's target is later than the rows the earlier tests wrote (the clock only moves forward).
+  - **L2:** a component test of the call bar under a skewed device clock.
+  - **L3:** the four other journeys stop choosing a path by the wall clock. Each sets the clock and runs its branches deterministically, as `click-to-dial.spec.ts` now does (slice-integration §10).
+- **No re-check:** the lead reads the diff.
+
 ## Integration
