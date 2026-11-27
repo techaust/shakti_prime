@@ -431,4 +431,13 @@ Re-checked `git diff c1497422..a217563d` (the fix round) against the nine findin
 
 **For integration:** `main` has moved to `bdf82df4` (X4, #298). Take it in first. The `stock_reserved_insufficient` rule goes into X4's `app.stock_move()`, and `stockRefusal()`'s new `CHECK_RACES` must sit beside X4's changes to `move.ts`.
 
+**The lead's triage of the re-check (27-11-2026): a short second round for 10, 11 and 12.**
+- **10:** every unit that enters storage after a re-queue is given at most once across *all* the item's re-queued needs.
+  - The pool for the company and item is: the units that entered storage bins after the oldest still-waiting `requeued_at`, less every unit reserved to any re-queued need since then. Allocate that pool in queue order.
+  - Lapse-freed stock stays outside the pool.
+  - Property test: N orders' holds lapse, K arrivals follow in any order and size; no more than K units are ever reserved to the re-queued needs, and they go in queue order. Keep the single-order cases.
+- **11:** correct SECURITY's sentence.
+- **12:** state in the comment what the races prove, or make one race interleave two fills partway through. Prefer the honest comment.
+- **No further re-check:** the lead reads the diff.
+
 ## Integration
