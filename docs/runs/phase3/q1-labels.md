@@ -5,8 +5,8 @@
 | Branch | `feat/q1-labels` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): print templates, an audited reprint |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC |
-| State | briefed |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder on Opus 5.5 at high, the seat's own account (started 27-11-2026) |
+| State | early check |
 | Next step | the builder |
 
 ## Brief
