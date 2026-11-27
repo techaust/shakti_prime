@@ -87,7 +87,13 @@ const U1_QUOTE_INPUTS: Record<string, unknown> = {
   'procurement.quote.withdraw': { quoteId: newId() },
 };
 
+/** U2's approval of a purchase order: restricted (procurement.rate.read) and for people only. */
+const U2_APPROVE_INPUTS: Record<string, unknown> = {
+  'procurement.po.approve': { purchaseOrderId: newId() },
+};
+
 const INPUTS: Record<string, unknown> = {
+  ...U2_APPROVE_INPUTS,
   // A customer's price tier decides every price they are quoted (PRICE-1).
   'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
   // The human controls of the agents (SECURITY §3.3): no agent decides on its own suggestions,
@@ -534,6 +540,31 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'procurement.vendor.archive': { vendorId: newId() },
   'procurement.vendor.contact.set': { vendorId: newId(), contacts: [] },
   'procurement.item_vendor.set': { vendorId: newId(), itemId: newId() },
+  // U2: purchase orders, goods receipts and reorder rules are changed by people only.
+  ...U2_APPROVE_INPUTS,
+  'procurement.po.create': {
+    entityId: 1,
+    vendorId: newId(),
+    deliverToWarehouseId: newId(),
+    lines: [{ itemId: newId(), qty: '10' }],
+  },
+  'procurement.po.update': { purchaseOrderId: newId(), notes: 'Deliver before noon' },
+  'procurement.po.send': { purchaseOrderId: newId(), via: 'by_hand' },
+  'procurement.po.cancel': { purchaseOrderId: newId(), reason: 'The vendor cannot supply' },
+  'procurement.po.close': { purchaseOrderId: newId(), reason: 'The rest is not needed' },
+  'procurement.grn.post': {
+    purchaseOrderId: newId(),
+    lines: [{ poLineId: newId(), qty: '1', serialNos: ['SN-0001'] }],
+  },
+  'procurement.grn.reverse': { receiptId: newId(), reason: 'Posted against the wrong order' },
+  'procurement.reorder_rule.set': {
+    entityId: 1,
+    itemId: newId(),
+    warehouseId: newId(),
+    reorderLevel: '10',
+    reorderQty: '20',
+  },
+  'procurement.reorder_rule.remove': { ruleId: newId() },
 };
 
 describe('commands for people only', () => {

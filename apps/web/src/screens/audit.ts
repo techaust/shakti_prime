@@ -277,6 +277,18 @@ const ACTIONS = {
   'procurement.item_vendor.set': 'itemVendorSet',
   'procurement.quote.record': 'vendorQuoteRecord',
   'procurement.quote.withdraw': 'vendorQuoteWithdraw',
+  // U2 purchase orders and goods receipt.
+  'procurement.po.create': 'purchaseOrderCreate',
+  'procurement.po.update': 'purchaseOrderUpdate',
+  'procurement.po.approve': 'purchaseOrderApprove',
+  'procurement.po.send': 'purchaseOrderSend',
+  'procurement.po.cancel': 'purchaseOrderCancel',
+  'procurement.po.close': 'purchaseOrderClose',
+  'procurement.grn.post': 'goodsReceiptPost',
+  'procurement.grn.reverse': 'goodsReceiptReverse',
+  'procurement.reorder_rule.set': 'reorderRuleSet',
+  'procurement.reorder_rule.remove': 'reorderRuleRemove',
+  'procurement.reorder.draft': 'reorderDraft',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -359,6 +371,14 @@ const EVENT_NAMES = {
   'procurement.vendor.archived': 'vendorArchived',
   'procurement.quote.recorded': 'vendorQuoteRecorded',
   'procurement.quote.withdrawn': 'vendorQuoteWithdrawn',
+  // U2 purchase orders and goods receipt.
+  'procurement.po.drafted': 'purchaseOrderDrafted',
+  'procurement.po.approved': 'purchaseOrderApproved',
+  'procurement.po.sent': 'purchaseOrderSent',
+  'procurement.po.cancelled': 'purchaseOrderCancelled',
+  'procurement.po.closed': 'purchaseOrderClosed',
+  'procurement.receipt.posted': 'goodsReceiptPosted',
+  'procurement.receipt.reversed': 'goodsReceiptReversed',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -507,6 +527,10 @@ const CODE_GROUPS = [
   'hubKind',
   'binKind',
   'stockReason',
+  // U2 purchase orders
+  'purchaseOrderState',
+  'receiptState',
+  'poSentVia',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -891,6 +915,18 @@ const FIELD_KINDS = [
   ['quoteValidFrom', 'date'],
   ['restored', 'number'],
   ['quoteValidUntil', 'date'],
+  // U2 purchase orders and goods receipt (never a rate or an amount).
+  ['poNo', 'text'],
+  ['expectedAt', 'date'],
+  ['poNotes', 'text'],
+  ['sentVia', 'poSentVia'],
+  ['closeReason', 'text'],
+  ['grnNo', 'text'],
+  ['vendorInvoiceNo', 'text'],
+  ['vendorInvoiceDate', 'date'],
+  ['reverseReason', 'text'],
+  ['reorderLevel', 'number'],
+  ['reorderQty', 'number'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
@@ -910,6 +946,9 @@ const STATE_GROUP_OF: ReadonlyMap<string, CodeGroup> = new Map<string, CodeGroup
   ['import_job', 'importState'],
   ['quote', 'quoteState'],
   ['sales_order', 'orderState'],
+  // U2 purchase orders
+  ['purchase_order', 'purchaseOrderState'],
+  ['goods_receipt', 'receiptState'],
 ]);
 
 /** Every field with a name on screen, in the order the sheet lists them. */

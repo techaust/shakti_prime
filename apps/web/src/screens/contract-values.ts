@@ -103,6 +103,10 @@ import type {
   UserSort,
   UserStatus,
   VoiceSessionMode,
+  // U2 purchase orders
+  GoodsReceiptState,
+  PurchaseOrderSentVia,
+  PurchaseOrderState,
 } from '@shakti/contracts';
 
 // The contract values that code running in the browser reads, copied here because every module
@@ -1061,3 +1065,21 @@ export const STOCK_ADJUSTMENTS = [
   'loss',
   'damage',
 ] as const satisfies readonly StockAdjustment[];
+
+// U2 purchase orders
+/** A purchase order's states, in the order the machine moves through them. */
+export const PURCHASE_ORDER_STATES = [
+  'draft',
+  'approved',
+  'sent',
+  'partially_received',
+  'received',
+  'closed',
+  'cancelled',
+] as const satisfies readonly PurchaseOrderState[];
+
+/** How a purchase order reached its vendor. */
+export const PURCHASE_ORDER_SENT_VIA = ['email', 'by_hand'] as const satisfies readonly PurchaseOrderSentVia[];
+
+/** A goods receipt's states. */
+export const GOODS_RECEIPT_STATES = ['posted', 'reversed'] as const satisfies readonly GoodsReceiptState[];

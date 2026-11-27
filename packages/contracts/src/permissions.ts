@@ -220,6 +220,8 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   'crm.config.write',
   // Where leads come in from, and the keys that let a website send them (design phase2 §4).
   'crm.sources.write',
+  // U2: approving a purchase order commits the company's money (phase3 question 5 (a)).
+  'procurement.po.approve',
 ] as const satisfies readonly PermissionKey[];
 
 /**

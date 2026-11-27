@@ -135,6 +135,10 @@ import {
   StockAdjustmentSchema,
   StockReasonSchema,
   WarehouseKindSchema,
+  // U2 purchase orders
+  GoodsReceiptStateSchema,
+  PurchaseOrderSentViaSchema,
+  PurchaseOrderStateSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
@@ -263,6 +267,10 @@ import {
   STOCK_ADJUSTMENTS as STOCK_ADJUSTMENTS_WEB,
   STOCK_REASONS as STOCK_REASONS_WEB,
   WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
+  // U2 purchase orders
+  GOODS_RECEIPT_STATES as GOODS_RECEIPT_STATES_WEB,
+  PURCHASE_ORDER_SENT_VIA as PURCHASE_ORDER_SENT_VIA_WEB,
+  PURCHASE_ORDER_STATES as PURCHASE_ORDER_STATES_WEB,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -385,6 +393,10 @@ describe('the contract values copied for the browser', () => {
     expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
     expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
+    // U2 purchase orders
+    expect(PURCHASE_ORDER_STATES_WEB).toEqual(PurchaseOrderStateSchema.options);
+    expect(PURCHASE_ORDER_SENT_VIA_WEB).toEqual(PurchaseOrderSentViaSchema.options);
+    expect(GOODS_RECEIPT_STATES_WEB).toEqual(GoodsReceiptStateSchema.options);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

@@ -564,7 +564,40 @@
     "bin_missing": "We couldn't find that bin. Refresh the page to see the current list.",
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
-    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it."
+    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "purchase_order_missing": "This purchase order could not be found. It may belong to another company.",
+    "purchase_order_vendor_inactive": "This vendor is archived. Choose an active vendor for the purchase order.",
+    "purchase_order_hub_unusable": "Goods cannot be delivered to this hub. Choose a godown or factory that is in use.",
+    "purchase_order_item_unusable": "One of the items cannot be bought into stock. Check that it is active and kept in stock.",
+    "po_quote_missing": "This vendor has no current quote for one of the items. Type the rate, or record the vendor’s quote first.",
+    "procurement_rate_required": "Only people who may see supplier rates can enter a rate. Leave the rate empty for one of them to fill in.",
+    "purchase_order_contact_email_missing": "This person has no email address. Choose another person at the vendor, or mark the order sent by hand.",
+    "purchase_order_not_draft": "Only a draft purchase order can be changed.",
+    "purchase_order_not_open": "Goods can be received only against a purchase order that has been sent.",
+    "purchase_order_transition_not_allowed": "This purchase order cannot do that now. Refresh the page to see where it stands.",
+    "purchase_order_number_taken": "That purchase order number was just taken. Try again.",
+    "po_self_approval": "You drafted this purchase order, so someone else must approve it.",
+    "po_lines_incomplete": "Every line needs its rate, and its item a GST rate, before the order is approved.",
+    "po_lines_missing": "Add at least one line to the purchase order.",
+    "po_approval_limit": "This order’s total with GST is above your approval limit. An Executive must approve it.",
+    "goods_receipt_line_unknown": "One of the lines is not on this purchase order. Refresh the page and try again.",
+    "goods_receipt_over_order": "More is entered than the order still expects. Check the quantity received.",
+    "goods_receipt_bin_unusable": "Choose a receiving, storage or quarantine bin at the order’s hub.",
+    "goods_receipt_serials_untracked": "This item has no serial numbers. Remove the serials and receive the quantity only.",
+    "goods_receipt_whole_units": "Items with serial numbers are received in whole units.",
+    "goods_receipt_serial_repeated": "A serial number is entered twice. Remove the repeat.",
+    "goods_receipt_serial_pattern": "A serial number does not look like this item’s serials. Check that the right code was scanned.",
+    "goods_receipt_serial_missing": "Some serial numbers are missing. Scan or type a serial for every unit received.",
+    "goods_receipt_serial_extra": "There are more serial numbers than units received. Remove the extra serials or change the quantity.",
+    "goods_receipt_serial_taken": "A serial number is already recorded for this item. Check the serial and scan it again.",
+    "goods_receipt_number_taken": "That receipt number was just taken. Try again.",
+    "goods_receipt_missing": "This goods receipt could not be found. It may belong to another company.",
+    "goods_receipt_reversed": "This goods receipt has already been reversed.",
+    "goods_receipt_posted": "This goods receipt is already in stock.",
+    "goods_receipt_moved_on": "Some of this receipt’s stock has already moved on, so the receipt cannot be reversed. Correct the stock with an adjustment instead.",
+    "reorder_rule_exists": "This item already has a reorder rule at this hub. Change that rule instead.",
+    "reorder_rule_whole_units": "Items with serial numbers are reordered in whole units.",
+    "reorder_rule_missing": "This reorder rule could not be found."
   },
   "auth": {
     "signIn": {
@@ -1991,7 +2024,18 @@
       "binArchive": "Bin archived",
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
-      "stockReverse": "Stock movement reversed"
+      "stockReverse": "Stock movement reversed",
+      "purchaseOrderCreate": "Purchase order drafted",
+      "purchaseOrderUpdate": "Purchase order changed",
+      "purchaseOrderApprove": "Purchase order approved",
+      "purchaseOrderSend": "Purchase order sent",
+      "purchaseOrderCancel": "Purchase order cancelled",
+      "purchaseOrderClose": "Purchase order closed",
+      "goodsReceiptPost": "Goods received",
+      "goodsReceiptReverse": "Goods receipt reversed",
+      "reorderRuleSet": "Reorder rule set",
+      "reorderRuleRemove": "Reorder rule removed",
+      "reorderDraft": "Purchase orders drafted to reorder"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2056,7 +2100,14 @@
       "vendorArchived": "Vendor archived",
       "vendorQuoteRecorded": "Supplier quote recorded",
       "vendorQuoteWithdrawn": "Supplier quote withdrawn",
-      "stockMoved": "Stock moved"
+      "stockMoved": "Stock moved",
+      "purchaseOrderDrafted": "Purchase order drafted",
+      "purchaseOrderApproved": "Purchase order approved",
+      "purchaseOrderSent": "Purchase order sent",
+      "purchaseOrderCancelled": "Purchase order cancelled",
+      "purchaseOrderClosed": "Purchase order closed",
+      "goodsReceiptPosted": "Goods received",
+      "goodsReceiptReversed": "Goods receipt reversed"
     },
     "sheet": {
       "title": "{action}",
@@ -2400,7 +2451,18 @@
       "purchaseUnit": "Unit it is bought in",
       "purchaseUnitFactor": "Stock units in one bought unit",
       "serialPattern": "Shape of its serial numbers",
-      "isStocked": "Kept in stock"
+      "isStocked": "Kept in stock",
+      "poNo": "Purchase order number",
+      "expectedAt": "Expected on",
+      "poNotes": "Order notes",
+      "sentVia": "Sent by",
+      "closeReason": "Why it was closed",
+      "grnNo": "Receipt number",
+      "vendorInvoiceNo": "Vendor’s invoice number",
+      "vendorInvoiceDate": "Vendor’s invoice date",
+      "reverseReason": "Why it was reversed",
+      "reorderLevel": "Reorder level",
+      "reorderQty": "Quantity to reorder"
     },
     "values": {
       "percent": "{value}%",
@@ -2587,6 +2649,23 @@
         "surplus_in": "Into surplus",
         "surplus_out": "Out of surplus",
         "reversal": "Reversed"
+      },
+      "purchaseOrderState": {
+        "draft": "Draft",
+        "approved": "Approved",
+        "sent": "Sent",
+        "partially_received": "Partly received",
+        "received": "Received",
+        "closed": "Closed",
+        "cancelled": "Cancelled"
+      },
+      "receiptState": {
+        "posted": "In stock",
+        "reversed": "Reversed"
+      },
+      "poSentVia": {
+        "email": "Email",
+        "by_hand": "By hand"
       }
     }
   },

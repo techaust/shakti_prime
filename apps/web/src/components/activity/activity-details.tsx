@@ -104,6 +104,10 @@ import {
   BIN_KINDS,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // U2 purchase orders
+  GOODS_RECEIPT_STATES,
+  PURCHASE_ORDER_SENT_VIA,
+  PURCHASE_ORDER_STATES,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
@@ -614,6 +618,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(BIN_KINDS, value) ? t(`values.binKind.${value}`) : wordsOf(value);
       case 'stockReason':
         return oneOf(STOCK_REASONS, value) ? t(`values.stockReason.${value}`) : wordsOf(value);
+      case 'purchaseOrderState':
+        return oneOf(PURCHASE_ORDER_STATES, value)
+          ? t(`values.purchaseOrderState.${value}`)
+          : wordsOf(value);
+      case 'receiptState':
+        return oneOf(GOODS_RECEIPT_STATES, value) ? t(`values.receiptState.${value}`) : wordsOf(value);
+      case 'poSentVia':
+        return oneOf(PURCHASE_ORDER_SENT_VIA, value) ? t(`values.poSentVia.${value}`) : wordsOf(value);
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
       case 'fileStatus':
