@@ -28,8 +28,9 @@ afterAll(closeDb);
  * X4, the stock ledger's reason registry (docs/runs/phase3/x4-stock-reasons.md): the permission
  * each movement reason of `app.stock_move()` needs is a row of `app.stock_reason_grants`, which
  * only the definer reads. Every row gives exactly its permission, a reason with no row is refused
- * with `stock_reason_not_open`, and one insert opens a reason. H1's own ledger tests
- * (stock-ledger.test.ts here, packages/domain/tests/stock) run unchanged beside these.
+ * with `stock_reason_not_open`, and one insert opens a reason. The serial rules beside it
+ * (`app.stock_reason_serial_moves`) are tested in stock-serial-moves.test.ts; H1's own ledger
+ * tests (stock-ledger.test.ts here, packages/domain/tests/stock) run unchanged beside these.
  */
 
 interface ReasonGrant {
@@ -247,7 +248,10 @@ describe('app.stock_move() reads the registry', () => {
   });
 });
 
-describe('no request role, reporting or agent reads or writes the registry', () => {
+/** The registry's two tables, written only by migrations and read only by the definer. */
+const REGISTRY = ['app.stock_reason_grants', 'app.stock_reason_serial_moves'] as const;
+
+describe.each(REGISTRY)('no request role, reporting or agent reads or writes %s', (table) => {
   it('no database role but the backup holds a privilege on it, and the backup only reads', async () => {
     const roles = await withoutContext<{ name: string }>(sql`
       select rolname as name from pg_roles
@@ -261,40 +265,48 @@ describe('no request role, reporting or agent reads or writes the registry', () 
     );
     for (const { name } of [...roles, { name: 'public' }]) {
       const [row] = await withoutContext<{ any: boolean; read: boolean; columns: boolean }>(sql`
-        select has_table_privilege(${name}, 'app.stock_reason_grants', ${ALL_PRIVILEGES}) as any,
-               has_table_privilege(${name}, 'app.stock_reason_grants', 'SELECT') as read,
-               has_any_column_privilege(${name}, 'app.stock_reason_grants', 'SELECT, INSERT, UPDATE, REFERENCES') as columns
+        select has_table_privilege(${name}, ${table}, ${ALL_PRIVILEGES}) as any,
+               has_table_privilege(${name}, ${table}, 'SELECT') as read,
+               has_any_column_privilege(${name}, ${table}, 'SELECT, INSERT, UPDATE, REFERENCES') as columns
       `);
       const backup = name === 'app_backup';
       // The 6-hourly backup reads every table of the BOS's schemas so pg_dump copies them whole.
       expect({ name, ...row }).toEqual({ name, any: backup, read: backup, columns: backup });
     }
     const [write] = await withoutContext<{ write: boolean }>(sql`
-      select has_table_privilege('app_backup', 'app.stock_reason_grants',
+      select has_table_privilege('app_backup', ${table},
                                  'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER') as write
     `);
     expect(write?.write).toBe(false);
   });
 
   it('refuses a read without a request context', async () => {
-    expect(
-      (await failure(withoutContext(sql`select count(*) from app.stock_reason_grants`))).code,
-    ).toBe('42501');
+    expect((await failure(withoutContext(sql`select count(*) from ${sql.raw(table)}`))).code).toBe(
+      '42501',
+    );
   });
 
   it.each(ROLE_KEYS)('%s reads it on neither pool and writes it on none', async (roleKey) => {
     const principal = principalFor(roleKey, [1, 2, 3, 4]);
-    const read = sql`select count(*) from app.stock_reason_grants`;
+    const read = sql`select count(*) from ${sql.raw(table)}`;
     const app = await failure(asPrincipal(principal, ({ tx }) => tx.execute(read)));
     const reader = await failure(
       withRequestContext(principal, {}, ({ tx }) => tx.execute(read), { reader: true }),
     );
-    const writes = [
-      sql`insert into app.stock_reason_grants (reason, permission, opened_by)
-          values ('surplus_out', 'inventory.stock.adjust:entity', 'x4-stock-reasons')`,
-      sql`update app.stock_reason_grants set permission = 'inventory.stock.read:entity'`,
-      sql`delete from app.stock_reason_grants`,
-    ];
+    const writes =
+      table === 'app.stock_reason_grants'
+        ? [
+            sql`insert into app.stock_reason_grants (reason, permission, opened_by)
+                values ('surplus_out', 'inventory.stock.adjust:entity', 'x4-stock-reasons')`,
+            sql`update app.stock_reason_grants set permission = 'inventory.stock.read:entity'`,
+            sql`delete from app.stock_reason_grants`,
+          ]
+        : [
+            sql`insert into app.stock_reason_serial_moves (reason, direction, from_states, to_state, opened_by)
+                values ('transfer', 'out', '{in_stock}', 'scrapped', 'x4-stock-reasons')`,
+            sql`update app.stock_reason_serial_moves set from_states = '{in_stock,faulty}'`,
+            sql`delete from app.stock_reason_serial_moves`,
+          ];
     const codes = [app.code, reader.code];
     for (const write of writes) {
       codes.push((await failure(asPrincipal(principal, ({ tx }) => tx.execute(write)))).code);
