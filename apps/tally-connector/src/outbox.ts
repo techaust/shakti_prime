@@ -32,6 +32,7 @@ export interface OutboxRow {
 
 const DAY_MS = 24 * 60 * 60_000;
 
+/** The file's layout; `user_version` numbers it, so a later release can upgrade an installed file. */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS outbox (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS connector_state (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 ) STRICT;
+PRAGMA user_version = 1;
 `;
 
 interface Row {

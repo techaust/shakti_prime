@@ -45,6 +45,35 @@ describe('the outbox', () => {
     outbox.close();
   });
 
+  it('counts refusals, sets a row aside for good, and prunes it with the answered rows', () => {
+    dir = tempDir();
+    let now = Date.UTC(2026, 10, 1);
+    const outbox = new Outbox(join(dir.dir, 'outbox.sqlite'), () => now);
+    const batch = outbox.enqueue({
+      kind: 'batch',
+      company: 'C',
+      fromAlterId: 0,
+      maxAlterId: 1,
+      body: '{}',
+    });
+    const older = outbox.enqueue({ kind: 'snapshot', company: 'C', body: '{"day":1}' });
+    const other = outbox.enqueue({ kind: 'snapshot', company: 'D', body: '{"day":1}' });
+    const newer = outbox.enqueue({ kind: 'snapshot', company: 'C', body: '{"day":2}' });
+    expect(outbox.hasPendingBatches('C')).toBe(true);
+    expect(outbox.noteRefusal(batch.id)).toBe(1);
+    expect(outbox.noteRefusal(batch.id)).toBe(2);
+    outbox.hold(batch.id);
+    expect(outbox.hasPendingBatches('C')).toBe(false);
+    expect(outbox.heldCount()).toBe(1);
+    expect(outbox.supersedeSnapshots('C', newer.id)).toBe(1);
+    expect(outbox.pending().map((r) => r.id)).toEqual([other.id, newer.id]);
+    expect(outbox.pending().map((r) => r.id)).not.toContain(older.id);
+    now += 7 * 24 * 60 * 60_000 + 1;
+    expect(outbox.prune(7)).toBe(2);
+    expect(outbox.heldCount()).toBe(0);
+    outbox.close();
+  });
+
   it('keeps answered rows seven days, and never removes a pending one', () => {
     dir = tempDir();
     let now = Date.UTC(2026, 10, 1);
