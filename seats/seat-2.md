@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T17:24Z
+updated: 2026-11-27T17:50Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -114,3 +114,11 @@ run_file: docs/runs/phase4/f1-field-foundation.md
 wait_for: report: f1-field-foundation fixes
 done_when: review: f1-field-foundation re-check done
 note: re-check of the fix diff only (the review found a critical): confirm findings 1, 2, 3, 5 to 8 fixed with tests, and the packages wired with no token, phone or identity number reaching Sentry. Commit the result as review: f1-field-foundation re-check done.
+
+lane: 59
+role: review
+branch: feat/h2-reservations
+run_file: docs/runs/phase3/h2-reservations.md
+wait_for: report: h2-reservations fixes
+done_when: review: h2-reservations re-check done
+note: re-check of the fix diff only (the review found a high): confirm the nine fixes with their tests, especially the lock order (1) and the lapse (2); commit review: h2-reservations re-check done.

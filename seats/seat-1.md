@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T17:45Z
+updated: 2026-11-27T17:50Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -10,6 +10,14 @@ run_file: docs/runs/phase3/x4-stock-reasons.md
 wait_for: none
 done_when: report: x4-stock-reasons fixes
 note: the one fix round: findings 1, 2 and 3 as the lead's triage under the Review table says. First priority on this seat: U2 and R3 wait on X4.
+
+lane: 58
+role: fix
+branch: feat/h2-reservations
+run_file: docs/runs/phase3/h2-reservations.md
+wait_for: none
+done_when: report: h2-reservations fixes
+note: the one fix round: all nine findings as the lead's triage under the Review table says. Finding 1 (high) first.
 
 lane: 13
 role: review
