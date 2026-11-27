@@ -1,0 +1,19 @@
+{
+  "name": "@shakti/tally-connector",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The read-only Tally connector: a Windows service that reads Tally by AlterID and pushes signed batches to the BOS (ADR 0013, Phase 5 design)",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@shakti/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.1"
+  }
+}
