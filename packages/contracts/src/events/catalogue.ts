@@ -713,7 +713,7 @@ const eventCatalogue = {
   },
   'sales.order.confirmed': {
     meaning:
-      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone.',
+      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone and drafts the project of an order that needs installing.',
     emittedBy: ['sales.order.confirm'],
     subscribed: true,
     payload: z
@@ -808,6 +808,38 @@ const eventCatalogue = {
     emittedBy: ['procurement.quote.withdraw'],
     subscribed: false,
     payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
+  },
+  // J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §6.1).
+  'projects.project.drafted': {
+    meaning:
+      'A project was made for a confirmed order, by the platform or by a Project Manager, with its checklist copied.',
+    emittedBy: ['projects.project.draft', 'projects.project.create'],
+    subscribed: false,
+    payload: z.object({ salesOrderId: IdSchema, accountId: IdSchema }).strict(),
+  },
+  'projects.project.milestone_completed': {
+    meaning: "A step of a project's checklist was done, in order.",
+    emittedBy: ['projects.milestone.complete'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema, milestoneId: IdSchema }).strict(),
+  },
+  'projects.project.held': {
+    meaning: 'A project was put on hold; the reason stays on the project.',
+    emittedBy: ['projects.project.hold'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema }).strict(),
+  },
+  'projects.project.completed': {
+    meaning: 'A project was completed with every step of its checklist done.',
+    emittedBy: ['projects.project.complete'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema }).strict(),
+  },
+  'projects.project.cancelled': {
+    meaning: 'A project was cancelled; the reason stays on the project.',
+    emittedBy: ['projects.project.cancel'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema }).strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 

@@ -79,3 +79,5 @@ export {
   stockMovementCosts,
   stockBalances,
 } from './stock';
+// J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §5, §6.1).
+export { projects, projectAssignments, projectFlowTemplates, projectMilestones } from './projects';

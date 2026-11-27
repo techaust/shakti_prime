@@ -82,5 +82,9 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // (`messaging.media.expire`): it reads what is due, records what it removed and asks which
     // stored keys still belong to a file through definers, and reads no message by a person's rule.
     { key: 'messaging.media.expire', scope: 'all' },
+    // J1: a project drafted from a confirmed order of an install segment with a site
+    // (`projects.project.draft`): it reads the order's facts and makes the project with its copied
+    // checklist through two definers, and reads no order or customer by a person's rule.
+    { key: 'projects.draft', scope: 'all' },
   ],
 };

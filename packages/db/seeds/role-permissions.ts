@@ -346,6 +346,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // W2: the platform's removal of WhatsApp files past the retention period; no person's role holds
   // it (SECURITY §3.3).
   'messaging.media.expire': {},
+  // J1: the platform's drafting of a project from a confirmed order; no person's role holds it
+  // (SECURITY §3.3).
+  'projects.draft': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */
