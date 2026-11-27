@@ -6,8 +6,8 @@
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): row security with a new `own` scope, a platform-only drafting worker |
 | Usage | briefed 27-11-2026; built from 27-11-2026 on Opus 5.5 at high effort, on the seat's own account |
-| State | early check |
-| Next step | the lead reads the early check; the builder continues with the screens on `continue` |
+| State | done |
+| Next step | the lead: review, the journeys and the Linux baselines, integration (the owner's `checks-ok` for `js-budget.json`) |
 
 ## Brief
 Build [phase4 §5](../../03-roadmap-appendix/phase4.md#5-the-project-model) and [§6.1](../../03-roadmap-appendix/phase4.md#61-j1-projects-and-the-standard-flow) as written, with questions 1 (a) and 2 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -162,6 +162,102 @@ Grants: `projects` select, and update only of `state, state_changed_at, owner_id
 **Not done yet (after `continue`):** `app.status_summary()` with projects (item 6), the list and page queries with `EXPLAIN (ANALYZE)`, the screens, Account 360 and the order page, `nav.ts`, Settings › Project steps, the journeys, the design's Built record, a web-level test of the drafting worker, `pnpm build` and the JavaScript budget.
 
 **For the lead:** 0241 redefines `app.platform_only_permissions()` (0222's nineteen keys plus `projects.draft`) and `app.next_document_no()` (0201's body plus `project`); check both against any slice of this wave that redefines them (U2, H2, Q1, R3) at the merge. `sales.order.confirmed`'s worker entry in `workers/events/registry.ts` and its catalogue meaning now include the drafting.
+
+
+### 27-11-2026, seat (cloud VM, worktree `/home/user/shakti-wt/j1-projects`, Postgres 54332): done
+The lead accepted the early check, decisions 1 to 8 included (27-11, 16:25 UTC). Opus 5.5 at high effort. Skills loaded: `add-table` and `add-command` (the early check); no others are named by the brief.
+
+**Built after the early check:**
+- **STATUS on WhatsApp** (`0242_j1_status_summary.sql`): `app.status_summary()` is dropped and made again, because its result gains `step_key` and `step_title`, with its grants restored. It adds the customer's own projects that are not cancelled (five, newest first) with their first open step. Against 0201 the only changes are the two new columns (null on the quote and order lines) and the third `union all` branch. Every other line is as 0201 wrote it, which `diff` of the two bodies confirms.
+  - `readStatusSummary()` and `StatusLine` gain `project` and `step`.
+  - The answer (`workers/messaging/answers.ts`) prints "Project <no>: in progress, next step <step>". `whatsappAnswers` gains the project states and the default steps' names, and the heading and the empty sentence now name projects.
+- **Reads** (`packages/domain/src/queries/projects/list-projects.ts`):
+  - `listProjects` (keyset by `(updated_at, id)`, filtered by state, segment, owner and current step);
+  - `ownProjectIds`, `projectListQuery`, `listProjectFilters` and `getProject`;
+  - `accountProjects`, `orderProject`, `listProjectTemplates` and `listProjectPeople`.
+  - Contracts are in `packages/contracts/src/projects/reads.ts`.
+- **`app.project_customers(project_ids)`** (`0243_j1_project_customers.sql`): a Field Engineer reads no customer row, so the project screens read the customer's name and the site's village, district and PIN of the projects the caller reads through this definer. It answers for `projects.read:entity` in a company of the request or `app.project_is_mine()`, and never returns a phone or an address line. It is executable by `app_user` and `app_reader`.
+- **List indexes** (`0244_j1_projects_list_order.sql`, generated): `projects(entity_id, updated_at, id)` is new, and `projects(entity_id, state, updated_at, id)` replaces 0240's index of the same name. Both are read backwards.
+- **Actions** (`apps/web/src/actions/projects.ts`): seven named queries and eight commands, each in a request narrowed to its company.
+- **Screens:**
+  - `/projects` (`components/projects/projects-screen.tsx`): filters for company, status, business line, project manager and current step; Load more.
+  - The project page `/projects/<company>/<id>`:
+    - the header shows the status, customer, village, company, business line, scheme, project manager, people and order;
+    - a Project Manager or General Manager gets the moves Put on hold, Resume, Complete, Cancel and Change people (`project-actions.tsx`);
+    - the tab frame is `PROJECT_TABS` in `screens/projects.ts` plus `TAB_PANELS` in the page, one line each for later slices;
+    - the Steps tab (`milestones-panel.tsx`) shows Mark done on the next step for a manager or the engineer on the project;
+    - a PM Surya Ghar project shows that its subsidy steps are tracked apart from the checklist.
+  - Settings › Project steps (`steps-screen.tsx`): each business line's current steps for a company, and the Executive's editor (name, add, move, remove, Publish). Kept steps keep their key and requirements; a new step's key comes from its name (`stepKeyFrom()`).
+  - Account 360's Projects (`account-projects.tsx`, passed to `AccountScreen` as `projects`).
+  - The order page's link to its project, or Start project for a manager on a confirmed order without one (`start-project.tsx`, through `OrderScreen`'s new `project` slot).
+  - Menu entries Projects (`projects.read:own`) and Project steps (`projects.write:all`). Also: `BOS_PREFIXES`, `CLIENT_SCOPES`, `en.json` `projects` and `projectSteps`, and the copy-lint button keys.
+- **Documents:**
+  - the design's Built (J1) line under §6.1;
+  - DATABASE §4.1 (`app.project_customers()`), §7 (the list indexes and the own-scope read);
+  - SECURITY §3.2 (the customers definer) and the STATUS line in §11;
+  - the workshop pack (PROJ-2 today, and FIN-2's 8 years for projects with the CA);
+  - `db:docs` and `machines:docs` regenerated.
+
+**`EXPLAIN (ANALYZE, BUFFERS)` of `/projects` at volume** (`packages/domain/tests/spike/projects-explain.ts`, run with `pnpm --filter @shakti/domain exec tsx tests/spike/projects-explain.ts`; it removes what it made):
+- **Volume:** 35,000 projects (20,000 in company 1), 175,000 steps, 69,662 assignments. The Field Engineer is on 12 projects of company 1.
+- **The problem:** read by the policy alone, the Field Engineer's list calls `app.project_is_mine()` once per project of the company. Every project of company 1 under the policy alone takes 234.9 ms (19,988 rows removed by the filter). The first version of the list query added an own filter of its own, but the row policy runs ahead of a filter that is not leakproof, so the first page took 237.7 ms.
+- **The fix:** the list now finds the caller's own projects first (`ownProjectIds()`: the owner index and the assignments index, 0.6 ms) and names them by id. That is an index condition, which runs ahead of the policy.
+
+| Read | Execution time | Plan |
+|---|---|---|
+| Field Engineer, first page | 1.2 ms | `Index Scan using projects_pkey … Index Cond: (id = ANY ('{…12 ids…}'::uuid[]))`, then a sort of the 12 |
+| Field Engineer, active at the install step | 1.1 ms | same |
+| Project Manager, first page | 0.9 ms | `Index Scan Backward using projects_entity_updated_idx` (12.1 ms before the index) |
+| Project Manager, on hold | 1.0 ms | |
+| Project Manager, own projects of a segment | 1.0 ms | |
+| Project Manager, current step install | 1.9 ms | 143 ms with a join to `principals`, which the planner looped over the scanned rows; the owner's name is now a scalar subquery per listed row |
+| `app.project_customers()` for a page of 50 | 2.0 ms | |
+
+**Tests added since the early check:**
+- `packages/domain/tests/commands/projects.test.ts` gains 5 read cases (now 21):
+  - the manager's list by state, segment, owner and step, newest first;
+  - paging by cursor without a repeat;
+  - the engineer's list and page (only their project, with the customer and village through the definer; another company refused);
+  - Account 360 and the order link (none for a seller without `projects.read`, none for an order without a project);
+  - checklists, filter choices and people (refused to an engineer).
+- `reader-parity.test.ts` covers the seven new reads on both pools.
+- `packages/db/tests/security/projects.test.ts` gains STATUS with projects (the cancelled project left out, nothing for another company, refused without `messaging.process`), now 89 cases. `grants.test.ts` lists the new definer.
+- `apps/web/tests/projects.test.ts` (2 cases): the `sales.order.confirmed` worker drafts a farmer-pumps order's project once over three deliveries, and nothing for a dealer's sale.
+- `apps/web/src/screens/projects.test.ts` (3 unit cases); `answers.test.ts` covers project lines; `contract-values.test.ts` covers the four value lists and the default steps.
+- **Journeys** (`apps/web/e2e/projects.spec.ts`, seed `e2e/setup/projects.ts`, people `projectManager` and `fieldEngineer` in `support/users.ts`):
+  - the Project Manager finds the drafted project, marks the first two steps done in order (only the next step offers Mark done), is refused a hold without a reason, puts it on hold and resumes it;
+  - the Field Engineer sees exactly the three projects they are on and none of the manager's, sees Mark done but none of a manager's moves, and gets the not-found screen for a project they are not on;
+  - the Executive opens Settings › Project steps for the snapshot company and its editor, without publishing.
+  - Each has axe checks and the snapshots `project-page`, `project-hold-dialog`, `projects-engineer`, `project-page-engineer` and `project-steps`.
+
+**Checks:** all on Postgres 54332, through `tools/integration/heavy.sh`:
+- `pnpm test:security`: db 63 files, 1886 tests passed; domain 111 files, 1540 passed; web 40 files, 463 passed. Exit 0, after removing the seed's stray row (below).
+- `pnpm typecheck`: 10 of 10 tasks successful.
+- Unit tests: contracts 340, db 162, domain 2811 and web 1245 passed (1 skipped).
+- `pnpm lint`, the whole repository through the lock as the final check: clean, exit 0.
+- `pnpm copy-lint`: clean. `pnpm db:docs` and `machines:docs`: regenerated, with no change left over.
+- `pnpm build`: successful. `pnpm --filter web js-budget`: every page within its budget (68 pages), with the budget changes below.
+
+**Not run on this seat:**
+- **The journeys:** this VM has no Playwright browser (`~/.cache/ms-playwright` is absent, and installing one is a download I may not make). `pnpm --filter web e2e:seed` ran and made the project fixtures (exit 0). The lead runs the journeys and makes the Linux baselines.
+- **The pages in a signed-in browser:** they were not opened here. They typecheck, lint, build and pass the page-guard, client-namespace and query-name tests.
+
+**For the lead:**
+- **`checks-ok` needed:** `apps/web/js-budget.json` changed. It adds the three new pages at their measured size plus 5 %, and raises `/catalogue` (to 246) and `/admin/integrations` (to 242) by 1 kB each for the shell's two new menu entries. That is a checks file, so this pull request needs the owner's `checks-ok`.
+- **`app.status_summary()` is dropped and made again**, because its result type changes. A slice of this wave that also redefines it must carry the two new columns.
+- **`OrderScreen` gains an optional `project` prop**, and `order-screen.tsx` and the order page each change in two places. H2 may touch the same files.
+- **Shared registration points:** `nav.ts` (two entries), `session-gate.ts` (`/projects`), `client-namespaces.ts`, `en.json`, the copy-lint config and `js-budget.json` each carry the J1 lines.
+- **A stray seed row:** running the journeys' seed on this database left the Co-pilot setting of the snapshot company (id `0199e2e0-…a002`), which `alert-counts.test.ts` then refused as a duplicate. That has nothing to do with this slice's code: the suites and the seed share this seat's database. I deleted the row and ran the suite again. A fresh database at integration avoids it.
+- **The run file is orphaned:** `tools/integration/check-doc-links.py` reports `docs/runs/phase4/j1-projects.md` as an orphan, since no page links it yet. The run files' index is the lead's.
+
+**Decisions after the early check:**
+1. **STATUS leaves out cancelled projects:** the order line already says how the sale stands. The next step is printed only for a project in progress.
+2. **The engineer's customer comes through a narrow definer** (`app.project_customers()`, name, village, district and PIN only) rather than widening `crm.account.read` for engineers.
+3. **The own-scope list finds the caller's projects first** and names them by id (above). The cap is 1,000 own projects.
+4. **The people a manager may name** are everyone with a role in the company (`user_entity_roles`, with names from `principals`). A suspended person is not filtered out: their `users` row is theirs alone to read, and `app.user_is_active()` needs `crm.lead.assign`.
+5. **Tabs are links** (`?tab=`), rendered on the server. After each move the page is read again with `router.refresh()`.
+6. **The steps editor never shows requirement keys:** J3 will add a picker. A kept step keeps the requirements it had.
+7. **Start project lives on the order page** for a confirmed order without a project not cancelled, for `projects.write:entity`. It uses the lead's business line or the one chosen.
 
 ## Review
 
