@@ -43,6 +43,8 @@ const Count = z.number().int().min(0);
  *   that lead instead of making a new one (CRM-03; not when you added it yourself).
  * - `reorder_drafted`: stock fell below its reorder level and the reorder check drafted a purchase
  *   order of your company, for the people who write its purchase orders to add the rates (U2).
+ * - `po_mail_not_sent`: a purchase order you sent by email did not go to the vendor, so you send its
+ *   PDF yourself; the order stays sent (U2).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -61,6 +63,8 @@ export const NOTICE_TYPES = [
   'enquiry_attached',
   // U2 reorder drafts.
   'reorder_drafted',
+  // U2 the purchase order mailer.
+  'po_mail_not_sent',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -376,6 +380,17 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       opportunityId: IdSchema,
       nurtured: z.boolean(),
       attachedBy: IdSchema.nullable(),
+    })
+    .strict(),
+  // U2: a purchase order sent by email that the mailer could not send: its sender is told (the
+  // mailer asks for it itself, naming the send's event).
+  z
+    .object({
+      event: z.literal('procurement.po.sent'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      purchaseOrderId: IdSchema,
+      sentBy: IdSchema,
     })
     .strict(),
   // U2: a purchase order the reorder check drafted: the company's order writers are told.

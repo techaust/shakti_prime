@@ -163,6 +163,10 @@ export const PERMISSION_KEYS = [
   // worker principal, which compares each reorder rule with free stock and open purchase orders and
   // drafts purchase orders with no rate through two narrow definers, nothing more.
   'procurement.reorder.draft',
+  // U2: the purchase order mailer (review finding 4): held only by the platform's worker
+  // principal, which reads one order sent by email, with its rates, its vendor's person and the
+  // sender's address, through one narrow definer, to mail the vendor its PDF; nothing more.
+  'procurement.po.mail',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -253,6 +257,8 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'messaging.media.expire',
   // U2 reorder drafts.
   'procurement.reorder.draft',
+  // U2 the purchase order mailer.
+  'procurement.po.mail',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -426,6 +432,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'messaging.media.expire': ['all'],
   // U2 reorder drafts.
   'procurement.reorder.draft': ['all'],
+  // U2 the purchase order mailer.
+  'procurement.po.mail': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

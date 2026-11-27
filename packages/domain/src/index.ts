@@ -242,6 +242,7 @@ export { poLineAmount, purchaseOrderTotals, stockUnitCost } from './procurement/
 export {
   getPurchaseOrder,
   getPurchaseOrderPrint,
+  getPurchaseOrderForMail,
   getReceiveGoods,
   listGoodsReceipts,
   listPurchaseOrders,
@@ -249,7 +250,7 @@ export {
   purchaseOrderOverdue,
   readsOrders,
 } from './queries/procurement/order-queries';
-export type { PurchaseOrderPrintData } from './queries/procurement/order-queries';
+export type { PurchaseOrderMail, PurchaseOrderPrintData } from './queries/procurement/order-queries';
 export { readQuoteComparison, getVendor, listVendors } from './queries/procurement/vendor-queries';
 export { readsRates, readsVendors } from './queries/procurement/vendor-read';
 export { serialMatchesPattern, serialsOutsidePattern } from './catalogue/serial-pattern';
@@ -377,7 +378,7 @@ export type { KeyValue } from './ports/key-value';
 export { consoleMailer, memoryMailer, recipientOnlyMailer } from './ports/mailer';
 export { jsonLogger, memoryLogger, redact, redactError, redactText } from './ports/logger';
 export type { Logger, LogLevel } from './ports/logger';
-export type { Mailer, MailMessage } from './ports/mailer';
+export type { MailAttachment, Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';

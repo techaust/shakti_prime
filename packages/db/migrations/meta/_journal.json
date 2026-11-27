@@ -1723,6 +1723,20 @@
       "when": 1795807081223,
       "tag": "0245_u2_receipt_opening",
       "breakpoints": true
+    },
+    {
+      "idx": 246,
+      "version": "7",
+      "when": 1795808515266,
+      "tag": "0246_u2_po_mail_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1795808546781,
+      "tag": "0247_u2_po_mail_rls",
+      "breakpoints": true
     }
   ]
 }

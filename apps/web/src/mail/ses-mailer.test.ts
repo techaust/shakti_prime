@@ -35,6 +35,36 @@ describe('the SES mailer', () => {
     });
   });
 
+  it('sends a reply-to address and a PDF attached (a purchase order to its vendor)', async () => {
+    ses.on(SendEmailCommand).resolves({ MessageId: 'm-2' });
+    const mailer = sesMailer({ from: 'no-reply@shakti.example.in', region: 'ap-south-1', client });
+    const content = new Uint8Array([37, 80, 68, 70]);
+    await mailer.send({
+      to: 'sales@vendor.example.in',
+      subject: 'Purchase order',
+      text: 'Our purchase order is attached.',
+      replyTo: 'buyer@shakti.example.in',
+      attachments: [{ fileName: 'Purchase order 7.pdf', contentType: 'application/pdf', content }],
+    });
+    const [call] = ses.commandCalls(SendEmailCommand);
+    expect(call?.args[0].input).toMatchObject({
+      ReplyToAddresses: ['buyer@shakti.example.in'],
+      Content: {
+        Simple: {
+          Attachments: [
+            {
+              RawContent: content,
+              FileName: 'Purchase order 7.pdf',
+              ContentType: 'application/pdf',
+              ContentDisposition: 'ATTACHMENT',
+              ContentTransferEncoding: 'BASE64',
+            },
+          ],
+        },
+      },
+    });
+  });
+
   it('passes a refusal on, so the caller can log it', async () => {
     ses.on(SendEmailCommand).rejects(new Error('MessageRejected'));
     const mailer = sesMailer({ from: 'no-reply@shakti.example.in', region: 'ap-south-1', client });

@@ -898,6 +898,10 @@
     }
   },
   "mail": {
+    "purchaseOrder": {
+      "subject": "Purchase order {number} from {company}",
+      "body": "Hello {name},\n\nPlease find our purchase order {number} attached. Reply to this email with any question about it.\n\n{company}"
+    },
     "setPassword": {
       "subject": "Your Shakti Prime sign-in",
       "body": "Hello {name},\n\nYour Shakti Prime access is ready. Open this link to choose your password:\n{url}\n\nThe link works for one day. If you didn't expect this email, you can ignore it.\n\nShakti Prime"
@@ -4229,7 +4233,8 @@
       "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
       "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
       "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept",
-      "procurement_reorder_draft": "Draft purchase orders when stock falls below its reorder level"
+      "procurement_reorder_draft": "Draft purchase orders when stock falls below its reorder level",
+      "procurement_po_mail": "Email a purchase order to its vendor"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -5463,7 +5468,8 @@
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
       "missed_call": "A customer gave you a missed call",
       "enquiry_attached": "A customer of your lead in nurture asked again",
-      "reorder_drafted": "Stock is low: a purchase order was drafted"
+      "reorder_drafted": "Stock is low: a purchase order was drafted",
+      "po_mail_not_sent": "A purchase order you sent by email did not go"
     },
     "settings": {
       "title": "Notification settings",
@@ -5646,6 +5652,10 @@
     "reorder_drafted": {
       "title": "Stock is low",
       "body": "A purchase order was drafted from the reorder rules. Add the rates and send it for approval. Tap to open it."
+    },
+    "po_mail_not_sent": {
+      "title": "A purchase order did not go by email",
+      "body": "The email to the vendor could not be sent. The order stays sent. Tap to open it, download its PDF and send it to the vendor yourself."
     }
   },
   "orders": {
@@ -6828,7 +6838,14 @@
       "cancelConfirm": "Cancel order",
       "closeConfirm": "Close order",
       "cancelled": "Purchase order {number} cancelled.",
-      "closed": "Purchase order {number} closed."
+      "closed": "Purchase order {number} closed.",
+      "sendByEmail": "Send by email",
+      "emailTitle": "Email purchase order {number}",
+      "emailIntro": "The order is marked sent now, and its PDF goes by email to the person you choose, with your email address to reply to. If the email cannot go, you get a notice to send the PDF yourself.",
+      "emailTo": "Send to",
+      "emailContact": "{name} ({email})",
+      "emailConfirm": "Send email",
+      "emailed": "Purchase order {number} sent. Its PDF is on its way by email."
     },
     "orderForm": {
       "createTitle": "New purchase order",

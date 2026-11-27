@@ -290,8 +290,10 @@ export const approvePurchaseOrder = defineCommand({
 });
 
 /**
- * `procurement.po.send`: by email to one of the vendor's people with an email address (the PDF
- * is made and mailed by the worker on `procurement.po.sent`), or marked sent by hand.
+ * `procurement.po.send`: by email to one of the vendor's people with an email address, or marked
+ * sent by hand. By email, the order is sent at once and the mailer on `procurement.po.sent` prints
+ * its PDF with its rates and mails it to that person, the sender's address to reply to; when it
+ * cannot, the order stays sent and the sender is told to send the PDF themselves.
  */
 export const sendPurchaseOrder = defineCommand({
   name: 'procurement.po.send',
@@ -337,6 +339,7 @@ export const sendPurchaseOrder = defineCommand({
         vendorId: row.vendorId,
         via: input.via,
         vendorContactId: input.vendorContactId ?? null,
+        sentBy: ctx.principal.id,
       },
     });
     return orderRef(row, to);

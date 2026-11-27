@@ -76,6 +76,8 @@ describe('the event catalogue', () => {
         'print.document.requested',
         // U2: a reorder draft, told to the company's order writers.
         'procurement.po.drafted',
+        // U2: the purchase order mailer.
+        'procurement.po.sent',
         'sales.order.confirmed',
         'sales.order.credit_held',
         'sales.quote.accepted',

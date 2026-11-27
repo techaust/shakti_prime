@@ -32,6 +32,7 @@ import {
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import {
   getPurchaseOrder,
+  getPurchaseOrderForMail,
   getPurchaseOrderPrint,
   listGoodsReceipts,
   listPurchaseOrders,
@@ -402,7 +403,7 @@ describe('procurement.po.send / cancel / close', () => {
     expect(sent.state).toBe('sent');
     expect(emitted.records[0]).toMatchObject({
       type: 'procurement.po.sent',
-      payload: { via: 'email', vendorContactId: contact },
+      payload: { via: 'email', vendorContactId: contact, sentBy: manager.id },
     });
   });
 
@@ -947,6 +948,96 @@ describe('reorder rules and procurement.reorder.draft', () => {
         entityId: 2,
       }),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('the purchase order mailer’s read (review finding 4)', () => {
+  // A real person sends: their address is the email's reply-to, and they are the one told.
+  let buyer: { id: string; email: string };
+  let buyerAsPrincipal: Principal;
+  beforeAll(async () => {
+    buyer = await createTestUser([{ entityId: 1, roleKey: 'inventory_manager' }]);
+    buyerAsPrincipal = principalFor('inventory_manager', [1], { id: buyer.id });
+  });
+  const mailWorker = (entityIds: number[]) =>
+    principalFor('system:workers', entityIds, { id: SYSTEM_WORKERS_PRINCIPAL_ID });
+  const readMail = (who: Principal, purchaseOrderId: string) =>
+    asPrincipal(who, (context) =>
+      getPurchaseOrderForMail(context, {
+        purchaseOrderId,
+        vendorContactId: contact,
+        sentBy: buyer.id,
+      }),
+    );
+
+  /** An approved order of 10 metres at ₹100, sent `via`. */
+  async function sentVia(via: 'email' | 'by_hand'): Promise<Ref> {
+    const po = await run<Ref>(manager, createPurchaseOrder, draft());
+    await run(checker, approvePurchaseOrder, { purchaseOrderId: po.id });
+    return run<Ref>(buyerAsPrincipal, sendPurchaseOrder, {
+      purchaseOrderId: po.id,
+      via,
+      ...(via === 'email' ? { vendorContactId: contact } : {}),
+    });
+  }
+
+  it('gives the worker an order sent by email with its rates, the vendor’s person and the sender’s address', async () => {
+    const po = await sentVia('email');
+    const mail = await readMail(mailWorker([1]), po.id);
+    expect(mail?.to).toEqual({ name: 'Sales desk', email: 'sales@example.com' });
+    expect(mail?.replyTo).toBe(buyer.email);
+    expect(mail?.print.order).toMatchObject({ id: po.id, state: 'sent', sentVia: 'email' });
+    expect(mail?.print.order.lines).toEqual([
+      expect.objectContaining({ itemId: f.cable, unitRate: '100.0000', amount: '1000.00' }),
+    ]);
+    expect(mail?.print.order.totals?.subtotal).toBe('1000.00');
+    expect(mail?.print.vendor.name).toBe(`PO vendor ${f.tag}`);
+    // Another company's worker, an order sent by hand, an order cancelled since: nothing to mail.
+    expect(await readMail(mailWorker([2]), po.id)).toBeUndefined();
+    expect(await readMail(mailWorker([1]), (await sentVia('by_hand')).id)).toBeUndefined();
+    const cancelled = await sentVia('email');
+    await run(manager, cancelPurchaseOrder, { purchaseOrderId: cancelled.id, reason: 'Twice' });
+    expect(await readMail(mailWorker([1]), cancelled.id)).toBeUndefined();
+  });
+
+  it('is the platform’s only: no person reads through it, an Executive included', async () => {
+    const po = await sentVia('email');
+    for (const who of [executive, manager, principalFor('agent:chief', [1])]) {
+      await expect(readMail(who, po.id)).rejects.toMatchObject({ code: 'forbidden' });
+      await expect(
+        asPrincipal(who, ({ tx }) =>
+          tx.execute(
+            sql`select app.purchase_order_for_mail(${po.id}::uuid, ${contact}::uuid, ${buyer.id}::uuid)`,
+          ),
+        ),
+      ).rejects.toMatchObject({ cause: { code: '42501' } });
+    }
+  });
+
+  it('tells the sender once when the email did not go', async () => {
+    const po = await sentVia('email');
+    for (let i = 0; i < 2; i += 1) {
+      await asPrincipal(mailWorker([1]), (context) =>
+        runCommand(
+          notifyEvent,
+          { context, audit, outbox },
+          {
+            event: 'procurement.po.sent',
+            entityId: 1,
+            eventId: newId(),
+            purchaseOrderId: po.id,
+            sentBy: buyer.id,
+          },
+        ),
+      );
+    }
+    const told = await asMigrator(
+      (m) => m<{ user_id: string; type: string; subject_type: string }[]>`
+        select user_id, type, subject_type from notifications where subject_id = ${po.id}`,
+    );
+    expect(told).toEqual([
+      { user_id: buyer.id, type: 'po_mail_not_sent', subject_type: 'purchase_order' },
+    ]);
   });
 });
 

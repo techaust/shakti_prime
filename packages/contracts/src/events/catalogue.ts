@@ -836,14 +836,17 @@ const eventCatalogue = {
   },
   'procurement.po.sent': {
     meaning:
-      'A purchase order went to its vendor: by email with its PDF (`email`, to the person named), or marked sent by hand.',
+      'A purchase order was sent to its vendor: by email (`email`, to the person named; the mailer then mails its PDF, and tells the sender when it cannot), or marked sent by hand.',
     emittedBy: ['procurement.po.send'],
-    subscribed: false,
+    // U2: the purchase order mailer.
+    subscribed: true,
     payload: z
       .object({
         vendorId: IdSchema,
         via: z.enum(['email', 'by_hand']),
         vendorContactId: IdSchema.nullable(),
+        /** The person who sent it: the email's reply-to, and who is told when it does not go. */
+        sentBy: IdSchema,
       })
       .strict(),
   },

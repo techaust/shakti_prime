@@ -102,6 +102,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'messaging.media.expire': 'Remove WhatsApp photos and files after the time they are kept',
   // U2 reorder drafts.
   'procurement.reorder.draft': 'Draft purchase orders when stock falls below its reorder level',
+  'procurement.po.mail': 'Email a purchase order to its vendor',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

@@ -4,6 +4,7 @@ import type { Metadata, Route } from 'next';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getVendor } from '../../../../../actions/procurement';
 import { getPurchaseOrder, listGoodsReceipts } from '../../../../../actions/purchase-orders';
 import { OrderActionsBar } from '../../../../../components/procurement/order-actions';
 import { OrderSheet } from '../../../../../components/procurement/order-sheet';
@@ -60,6 +61,13 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
     },
     order.approvedAt,
   );
+  // The vendor's people with an email address, for Send by email.
+  const vendor = allowed.send ? await getVendor({ vendorId: order.vendorId }) : undefined;
+  const emailContacts = vendor?.ok
+    ? vendor.data.contacts.flatMap((c) =>
+        c.email === null ? [] : [{ id: c.id, name: c.name, email: c.email }],
+      )
+    : [];
   const receipts = await listGoodsReceipts({
     entityId: order.entityId,
     purchaseOrderId: order.id,
@@ -81,7 +89,12 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
         </Button>
       }
     >
-      <OrderActionsBar orderId={order.id} poNo={order.poNo} allowed={allowed} />
+      <OrderActionsBar
+        orderId={order.id}
+        poNo={order.poNo}
+        allowed={allowed}
+        emailContacts={emailContacts}
+      />
       <OrderSheet order={order} />
       <section aria-labelledby="order-receipts" className="flex flex-col gap-3">
         <h2 id="order-receipts" className="text-h3">

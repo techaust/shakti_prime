@@ -38,6 +38,7 @@ export function noticeHref(notice: NoticeLinkFacts): Route {
     case 'order_credit_held':
       return orderHref(notice.entityId, notice.subjectId);
     case 'reorder_drafted':
+    case 'po_mail_not_sent':
       return `/procurement/orders/${notice.subjectId}` as Route;
     case 'whatsapp_reply_waiting':
       return messagesHref(notice.entityId, notice.subjectId);

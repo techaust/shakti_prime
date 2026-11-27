@@ -1,8 +1,25 @@
+/** A file sent with a message: a purchase order's PDF. */
+export interface MailAttachment {
+  fileName: string;
+  contentType: 'application/pdf';
+  content: Uint8Array;
+}
+
 /** An outbound email. Templates and wording come from the message catalogue, never from here. */
 export interface MailMessage {
   to: string;
   subject: string;
   text: string;
+  /** Where a reply goes, when not to the sender's address (a purchase order's sender). */
+  replyTo?: string;
+  attachments?: MailAttachment[];
+}
+
+/** The attachments as a log line names them: each file's name and size, never its bytes. */
+function attachmentLines(message: MailMessage): string {
+  return (message.attachments ?? [])
+    .map((a) => `\n[mail] attached: ${a.fileName} (${String(a.content.byteLength)} bytes)`)
+    .join('');
 }
 
 /**
@@ -17,7 +34,9 @@ export interface Mailer {
 export function consoleMailer(write: (line: string) => void = console.warn): Mailer {
   return {
     send: (message) => {
-      write(`[mail] to: ${message.to}\n[mail] subject: ${message.subject}\n${message.text}`);
+      write(
+        `[mail] to: ${message.to}\n[mail] subject: ${message.subject}${attachmentLines(message)}\n${message.text}`,
+      );
       return Promise.resolve();
     },
   };
@@ -31,7 +50,9 @@ export function consoleMailer(write: (line: string) => void = console.warn): Mai
 export function recipientOnlyMailer(write: (line: string) => void = console.warn): Mailer {
   return {
     send: (message) => {
-      write(`[mail] to: ${message.to}\n[mail] subject: ${message.subject}\n[mail] body withheld`);
+      write(
+        `[mail] to: ${message.to}\n[mail] subject: ${message.subject}${attachmentLines(message)}\n[mail] body withheld`,
+      );
       return Promise.resolve();
     },
   };

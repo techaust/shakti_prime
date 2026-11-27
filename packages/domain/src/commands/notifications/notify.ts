@@ -183,6 +183,19 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         },
       ];
     }
+    case 'procurement.po.sent':
+      // U2: a purchase order sent by email that the mailer could not send: the person who sent
+      // it, once an order, so they send its PDF another way. The mailer asks for it itself.
+      return [
+        {
+          userId: input.sentBy,
+          type: 'po_mail_not_sent',
+          subjectType: 'purchase_order',
+          subjectId: input.purchaseOrderId,
+          payload: {},
+          dedupeKey: `po_mail_not_sent:${input.purchaseOrderId}`,
+        },
+      ];
     case 'procurement.po.drafted': {
       // U2: the people who write the company's purchase orders, for a reorder draft still waiting
       // for its rates; once an order.

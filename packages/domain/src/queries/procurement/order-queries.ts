@@ -252,7 +252,12 @@ async function readOrder(
       from po_lines l join items i on i.id = l.item_id
      where l.po_id = ${purchaseOrderId}
      order by l.line_no`)) as unknown as LineRow[];
-  const order = PurchaseOrderDto.parse({
+  return { order: orderDtoOf(row, lines, now), lines };
+}
+
+/** The order as every reader sees it, from its row and lines as `readOrder` reads them. */
+function orderDtoOf(row: SheetRow, lines: LineRow[], now: Date): PurchaseOrderDto {
+  return PurchaseOrderDto.parse({
     ...row,
     approvedAt: iso(row.approvedAt),
     sentAt: iso(row.sentAt),
@@ -260,33 +265,21 @@ async function readOrder(
     overdue: purchaseOrderOverdue(row.state, row.expectedAt, now),
     lines: lines.map(withoutTaxRate),
   });
-  return { order, lines };
 }
 
-/**
- * The order sheet: the order and its lines for every reader; for a holder of
- * `procurement.rate.read`, each line's rate and amount and the order's tax split and totals by the
- * tax engine. A reader without the grant gets the shape without values, built without reading them.
- */
-export async function getPurchaseOrder(
-  ctx: QueryContext,
-  rawInput: unknown,
-  now: Date = new Date(),
-): Promise<PurchaseOrderDto | PurchaseOrderWithRatesDto> {
-  assertOrderReader(ctx.principal);
-  const input = parseQueryInput(GetPurchaseOrderInput, rawInput, 'procurement.orders.get');
-  const { order, lines } = await readOrder(ctx, input.purchaseOrderId, now);
-  if (!readsRates(ctx.principal)) return order;
-  const rates = (await ctx.tx.execute(sql`
-    select r.po_line_id as "poLineId", r.unit_rate::text as "unitRate", r.amount::text as amount,
-           r.quote_id as "quoteId"
-      from po_line_rates r join po_lines l on l.id = r.po_line_id
-     where l.po_id = ${order.id}`)) as unknown as {
-    poLineId: string;
-    unitRate: string;
-    amount: string;
-    quoteId: string | null;
-  }[];
+interface RateRow {
+  poLineId: string;
+  unitRate: string;
+  amount: string;
+  quoteId: string | null;
+}
+
+/** The order with each line's rate and amount and the tax engine's split and totals. */
+function withRates(
+  order: PurchaseOrderDto,
+  lines: LineRow[],
+  rates: RateRow[],
+): PurchaseOrderWithRatesDto {
   const byLine = new Map(rates.map((r) => [r.poLineId, r]));
   const totals = purchaseOrderTotals(
     lines.map((l) => ({
@@ -312,6 +305,28 @@ export async function getPurchaseOrder(
     }),
     totals,
   });
+}
+
+/**
+ * The order sheet: the order and its lines for every reader; for a holder of
+ * `procurement.rate.read`, each line's rate and amount and the order's tax split and totals by the
+ * tax engine. A reader without the grant gets the shape without values, built without reading them.
+ */
+export async function getPurchaseOrder(
+  ctx: QueryContext,
+  rawInput: unknown,
+  now: Date = new Date(),
+): Promise<PurchaseOrderDto | PurchaseOrderWithRatesDto> {
+  assertOrderReader(ctx.principal);
+  const input = parseQueryInput(GetPurchaseOrderInput, rawInput, 'procurement.orders.get');
+  const { order, lines } = await readOrder(ctx, input.purchaseOrderId, now);
+  if (!readsRates(ctx.principal)) return order;
+  const rates = (await ctx.tx.execute(sql`
+    select r.po_line_id as "poLineId", r.unit_rate::text as "unitRate", r.amount::text as amount,
+           r.quote_id as "quoteId"
+      from po_line_rates r join po_lines l on l.id = r.po_line_id
+     where l.po_id = ${order.id}`)) as unknown as RateRow[];
+  return withRates(order, lines, rates);
 }
 
 /** Receive goods: the order without values and the bins of its hub goods may come into. */
@@ -426,26 +441,38 @@ export async function getPurchaseOrderPrint(
   const [company] = (await ctx.tx.execute(sql`
     select legal_name as "legalName", brand_name as "brandName", gstin,
            address_line1 as "line1", address_line2 as "line2", city, pin
-      from entities where id = ${order.entityId}`)) as unknown as {
-    legalName: string;
-    brandName: string;
-    gstin: string | null;
-    line1: string | null;
-    line2: string | null;
-    city: string | null;
-    pin: string | null;
-  }[];
+      from entities where id = ${order.entityId}`)) as unknown as CompanyRow[];
   const [vendor] = (await ctx.tx.execute(sql`
-    select name, gstin, address_json as address from vendors where id = ${order.vendorId}`)) as unknown as {
-    name: string;
-    gstin: string | null;
-    address: { line1?: string; line2?: string; city?: string; pin?: string };
-  }[];
+    select name, gstin, address_json as address from vendors where id = ${order.vendorId}`)) as unknown as VendorRow[];
   if (company === undefined || vendor === undefined) {
     throw new DomainError('not_found', 'the order’s company or vendor is not readable', {
       reason: 'purchase_order_missing',
     });
   }
+  return printDataOf(order, company, vendor);
+}
+
+interface CompanyRow {
+  legalName: string;
+  brandName: string;
+  gstin: string | null;
+  line1: string | null;
+  line2: string | null;
+  city: string | null;
+  pin: string | null;
+}
+interface VendorRow {
+  name: string;
+  gstin: string | null;
+  address: { line1?: string; line2?: string; city?: string; pin?: string };
+}
+
+/** The print data from the order and its company's and vendor's rows, addresses line by line. */
+function printDataOf(
+  order: PurchaseOrderDto | PurchaseOrderWithRatesDto,
+  company: CompanyRow,
+  vendor: VendorRow,
+): PurchaseOrderPrintData {
   const lines = (...parts: (string | null | undefined)[]) =>
     parts.filter((p): p is string => typeof p === 'string' && p.trim() !== '');
   return {
@@ -469,5 +496,61 @@ export async function getPurchaseOrderPrint(
         lines(vendor.address.city, vendor.address.pin).join(' ') || null,
       ),
     },
+  };
+}
+
+/** What the mailer sends: the vendor's copy, to whom, and the address replies go to. */
+export interface PurchaseOrderMail {
+  /** The order with its rates and totals: the vendor's copy. */
+  print: PurchaseOrderPrintData & { order: PurchaseOrderWithRatesDto };
+  /** The vendor's person named on sending, while they still have an email address. */
+  to: { name: string; email: string } | null;
+  /** The sender's own address. */
+  replyTo: string | null;
+}
+
+/**
+ * The purchase order mailer's read (U2, review finding 4), as `system:workers` holding the
+ * platform-only `procurement.po.mail` and no person's grant: through `app.purchase_order_for_mail()`
+ * only, one order of the worker's company that a person sent by email, with its rates for the
+ * vendor's copy, the vendor's person and the sender's address. Undefined for an order that is not
+ * that (never approved, sent by hand, cancelled since), so nothing is mailed.
+ */
+export async function getPurchaseOrderForMail(
+  ctx: QueryContext,
+  input: { purchaseOrderId: string; vendorContactId: string; sentBy: string },
+  now: Date = new Date(),
+): Promise<PurchaseOrderMail | undefined> {
+  if (!hasGrant(ctx.principal.permissions, 'procurement.po.mail', 'all')) {
+    throw new DomainError('forbidden', `${ctx.principal.roleKey} mails no purchase order`, {
+      permission: 'procurement.po.mail',
+      scope: 'all',
+    });
+  }
+  const [row] = (await ctx.tx.execute(sql`
+    select app.purchase_order_for_mail(${input.purchaseOrderId}::uuid,
+                                       ${input.vendorContactId}::uuid,
+                                       ${input.sentBy}::uuid) as mail`)) as unknown as {
+    mail: {
+      order: SheetRow;
+      lines: LineRow[];
+      rates: RateRow[];
+      company: CompanyRow | null;
+      vendor: VendorRow | null;
+      contact: { name: string; email: string } | null;
+      replyTo: string | null;
+    } | null;
+  }[];
+  const mail = row?.mail;
+  const company = mail?.company;
+  const vendor = mail?.vendor;
+  if (!mail || !company || !vendor || !ctx.entityIds.includes(mail.order.entityId)) {
+    return undefined;
+  }
+  const order = withRates(orderDtoOf(mail.order, mail.lines, now), mail.lines, mail.rates);
+  return {
+    print: { ...printDataOf(order, company, vendor), order },
+    to: mail.contact,
+    replyTo: mail.replyTo,
   };
 }
