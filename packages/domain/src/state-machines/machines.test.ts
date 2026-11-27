@@ -18,6 +18,7 @@ import { projectSuryaGharMachine } from './machines/project-surya-ghar';
 import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
 import { serialMachine } from './machines/serial';
+import { stockCountMachine } from './machines/stock-count';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
 import { taskMachine } from './machines/task';
@@ -55,6 +56,8 @@ const FIXTURES: Fixture[] = [
   { machine: agentActionMachine, record: {}, params: {} },
   // H1: a serial moves from the bin it is in.
   { machine: serialMachine, record: { binId: SERIAL_BIN }, params: { fromBinId: SERIAL_BIN } },
+  // H3: every item in every bin counted, no recount open.
+  { machine: stockCountMachine, record: { toCount: 0, recountOpen: 0 }, params: {} },
   { machine: inboxItemMachine, record: {}, params: {} },
   { machine: knowledgeFileMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
@@ -354,6 +357,31 @@ interface GuardCase {
 }
 
 const GUARDS: GuardCase[] = [
+  // Stock count (H3)
+  {
+    fixture: 'stock_count',
+    from: 'counting',
+    event: 'submit',
+    record: { toCount: 2 },
+    code: 'conflict',
+    reason: 'stock_count_uncounted',
+  },
+  {
+    fixture: 'stock_count',
+    from: 'counting',
+    event: 'submit',
+    record: { recountOpen: 1 },
+    code: 'conflict',
+    reason: 'stock_count_recount_open',
+  },
+  {
+    fixture: 'stock_count',
+    from: 'review',
+    event: 'post',
+    record: { toCount: 1 },
+    code: 'conflict',
+    reason: 'stock_count_uncounted',
+  },
   // File upload
   {
     fixture: 'file_upload',

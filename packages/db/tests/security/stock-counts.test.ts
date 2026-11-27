@@ -4,7 +4,6 @@ import {
   ROLE_KEYS,
   type PermissionGrant,
   type Principal,
-  type RoleKey,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -114,9 +113,13 @@ describe('the expected quantity on either pool', () => {
   it('is selected by no request role from the table, whatever it holds', async () => {
     for (const role of ROLE_KEYS) {
       for (const reader of POOLS) {
-        const who = principalFor(role as RoleKey, [1]);
+        const who = principalFor(role, [1]);
         const e = await failure(
-          as(who, reader, sql`select expected_qty from stock_count_lines where count_id = ${countId}`),
+          as(
+            who,
+            reader,
+            sql`select expected_qty from stock_count_lines where count_id = ${countId}`,
+          ),
         );
         expect({ role, reader, e }).toMatchObject({ role, reader, e: { code: '42501' } });
         const star = await failure(
@@ -140,7 +143,7 @@ describe('the expected quantity on either pool', () => {
 
   it('reaches only a holder of inventory.stock.adjust, through the review', async () => {
     for (const role of ROLE_KEYS) {
-      const who = principalFor(role as RoleKey, [1]);
+      const who = principalFor(role, [1]);
       const adjusts = hasGrant(who.permissions, 'inventory.stock.adjust', 'entity');
       for (const reader of POOLS) {
         const query = sql`select line_id, expected_qty from app.stock_count_review(${countId}::uuid)`;
@@ -206,7 +209,7 @@ describe('the expected quantity on either pool', () => {
 describe('the lines', () => {
   it('are read, without the expected quantity, only with inventory.stock.adjust', async () => {
     for (const role of ROLE_KEYS) {
-      const who = principalFor(role as RoleKey, [1]);
+      const who = principalFor(role, [1]);
       const adjusts = hasGrant(who.permissions, 'inventory.stock.adjust', 'entity');
       for (const reader of POOLS) {
         const [row] = await as<{ n: number }>(
@@ -249,16 +252,20 @@ describe('the lines', () => {
       ),
     ).toMatchObject({ code: '42501' });
     expect(
-      await failure(
-        as(manager, true, sql`select app.stock_count_start(${countId}::uuid)`),
-      ),
+      await failure(as(manager, true, sql`select app.stock_count_start(${countId}::uuid)`)),
     ).toMatchObject({ code: '42501' });
   });
 });
 
 describe('the definers’ grants', () => {
   it('are executed only by the roles that need them', async () => {
-    const rows = await withoutContext<{ fn: string; user: boolean; reader: boolean; reporter: boolean; pub: boolean }>(sql`
+    const rows = await withoutContext<{
+      fn: string;
+      user: boolean;
+      reader: boolean;
+      reporter: boolean;
+      pub: boolean;
+    }>(sql`
       select p.oid::regprocedure::text as fn,
              has_function_privilege('app_user', p.oid, 'execute') as user,
              has_function_privilege('app_reader', p.oid, 'execute') as reader,
@@ -298,8 +305,10 @@ describe('a count’s state', () => {
         values (${id}, 2, ${hub}, 'hub', 'open', ${manager.id}, ${manager.id})`);
     }).catch(() => undefined);
     // The Inventory Manager of company 1 cannot start one in company 2.
-    const [none] = await asMigrator((m) => m<{ n: number }[]>`
-      select count(*)::int as n from stock_counts where id = ${id}`);
+    const [none] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+      select count(*)::int as n from stock_counts where id = ${id}`,
+    );
     expect(none?.n).toBe(0);
     // A counter cannot post or cancel by writing the state.
     const who = counter();
@@ -316,8 +325,10 @@ describe('a count’s state', () => {
       expect({ state, e }).toMatchObject({ state, e: { code: '23514' } });
       expect(e.message).toMatch(/does not move/);
     }
-    const [still] = await asMigrator((m) => m<{ state: string }[]>`
-      select state from stock_counts where id = ${countId}`);
+    const [still] = await asMigrator(
+      (m) => m<{ state: string }[]>`
+      select state from stock_counts where id = ${countId}`,
+    );
     expect(still?.state).toBe('open');
   });
 

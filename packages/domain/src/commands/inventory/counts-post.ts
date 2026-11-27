@@ -66,7 +66,7 @@ export const postStockCount = defineCommand({
               row.entityId,
               plan.map((m) => m.line),
               plan.map((m) => ({
-                stockReason: 'count' as const,
+                stockReason: m.line.reason,
                 quantity: m.line.qty,
                 serialNo: m.serialNo,
               })),

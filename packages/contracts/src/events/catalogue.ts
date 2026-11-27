@@ -293,6 +293,8 @@ const eventCatalogue = {
       'inventory.stock.adjust',
       'inventory.stock.reverse',
       'imports.job.commit_batch',
+      // H3 stock counts
+      'inventory.count.post',
     ],
     subscribed: false,
     payload: z

@@ -65,9 +65,7 @@ export const startStockCount = defineCommand({
       const found = await ctx.tx
         .select({ id: b.id })
         .from(b)
-        .where(
-          and(inArray(b.id, input.binIds), eq(b.warehouseId, hub.id), isNull(b.archivedAt)),
-        );
+        .where(and(inArray(b.id, input.binIds), eq(b.warehouseId, hub.id), isNull(b.archivedAt)));
       if (found.length !== input.binIds.length) {
         throw new DomainError('validation_failed', 'a bin outside the hub', {
           reason: 'stock_count_bin_outside',
@@ -76,10 +74,7 @@ export const startStockCount = defineCommand({
     }
     if (input.itemIds !== undefined) {
       const i = schema.items;
-      const found = await ctx.tx
-        .select({ id: i.id })
-        .from(i)
-        .where(inArray(i.id, input.itemIds));
+      const found = await ctx.tx.select({ id: i.id }).from(i).where(inArray(i.id, input.itemIds));
       if (found.length !== input.itemIds.length) {
         throw new DomainError('validation_failed', 'item not found', {
           reason: 'stock_item_missing',

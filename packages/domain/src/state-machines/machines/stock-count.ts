@@ -40,7 +40,11 @@ export const stockCountMachine = defineMachine<
   title: 'Stock count',
   summary:
     "`stock_counts.state`. One live count (open, counting or review) per company and hub (`stock_counts_live_unique`), so no variance posts twice. A counter's lines are written by the count's definers; the expected quantity is never read by a counter.",
-  sources: ['docs/03-roadmap-appendix/phase3.md §7.3', 'PRD INV-02', 'DATABASE §6.5 `stock_counts`'],
+  sources: [
+    'docs/03-roadmap-appendix/phase3.md §7.3',
+    'PRD INV-02',
+    'DATABASE §6.5 `stock_counts`',
+  ],
   states: STOCK_COUNT_STATES,
   stored: { table: 'stock_counts', stateColumn: 'state', changedAtColumn: 'state_changed_at' },
   initial: 'open',

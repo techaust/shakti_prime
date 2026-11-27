@@ -76,7 +76,8 @@ interface CountRowRaw {
   startedByName: string;
 }
 
-const iso = (value: Stamp): string | null => (value === null ? null : new Date(value).toISOString());
+const iso = (value: Stamp): string | null =>
+  value === null ? null : new Date(value).toISOString();
 
 function toRowDto(row: CountRowRaw): StockCountRowDto {
   return StockCountRowDto.parse({
@@ -92,7 +93,8 @@ async function readCountRow(ctx: Ctx, countId: string): Promise<StockCountRowDto
   const [row] = (await ctx.tx.execute(sql`
     select ${COUNT_ROW_SELECT} from stock_counts c ${COUNT_ROW_JOINS}
      where c.id = ${countId}`)) as unknown as CountRowRaw[];
-  if (!row) throw new DomainError('not_found', 'count not found', { reason: 'stock_count_missing' });
+  if (!row)
+    throw new DomainError('not_found', 'count not found', { reason: 'stock_count_missing' });
   assertEntityInScope(ctx.entityIds, row.entityId);
   return toRowDto(row);
 }
@@ -196,8 +198,7 @@ export async function readReviewLines(
            expected_at_count::numeric(13, 3)::text as "expectedAtCount",
            serial_moved_since as "serialMovedSince", serial_state as "serialState",
            serial_bin_id as "serialBinId"
-      from app.stock_count_review(${countId}::uuid)`)) as unknown as (CountLineFacts &
-    ReviewRaw)[];
+      from app.stock_count_review(${countId}::uuid)`)) as unknown as (CountLineFacts & ReviewRaw)[];
 }
 
 /** A variance in thousandths at a cost per unit (four decimals), in rupees to the paisa. */
@@ -298,7 +299,9 @@ export async function getStockCountReview(
   });
 
   const scopeItems =
-    count.itemIds === null ? sql`` : sql`and m.item_id = any(${`{${count.itemIds.join(',')}}`}::uuid[])`;
+    count.itemIds === null
+      ? sql``
+      : sql`and m.item_id = any(${`{${count.itemIds.join(',')}}`}::uuid[])`;
   const scopeBins =
     count.binIds === null
       ? sql`select b.id from bins b where b.warehouse_id = ${count.hubId}`
@@ -325,9 +328,7 @@ export async function getStockCountReview(
   return StockCountReviewDto.parse({
     count,
     lines: reviewLines,
-    movements: movements
-      .slice(0, REVIEW_MOVEMENTS)
-      .map((m) => ({ ...m, movedAt: iso(m.movedAt) })),
+    movements: movements.slice(0, REVIEW_MOVEMENTS).map((m) => ({ ...m, movedAt: iso(m.movedAt) })),
     moreMovements: movements.length > REVIEW_MOVEMENTS,
     progress: await countProgress(ctx.tx, input.countId),
     showsValues,

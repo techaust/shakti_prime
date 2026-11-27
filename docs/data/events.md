@@ -100,7 +100,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch` | none |
+| [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch`, `inventory.count.post` | none |
 
 ### Sign-in
 

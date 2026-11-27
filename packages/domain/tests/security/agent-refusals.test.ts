@@ -384,6 +384,13 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     note: 'Refused gain',
   },
   'inventory.stock.reverse': { entityId: 1, movementId: newId() },
+  // H3 stock counts: counting, asking again and posting are people's work.
+  'inventory.count.start': { entityId: 1, hubId: newId(), scope: 'hub' },
+  'inventory.count.record': { countId: newId(), binId: newId(), itemId: newId(), qty: '1' },
+  'inventory.count.recount': { countId: newId(), binId: newId(), itemId: newId() },
+  'inventory.count.submit': { countId: newId() },
+  'inventory.count.post': { countId: newId(), note: 'Refused count' },
+  'inventory.count.cancel': { countId: newId(), cancelReason: 'Refused count' },
   // The Agent Inbox and agent settings: a person decides, never an agent (SECURITY §3.3).
   ...Object.fromEntries(
     [

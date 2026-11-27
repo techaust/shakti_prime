@@ -143,6 +143,13 @@ const ACTIONS = {
   'inventory.stock.transfer': 'stockTransfer',
   'inventory.stock.adjust': 'stockAdjust',
   'inventory.stock.reverse': 'stockReverse',
+  // H3 stock counts
+  'inventory.count.start': 'countStart',
+  'inventory.count.record': 'countRecord',
+  'inventory.count.recount': 'countRecount',
+  'inventory.count.submit': 'countSubmit',
+  'inventory.count.post': 'countPost',
+  'inventory.count.cancel': 'countCancel',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -680,6 +687,10 @@ const FIELD_KINDS = [
   ['quantity', 'number'],
   ['serialNo', 'text'],
   ['adjustNote', 'text'],
+  // Stock counts (H3)
+  ['countScope', 'text'],
+  ['serialsCounted', 'number'],
+  ['countNote', 'text'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],

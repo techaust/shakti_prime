@@ -1,4 +1,4 @@
-import { DomainError, type SerialState } from '@shakti/contracts';
+import { DomainError, type SerialState, type StockReason } from '@shakti/contracts';
 import type { SerialEvent, SerialRecord } from '../../state-machines/machines/serial';
 import type { StockMovementLine } from '../../stock/move';
 
@@ -26,6 +26,9 @@ export interface CountLineFacts {
   serialState: SerialState | null;
   serialBinId: string | null;
 }
+
+/** The ledger's reason for every movement a count posts (a constant, so no catalogue reads it). */
+const COUNT: Extract<StockReason, 'count'> = 'count';
 
 /** A planned movement with the serial event the command fires for it first. */
 export interface PlannedMove {
@@ -73,7 +76,7 @@ export function planCountMoves(
 ): PlannedMove[] {
   const outs: PlannedMove[] = [];
   const ins: PlannedMove[] = [];
-  const base = { reason: 'count' as const, entityId, refType: 'stock_count', refId: countId };
+  const base = { reason: COUNT, entityId, refType: 'stock_count', refId: countId };
   // Serials written off by a line of their own, so a find elsewhere does not write them off twice.
   const leaving = new Set<string>();
   for (const line of lines) {
@@ -157,4 +160,3 @@ export function planCountMoves(
   }
   return [...outs, ...ins];
 }
-

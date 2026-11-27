@@ -130,7 +130,12 @@ export function toCountDto(row: CountRow): StockCountDto {
  */
 export async function lockCount(ctx: CommandContext, countId: string): Promise<CountRow> {
   const c = schema.stockCounts;
-  const [row] = await ctx.tx.select().from(c).where(eq(c.id, countId)).limit(1).for('no key update');
+  const [row] = await ctx.tx
+    .select()
+    .from(c)
+    .where(eq(c.id, countId))
+    .limit(1)
+    .for('no key update');
   if (!row) {
     throw new DomainError('not_found', 'count not found', { reason: 'stock_count_missing' });
   }
