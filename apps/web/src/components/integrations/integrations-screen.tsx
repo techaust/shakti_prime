@@ -30,6 +30,7 @@ import { FailureMessage } from '../screens/failure';
 import { settle } from '../screens/settle';
 import { useCommand, useQuery } from '../screens/use-command';
 import { WebhooksHealth } from './webhooks-health';
+import { TallyHealth } from './tally-health';
 import { WhatsAppHealth } from './whatsapp-health';
 
 const PAGE_SIZE = 50;
@@ -116,6 +117,7 @@ export function IntegrationsScreen({
         budget={initial.whatsappBudget}
         companies={companies}
       />
+      <TallyHealth connectors={initial.connectors} companies={companies} />
       <ScheduledUpkeep jobs={initial.jobs} />
       <AiSpend spend={initial.aiSpend} companies={companies} />
     </div>

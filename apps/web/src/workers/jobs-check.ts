@@ -12,6 +12,7 @@ import { sentryAlertSink, type AlertSink } from '../observability/alerts';
 import { BACKUP_JOB, backupProblem, configuredBackupCheck, type BackupListing } from './backup-age';
 import { systemWorkersPrincipal } from './events/system-principal';
 import { PHASE2_ALERTS_JOB, PHASE2_ALERTS_TIMEOUT_MS, runPhase2Alerts } from './phase2-alerts';
+import { runTallyAlerts, TALLY_ALERTS_JOB } from './tally-alerts';
 
 /** How long one alert for a job's problem stands before the check raises it again. */
 const ALERT_AGAIN_SECONDS = 7 * 24 * 60 * 60;
@@ -91,6 +92,16 @@ export async function runJobsCheck(options: JobsCheckOptions): Promise<JobsCheck
     alerted += 1;
   };
   for (const { job, state, since } of problems) await tell(job, state, since);
+  // TC2's Tally connector alerts: a fault in them is told once a day, as the Phase 2 alerts' is,
+  // and never fails this check.
+  let tallyFailed = false;
+  try {
+    alerted += (await runTallyAlerts({ requestId, alerts, now })).alerted;
+  } catch (error) {
+    tallyFailed = true;
+    logger.log('warn', 'jobs.problem', { requestId, job: TALLY_ALERTS_JOB, state: 'failed', error });
+    await tell(TALLY_ALERTS_JOB, 'failed', istCalendarDate(now));
+  }
   // G2's Phase 2 alerts (g2-alerts), after the jobs' own. A fault in them never fails this check,
   // so it can neither hold the check's own streak (`job.failing`) nor keep a job's problem untold;
   // it is told once a day as a problem of its own (`phase2-alerts`, `failed`). They may take at
@@ -130,7 +141,7 @@ export async function runJobsCheck(options: JobsCheckOptions): Promise<JobsCheck
   const jobs = reports.length + (backups === null || backups === undefined ? 0 : 1);
   return JobsCheckWorkerResponse.parse({
     jobs,
-    problems: problems.length + (phase2Failed ? 1 : 0),
+    problems: problems.length + (phase2Failed ? 1 : 0) + (tallyFailed ? 1 : 0),
     alerted,
   });
 }

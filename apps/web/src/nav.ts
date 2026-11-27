@@ -412,6 +412,26 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // messaging.milestone.set (docs/03-roadmap-appendix/phase2.md §7.1)
     requires: [{ key: 'messaging.templates.write', scope: 'all' }],
   },
+  // TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3): the connectors, an Executive's;
+  // the daily checks held for a person, Accounts'.
+  {
+    id: 'admin-tally',
+    href: '/admin/integrations/tally',
+    label: 'adminTally',
+    icon: BookCheck,
+    group: 'admin',
+    // tally.connector.register, .map, .unmap, .rotate, .retire_key and .revoke
+    requires: [{ key: 'admin.integrations.write', scope: 'all' }],
+  },
+  {
+    id: 'tally-checks',
+    href: '/tally-checks',
+    label: 'tallyChecks',
+    icon: BookCheck,
+    group: 'work',
+    // tally.snapshot.confirm
+    requires: [{ key: 'finance.recon.write', scope: 'entity' }],
+  },
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];
 

@@ -662,6 +662,8 @@
     "design": "Design preview",
     "customers": "Customers",
     "adminIntegrations": "Integration health",
+    "adminTally": "Tally connector",
+    "tallyChecks": "Tally checks",
     "catalogue": "Catalogue",
     "settingsTax": "Tax rates",
     "adminRoles": "Roles",
@@ -761,6 +763,8 @@
       "design": "See every colour, text size and control in both themes.",
       "customers": "See a customer's contacts, sites, leads, tasks and history on one page.",
       "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery.",
+      "adminTally": "Set up the connector on the office computer that sends records from Tally, and its keys.",
+      "tallyChecks": "Confirm a daily Tally check that would mark many records as removed.",
       "catalogue": "See every item and kit the group sells, with their specifications.",
       "settingsTax": "Keep the GST rates and composite supply splits up to date.",
       "adminRoles": "Choose what each role can see and do.",
@@ -3534,6 +3538,39 @@
         "lead_fetch_refused": "Facebook did not give the lead"
       }
     },
+    "tally": {
+      "heading": "Tally",
+      "intro": "Each Tally company the office computer sends records from, and when it last checked in. Records in Tally reach the system within a few minutes while the computer is on.",
+      "caption": "Each Tally company and its connector",
+      "empty": "No Tally connector is set up yet. Set one up in Admin, Tally connector.",
+      "otherCompany": "A company you are not working in",
+      "never": "Not yet",
+      "notKnown": "Not known yet",
+      "setAside": "{count, plural, one {# record set aside} other {# records set aside}}",
+      "noneSetAside": "None",
+      "noProblem": "Reading normally",
+      "columns": {
+        "connector": "Connector",
+        "company": "Company",
+        "health": "Checking in",
+        "lastCheckIn": "Last check-in",
+        "behind": "Changes still to arrive",
+        "waiting": "Waiting on the office computer",
+        "setAside": "Set aside",
+        "problem": "Reading"
+      },
+      "health": {
+        "ok": "On time",
+        "late": "Late",
+        "silent": "Stopped",
+        "never_seen": "Never checked in"
+      },
+      "problem": {
+        "no_books_from": "Tally does not say when this company's books start",
+        "tally_behind_bos": "Tally holds fewer changes than the system has; a backup may have been restored",
+        "waiting_on_bos": "Waiting for the system to accept earlier records"
+      }
+    },
     "whatsapp": {
       "heading": "WhatsApp",
       "caption": "Each company's WhatsApp number",
@@ -6142,6 +6179,64 @@
       "settled": "Clash settled.",
       "drafted": "{count, plural, =0 {The file states no rule we could draft.} one {# draft rule added.} other {# draft rules added.}}"
     }
+  },
+  "tallyConnectors": {
+    "title": "Tally connector",
+    "intro": "The connector runs on the office computer beside Tally and sends its records here. It only reads Tally; nothing is ever written back.",
+    "newHeading": "Set up a connector",
+    "newIntro": "Give the connector a name, then type its number and key into its setup on the office computer. The key is shown only once.",
+    "name": "Connector name",
+    "nameHelper": "For example, the computer it runs on.",
+    "register": "Set up connector",
+    "listHeading": "Connectors",
+    "none": "No connector is set up yet.",
+    "keyMade": "{name} is set up. Type these into its setup on the office computer now.",
+    "keyRotated": "A new key for {name}. Type it into its setup on the office computer, then turn the old key off.",
+    "connectorNumber": "Connector number",
+    "key": "Key",
+    "keyOnce": "This key is shown only once and cannot be shown again. If it is lost, make a new key.",
+    "keyCopied": "I have copied the key",
+    "endsWith": "Key ends with {hint}",
+    "newEndsWith": "New key ends with {hint}; the old key still works until you turn it off",
+    "neverCheckedIn": "Has not checked in yet",
+    "lastCheckIn": "Last checked in on <time>{when}</time>.",
+    "version": "Version {version}",
+    "rotate": "Make a new key",
+    "retire": "Turn old key off",
+    "oldKeyOff": "The old key is turned off. Only the new key works now.",
+    "revoke": "Turn off",
+    "revokeLabel": "Turn off {name}",
+    "revoked": "{name} is turned off. Its keys no longer work.",
+    "off": "Turned off",
+    "companiesHeading": "Tally companies",
+    "noCompanies": "No Tally company is linked yet. Its records are not read until one is.",
+    "linkedTo": "{tally}, records go to {company}",
+    "otherCompany": "a company you are not working in",
+    "company": "Our company",
+    "tallyCompany": "Tally company name",
+    "tallyCompanyHelper": "Exactly as Tally shows it, for example with the financial year.",
+    "link": "Link",
+    "linked": "The Tally company is linked.",
+    "unlink": "Unlink",
+    "unlinkLabel": "Unlink the Tally company from {company}",
+    "unlinked": "The Tally company is unlinked. Its records are no longer read."
+  },
+  "tallyChecks": {
+    "title": "Tally checks",
+    "intro": "Each day the connector lists every record in Tally. A check that would mark many records as removed waits here, because it is more likely a wrong company or an empty list than a real removal. Confirm it only after checking Tally.",
+    "caption": "Daily Tally checks waiting for you",
+    "empty": "No check is waiting.",
+    "otherCompany": "A company you are not working in",
+    "columns": {
+      "company": "Company",
+      "taken": "Taken",
+      "wouldRemove": "Would mark removed",
+      "live": "Records now",
+      "actions": "Actions"
+    },
+    "confirm": "Confirm",
+    "confirmLabel": "Confirm the check of {company}",
+    "confirmed": "{count, plural, =0 {Confirmed. No record needed marking.} one {Confirmed. # record is marked removed.} other {Confirmed. # records are marked removed.}}"
   },
   "leadSources": {
     "title": "Lead sources",

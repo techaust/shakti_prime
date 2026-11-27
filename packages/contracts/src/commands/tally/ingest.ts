@@ -143,3 +143,21 @@ export type RecordTallyAlertInput = z.input<typeof RecordTallyAlertInput>;
 
 export const RecordTallyAlertDto = z.object({ recorded: z.boolean() }).strict();
 export type RecordTallyAlertDto = z.infer<typeof RecordTallyAlertDto>;
+
+/**
+ * A daily snapshot held because it would remove more than its limits allow, for Accounts to
+ * confirm (Tally checks): its company, when Tally took it, how many records it would mark removed
+ * against how many are live, and when it arrived.
+ */
+export const HeldTallySnapshotDto = z
+  .object({
+    snapshotId: IdSchema,
+    entityId: EntityIdSchema,
+    tallyCompany: TallyCompanySchema,
+    asOf: z.iso.datetime(),
+    wouldRemove: z.number().int().min(0),
+    live: z.number().int().min(0),
+    receivedAt: z.iso.datetime(),
+  })
+  .strict();
+export type HeldTallySnapshotDto = z.infer<typeof HeldTallySnapshotDto>;

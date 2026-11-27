@@ -49,5 +49,8 @@ export const ALERT_NAMES = [
   'ai.spend_high',
   'ai.provider_failing',
   'voice.spend_high',
+  // TC2: a Tally connector silent for thirty minutes, or holding rows it could not send.
+  'tally.connector.silent',
+  'tally.connector.rows_held',
 ] as const;
 export type AlertName = (typeof ALERT_NAMES)[number];

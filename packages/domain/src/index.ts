@@ -947,7 +947,13 @@ export {
 } from './commands/tally/connectors';
 export {
   findTallyConnector,
+  listHeldTallySnapshots,
+  listTallyConnectors,
+  readTallyConnectorAlerts,
+  readTallyConnectorHealth,
   readTallyCursor,
+  shouldAlertHeldRows,
+  type TallyConnectorAlertFacts,
   type TallyConnectorAuth,
   type TallyConnectorCompany,
 } from './queries/tally/connector';

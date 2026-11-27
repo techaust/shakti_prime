@@ -14,6 +14,7 @@ import {
   readWhatsAppCounts,
   readOutboxHealth,
   readScheduledJobs,
+  readTallyConnectorHealth,
   readWebhookHealth,
   runDeliveryProbe,
   type ExecuteOptions,
@@ -54,8 +55,8 @@ async function fromStore<T>(requestId: string, read: () => Promise<T>): Promise<
  * `app.webhook_health()` with the deliveries refused at their check counted in the store
  * (docs/03-roadmap-appendix/phase2.md §5.1), and each company's WhatsApp number with its quality,
  * templates and the portfolio's budget (§6.1: the quality, limit and budget from the store, the
- * templates, refusals and failures from the database). Tally connectors have no source yet
- * (Phase 5), so they answer empty.
+ * templates, refusals and failures from the database), and each Tally connector's companies with
+ * its last heartbeat, lag and held rows (TC2, `readTallyConnectorHealth`).
  */
 export async function readIntegrationHealth(
   principal: Principal,
@@ -70,6 +71,12 @@ export async function readIntegrationHealth(
     { requestId },
     (context) => readOutboxHealth(context, query),
     { name: 'readIntegrationHealth' },
+  );
+  const connectors = await executeQuery(
+    principal,
+    { requestId },
+    (context) => readTallyConnectorHealth(context, now),
+    { name: 'readTallyConnectorHealth' },
   );
   const aiSpend = await executeQuery(
     principal,
@@ -115,7 +122,7 @@ export async function readIntegrationHealth(
       failed: stored.failed,
     },
     deadLetters: outbox.deadLetters,
-    connectors: [],
+    connectors,
     whatsapp: whatsapp.numbers.map((n) => {
       const quality = messaging?.quality.find((q) => q.entityId === n.entityId);
       return {

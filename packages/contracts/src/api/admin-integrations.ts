@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { MoneySchema } from '../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { CursorSchema, PageLimitSchema, SemverSchema } from './common';
-import { TallyCompanySchema } from './connector';
+import { TallyCompanyProblemSchema, TallyCompanySchema } from './connector';
 import { MessagingRefusalSchema } from './messaging';
 import { AgentNameSchema } from './worker-jobs';
 
@@ -118,18 +118,31 @@ export const DeadLetteredEvent = z
   .strict();
 export type DeadLetteredEvent = z.infer<typeof DeadLetteredEvent>;
 
-/** A Tally connector's last heartbeat; `silent` after 30 minutes without one (BLUEPRINT §8.8). */
+/**
+ * One Tally company a connector serves, with the connector's last heartbeat (TC2,
+ * docs/03-roadmap-appendix/phase5.md §6.3): `health` from `connectorHealth()` (`late` after two
+ * missed heartbeats, `silent` after 30 minutes, BLUEPRINT §8.8), the lag between Tally's own last
+ * AlterID and the BOS's cursor, and the outbox rows the connector set aside.
+ */
 export const ConnectorHealth = z
   .object({
     connectorId: z.uuid(),
+    name: z.string(),
     entityId: EntityIdSchema,
     company: TallyCompanySchema,
-    connectorVersion: SemverSchema,
+    connectorVersion: z.string().nullable(),
     updateAvailable: z.boolean(),
     lastHeartbeatAt: Instant.nullable(),
+    /** When the company's cursor last moved: its last batch. */
     lastBatchAt: Instant.nullable(),
     queueDepth: Count,
+    heldRows: Count,
+    health: z.enum(['ok', 'late', 'silent', 'never_seen']),
     silent: z.boolean(),
+    reachable: z.boolean().nullable(),
+    /** Tally's last AlterID less the BOS's cursor; null until the heartbeat reports Tally's. */
+    lag: Count.nullable(),
+    problem: TallyCompanyProblemSchema.nullable(),
   })
   .strict();
 export type ConnectorHealth = z.infer<typeof ConnectorHealth>;
