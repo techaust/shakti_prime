@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T21:05Z
+updated: 2026-11-27T21:45Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -154,3 +154,11 @@ run_file: docs/runs/phase3/demo-data-ist-day.md
 wait_for: none
 done_when: report: demo-data-ist-day fixes
 note: the one fix round: the review's finding 1 (the same single-page read in packages/domain/tests/queries/catalogue-queries.test.ts:173; page through with the cursor as your fix does). Also take main in (a merge commit). Small.
+
+lane: 80
+role: prep
+branch: fix/demo-data-ist-day
+run_file: docs/runs/phase3/demo-data-ist-day.md
+wait_for: none
+done_when: report: demo-data-ist-day prepped
+note: prep for the lead's integration: readme's prep prompt. A test-only slice with no migration: take main in and run every integrate.sh part but e2e.
