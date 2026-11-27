@@ -491,7 +491,7 @@ describe('finance.read and the gates', () => {
       workers(),
       sql`select app.order_loan_gate(${orderId}::uuid) as gate`,
     );
-    expect(gate?.gate).toMatchObject({ dispatch: 'none', milestones: {} });
+    expect(gate?.gate).toMatchObject({ loanState: null, dispatch: 'none', waived: false });
   });
 
   it('finance.milestones.process is platform-only and held by no person’s role', async () => {

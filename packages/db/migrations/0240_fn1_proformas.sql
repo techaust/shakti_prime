@@ -45,7 +45,7 @@ CREATE TABLE "payment_milestones" (
 	CONSTRAINT "payment_milestones_due_rule_check" CHECK ("payment_milestones"."due_rule" in ('on_confirmation', 'before_dispatch', 'on_installation', 'days_after_invoice')),
 	CONSTRAINT "payment_milestones_due_days_check" CHECK (("payment_milestones"."due_rule" = 'days_after_invoice') = ("payment_milestones"."due_days" is not null)
        and ("payment_milestones"."due_days" is null or "payment_milestones"."due_days" between 1 and 365)),
-	CONSTRAINT "payment_milestones_loan_gate_check" CHECK ("payment_milestones"."loan_gate" in ('none', 'customer_loan')),
+	CONSTRAINT "payment_milestones_loan_gate_check" CHECK ("payment_milestones"."loan_gate" in ('none', 'sanctioned', 'disbursed')),
 	CONSTRAINT "payment_milestones_state_check" CHECK ("payment_milestones"."state" in ('pending', 'due', 'part_paid', 'paid', 'waived')),
 	CONSTRAINT "payment_milestones_paid_check" CHECK (("payment_milestones"."state" not in ('pending', 'due') or "payment_milestones"."paid_amount" = 0)
        and ("payment_milestones"."state" <> 'part_paid' or ("payment_milestones"."paid_amount" > 0 and "payment_milestones"."paid_amount" < "payment_milestones"."amount"))

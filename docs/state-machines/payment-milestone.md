@@ -23,7 +23,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | Event | From → To | Permitted actor | Guard | Effects | Emits |
 |---|---|---|---|---|---|
 | `plan` | (new) → `pending` | `finance.payment.write` at entity scope or wider or the platform | – | `split`: the order's total shared by the steps: fixed amounts first, then the percentages of the rest, each rounded to the rupee, the last taking what is left, so the milestones add up to the total | – |
-| `fall_due` | `pending` → `due` | `finance.payment.write` at entity scope or wider or the platform | its due rule's moment has come (the order confirmed, ready to dispatch, installed, or the days after the invoice passed), and no customer loan holds it back (`app.order_loan_gate()` answers it `pending`) | `set_due_on`: record the day it fell due (IST) | – |
+| `fall_due` | `pending` → `due` | `finance.payment.write` at entity scope or wider or the platform | its due rule's moment has come (the order confirmed, ready to dispatch, installed, or the days after the invoice passed), and the order's loan does not hold it back (its loan gate, `sanctioned` or `disbursed`, not yet reached by the loan `app.order_loan_gate()` names, unless no loan is on the order or its gates were waived) | `set_due_on`: record the day it fell due (IST) | – |
 | `pay_part` *(proposed)* | `pending`, `due`, `part_paid` → `part_paid` | the platform only | – | – | – |
 | `pay` | `pending`, `due`, `part_paid` → `paid` | the platform only | – | – | – |
 | `waive` | `pending`, `due`, `part_paid` → `waived` | `finance.payment.write` at all scope or wider | a reason is given | `set_waiver`: keep who waived it, when and why (audited); a dispatch no longer waits for it | `finance.milestone.waived` |

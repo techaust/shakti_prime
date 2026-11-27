@@ -256,10 +256,10 @@ grant select on proformas, proforma_lines, payment_milestone_templates, payment_
   to app_reader, readonly_reporter;
 --> statement-breakpoint
 
--- 8. An order's loan gates (J2, docs/03-roadmap-appendix/phase4.md §6.2). Until J2's
---    app.order_loan_gate() is in the database, a stand-in of the same shape answers that no loan
---    holds anything back; it is made only where J2's is absent, so it never replaces it. It
---    answers the callers J2's does, and the platform planning milestones.
+-- 8. An order's loan gate (J2, docs/03-roadmap-appendix/phase4.md §6.2). Until J2's
+--    app.order_loan_gate() is in the database, a stand-in of the same shape answers that the order
+--    has no loan, so nothing waits for one; it is made only where J2's is absent, so it never
+--    replaces it. It answers the callers J2's does, and the platform planning milestones.
 do $do$
 begin
   if pg_catalog.to_regprocedure('app.order_loan_gate(uuid)') is null then
@@ -269,7 +269,8 @@ begin
       if not (app.has_perm('inventory.dispatch.write:entity')
               or app.has_perm('finance.payment.write:entity')
               or app.has_perm('finance.milestones.process:all')
-              or app.has_perm('crm.account.read:own')) then
+              or app.has_perm('crm.account.read:own')
+              or app.has_perm('crm.lead.read:own')) then
         raise exception 'a loan gate is read with inventory.dispatch.write, finance.payment.write or crm.account.read'
           using errcode = '42501';
       end if;
@@ -279,7 +280,7 @@ begin
         return null;
       end if;
       return pg_catalog.jsonb_build_object(
-        'loanId', null, 'loanState', null, 'dispatch', 'none', 'milestones', '{}'::jsonb);
+        'loanId', null, 'loanState', null, 'dispatch', 'none', 'waived', false, 'reason', null);
     end
     $fn$;
     revoke execute on function app.order_loan_gate(uuid) from public, readonly_reporter;

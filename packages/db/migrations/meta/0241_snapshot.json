@@ -1,6 +1,6 @@
 {
-  "id": "c13374c6-78d8-4efd-874f-46cd4baf9b30",
-  "prevId": "98404bde-dbf6-4d51-a86a-66490cc180de",
+  "id": "38251c4d-b570-4b7e-9e20-dec381eec50c",
+  "prevId": "1cd9928d-6e0d-4763-84b4-8f9ad8f391a6",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -12070,7 +12070,7 @@
         },
         "payment_milestones_loan_gate_check": {
           "name": "payment_milestones_loan_gate_check",
-          "value": "\"payment_milestones\".\"loan_gate\" in ('none', 'customer_loan')"
+          "value": "\"payment_milestones\".\"loan_gate\" in ('none', 'sanctioned', 'disbursed')"
         },
         "payment_milestones_state_check": {
           "name": "payment_milestones_state_check",

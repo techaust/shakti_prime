@@ -21,10 +21,13 @@ export const MilestoneDueRuleSchema = z.enum(MILESTONE_DUE_RULES);
 export type MilestoneDueRule = z.infer<typeof MilestoneDueRuleSchema>;
 
 /**
- * Whether a customer loan may hold a milestone back: `customer_loan` milestones wait while the
- * order's loan answers `pending` for their key (`app.order_loan_gate()`, J2); `none` never wait.
+ * What a customer loan must reach before a milestone falls due (docs/03-roadmap-appendix/phase5.md
+ * §5, the brief's addendum of 27-11-2026): `sanctioned` waits for the order's loan to be
+ * sanctioned or disbursed, `disbursed` for it to be disbursed, `none` never waits. With no loan on
+ * the order, or with its gates waived, nothing waits; a turned-down loan not waived keeps the
+ * milestone pending (`app.order_loan_gate()`, J2).
  */
-export const MILESTONE_LOAN_GATES = ['none', 'customer_loan'] as const;
+export const MILESTONE_LOAN_GATES = ['none', 'sanctioned', 'disbursed'] as const;
 export const MilestoneLoanGateSchema = z.enum(MILESTONE_LOAN_GATES);
 export type MilestoneLoanGate = z.infer<typeof MilestoneLoanGateSchema>;
 
@@ -40,10 +43,7 @@ export const OPEN_MILESTONE_STATES = [
   'part_paid',
 ] as const satisfies readonly PaymentMilestoneState[];
 
-/**
- * A milestone's key, as a customer loan names it in its gates (J2's `LoanMilestoneKeySchema`):
- * lower-case words joined by underscores.
- */
+/** A milestone's key within its order's terms: lower-case words joined by underscores. */
 export const MilestoneKeySchema = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/);
 
 export const MILESTONE_LABEL_MIN = 2;

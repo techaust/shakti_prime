@@ -497,7 +497,7 @@ describe('finance.milestone.plan and finance.milestone.plan_confirmed (FIN-01, q
         amount: null,
         dueRule: 'days_after_invoice',
         dueDays: 30,
-        loanGate: 'customer_loan',
+        loanGate: 'disbursed',
       },
     ];
     const v1 = await run<MilestoneTemplateDto>(exec, publishPaymentTerms, {

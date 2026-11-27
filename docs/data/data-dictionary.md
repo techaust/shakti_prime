@@ -5161,7 +5161,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### payment_milestones
 
-**Catalogue entry** (05-database.md §6.7; created in 0240, 0241): `entity_id`, `sales_order_id` (composite foreign key), `template_id` (null for the named default), `seq` and `key` (each unique per order; a customer loan names a milestone by its key), `label`, `percent`, `amount` (the order's milestones sum to its total), `paid_amount`, `due_rule` (`on_confirmation`, `before_dispatch`, `on_installation`, `days_after_invoice` with `due_days`), `loan_gate` (`none`, `customer_loan`), `state` (`pending`, `due`, `part_paid`, `paid`, `waived`; machine `payment_milestone`), `due_on`, `waived_at`, `waived_by`, `waive_reason`; written only through `app.record_order_milestones()` (§4.1); changed by a request only through the Executive's waiver (`finance.payment.write:all`, `app.guard_payment_milestone()`); never removed; read with `finance.read` over the order; `project_id` comes with the projects (Phase 4)
+**Catalogue entry** (05-database.md §6.7; created in 0240, 0241): `entity_id`, `sales_order_id` (composite foreign key), `template_id` (null for the named default), `seq` and `key` (each unique per order), `label`, `percent`, `amount` (the order's milestones sum to its total), `paid_amount`, `due_rule` (`on_confirmation`, `before_dispatch`, `on_installation`, `days_after_invoice` with `due_days`), `loan_gate` (`none`, `sanctioned`, `disbursed`: the state the order's loan must reach, read from `app.order_loan_gate()`; no loan or a waiver holds nothing back, a turned-down loan not waived keeps it pending), `state` (`pending`, `due`, `part_paid`, `paid`, `waived`; machine `payment_milestone`), `due_on`, `waived_at`, `waived_by`, `waive_reason`; written only through `app.record_order_milestones()` (§4.1); changed by a request only through the Executive's waiver (`finance.payment.write:all`, `app.guard_payment_milestone()`); never removed; read with `finance.read` over the order; `project_id` comes with the projects (Phase 4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5214,7 +5214,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `payment_milestones_due_rule_check`: `"payment_milestones"."due_rule" in ('on_confirmation', 'before_dispatch', 'on_installation', 'days_after_invoice')`
 - `payment_milestones_key_check`: `"payment_milestones"."key" ~ '^[a-z][a-z0-9_]{0,39}$'`
 - `payment_milestones_label_check`: `length(btrim("payment_milestones"."label")) between 2 and 60`
-- `payment_milestones_loan_gate_check`: `"payment_milestones"."loan_gate" in ('none', 'customer_loan')`
+- `payment_milestones_loan_gate_check`: `"payment_milestones"."loan_gate" in ('none', 'sanctioned', 'disbursed')`
 - `payment_milestones_paid_check`: `("payment_milestones"."state" not in ('pending', 'due') or "payment_milestones"."paid_amount" = 0) and ("payment_milestones"."state" <> 'part_paid' or ("payment_milestones"."paid_amount" > 0 and "payment_milestones"."paid_amount" < "payment_milestones"."amount")) and ("payment_milestones"."state" <> 'paid' or "payment_milestones"."paid_amount" = "payment_milestones"."amount")`
 - `payment_milestones_percent_check`: `"payment_milestones"."percent" is null or "payment_milestones"."percent" > 0`
 - `payment_milestones_seq_check`: `"payment_milestones"."seq" between 1 and 10`

@@ -16,7 +16,7 @@ export interface PaymentMilestoneRecord {
   state: PaymentMilestoneMachineState | null;
   /** The moment its due rule names has come (`milestoneRuleMet()`). */
   ruleMet: boolean;
-  /** What the order's loan answers for it, where a loan may hold it back; `none` otherwise. */
+  /** Whether the order's loan holds it back (`milestoneLoanAnswer()`). */
   loanGate: LoanGateAnswer;
 }
 
@@ -26,7 +26,7 @@ export interface PaymentMilestoneParams {
 
 const fallsDue: Guard<PaymentMilestoneRecord, PaymentMilestoneParams> = {
   description:
-    "its due rule's moment has come (the order confirmed, ready to dispatch, installed, or the days after the invoice passed), and no customer loan holds it back (`app.order_loan_gate()` answers it `pending`)",
+    "its due rule's moment has come (the order confirmed, ready to dispatch, installed, or the days after the invoice passed), and the order's loan does not hold it back (its loan gate, `sanctioned` or `disbursed`, not yet reached by the loan `app.order_loan_gate()` names, unless no loan is on the order or its gates were waived)",
   check: (record) =>
     record.ruleMet && record.loanGate !== 'pending'
       ? undefined

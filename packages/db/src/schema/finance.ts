@@ -253,7 +253,7 @@ export const paymentMilestones = pgTable(
     }),
     // An order's milestones in order; also the dispatch gate's lookup.
     unique('payment_milestones_order_seq_unique').on(t.salesOrderId, t.seq),
-    // A loan names a milestone by its key.
+    // A step's key names it within the order's terms.
     unique('payment_milestones_order_key_unique').on(t.salesOrderId, t.key),
     // Named here: the generated name passes Postgres's 63 characters.
     foreignKey({
@@ -276,7 +276,10 @@ export const paymentMilestones = pgTable(
       sql`(${t.dueRule} = 'days_after_invoice') = (${t.dueDays} is not null)
        and (${t.dueDays} is null or ${t.dueDays} between 1 and 365)`,
     ),
-    check('payment_milestones_loan_gate_check', sql`${t.loanGate} in ('none', 'customer_loan')`),
+    check(
+      'payment_milestones_loan_gate_check',
+      sql`${t.loanGate} in ('none', 'sanctioned', 'disbursed')`,
+    ),
     check(
       'payment_milestones_state_check',
       sql`${t.state} in ('pending', 'due', 'part_paid', 'paid', 'waived')`,

@@ -1,7 +1,13 @@
 import type { MilestoneStep } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
-import { milestoneDueOn, planMilestones, splitMilestoneAmounts } from './plan-milestones';
+import {
+  milestoneDueOn,
+  milestoneLoanAnswer,
+  planMilestones,
+  splitMilestoneAmounts,
+  type OrderLoan,
+} from './plan-milestones';
 
 const step = (over: Partial<MilestoneStep>): MilestoneStep => ({
   key: 'advance',
@@ -109,7 +115,7 @@ describe('planMilestones', () => {
       '68209.00',
       WORKSHOP_DEFAULTS.finance.milestoneSteps,
       confirmed,
-      {},
+      { loanState: null, waived: false },
       TODAY,
     );
     expect(planned.map((m) => [m.key, m.amount, m.state, m.dueOn])).toEqual([
@@ -118,23 +124,57 @@ describe('planMilestones', () => {
     ]);
   });
 
-  it('keeps a loan-gated step pending while the loan answers pending, and due once met', () => {
+  it('keeps a loan-gated step pending until the loan reaches its state, unless no loan or a waiver', () => {
     const steps = [
-      step({ percent: '50.00', loanGate: 'customer_loan' }),
-      step({ key: 'balance', percent: '50.00' }),
+      step({ percent: '50.00', loanGate: 'disbursed' }),
+      step({ key: 'balance', percent: '50.00', loanGate: 'sanctioned' }),
     ];
-    const held = planMilestones('1000.00', steps, confirmed, { advance: 'pending' }, TODAY);
-    expect(held.map((m) => m.state)).toEqual(['pending', 'due']);
+    const states = (loanState: OrderLoan['loanState'], waived = false) =>
+      planMilestones('1000.00', steps, confirmed, { loanState, waived }, TODAY).map((m) => m.state);
+    expect(states('applied')).toEqual(['pending', 'pending']);
+    expect(states('sanctioned')).toEqual(['pending', 'due']);
+    expect(states('disbursed')).toEqual(['due', 'due']);
+    expect(states('rejected')).toEqual(['pending', 'pending']);
+    expect(states('rejected', true)).toEqual(['due', 'due']);
+    expect(states(null)).toEqual(['due', 'due']);
+    const held = planMilestones(
+      '1000.00',
+      steps,
+      confirmed,
+      { loanState: 'applied', waived: false },
+      TODAY,
+    );
     expect(held[0]?.dueOn).toBeNull();
-    const met = planMilestones('1000.00', steps, confirmed, { advance: 'met' }, TODAY);
-    expect(met.map((m) => m.state)).toEqual(['due', 'due']);
-    const none = planMilestones('1000.00', steps, confirmed, {}, TODAY);
-    expect(none.map((m) => m.state)).toEqual(['due', 'due']);
   });
 
-  it('never holds a step with no loan gate, whatever the loan answers', () => {
+  it('never holds a step with no loan gate, whatever the loan', () => {
     const steps = [step({ percent: '100.00' })];
-    const planned = planMilestones('1000.00', steps, confirmed, { advance: 'pending' }, TODAY);
+    const planned = planMilestones(
+      '1000.00',
+      steps,
+      confirmed,
+      { loanState: 'rejected', waived: false },
+      TODAY,
+    );
     expect(planned[0]?.state).toBe('due');
+  });
+});
+
+describe('milestoneLoanAnswer', () => {
+  it('answers each gate against each loan state', () => {
+    const answer = (
+      gate: MilestoneStep['loanGate'],
+      loanState: OrderLoan['loanState'],
+      waived = false,
+    ) => milestoneLoanAnswer(gate, { loanState, waived });
+    expect(answer('none', 'applied')).toBe('none');
+    expect(answer('sanctioned', null)).toBe('none');
+    expect(answer('sanctioned', 'applied')).toBe('pending');
+    expect(answer('sanctioned', 'sanctioned')).toBe('met');
+    expect(answer('sanctioned', 'disbursed')).toBe('met');
+    expect(answer('disbursed', 'sanctioned')).toBe('pending');
+    expect(answer('disbursed', 'disbursed')).toBe('met');
+    expect(answer('disbursed', 'rejected')).toBe('pending');
+    expect(answer('disbursed', 'rejected', true)).toBe('none');
   });
 });

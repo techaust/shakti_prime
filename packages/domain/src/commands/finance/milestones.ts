@@ -15,8 +15,9 @@ import { z } from 'zod';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import {
+  milestoneLoanAnswer,
   planMilestones,
-  type LoanGateAnswer,
+  type OrderLoan,
   type PlannedMilestone,
 } from '../../finance/plan-milestones';
 import { istCalendarDate } from '../../numbering/financial-year';
@@ -42,10 +43,15 @@ const MilestoneFacts = z.object({
 });
 type MilestoneFacts = z.infer<typeof MilestoneFacts>;
 
-/** The answer `app.order_loan_gate()` gives for the milestones a loan names (J2). */
+/** What `app.order_loan_gate()` (J2) tells a milestone: the loan's state and the waiver. */
 const LoanGate = z
-  .object({ milestones: z.record(z.string(), z.enum(['none', 'pending', 'met'])) })
+  .object({
+    loanState: z.enum(['applied', 'sanctioned', 'disbursed', 'rejected']).nullable(),
+    waived: z.boolean(),
+  })
   .nullable();
+
+const NO_LOAN: OrderLoan = { loanState: null, waived: false };
 
 /** The order states milestones are planned in: confirmed, and not closed or cancelled. */
 const PLANNABLE: readonly string[] = [
@@ -67,23 +73,24 @@ async function milestoneFacts(ctx: CommandContext, orderId: string): Promise<Mil
   return MilestoneFacts.parse(row.facts);
 }
 
-/** What the order's loan answers for each milestone it names; nothing is read without a loan step. */
-async function loanGates(
+/** The order's loan, read only when a step of the terms waits for one. */
+async function orderLoan(
   ctx: CommandContext,
   orderId: string,
   steps: readonly MilestoneStep[],
-): Promise<Record<string, LoanGateAnswer>> {
-  if (!steps.some((s) => s.loanGate === 'customer_loan')) return {};
+): Promise<OrderLoan> {
+  if (steps.every((s) => s.loanGate === 'none')) return NO_LOAN;
   const [row] = (await ctx.tx.execute(
     sql`select app.order_loan_gate(${orderId}::uuid) as gate`,
   )) as unknown as { gate: unknown }[];
-  return LoanGate.parse(row?.gate ?? null)?.milestones ?? {};
+  const gate = LoanGate.parse(row?.gate ?? null);
+  return gate === null ? NO_LOAN : { loanState: gate.loanState, waived: gate.waived };
 }
 
 /** The plan as the machine allows it: each milestone planned, and brought due where its rule says. */
 function checkMoves(
   planned: readonly PlannedMilestone[],
-  gates: Readonly<Record<string, LoanGateAnswer>>,
+  loan: OrderLoan,
   actor: Actor,
   now: Date,
 ): void {
@@ -99,7 +106,7 @@ function checkMoves(
         {
           state: 'pending',
           ruleMet: true,
-          loanGate: m.loanGate === 'customer_loan' ? (gates[m.key] ?? 'none') : 'none',
+          loanGate: milestoneLoanAnswer(m.loanGate, loan),
         },
         'fall_due',
         { actor, now, params: {} },
@@ -139,7 +146,7 @@ async function planOrder(
     facts.template === null
       ? WORKSHOP_DEFAULTS.finance.milestoneSteps
       : MilestoneStepsSchema.parse(facts.template.steps);
-  const gates = await loanGates(ctx, facts.orderId, steps);
+  const loan = await orderLoan(ctx, facts.orderId, steps);
   const planned = planMilestones(
     facts.grandTotal,
     steps,
@@ -149,10 +156,10 @@ async function planOrder(
       installedOn: null,
       invoicedOn: null,
     },
-    gates,
+    loan,
     istCalendarDate(ctx.now),
   );
-  checkMoves(planned, gates, actor, ctx.now);
+  checkMoves(planned, loan, actor, ctx.now);
   const rows = planned.map((m) => ({ id: newId(), ...m }));
   await ctx.tx.execute(
     sql`select app.record_order_milestones(${facts.orderId}::uuid, ${facts.template?.id ?? null}::uuid,

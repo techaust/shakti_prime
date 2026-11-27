@@ -8,8 +8,38 @@ import {
 import { divideHalfUp, moneyFromPaise, toPaise, toScaled } from '../money/paise';
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 
-/** What an order's loan answers for a gate (`app.order_loan_gate()`, J2). */
+/** Whether a loan holds a milestone back: not at all, still, or no longer. */
 export type LoanGateAnswer = 'none' | 'pending' | 'met';
+
+/**
+ * The order's loan as `app.order_loan_gate()` (J2) tells a milestone: its state (null with no
+ * loan) and whether a person waived a turned-down loan's gates.
+ */
+export interface OrderLoan {
+  loanState: 'applied' | 'sanctioned' | 'disbursed' | 'rejected' | null;
+  waived: boolean;
+}
+
+/**
+ * Whether the order's loan holds a milestone with this gate back (the brief's addendum of
+ * 27-11-2026): no gate, no loan or a waiver hold nothing; `sanctioned` is met once the loan is
+ * sanctioned or disbursed, `disbursed` once it is disbursed; anything else, a turned-down loan
+ * not waived included, keeps it pending.
+ */
+export function milestoneLoanAnswer(
+  gate: MilestoneStep['loanGate'],
+  loan: OrderLoan,
+): LoanGateAnswer {
+  if (gate === 'none' || loan.loanState === null || loan.waived) return 'none';
+  if (
+    gate === 'sanctioned' &&
+    (loan.loanState === 'sanctioned' || loan.loanState === 'disbursed')
+  ) {
+    return 'met';
+  }
+  if (gate === 'disbursed' && loan.loanState === 'disbursed') return 'met';
+  return 'pending';
+}
 
 /** The moments an order has reached that a due rule may wait for. */
 export interface MilestoneMoments {
@@ -110,20 +140,20 @@ export function splitMilestoneAmounts(total: Money, steps: readonly MilestoneSte
 
 /**
  * An order's milestones from its terms: each step's amount (`splitMilestoneAmounts()`), and each
- * due from the day its rule falls on, unless a customer loan holds it back (a `customer_loan`
- * step the loan answers `pending`); the others wait as `pending`.
+ * due from the day its rule falls on, unless the order's loan holds it back
+ * (`milestoneLoanAnswer()` is `pending`); the others wait as `pending`.
  */
 export function planMilestones(
   total: Money,
   steps: readonly MilestoneStep[],
   moments: MilestoneMoments,
-  loanGates: Readonly<Record<string, LoanGateAnswer>>,
+  loan: OrderLoan,
   today: CalendarDate,
 ): PlannedMilestone[] {
   const amounts = splitMilestoneAmounts(total, steps);
   return steps.map((step, index) => {
     const dueOn = milestoneDueOn(step.dueRule, step.dueDays, moments, today);
-    const held = step.loanGate === 'customer_loan' && loanGates[step.key] === 'pending';
+    const held = milestoneLoanAnswer(step.loanGate, loan) === 'pending';
     const due = dueOn !== null && !held;
     return {
       key: step.key,
