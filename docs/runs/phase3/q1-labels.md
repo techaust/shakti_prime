@@ -5,9 +5,9 @@
 | Branch | `feat/q1-labels` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): print templates, an audited reprint |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder on Opus 5.5 at high, the seat's own account (started and finished 27-11-2026) |
-| State | done |
-| Next step | the builder |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder on Opus 5.5 at high, the seat's own account (started and finished 27-11-2026; fix round on Opus 5.5 at high, 27-11-2026) |
+| State | fixes done |
+| Next step | the lead: integration |
 
 ## Brief
 Build [phase3 §7.4](../../03-roadmap-appendix/phase3.md#74-q1-labels) as written, with question 9 (a). Points the design leaves to you, settled here:
@@ -143,6 +143,35 @@ The lead accepted the early check with assumptions 1 to 6. Built after it from `
 1. The hub's Print labels prints every live bin of a godown or factory except transit bins; a hub whose bins are all transit shows no button. A bin's single label is New label for <bin>, a reprint with why. The first print of a newly added bin is the hub's Print labels.
 2. On the hubs page, labels are asked for in the company the caller acts in (the active company, else their first), since a bin belongs to the group.
 3. The labels dialog is loaded on demand, as the companies screen's dialogs are, which kept the serial page inside its budget without changing `js-budget.json`.
+
+### Fixes, 27-11-2026, seat (cloud VM worktree `/home/user/shakti-wt/q1-labels`, Postgres 54331, app 3031)
+The one fix round: M1, M2 and L1 to L4 of the Review, as the lead's triage says. Built from `f78faa5c` (with the reviewer's run-file commit `b8a1cdaf` merged in). Skills loaded: none new (no command, table or screen pattern added beyond the existing row menu).
+
+**Findings fixed:**
+- **M1 (first labels):** the serial page offers Print the label (`inventory.label.print`, no reason) beside Print the label again; each bin's row offers both too. Files: `serial-screen.tsx` (prop `canReprint` is now `canPrint`), `serials/[id]/page.tsx`, `hubs-screen.tsx`, copy `inventory.labels.firstLabel`, `printBinTitle`, `printBinIntro`, `printSerialTitle`, `printSerialIntro`. A dialog for one label now says Print the label on its button (`printOneSubmit`, was `reprintSubmit`), and Print labels for more; `newLabel` is gone. The copy-lint button keys follow (`firstLabel`, `printOneSubmit`).
+- **M2 (bin row on a phone):** a bin's actions are in its row's menu (an Actions for <bin> icon button, as the users and dealer credit rows do): Print the label and Print the label again for a stock handler, Edit and Archive for the Executive. Focus goes back to the row's Actions button through `useFocusTargets`. Looked at on this VM (local pictures, not committed): on a phone each bin card shows one 40 px button in the value column, nothing spills; on desktop one icon at the row's end.
+- **L1 (quiet zone):** `qrSvg(payload, quietZone)` and `QUIET_ZONE = 4` in `print/qr.ts`; a label's code picture holds its own four light modules and sits at the label's edge. 50 × 25: picture 23 mm, module about 0.62 mm (5 dots at 203 dpi), code 18 mm, text column 25 mm (was 24.5). 100 × 50: picture 46 mm, module about 1.24 mm. The unit test now decodes the code with no margin added and checks that the outer four modules on each side are light. A 20-character serial number wraps to a second line and still fits the 50 × 25 label (looked at in a 300 dpi render).
+- **L2 (long foreign code):** `ResolveScannedCodeInput` takes up to 4,096 characters; the parser still answers `foreign` past 400, so the action answers `not_ours`.
+- **L3 (parity):** `reader-parity.test.ts` makes a serial of company 1 in a storage bin (stock fixture and `adjustStock`) and reads it on both pools: `resolveScannedCode` on the serial, `resolveScannedBin` and `loadBinLabelsForPrint` on the bin, `loadLabelsForPrint` on the serial.
+- **L4:** the comment names `e2e/labels.spec.ts`.
+
+**Tests added or changed:** `print/labels.test.ts` +6 (the quiet zone for each kind and size; the decode no longer adds a margin); `tests/commands/labels.test.ts` +1 (a 900-character supplier address passes the contract and answers `not_ours`; 4,097 characters is refused); `reader-parity.test.ts` (2 extra reads, 2 reads on real rows); `templates.test.ts` and `tests/label-render.test.ts` expect the code with its quiet zone; `e2e/labels.spec.ts` +1 test (one bin's first label from its row menu: the stock handler's menu holds only the two label items, no reason asked, the PDF opens, focus returns to the Actions button) and the serial test now prints a first label before the reprint.
+
+**Checks:**
+- Real Chromium (`/opt/pw-browsers`), jsQR on each whole label: 24 of 24 read back (serial, bin and package, two each, at 50 × 25 and 100 × 50, at 203 and 300 dpi). A sheet of 500, warm, three runs: serial 50 × 25 0.57 / 0.54 / 0.57 s (1.02 MB), bin 0.49 / 0.56 / 0.53 s (0.91 MB), package 100 × 50 0.67 / 0.68 / 0.66 s (1.09 MB).
+- `pnpm exec turbo run test typecheck --force`: 19 of 19 tasks; web 1261 passed, 1 skipped; domain 2811; contracts 340; db 161.
+- Security files touched (local Postgres 54331): domain `reader-parity.test.ts` and `commands/labels.test.ts` 23 passed; web `label-render.test.ts` 5 passed. The whole `pnpm test:security` was not run again: no schema, policy, definer, command or query changed (a contract's length cap and tests only).
+- `pnpm copy-lint`: clean. Folder lint of every touched folder: clean.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within budget (65 pages); `/inventory/hubs` 242.3 of 246 kB, `/inventory/serials/[id]` 238.2 of 242 kB.
+- Journeys (`e2e:seed`, then `labels.spec.ts`, `inventory.spec.ts`, `print.spec.ts`, three projects): every `labels.spec.ts` test passed in all three projects (the INV-07 pair on desktop light only, by design). 40 passed, 16 skipped, 10 failed, each only on `toHaveScreenshot` against the Linux baselines (this VM is not the Linux image): `stock-list`, `stock-valuation` (three projects), `print-quote`, `print-quote-real`, `print-proof` and the phone `proof-dialog`, none changed by this round. `stock-hubs` was not reached in that run (its test stops at `stock-list`); I wrote it locally for phone and desktop light to look at M2, then restored the committed baselines.
+- `pnpm lint` (whole repository, the final check): clean, exit 0.
+
+**Baselines the lead makes in the Linux image:** as in the Done report (`labels-hub-dialog`, `labels-reprint-dialog` for three projects; `print-label-serial`, `print-label-bin`, `print-label-package`; a new `stock-hubs`, now with the row menus; the `/design` preview). The label pictures change again with the quiet zone. No new snapshot name is added in this round. I committed no baselines.
+
+**Decisions in this round:**
+1. M2 by a row menu rather than wrapping: a bin row would otherwise carry four buttons, and the menu is the pattern the other DataGrid rows use. The hub's own buttons stay buttons, as they already wrap.
+2. A first print and a reprint are both offered at all times: the BOS does not record whether a label was printed, and the brief's audit tells them apart (`inventory.label.print` per sheet, `inventory.label.reprint` per label with why).
+3. The quiet zone is drawn inside the code's picture, not left to the label's padding, so no text or edge can come into it whatever the layout; the code shrinks from 21 mm to 18 mm on the small stock, and the module stays at about 5 printer dots.
 
 ## Review
 
