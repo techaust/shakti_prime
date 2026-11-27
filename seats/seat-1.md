@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 3
-updated: 2026-11-27T15:13Z
+updated: 2026-11-27T16:15Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 25
@@ -66,3 +66,11 @@ run_file: docs/runs/phase3/calling-hours-clock.md
 wait_for: report: calling-hours-clock done
 done_when: review: calling-hours-clock done
 note: Tier B
+
+lane: 50
+role: build
+branch: feat/h2-reservations
+run_file: docs/runs/phase3/h2-reservations.md
+wait_for: none
+done_when: report: h2-reservations done
+note: continue. The lead read the early check (27-11 16:30 UTC): accepted, decisions 1 to 11 included (no is_default column; the PIN list then code order stands until the client answers). Build the unfinished list (workers, the cancel freeing stock to the fill, the hub PIN codes, the screens, journeys, EXPLAIN, the Built record). When X4 has merged, take main in and re-apply your one app.stock_move() rule onto X4's latest body (X4 moves the grant mapping and the serial block into tables); diff your redefinition against main's latest and say so in the report.
