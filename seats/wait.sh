@@ -30,7 +30,8 @@ lanes() {
 }
 block() { awk -v RS='' -v id="$2" '$0 ~ ("(^|\n)lane: *" id "(\n|$)")' <<<"$1"; }
 has_subject() { # has_subject <branch> <subject>
-  git log --format=%s "origin/$1" -400 2>/dev/null | grep -qxF "$2"
+  # grep reads to the end (no -q), so git log never gets SIGPIPE, which pipefail would report as a miss.
+  git log --format=%s "origin/$1" -400 2>/dev/null | grep -xF -- "$2" >/dev/null
 }
 
 while [ "$(date +%s)" -lt "$end" ]; do
