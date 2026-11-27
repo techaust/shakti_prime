@@ -534,6 +534,26 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'procurement.vendor.archive': { vendorId: newId() },
   'procurement.vendor.contact.set': { vendorId: newId(), contacts: [] },
   'procurement.item_vendor.set': { vendorId: newId(), itemId: newId() },
+  // FN1: proformas, milestones by hand, waivers and payment terms are people's.
+  'finance.proforma.issue': { entityId: 1, orderId: newId() },
+  'finance.proforma.cancel': { entityId: 1, proformaId: newId(), reason: 'Wrong address' },
+  'finance.milestone.plan': { entityId: 1, orderId: newId() },
+  'finance.milestone.waive': { entityId: 1, milestoneId: newId(), reason: 'Settled in person' },
+  'finance.terms.publish': {
+    entityId: 1,
+    segment: 'farmer_pumps',
+    steps: [
+      {
+        key: 'advance',
+        label: 'Advance',
+        percent: '100.00',
+        amount: null,
+        dueRule: 'on_confirmation',
+        dueDays: null,
+        loanGate: 'none',
+      },
+    ],
+  },
 };
 
 describe('commands for people only', () => {
