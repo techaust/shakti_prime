@@ -92,9 +92,9 @@ const REVIEWED: Record<string, string> = {
   'tally.connector.register':
     'A Tally connector belongs to no company (one serves several): an Executive acting for the group registers it (`admin.integrations.write:all`); the input names no company, and the denied cases refuse Accounts and an agent in tally.test.ts "refuses anyone without admin.integrations.write, and an agent".',
   'tally.connector.rotate':
-    'A connector\'s key belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) rotates it; the input names no company, and the refusal sweep refuses every agent and system principal.',
+    "A connector's key belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) rotates it; the input names no company, and the refusal sweep refuses every agent and system principal.",
   'tally.connector.retire_key':
-    'A connector\'s key belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) retires it; the input names no company, and the refusal sweep refuses every agent and system principal.',
+    "A connector's key belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) retires it; the input names no company, and the refusal sweep refuses every agent and system principal.",
   'tally.connector.revoke':
     'A connector belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) revokes it; the input names no company, and the refusal sweep refuses every agent and system principal.',
   'tally.heartbeat.record':

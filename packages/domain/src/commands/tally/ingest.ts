@@ -120,11 +120,6 @@ export const ingestTallyBatch = defineCommand({
   input: TallyBatchIngestInput,
   output: TallyBatchIngestDto,
   auditFields: ['lastAlterId', 'vouchersNew', 'vouchersChanged', 'vouchersUnchanged', 'ledgers'],
-  unmaskedFields: [
-    // Tally's GUIDs: the company's GUID and the record's id in hexadecimal, matched whole.
-    'batch.vouchers.guid',
-    'batch.ledgers.guid',
-  ],
   // A batch holds party names and amounts; the audit row keeps its range and sizes only.
   auditInput: (input) => ({
     entityId: input.entityId,
@@ -298,11 +293,6 @@ export const recordTallySnapshot = defineCommand({
   input: TallySnapshotRecordInput,
   output: TallySnapshotRecordDto,
   auditFields: ['state', 'guidCount', 'tombstoned', 'missing', 'reappeared', 'ledgers'],
-  unmaskedFields: [
-    // Tally's GUIDs, matched whole.
-    'snapshot.voucherGuids',
-    'ledgerBalances.guid',
-  ],
   auditInput: (input) => ({
     entityId: input.entityId,
     company: input.snapshot.company,

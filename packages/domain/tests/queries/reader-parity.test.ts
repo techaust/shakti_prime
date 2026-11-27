@@ -11,6 +11,8 @@ import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { removeAskData, seedAskData, type AskData } from '../fixtures/ask-data';
 import { executeQuery } from '../../src/command/execute';
+import { readTallyConnector } from '../../src/commands/tally/connectors';
+import { findTallyConnector, readTallyCursor } from '../../src/queries/tally/connector';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
 import { loadShadowReport } from '../../src/queries/agents/shadow-report';
@@ -375,6 +377,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
   getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
+  // TC2: a connector's cursor (its definer refuses anyone but the connector) and a connector as
+  // the Executive sees it.
+  readTallyCursor: (ctx) => readTallyCursor(ctx, { entityId: 1, company: 'Parity company' }),
+  readTallyConnector: (ctx) => readTallyConnector(ctx, newId()),
 };
 
 /**
@@ -382,6 +388,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
  * pools for every caller.
  */
 const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
+  // TC2: a connector's keys, asked only as that connector.
+  findTallyConnector: (ctx) => findTallyConnector(ctx, newId()),
   // The approved Playbook, the agents' and Ask's one read of it (K2).
   approvedPlaybook: (ctx) => approvedPlaybook(ctx, {}),
   // Ask's cited records' words and an item's cost side (B1), on real records.

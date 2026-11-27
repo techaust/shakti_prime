@@ -10,8 +10,6 @@ const AADHAAR = '234567890124';
 const MOBILE_91 = '919876543216';
 /** A SHA-256 in hexadecimal with a valid Aadhaar number among its digits. */
 const HEX = `ab${AADHAAR}${'c'.repeat(50)}`;
-/** A Tally GUID whose twelve-character part is a valid Aadhaar number. */
-const TALLY_GUID = `5f1c2a3b-4d5e-4f60-8a9b-${AADHAAR}-0a12`;
 
 interface ZodNode {
   _zod: { def: { type: string } & Record<string, unknown> };
@@ -152,12 +150,7 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   'notifications.push.unsubscribe': { endpoint: `https://fcm.googleapis.com/fcm/send/${AADHAAR}` },
   // A cell of a phone column, which the command's own masking keeps as the phone it is.
   'imports.job.create': { rows: MOBILE_91 },
-  // TC2: Tally's GUIDs, matched whole, and a connector key's hash.
-  'tally.batch.ingest': { 'batch.vouchers.guid': TALLY_GUID, 'batch.ledgers.guid': TALLY_GUID },
-  'tally.snapshot.record': {
-    'snapshot.voucherGuids': TALLY_GUID,
-    'ledgerBalances.guid': TALLY_GUID,
-  },
+  // TC2: a connector key's hash.
   'tally.connector.register': { keyHash: HEX },
   'tally.connector.rotate': { keyHash: HEX },
 };
