@@ -7,49 +7,25 @@
 //   4. runs the result's `version` and checks it answers the connector's version.
 // The executable lands in apps/tally-connector/dist/. Run from anywhere:
 //   node apps/tally-connector/packaging/build-sea.ts
+import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
-/* eslint-disable no-restricted-syntax -- esbuild is reached through tsx, the repository's own
-   development tool, because the workspace adds no package (docs/runs/phase5/tc1-tally-connector.md,
-   brief point 5). This script runs at packaging time only and is never bundled or shipped. */
-import { createRequire } from 'node:module';
-/* eslint-enable no-restricted-syntax */
+import { copyFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inject } from 'postject';
 
-/** The part of esbuild's API this script uses (esbuild's own types are not reachable here). */
-interface Esbuild {
-  build(options: {
-    entryPoints: string[];
-    outfile: string;
-    bundle: true;
-    platform: 'node';
-    format: 'cjs';
-    target: string;
-    legalComments: 'none';
-    logLevel: 'warning';
-  }): Promise<{ errors: unknown[] }>;
-}
-
 const app = dirname(dirname(fileURLToPath(import.meta.url)));
-const root = dirname(dirname(app));
 const dist = join(app, 'dist');
 const windows = process.platform === 'win32';
 const executable = join(dist, windows ? 'shakti-tally-connector.exe' : 'shakti-tally-connector');
 /** The fuse Node's single executable looks for (Node's documentation, "Single executable applications"). */
 const SEA_FUSE = 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2';
 
-/* eslint-disable no-restricted-syntax -- see the import above */
-const fromTsx = createRequire(realpathSync(join(root, 'node_modules', 'tsx', 'package.json')));
-/* eslint-enable no-restricted-syntax */
-const esbuild = fromTsx('esbuild') as Esbuild;
-
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 
 // 1. One CommonJS file: a single executable runs one script and loads no file beside it.
-const bundled = await esbuild.build({
+const bundled = await build({
   entryPoints: [join(app, 'src', 'main.ts')],
   outfile: join(dist, 'connector.cjs'),
   bundle: true,
