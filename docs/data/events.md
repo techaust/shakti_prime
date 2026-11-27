@@ -51,7 +51,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-70 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+70 types, 22 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -200,7 +200,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`procurement.vendor.archived`](#procurementvendorarchived) | A vendor left the active vendor list; its quotes stay on record. | `procurement.vendor.archive` | none |
 | [`procurement.quote.recorded`](#procurementquoterecorded) | A supplier's quote for an item was recorded, for one company or the group; the rate stays in the quote. | `procurement.quote.record` | none |
 | [`procurement.quote.withdrawn`](#procurementquotewithdrawn) | A supplier's quote was withdrawn before it ended. | `procurement.quote.withdraw` | none |
-| [`procurement.po.drafted`](#procurementpodrafted) | A purchase order was drafted, by a person or by the reorder job (`source`), with its number of lines. | `procurement.po.create`, `procurement.reorder.draft` | none |
+| [`procurement.po.drafted`](#procurementpodrafted) | A purchase order was drafted, by a person or by the reorder job (`source`), with its number of lines. | `procurement.po.create`, `procurement.reorder.draft` | `POST /api/v1/workers/outbox/procurement.po.drafted` (QStash URL group `evt-procurement.po.drafted`) |
 | [`procurement.po.approved`](#procurementpoapproved) | A purchase order was approved and may be sent to the vendor. | `procurement.po.approve` | none |
 | [`procurement.po.sent`](#procurementposent) | A purchase order went to its vendor: by email with its PDF (`email`, to the person named), or marked sent by hand. | `procurement.po.send` | none |
 | [`procurement.po.cancelled`](#procurementpocancelled) | A purchase order was cancelled before any goods came in. | `procurement.po.cancel` | none |

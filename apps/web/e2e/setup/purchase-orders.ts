@@ -5,21 +5,15 @@
 // the snapshot company, one approved order with fixed ids and dates for the order sheet's
 // screenshots. Every rate here is a test value for the journeys alone, never a client figure.
 import { asMigrator } from '@shakti/db/testing';
-import { PROJECTS, PURCHASE_ORDER_JOURNEY, SNAPSHOT_COMPANY, STOCK_JOURNEY } from '../support/users';
+import {
+  PROJECTS,
+  PURCHASE_ORDER_IDS,
+  PURCHASE_ORDER_JOURNEY,
+  SNAPSHOT_COMPANY,
+  STOCK_JOURNEY,
+} from '../support/users';
 import { PROCUREMENT_IDS } from './procurement';
 import { QUOTE_JOURNEY_IDS } from './quotes';
-
-const id = (n: number) => `0199e2e0-0000-7000-8000-00000000f${n.toString(16).padStart(3, '0')}`;
-
-export const PURCHASE_ORDER_IDS = {
-  pump: id(0x001),
-  pumpRate: id(0x002),
-  pumpVendor: id(0x003),
-  snapshotOrder: id(0x010),
-  snapshotLine: id(0x011),
-  orders: { 'desktop-light': id(0x020), 'desktop-dark': id(0x021), phone: id(0x022) },
-  lines: { 'desktop-light': id(0x030), 'desktop-dark': id(0x031), phone: id(0x032) },
-} as const;
 
 /** The day the fixtures are stamped with, so no screenshot shows the day the seed ran. */
 const SEEDED_AT = '2026-04-01T10:00:00+05:30';

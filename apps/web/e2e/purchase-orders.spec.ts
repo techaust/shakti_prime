@@ -9,8 +9,12 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { PURCHASE_ORDER_IDS } from './setup/purchase-orders';
-import { PURCHASE_ORDER_JOURNEY, SNAPSHOT_VENDORS, STOCK_JOURNEY } from './support/users';
+import {
+  PURCHASE_ORDER_IDS,
+  PURCHASE_ORDER_JOURNEY,
+  SNAPSHOT_VENDORS,
+  STOCK_JOURNEY,
+} from './support/users';
 
 // U2 purchase orders and goods receipt (docs/03-roadmap-appendix/phase3.md §7.2). The Inventory
 // Manager of company 1 drafts an order with its rate and sees its tax split, then receives the
@@ -19,10 +23,12 @@ import { PURCHASE_ORDER_JOURNEY, SNAPSHOT_VENDORS, STOCK_JOURNEY } from './suppo
 // none anywhere for its General Manager. Serials carry the project and the run's time, since a
 // serial is unique for its item.
 
-/** A serial the pump's pattern (JP-0000) takes, new on each run. */
-function serial(n: number): string {
-  const project = { 'desktop-light': 1, 'desktop-dark': 2, phone: 3 }[projectName()];
-  return `JP-${String((project * 3000 + (Date.now() % 1000) * 2 + n) % 10000).padStart(4, '0')}`;
+/** The run's two serials the pump's pattern (JP-0000) takes, new on each run and project. */
+function serials(): [string, string] {
+  const project = { 'desktop-light': 0, 'desktop-dark': 1, phone: 2 }[projectName()];
+  const base = (Math.floor(Date.now() / 1000) % 3000) * 3 + project;
+  const at = (n: number) => `JP-${String((base + n * 9000) % 10000).padStart(4, '0')}`;
+  return [at(0), at(1)];
 }
 
 test.describe('as the Inventory Manager of company 1', () => {
@@ -72,22 +78,23 @@ test.describe('as the Inventory Manager of company 1', () => {
     await page.getByRole('link', { name: 'Receive goods' }).click();
     await expect(page.getByRole('heading', { name: /^Receive goods on / })).toBeVisible();
 
+    const [first, second] = serials();
     const scan = await hydrated(page.getByLabel('Serial numbers'));
     await scan.fill('4006381333931');
     await scan.press('Enter');
     await expect(page.getByText('does not look like this item’s serials')).toBeVisible();
-    await scan.fill(serial(1));
+    await scan.fill(first);
     await scan.press('Enter');
     await expect(page.getByText('1 of 2 scanned')).toBeVisible();
-    await scan.fill(serial(1));
+    await scan.fill(first);
     await scan.press('Enter');
-    await expect(page.getByText(`${serial(1)} is already in the list`)).toBeVisible();
+    await expect(page.getByText(`${first} is already in the list`)).toBeVisible();
     await expectNoAxeViolations(page);
     // One serial short: refused before anything is saved.
     await page.getByRole('button', { name: 'Save receipt' }).click();
     await expect(page.getByText('Scan a serial for every unit of Journey pump 5 HP')).toBeVisible();
 
-    await scan.fill(serial(2));
+    await scan.fill(second);
     await scan.press('Enter');
     await expect(page.getByText('2 of 2 scanned')).toBeVisible();
     await page.getByLabel('Vendor’s invoice number').fill('MC/2026/0042');
@@ -113,7 +120,9 @@ test.describe('as the Executive of the snapshot company', () => {
     await expect(page.getByText('₹24,869.00')).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'purchase-order-sheet');
-    const pdf = await page.request.get(`/procurement/orders/${PURCHASE_ORDER_IDS.snapshotOrder}/pdf`);
+    const pdf = await page.request.get(
+      `/procurement/orders/${PURCHASE_ORDER_IDS.snapshotOrder}/pdf`,
+    );
     expect(pdf.status()).toBe(200);
     expect(pdf.headers()['content-type']).toBe('application/pdf');
   });

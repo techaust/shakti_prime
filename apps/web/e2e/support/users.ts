@@ -536,3 +536,16 @@ export const PURCHASE_ORDER_JOURNEY = {
   },
   snapshotNo: 'SNP/PO/2026-27/0001',
 } as const;
+
+const poId = (n: number) => `0199e2e0-0000-7000-8000-00000000f${n.toString(16).padStart(3, '0')}`;
+
+/** The fixed ids of U2's journey fixtures (`e2e/setup/purchase-orders.ts`). */
+export const PURCHASE_ORDER_IDS = {
+  pump: poId(0x001),
+  pumpRate: poId(0x002),
+  pumpVendor: poId(0x003),
+  snapshotOrder: poId(0x010),
+  snapshotLine: poId(0x011),
+  orders: { 'desktop-light': poId(0x020), 'desktop-dark': poId(0x021), phone: poId(0x022) },
+  lines: { 'desktop-light': poId(0x030), 'desktop-dark': poId(0x031), phone: poId(0x032) },
+} as const;
