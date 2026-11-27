@@ -5,9 +5,9 @@
 | Branch | `fix/demo-data-ist-day` on GitHub, from `main` |
 | Runs on | a seat session (taking its work from `ops/seats`); the lead on the PC reviews and integrates (owner, 23-11-2026) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): a test, or the code under it if the code is wrong |
-| Usage | builder on Opus 5.5 at high effort |
-| State | briefed |
-| Next step | the builder's report |
+| Usage | builder on Opus 5.5 at high effort; built in the lead's cloud VM on Opus 5.5 at high effort (27-11-2026) |
+| State | built; the builder's report is below |
+| Next step | the lead's review |
 
 ## Brief
 `apps/web/tests/demo-data.test.ts` fails in the web security suite between 18:30 and 24:00 UTC (00:00 to 05:30 in India), as H1's builder recorded twice on 23-11-2026: the demo data's price lists take effect "today in India", which is still tomorrow's date in UTC in that window, and something reads them by the UTC date. The alert-counts case had the same kind of fault (#282).
@@ -59,15 +59,30 @@ This is the same assertion I1's review recorded on an aged database (`phase2/i1-
 
 **Brief item 3, proof by the clock:**
 - **Process clock.** I ran the file with `vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true })` and `vi.setSystemTime()`. A temporary first case asserted the clock and printed it (`2026-11-27T18:00:00Z` = 23:30 IST, and `2026-11-27T19:00:00Z` = 00:30 IST on 28-11). Each run: 10 of 10 passed (the 9 cases and the clock check). The edit was not committed. In the 00:30 IST run, the database's clock was 21:1x IST on the 27th, so the process's day in India was a day ahead of the database's.
-- **Database clock.** No price-list read takes its date from the database. The only database times in the file are `approved_at`, written from `ctx.now`, and `archived_at = now()` in `afterAll`, and neither is compared with a date. The whole web security suite was also run inside the window (below).
+- **Database clock.** No price-list read takes its date from the database. The only database times in the file are `approved_at`, written from `ctx.now`, and `archived_at = now()` in `afterAll`, and neither is compared with a date.
+- **Inside the window, with both clocks real.** After the fix, on the database aged by the five runs, I ran the whole web security suite (`pnpm --filter web test:security`) twice inside the window:
+  - 18:43 to 18:47 UTC (00:13 to 00:17 IST): 459 of 461. `demo-data.test.ts` passed 9 of 9. The two failures were `handover.test.ts:172` and `:208`: the lead stayed with its caller (`expected '<caller id>' to be '<converter id>'`, then `'<team lead id>'`), because the event was not delivered within the case's ten seconds. Run alone at 18:48 to 18:52 UTC, still inside the window, `handover.test.ts` passed 3 of 3.
+  - 18:53 to 18:57 UTC (00:23 to 00:27 IST): 459 of 461. `demo-data.test.ts` and `handover.test.ts` passed. The two failures were `outbox-route.test.ts:137` (`expected 0 to be greater than or equal to 1`), in both of its "runs the publisher" cases. The suite's earlier nudge had claimed 1,000 rows of older runs (918 published), and each signed call then claimed 100 other rows, so the case's own row was not among them.
+  - Both failures come from the outbox rows that the earlier runs left on this database. Neither is about the hour: the outbox-route failure also happened at 14:4x UTC (run 2), and the handover file passed alone inside the window.
 
 **Checks** (all through `tools/integration/heavy.sh`, on Postgres 54333):
 - Five whole `pnpm test:security` runs before the fix. Each: db 60 files, 1,532 passed; domain 100 files, 1,415 passed. Web: 461 of 461 in runs 1, 3 and 4. Run 2: 460 of 461, failing `outbox-route.test.ts`, see below. Run 5: 460 of 461, failing `demo-data.test.ts:175`, quoted above.
 - After the fix, on the database with 211 active items: `tests/demo-data.test.ts` alone, 9 of 9 passed.
 - `pnpm --filter web typecheck`: clean.
 - `pnpm exec eslint apps/web/tests --max-warnings 0`: clean.
+- `pnpm --filter web exec vitest run scripts` (the loader's unit tests): 6 files, 65 passed.
 - Whole-repository `pnpm lint`: exit 0.
+- `EXPLAIN (ANALYZE)`: none. No list or search query changed; the test pages through the existing `listPrices` and `listKitPrices`.
+- Skills loaded: none. The brief names none, and the change is one test helper.
 
 **Also seen, not this slice's, not changed:**
 1. Run order of the suites. Run alone first on a fresh database, `demo-data.test.ts` makes the shared Retail, Dealer and Commercial lists as version 1. The db suite's `catalogueFixture()` (`packages/db/src/testing/catalogue-fixture.ts:75`) then stops on `price_lists_tier_entity_version_unique`, because it inserts its own shared Retail list as version 1 and deletes only its own ids. CI runs the db suite first, so CI never meets it. Here I moved the three archived lists to versions 1001 by hand on this slot's database, rather than ask for a fresh one. A fix belongs to the fixture (a version clear of the commands' series, or deleting by series).
-2. `outbox-route.test.ts` › "runs the publisher for a call signed with the current key" failed once (run 2, `expected 0 to be greater than or equal to 1`). The publisher claimed 100 other rows of the aged database, so this case's own row was not among them. It passed in runs 1, 3, 4 and 5. This is the aged-database kind, not the hour.
+2. On an aged database the outbox backlog breaks two other web files. `outbox-route.test.ts` › "runs the publisher …" failed in run 2 (14:4x UTC) and in the second run inside the window. `handover.test.ts` failed in the first run inside the window. Each waits for its own row while the publisher claims other runs' rows first (100 a call; 1,000 on the suite's first nudge). They pass on a younger database and alone. A fresh database is the check, as for `duplicate-scan.test.ts` before. A lasting fix would scope those cases' publisher call to their own rows; that is outside this slice.
+
+**Decisions the brief did not settle:**
+- I fixed only the test, because the loader and the price-list reads are right at every hour.
+- I kept the page size of 200 and added the cursor, rather than filter by code: `listPrices` has no search.
+- I did not commit the clock override. The process-clock proof needs a temporary case, and a fake clock left in a file on real Postgres would also move the Better Auth links and the audit times.
+- I renumbered three archived lists on this slot's database by hand, as above, so that the db suite could run after the demo test without a fresh database.
+
+**Uncertain:** I could not read H1's own failing assertion: its report gives only the date explanation. My conclusion that H1 saw the same paging failure rests on two things. The reproduction above has the same shape (the whole suite rerun on an ageing database, passing first and then failing). And the same assertion text was recorded on aged databases in Phase 2.
