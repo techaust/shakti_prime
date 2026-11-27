@@ -243,4 +243,9 @@ Reviewed `git diff origin/main...feat/q1-labels` at `7cb4036a` (`main` at `59736
   - Desktop-light: 32 passed. Desktop-dark: 24. Phone: 24, both times.
   - New: the labels dialogs (each project), and `print-label-serial`, `-bin` and `-package` (desktop-light).
   - Remade: `stock-hubs` (each project), with the first prints and the phone menu. The lead looked at the phone picture (no overflow) and the serial label (quiet zone, text kept).
-- **Checks files:** `tools/copy-lint/copy-lint.config.json` (button keys), so the pull request waits for the owner's `checks-ok`.
+- **Checks files:** none (`copy-lint.config.json` is not on the merge workflow's list of checks files).
+- **CI's first run on #299** failed the catalogue and price-master screenshots in all three projects. The labels journey's seed adds three "Journey pump" items that those screens list, beside H1's "Journey cable" rows: seed rows every CI run makes alike.
+  - Remade in the Linux image, project by project, each on a fresh database: `catalogue-items`, `catalogue-read-only` and `price-master-executive`. The lead looked at the desktop-light price list: the three rows, nothing else changed.
+  - Then the whole journey set without updating, each project on its own fresh database: desktop-light 232 passed; desktop-dark 219 passed, 13 skipped; phone 219 passed, 13 skipped.
+  - The lesson for later integrations: a slice whose seed adds rows runs the whole journey set in the Linux image, not only its own specs.
+
