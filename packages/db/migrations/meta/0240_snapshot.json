@@ -1,5 +1,5 @@
 {
-  "id": "4ea57445-abb0-4c84-adee-506c115bc2c1",
+  "id": "8bbcffd6-8390-4021-b0b1-9da86d12f359",
   "prevId": "fdc77bee-89b3-48c9-851b-f9234abe5a32",
   "version": "7",
   "dialect": "postgresql",
@@ -17930,6 +17930,33 @@
         },
         "stock_counts_list_idx": {
           "name": "stock_counts_list_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "started_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stock_counts_state_idx": {
+          "name": "stock_counts_state_idx",
           "columns": [
             {
               "expression": "entity_id",

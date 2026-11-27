@@ -83,5 +83,6 @@ CREATE UNIQUE INDEX "stock_count_lines_serial_unique" ON "stock_count_lines" USI
 CREATE INDEX "stock_count_lines_group_idx" ON "stock_count_lines" USING btree ("count_id","bin_id","item_id");--> statement-breakpoint
 CREATE INDEX "stock_count_lines_serial_idx" ON "stock_count_lines" USING btree ("count_id","serial_id") WHERE "stock_count_lines"."serial_id" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "stock_counts_live_unique" ON "stock_counts" USING btree ("entity_id","warehouse_id") WHERE "stock_counts"."state" in ('open', 'counting', 'review');--> statement-breakpoint
-CREATE INDEX "stock_counts_list_idx" ON "stock_counts" USING btree ("entity_id","state","started_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "stock_counts_list_idx" ON "stock_counts" USING btree ("entity_id","started_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "stock_counts_state_idx" ON "stock_counts" USING btree ("entity_id","state","started_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "stock_counts_warehouse_idx" ON "stock_counts" USING btree ("warehouse_id");

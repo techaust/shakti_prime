@@ -89,8 +89,9 @@ export const stockCounts = pgTable(
     uniqueIndex('stock_counts_live_unique')
       .on(t.entityId, t.warehouseId)
       .where(sql`${t.state} in ('open', 'counting', 'review')`),
-    // `/inventory/counts`: a company's counts by state, newest first.
-    index('stock_counts_list_idx').on(t.entityId, t.state, t.startedAt.desc(), t.id.desc()),
+    // `/inventory/counts`: a company's counts newest first, all of them or by state.
+    index('stock_counts_list_idx').on(t.entityId, t.startedAt.desc(), t.id.desc()),
+    index('stock_counts_state_idx').on(t.entityId, t.state, t.startedAt.desc(), t.id.desc()),
     index('stock_counts_warehouse_idx').on(t.warehouseId),
   ],
 );

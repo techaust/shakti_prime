@@ -160,6 +160,38 @@ export const STOCK_JOURNEY = {
 } as const;
 
 /**
+ * H3's stock count journeys (stock-counts.spec.ts), written by the seed
+ * (`e2e/setup/stock-counts.ts`): per project a godown of company 1 with two storage bins, a cable
+ * with 40 metres in the first bin and 10 in the second, and a pump with three serials in the first,
+ * put back to that stock every run. Every quantity is a test value for these journeys alone.
+ */
+export const STOCK_COUNT_JOURNEY = {
+  entityId: 1,
+  bins: ['CA-01', 'CA-02'],
+  cableQty: [40, 10],
+  projects: {
+    'desktop-light': {
+      hub: { code: 'JCT-DL', name: 'Count godown, light' },
+      cable: { sku: 'JCT-CBL-DL', name: 'Count cable, light' },
+      pump: { sku: 'JCT-PMP-DL', name: 'Count pump, light' },
+      serials: ['JCTDL-S1', 'JCTDL-S2', 'JCTDL-S3'],
+    },
+    'desktop-dark': {
+      hub: { code: 'JCT-DD', name: 'Count godown, dark' },
+      cable: { sku: 'JCT-CBL-DD', name: 'Count cable, dark' },
+      pump: { sku: 'JCT-PMP-DD', name: 'Count pump, dark' },
+      serials: ['JCTDD-S1', 'JCTDD-S2', 'JCTDD-S3'],
+    },
+    phone: {
+      hub: { code: 'JCT-PH', name: 'Count godown, phone' },
+      cable: { sku: 'JCT-CBL-PH', name: 'Count cable, phone' },
+      pump: { sku: 'JCT-PMP-PH', name: 'Count pump, phone' },
+      serials: ['JCTPH-S1', 'JCTPH-S2', 'JCTPH-S3'],
+    },
+  },
+} as const;
+
+/**
  * The company kept for screenshots of lists: only the seed writes there, never a journey, so the
  * leads list and board, the team, the Activity log and the imports show the same rows every run
  * and only times are masked. A security suite run on the same database may add rows there; CI
