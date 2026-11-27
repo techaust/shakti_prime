@@ -435,4 +435,55 @@ Re-checked the fix round `cbf48815..a98c26f7` on `feat/u2-purchase-orders`. `888
 - **R4, R5, R7, R8:** as the review says.
 - **The reviewer re-checks the fix diff.**
 
+### 27-11-2026, re-check 2 (slice reviewer, Opus 5.5 at high)
+Re-checked the second fix round, `8eb324f4..8cec69f9`.
+- `01217093` takes in `main` (Q1 #299 and the day's documents). Its resolution keeps both sides of every list and moves this slice's seven migrations to 0243–0249, after Q1's 0242.
+- Everything from `56e4327e` to `8cec69f9` is the round itself.
+- The round redefines `app.file_purpose_grant()` (0251) and `files_purpose_check` (0250). Both are Q1's latest text plus `purchase_order_pdf`, so none of Q1's purposes is lost.
+- I ran everything on the slot database (54332), migrated and seeded from empty. A fresh database applies 0243 to 0251 as they stand.
+- **Verdict: R1, R2, R3, R4, R5, R7 and R8 are fixed and tested, and R6 went away with R2. The round adds no critical or high finding. The two lows below are follow-ups.**
+
+| # | Status | Evidence |
+|---|---|---|
+| R1 | fixed, tested | I ran every unit suite with `turbo run test --force`: 10 of 10 tasks passed. Counts: contracts 340, db 164, domain 2,931, web 1,279 (1 skipped), ui 107, tokens 146, copy-lint 17, voice 49, voice-agent 23. The SECURITY §3.2 key cell is now the bare key, with the approval rule in a sentence below the table. §6.5 names 0243. The ERD test's planned example is still a planned pair. No comment sits inside an `executeQuery(...)` call. |
+| R2 | fixed, tested | Chromium is loaded only in `workers/pdf/deps.ts` and `render-job.ts`; `print/purchase-order-pdf.ts` is gone. Hosted, `procurement.po.sent` goes to the render route through `EVENT_JOB_ROUTES` (`qstash.ts`). Approving, and cancelling an approved order, each emit `print.document.requested`. The PDF is stored as a `purchase_order_pdf` file, written only with `files.process:entity` and read only with `procurement.rate.read` in the order's company (`files_read`). The route reads the order and the file as the signed-in person and serves the stored bytes. Before the file exists it answers 503 with a sentence from `en.json`. A General Manager, a Store Manager, another company or a draft gets 404, and a signed-out request 401. The render worker reads through two narrow definers under the platform-only `procurement.po.print`. Each checks the permission in its body, uses `search_path ''`, and has execute revoked from `public`, `readonly_reporter` and `app_reader`. Neither runs for any person: the db and domain tests refuse both to an Executive. The mail step reads the stored file as the worker (`files.process` reads its company's files) and never throws for a mail that did not go. I traced a stored file to the mail: a job whose file is already recorded still runs `attach`, so the mail goes. Tests: web `purchase-order-render.test.ts` (9: stored once per version, the cancelled version marked, refused for good, no file without `files.process`, the route's 503, 200, `attachment` and 404/401 answers, mailed once from the stored bytes, in process too, nothing for an order sent by hand or since cancelled), plus the domain and db cases. No person-facing route runs as `system:workers`. |
+| R3 | fixed | DATABASE §4.1 rows 234–240 cover all seven definers, each with its check, `search_path` and migration. §4.4 and the `files` row name `purchase_order_pdf`. No document still names `procurement.po.mail` or `app.purchase_order_for_mail()`. |
+| R4 | fixed | The unreachable line is removed. A comment says the ledger answers `stock_serial_exists`. |
+| R5 | fixed, tested | The test polls `pg_stat_activity` until a backend is blocked by the issue's pid (`pg_blocking_pids`), every 50 ms for up to 10 s. It then asserts the reversal has not settled before releasing the issue. No fixed sleep remains. |
+| R6 | gone | The letterhead is loaded only inside the render worker. |
+| R7 | fixed (journey not run here) | A new Inventory Manager journey opens Send by email, checks the person offered, runs axe, adds the screenshot `purchase-order-email-dialog`, sends, and sees the order Sent. The Executive's journey saves the PDF and checks its file name. The General Manager's journey finds no Download PDF and a 404 at the address. |
+| R8 | fixed, tested | Two new cases: a receiving bin of another hub (`goods_receipt_bin_unusable`), and a receipt at a hub the order does not deliver to (`purchase_order_not_open`). |
+
+**New findings (low, follow-ups).**
+
+| # | Severity | Where | What is wrong | Failure scenario | Fix | Status |
+|---|---|---|---|---|---|---|
+| S1 | low | `apps/web/src/workers/procurement-mail.ts` `mailPurchaseOrder()`; `workers/events/deliver.ts` 127–129 (the render route claims through `deliverEvent`) | The mail has no record of its own that it went. Its only guard is the route's event-id claim, which is written as done after the job returns. | The SES send succeeds, then recording the event id fails or the function dies before it. The queue delivers again, the file is found stored, `attach` runs, and the vendor gets a second copy. | Record the mail per event before sending, for example a key-value `setIfAbsent` on `po-mail:{eventId}` or a dedupe row, and skip when it is set. | plausible |
+| S2 | low | `apps/web/src/app/(bos)/procurement/orders/[id]/pdf/route.ts` 70–73 | A stored file whose bucket is not the runtime's store, or whose bytes are missing, answers "being prepared". Nothing ever prints it again, because the job finds the file recorded. | After a bucket change the person waits on a page that refreshes every 5 seconds forever. On the sheet, `waitForFile` reports the file ready, so the save gets the 503 text. | Answer 404 or 500 with a logged error when a recorded file cannot be read, and keep 503 for a file not yet recorded. | plausible |
+
+**Checked and found sound.**
+- The PDF file id is a fixed function of the order and the version, so approval, sending, cancelling and Download PDF all land on one file. Two concurrent jobs for one version lose only a retry (the second fails to record and runs again), and nothing is mailed before the record.
+- `procurement.po.pdf.request` is people-only, gated by `procurement.rate.read:entity`, audits nothing (`auditWhen: 'changed'`), and is in the agent refusal sweep. Its DTO carries ids and a flag only.
+- Version 2 prints only for an order cancelled after approval, and the route serves the current version.
+- Client code imports only types from `@shakti/contracts`. The printed states have a browser copy, held to the contracts by `contract-values.test.ts`.
+- `next.config.ts` is unchanged: the render route already ships Chromium and the fonts.
+
+**Run here (through the lock).**
+- `pnpm install --offline --frozen-lockfile`, which links the lockfile `main` brought and adds no package. `pnpm db:migrate` and `pnpm db:seed` on the empty database: clean.
+- Every unit suite, as in the R1 row.
+- Db security: `purchase-orders`, `files`, `role-entity-matrix`, `stock-reasons`, `stock-reason-moves`, `grants` and `enum-sync`, 7 files, 458 passed.
+- Domain security: `purchase-orders`, `agent-refusals`, `reader-parity` and `stock/ledger`, 127 passed.
+- Web security: `purchase-order-render` and `label-render` (14 passed); `pdf-render`, `outbox-event-route`, `outbox-route`, `files` and `notifications` (104 passed).
+
+**Not checked.**
+- No journeys ran, because this session cannot sign in. That covers all five tests in `apps/web/e2e/purchase-orders.spec.ts`, in each of the three projects: draft and tax split, send by email (R7), receive by scanning, the Executive's sheet and PDF, and the General Manager's sheet with no rates.
+- No Linux baselines exist, including the new `purchase-order-email-dialog`, so the layout check is still undone.
+- Not run again: the whole db, domain and web security suites, `pnpm build`, `js-budget`, typecheck and the whole-repository lint (the builder's runs are in its report).
+- Nothing ran on a hosted runtime. The staging check of the PDF and the mail that R2 asked for is still the lead's.
+
+**For the lead.**
+- Q1's design (§7.4) leaves two pieces to U2 now that Q1 is on `main`, and this branch has neither. Print labels on a receipt goes through `printLabels` with the receipt's serials. The scan-back of a BOS label goes through `resolveScannedCode` in the scan field's `resolve`. This is a scope decision, not a defect of this round.
+- The renamed platform-only `procurement.po.print` still lets the worker read one approved order's rates, now for the download as well as the mail. That is yours to confirm.
+- The owner's `checks-ok` is still needed (`js-budget.json`, `copy-lint.config.json`).
+
 ## Integration
