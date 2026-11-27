@@ -520,6 +520,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.ingest_key_find(text)',
       'app.ingest_source_token(uuid)',
       'app.ingest_source(text,text)',
+      // Q1: what a sheet of QR labels prints, read by the render worker.
+      'app.labels_for_print(text,uuid[])',
       'app.lead_search_ids(text,boolean,text,integer)',
       // J2: an order's loan gates, read by the order's Loan tab, the dispatch guard (J8) and the
       // payment milestones (Phase 5).

@@ -139,6 +139,10 @@ import {
   StockAdjustmentSchema,
   StockReasonSchema,
   WarehouseKindSchema,
+  // Q1 labels
+  LABEL_REPRINT_MAX,
+  LABEL_SHEET_MAX,
+  LabelKindSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
@@ -271,6 +275,10 @@ import {
   ACTIVE_LOAN_STATE_VALUES,
   CUSTOMER_LOAN_STATES as CUSTOMER_LOAN_STATES_WEB,
   LOAN_DISPATCH_GATES as LOAN_DISPATCH_GATES_WEB,
+  // Q1 labels
+  LABEL_KINDS as LABEL_KINDS_WEB,
+  LABEL_REPRINT_MAX as LABEL_REPRINT_MAX_WEB,
+  LABEL_SHEET_MAX as LABEL_SHEET_MAX_WEB,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -397,6 +405,10 @@ describe('the contract values copied for the browser', () => {
     expect(CUSTOMER_LOAN_STATES_WEB).toEqual(CONTRACT_CUSTOMER_LOAN_STATES);
     expect(ACTIVE_LOAN_STATE_VALUES).toEqual(CONTRACT_ACTIVE_LOAN_STATES);
     expect(LOAN_DISPATCH_GATES_WEB).toEqual(CONTRACT_LOAN_DISPATCH_GATES);
+    // Q1 labels
+    expect(LABEL_KINDS_WEB).toEqual(LabelKindSchema.options);
+    expect(LABEL_SHEET_MAX_WEB).toBe(LABEL_SHEET_MAX);
+    expect(LABEL_REPRINT_MAX_WEB).toBe(LABEL_REPRINT_MAX);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

@@ -4,7 +4,7 @@ import { Client, Receiver } from '@upstash/qstash';
 import { logger } from '../log';
 import { indexJobOf } from './knowledge/job';
 import { sendJobOf } from './messaging/job';
-import { renderJobOf } from './pdf/job';
+import { labelsJobOf, renderJobOf } from './pdf/job';
 
 /** Where QStash calls the publisher; the schedule and every nudge target it. */
 export const OUTBOX_PUBLISH_PATH = '/api/v1/workers/outbox/publish';
@@ -69,6 +69,11 @@ export const EVENT_JOB_ROUTES: Readonly<
   'print.document.requested': {
     path: PDF_RENDER_PATH,
     body: renderJobOf,
+  },
+  // Q1: a sheet of QR labels, printed by the same render route.
+  'print.labels.requested': {
+    path: PDF_RENDER_PATH,
+    body: labelsJobOf,
   },
   'knowledge.file.index_requested': {
     path: EMBEDDINGS_INDEX_PATH,

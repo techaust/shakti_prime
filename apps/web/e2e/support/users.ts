@@ -168,6 +168,20 @@ export const STOCK_JOURNEY = {
   },
 } as const;
 
+// Q1 labels
+/**
+ * The labels journey (`e2e/labels.spec.ts`): per project, a serial-tracked item of company 1 with
+ * one serial in the stock journey's first bin, whose label the Inventory Manager prints again
+ * (`e2e/setup/labels.ts`). Test values for these journeys alone.
+ */
+export const LABEL_JOURNEY = {
+  items: {
+    'desktop-light': { sku: 'JRN-LBL-DL', name: 'Journey pump, light', serialNo: 'JRNLBLDL0001' },
+    'desktop-dark': { sku: 'JRN-LBL-DD', name: 'Journey pump, dark', serialNo: 'JRNLBLDD0001' },
+    phone: { sku: 'JRN-LBL-PH', name: 'Journey pump, phone', serialNo: 'JRNLBLPH0001' },
+  },
+} as const;
+
 /**
  * The company kept for screenshots of lists: only the seed writes there, never a journey, so the
  * leads list and board, the team, the Activity log and the imports show the same rows every run

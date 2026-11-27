@@ -573,7 +573,10 @@
     "loan_lender_missing": "This lender is no longer on the company's list. Choose another lender.",
     "loan_lender_from_list": "Choose the lender from the list. Ask an Executive to add a lender that is missing.",
     "lender_name_taken": "This company already has a lender with this name.",
-    "lender_missing": "We couldn't find this lender. Refresh the page and try again."
+    "lender_missing": "We couldn't find this lender. Refresh the page and try again.",
+    "stock_serial_state": "That serial number can't be moved this way from where it is now. Check where it is and try again.",
+    "stock_customer_missing": "We couldn't find that customer or site. Choose the customer again, then try again.",
+    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -2009,7 +2012,9 @@
       "loanReject": "Loan turned down",
       "loanGatesWaive": "Order stopped waiting for a loan",
       "lenderCreate": "Lender added",
-      "lenderUpdate": "Lender changed"
+      "lenderUpdate": "Lender changed",
+      "labelPrint": "Labels printed",
+      "labelReprint": "Label printed again"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2079,7 +2084,8 @@
       "loanSanctioned": "Loan sanctioned",
       "loanDisbursed": "Loan paid out",
       "loanRejected": "Loan turned down",
-      "loanGatesReleased": "Loan let the order go ahead"
+      "loanGatesReleased": "Loan let the order go ahead",
+      "labelsRequested": "Labels sent for printing"
     },
     "sheet": {
       "title": "{action}",
@@ -2431,7 +2437,10 @@
       "loanReference": "Lender's reference",
       "dispatchGate": "Dispatch waits for",
       "rejectedReason": "Why the lender turned it down",
-      "waiverReason": "Why the order no longer waits for a loan"
+      "waiverReason": "Why the order no longer waits for a loan",
+      "labelKind": "Kind of label",
+      "labelCount": "Labels on the sheet",
+      "labelNote": "Why it was printed again"
     },
     "values": {
       "percent": "{value}%",
@@ -2618,6 +2627,11 @@
         "surplus_in": "Into surplus",
         "surplus_out": "Out of surplus",
         "reversal": "Reversed"
+      },
+      "labelKind": {
+        "serial": "Serial number",
+        "bin": "Bin",
+        "package": "Package"
       }
     }
   },
@@ -2670,7 +2684,12 @@
     "label": {
       "serial": "Serial number",
       "item": "Item code",
-      "scan": "Scan for warranty"
+      "hub": "Hub",
+      "dispatch": "Dispatch number",
+      "package": "Package",
+      "packageOf": "{n} of {count}",
+      "place": "Deliver to",
+      "fileName": "{count, plural, one {# label} other {# labels}}.pdf"
     },
     "company": {
       "gstin": "GSTIN",
@@ -3583,7 +3602,8 @@
       "whatsapp_media": "File sent on WhatsApp",
       "call_recording": "Call recording",
       "call_transcript": "Call transcript",
-      "vendor_quote": "Supplier quote"
+      "vendor_quote": "Supplier quote",
+      "label_sheet": "Labels to print"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -7012,6 +7032,30 @@
       "supplierWarrantyUntil": "Supplier's warranty until",
       "notSet": "Not set",
       "movements": "Movements"
+    },
+    "labels": {
+      "printLabels": "Print labels for {name}",
+      "firstLabel": "Print the label",
+      "reprintLabel": "Print the label again",
+      "printHubTitle": "Bin labels for {name}",
+      "printHubIntro": "{count, plural, one {One label} other {# labels}}, one for each bin of this hub. Open the sheet when it is ready and print it on the hub's label printer.",
+      "printBinTitle": "Label for bin {bin}",
+      "printBinIntro": "One label for this bin of {hub}. Open it when it is ready and print it on the hub's label printer.",
+      "printSerialTitle": "Label for {serial}",
+      "printSerialIntro": "One label for this serial number. Open it when it is ready and print it on the hub's label printer.",
+      "reprintBinTitle": "New label for bin {bin}",
+      "reprintBinIntro": "A new label for this bin of {hub}. Say why it needs one; the reason is kept with the bin's history.",
+      "reprintSerialTitle": "New label for {serial}",
+      "reprintSerialIntro": "A new label for this serial number. Say why it needs one; the reason is kept with the serial's history.",
+      "note": "Why it needs a new label",
+      "noteHelper": "Such as a torn, faded or lost label. 3 to 300 characters.",
+      "noteInvalid": "Say why in 3 to 300 characters.",
+      "printSubmit": "Print labels",
+      "printOneSubmit": "Print the label",
+      "working": "Printing {count, plural, one {the label} other {# labels}}. This takes a few seconds.",
+      "ready": "{count, plural, one {The label is} other {The labels are}} ready to print.",
+      "slow": "The labels are taking longer than usual. Close this and try again in a minute.",
+      "openLabels": "Open the labels"
     }
   }
 }

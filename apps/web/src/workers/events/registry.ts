@@ -16,7 +16,7 @@ import { handleNoticeEvent } from '../notify/notify-event';
 import { handleTriageEvent } from '../triage/triage-event';
 import { handleBriefEvent, handleCallSummaryEvent } from '../copilot/copilot-event';
 import { handleConciergeEvent } from '../concierge/concierge-event';
-import { renderJobOf } from '../pdf/job';
+import { labelsJobOf, renderJobOf } from '../pdf/job';
 import { sendJobOf } from '../messaging/job';
 import { whatsappButtonSecret } from '../messaging/button-secret';
 import { recordProbeArrival } from './probe';
@@ -91,6 +91,17 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       const { renderPdfJob } = await import('../pdf/render-job');
       const { renderDeps } = await import('../pdf/deps');
       await renderPdfJob(renderJobOf(event), renderDeps(ctx.principal, ctx.requestId));
+    },
+  },
+  // Q1: a sheet of QR labels, rendered as a document is: hosted, the publisher sends it to the
+  // render route (`EVENT_JOB_ROUTES`); without a queue it is printed here. The sheet's id is its
+  // file's, so a repeat is harmless.
+  'print.labels.requested': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      const { renderPdfJob } = await import('../pdf/render-job');
+      const { renderDeps } = await import('../pdf/deps');
+      await renderPdfJob(labelsJobOf(event), renderDeps(ctx.principal, ctx.requestId));
     },
   },
   // A vault file to read and index (docs/03-roadmap-appendix/phase1.md §8.4). Hosted, the publisher sends this
