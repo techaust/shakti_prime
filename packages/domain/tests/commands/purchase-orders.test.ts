@@ -29,7 +29,14 @@ import {
 } from '../../src/commands/procurement/reorder';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import { stockMove } from '../../src/stock/move';
-import { averageOf, costOf, onHand, serialOf, stockFixture, type StockFixture } from '../stock/stock-fixture';
+import {
+  averageOf,
+  costOf,
+  onHand,
+  serialOf,
+  stockFixture,
+  type StockFixture,
+} from '../stock/stock-fixture';
 
 let f: StockFixture;
 let manager: Principal; // Inventory Manager of every company: drafts
@@ -130,12 +137,15 @@ async function sentOrder(lines: unknown[], entityId = 1): Promise<Ref> {
 
 async function lineIds(poId: string): Promise<Record<string, string>> {
   const rows = await asMigrator(
-    (m) => m<{ id: string; item_id: string }[]>`select id, item_id from po_lines where po_id = ${poId}`,
+    (m) =>
+      m<{ id: string; item_id: string }[]>`select id, item_id from po_lines where po_id = ${poId}`,
   );
   return Object.fromEntries(rows.map((r) => [r.item_id, r.id]));
 }
 
-async function rateRows(poId: string): Promise<{ unit_rate: string; amount: string; quote_id: string | null }[]> {
+async function rateRows(
+  poId: string,
+): Promise<{ unit_rate: string; amount: string; quote_id: string | null }[]> {
   return asMigrator(
     (m) => m<{ unit_rate: string; amount: string; quote_id: string | null }[]>`
       select r.unit_rate::text, r.amount::text, r.quote_id from po_line_rates r
@@ -162,7 +172,9 @@ describe('procurement.po.create / update', () => {
     )) as Ref;
     expect(po).toMatchObject({ entityId: 1, state: 'draft' });
     expect(po.poNo).toMatch(/\/PO\/\d{4}-\d{2}\/\d{4}$/);
-    expect(await rateRows(po.id)).toEqual([{ unit_rate: '100.0000', amount: '1000.00', quote_id: null }]);
+    expect(await rateRows(po.id)).toEqual([
+      { unit_rate: '100.0000', amount: '1000.00', quote_id: null },
+    ]);
     const [line] = await asMigrator(
       (m) => m<{ purchase_unit: string; unit_factor: string; tax_rate_pct: string }[]>`
         select purchase_unit, unit_factor::text, tax_rate_pct::text from po_lines where po_id = ${po.id}`,
@@ -197,17 +209,27 @@ describe('procurement.po.create / update', () => {
     );
     expect((await rateRows(two.id))[0]?.unit_rate).toBe('40.0000');
     await expect(
-      run(manager, createPurchaseOrder, draft({ lines: [{ itemId: meter, qty: '1', rateFromQuote: true }] })),
+      run(
+        manager,
+        createPurchaseOrder,
+        draft({ lines: [{ itemId: meter, qty: '1', rateFromQuote: true }] }),
+      ),
     ).rejects.toMatchObject({ details: { reason: 'po_quote_missing' } });
   });
 
   it('is refused without procurement.po.write, and in another company', async () => {
     for (const role of NO_PO_WRITE) {
       await expect(
-        run(principalFor(role, [1]), createPurchaseOrder, draft({ lines: [{ itemId: f.cable, qty: '1' }] })),
+        run(
+          principalFor(role, [1]),
+          createPurchaseOrder,
+          draft({ lines: [{ itemId: f.cable, qty: '1' }] }),
+        ),
       ).rejects.toMatchObject({ code: 'forbidden' });
     }
-    await expect(run(managerOne, createPurchaseOrder, draft({ entityId: 2 }))).rejects.toMatchObject({
+    await expect(
+      run(managerOne, createPurchaseOrder, draft({ entityId: 2 })),
+    ).rejects.toMatchObject({
       code: 'forbidden',
     });
   });
@@ -259,46 +281,77 @@ describe('procurement.po.create / update', () => {
       run(managerOne, updatePurchaseOrder, { purchaseOrderId: two.id, notes: 'x' }),
     ).rejects.toMatchObject({ code: 'not_found' });
     await expect(
-      run(principalFor('general_manager', [1, 2]), updatePurchaseOrder, { purchaseOrderId: two.id, notes: 'x' }),
+      run(principalFor('general_manager', [1, 2]), updatePurchaseOrder, {
+        purchaseOrderId: two.id,
+        notes: 'x',
+      }),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
 
 describe('procurement.po.approve (question 5 (a))', () => {
   it('lets another Inventory Manager approve below ₹2,00,000 including GST', async () => {
-    const po = await run<Ref>(manager, createPurchaseOrder, draft({ lines: [{ itemId: f.cable, qty: '1', rate: '100000' }] }));
-    await expect(run(checker, approvePurchaseOrder, { purchaseOrderId: po.id })).resolves.toMatchObject({
+    const po = await run<Ref>(
+      manager,
+      createPurchaseOrder,
+      draft({ lines: [{ itemId: f.cable, qty: '1', rate: '100000' }] }),
+    );
+    await expect(
+      run(checker, approvePurchaseOrder, { purchaseOrderId: po.id }),
+    ).resolves.toMatchObject({
       state: 'approved',
     });
   });
 
   it('refuses the Inventory Manager at the limit, and lets an Executive approve it', async () => {
     // ₹1,69,491.53 with 18 % GST is ₹1,99,999.99, which rounds to ₹2,00,000: at the limit.
-    const po = await run<Ref>(manager, createPurchaseOrder, draft({ lines: [{ itemId: f.cable, qty: '1', rate: '169491.53' }] }));
-    await expect(run(checker, approvePurchaseOrder, { purchaseOrderId: po.id })).rejects.toMatchObject({
+    const po = await run<Ref>(
+      manager,
+      createPurchaseOrder,
+      draft({ lines: [{ itemId: f.cable, qty: '1', rate: '169491.53' }] }),
+    );
+    await expect(
+      run(checker, approvePurchaseOrder, { purchaseOrderId: po.id }),
+    ).rejects.toMatchObject({
       code: 'forbidden',
       details: { reason: 'po_approval_limit' },
     });
-    await expect(run(executive, approvePurchaseOrder, { purchaseOrderId: po.id })).resolves.toMatchObject({
+    await expect(
+      run(executive, approvePurchaseOrder, { purchaseOrderId: po.id }),
+    ).resolves.toMatchObject({
       state: 'approved',
     });
   });
 
   it('refuses an approver their own draft, unless they are an Executive', async () => {
     const po = await run<Ref>(manager, createPurchaseOrder, draft());
-    await expect(run(manager, approvePurchaseOrder, { purchaseOrderId: po.id })).rejects.toMatchObject({
+    await expect(
+      run(manager, approvePurchaseOrder, { purchaseOrderId: po.id }),
+    ).rejects.toMatchObject({
       code: 'forbidden',
       details: { reason: 'po_self_approval' },
     });
-    const own = await run<Ref>(executive, createPurchaseOrder, draft({ lines: [{ itemId: f.cable, qty: '10', rate: '90000' }] }));
-    await expect(run(executive, approvePurchaseOrder, { purchaseOrderId: own.id })).resolves.toMatchObject({
+    const own = await run<Ref>(
+      executive,
+      createPurchaseOrder,
+      draft({ lines: [{ itemId: f.cable, qty: '10', rate: '90000' }] }),
+    );
+    await expect(
+      run(executive, approvePurchaseOrder, { purchaseOrderId: own.id }),
+    ).resolves.toMatchObject({
       state: 'approved',
     });
   });
 
   it('refuses an order with a line without its rate', async () => {
-    const po = await run<Ref>(manager, createPurchaseOrder, draft({ lines: [{ itemId: f.cable, qty: '1' }] }));
-    await expect(run(checker, approvePurchaseOrder, { purchaseOrderId: po.id })).rejects.toMatchObject({
+    const po = await run<Ref>(
+      manager,
+      createPurchaseOrder,
+      draft({ lines: [{ itemId: f.cable, qty: '1' }] }),
+    );
+    await expect(
+      run(checker, approvePurchaseOrder, { purchaseOrderId: po.id }),
+    ).rejects.toMatchObject({
       details: { reason: 'po_lines_incomplete' },
     });
   });
@@ -311,7 +364,9 @@ describe('procurement.po.approve (question 5 (a))', () => {
       ).rejects.toMatchObject({ code: 'forbidden' });
     }
     const two = await run<Ref>(manager, createPurchaseOrder, draft({ entityId: 2 }));
-    await expect(run(managerOne, approvePurchaseOrder, { purchaseOrderId: two.id })).rejects.toMatchObject({
+    await expect(
+      run(managerOne, approvePurchaseOrder, { purchaseOrderId: two.id }),
+    ).rejects.toMatchObject({
       code: 'not_found',
       details: { reason: 'purchase_order_missing' },
     });
@@ -324,11 +379,15 @@ describe('procurement.po.send / cancel / close', () => {
     await run(checker, approvePurchaseOrder, { purchaseOrderId: po.id });
     const emitted = memoryOutboxSink();
     const sent = (await asPrincipal(manager, (context) =>
-      runCommand(sendPurchaseOrder, { context, audit, outbox: emitted }, {
-        purchaseOrderId: po.id,
-        via: 'email',
-        vendorContactId: contact,
-      }),
+      runCommand(
+        sendPurchaseOrder,
+        { context, audit, outbox: emitted },
+        {
+          purchaseOrderId: po.id,
+          via: 'email',
+          vendorContactId: contact,
+        },
+      ),
     )) as Ref;
     expect(sent.state).toBe('sent');
     expect(emitted.records[0]).toMatchObject({
@@ -382,7 +441,8 @@ describe('procurement.grn.post', () => {
       details: { reason: 'goods_receipt_serial_missing', missing: 1 },
     });
     const [receipts] = await asMigrator(
-      (m) => m<{ n: number }[]>`select count(*)::int as n from goods_receipts where po_id = ${po.id}`,
+      (m) =>
+        m<{ n: number }[]>`select count(*)::int as n from goods_receipts where po_id = ${po.id}`,
     );
     expect(receipts?.n).toBe(0);
   });
@@ -400,11 +460,15 @@ describe('procurement.grn.post', () => {
     ).rejects.toMatchObject({ details: { reason: 'goods_receipt_serial_repeated' } });
     await expect(
       post({ poLineId: lines[patterned], qty: '2', serialNos: ['PMP-0001', '4006381333931'] }),
-    ).rejects.toMatchObject({ details: { reason: 'goods_receipt_serial_pattern', serialNo: '4006381333931' } });
+    ).rejects.toMatchObject({
+      details: { reason: 'goods_receipt_serial_pattern', serialNo: '4006381333931' },
+    });
     await expect(post({ poLineId: lines[f.cable], qty: '6' })).rejects.toMatchObject({
       details: { reason: 'goods_receipt_over_order' },
     });
-    await expect(post({ poLineId: lines[f.cable], qty: '5', binId: f.otherBin })).rejects.toMatchObject({
+    await expect(
+      post({ poLineId: lines[f.cable], qty: '5', binId: f.otherBin }),
+    ).rejects.toMatchObject({
       details: { reason: 'goods_receipt_bin_unusable' },
     });
   });
@@ -445,13 +509,21 @@ describe('procurement.grn.post', () => {
     const emitted = memoryOutboxSink();
     const recorded = memoryAuditSink();
     const receipt = (await asPrincipal(manager, (context) =>
-      runCommand(postGoodsReceipt, { context, audit: recorded, outbox: emitted }, {
-        purchaseOrderId: po.id,
-        vendorInvoiceNo: 'INV-77',
-        lines: [{ poLineId: lines[meter], qty: '0.3' }],
-      }),
+      runCommand(
+        postGoodsReceipt,
+        { context, audit: recorded, outbox: emitted },
+        {
+          purchaseOrderId: po.id,
+          vendorInvoiceNo: 'INV-77',
+          lines: [{ poLineId: lines[meter], qty: '0.3' }],
+        },
+      ),
     )) as ReceiptRef;
-    expect(receipt).toMatchObject({ state: 'posted', purchaseOrderState: 'received', movementCount: 1 });
+    expect(receipt).toMatchObject({
+      state: 'posted',
+      purchaseOrderState: 'received',
+      movementCount: 1,
+    });
     expect(receipt.grnNo).toMatch(/\/GRN\/\d{4}-\d{2}\/\d{4}$/);
     expect(await onHand(1, f.receiving, meter)).toBe('30.000');
     expect(await averageOf(1, meter)).toMatchObject({ avg: '175.0000' });
@@ -509,7 +581,14 @@ describe('procurement.grn.reverse', () => {
     // 2 metres at ₹50, then 8 received at ₹64: (100 + 512) / 10 = 61.2; reversed, back to 50.
     await asPrincipal(executive, (context) =>
       stockMove(context.tx, [
-        { reason: 'adjust_gain', entityId: 4, itemId: f.cable, toBinId: f.binA, qty: '2', unitCost: '50.0000' },
+        {
+          reason: 'adjust_gain',
+          entityId: 4,
+          itemId: f.cable,
+          toBinId: f.binA,
+          qty: '2',
+          unitCost: '50.0000',
+        },
       ]),
     );
     const po = await sentOrder([{ itemId: f.cable, qty: '8', rate: '64' }], 4);
@@ -540,7 +619,14 @@ describe('procurement.grn.reverse', () => {
     });
     await asPrincipal(manager, (context) =>
       stockMove(context.tx, [
-        { reason: 'transfer', entityId: 1, itemId: f.cable, fromBinId: f.receiving, toBinId: f.binA, qty: '1' },
+        {
+          reason: 'transfer',
+          entityId: 1,
+          itemId: f.cable,
+          fromBinId: f.receiving,
+          toBinId: f.binA,
+          qty: '1',
+        },
       ]),
     );
     await expect(
@@ -564,18 +650,31 @@ describe('procurement.grn.reverse', () => {
 
 describe('reorder rules and procurement.reorder.draft', () => {
   it('sets and removes a rule, refused without procurement.po.write and in another company', async () => {
-    const rule = { entityId: 1, itemId: f.pump, warehouseId: f.hub, reorderLevel: '1', reorderQty: '2' };
-    await expect(run(principalFor('store_manager', [1]), setReorderRule, rule)).rejects.toMatchObject({
+    const rule = {
+      entityId: 1,
+      itemId: f.pump,
+      warehouseId: f.hub,
+      reorderLevel: '1',
+      reorderQty: '2',
+    };
+    await expect(
+      run(principalFor('store_manager', [1]), setReorderRule, rule),
+    ).rejects.toMatchObject({
       code: 'forbidden',
     });
     await expect(run(managerOne, setReorderRule, { ...rule, entityId: 2 })).rejects.toMatchObject({
       code: 'forbidden',
     });
-    await expect(run(manager, setReorderRule, { ...rule, reorderQty: '1.5' })).rejects.toMatchObject({
+    await expect(
+      run(manager, setReorderRule, { ...rule, reorderQty: '1.5' }),
+    ).rejects.toMatchObject({
       details: { reason: 'reorder_rule_whole_units' },
     });
     const made = await run<{ id: string; reorderLevel: string }>(manager, setReorderRule, rule);
-    const again = await run<{ id: string; reorderLevel: string }>(manager, setReorderRule, { ...rule, reorderLevel: '3' });
+    const again = await run<{ id: string; reorderLevel: string }>(manager, setReorderRule, {
+      ...rule,
+      reorderLevel: '3',
+    });
     expect(again).toMatchObject({ id: made.id, reorderLevel: '3.000' });
     await expect(
       run(principalFor('general_manager', [1]), removeReorderRule, { ruleId: made.id }),
@@ -588,12 +687,38 @@ describe('reorder rules and procurement.reorder.draft', () => {
   });
 
   it('drafts one order per preferred vendor and hub, with quantities and no rate, once', async () => {
-    const workers = principalFor('system:workers', [1, 2, 3, 4], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
+    const workers = principalFor('system:workers', [1, 2, 3, 4], {
+      id: SYSTEM_WORKERS_PRINCIPAL_ID,
+    });
     // Company 3: nothing of these items is on hand or on order there.
-    await run(manager, setReorderRule, { entityId: 3, itemId: f.cable, warehouseId: f.hub, reorderLevel: '50', reorderQty: '120' });
-    await run(manager, setReorderRule, { entityId: 3, itemId: meter, warehouseId: f.hub, reorderLevel: '100', reorderQty: '250' });
-    await run(manager, setReorderRule, { entityId: 3, itemId: f.pump, warehouseId: f.hub, reorderLevel: '2', reorderQty: '4' });
-    await run(manager, setReorderRule, { entityId: 3, itemId: patterned, warehouseId: f.hub, reorderLevel: '2', reorderQty: '4' });
+    await run(manager, setReorderRule, {
+      entityId: 3,
+      itemId: f.cable,
+      warehouseId: f.hub,
+      reorderLevel: '50',
+      reorderQty: '120',
+    });
+    await run(manager, setReorderRule, {
+      entityId: 3,
+      itemId: meter,
+      warehouseId: f.hub,
+      reorderLevel: '100',
+      reorderQty: '250',
+    });
+    await run(manager, setReorderRule, {
+      entityId: 3,
+      itemId: f.pump,
+      warehouseId: f.hub,
+      reorderLevel: '2',
+      reorderQty: '4',
+    });
+    await run(manager, setReorderRule, {
+      entityId: 3,
+      itemId: patterned,
+      warehouseId: f.hub,
+      reorderLevel: '2',
+      reorderQty: '4',
+    });
     const emitted = memoryOutboxSink();
     const out = (await asPrincipal(workers, (context) =>
       runCommand(draftReorders, { context, audit, outbox: emitted }, { entityId: 3 }),
@@ -601,7 +726,9 @@ describe('reorder rules and procurement.reorder.draft', () => {
     expect(out.purchaseOrderIds).toHaveLength(2);
     expect(out.itemsWithoutVendor).toBe(1);
     const orders = await asMigrator(
-      (m) => m<{ id: string; vendor_id: string; state: string; source: string; drafted_by: string }[]>`
+      (m) => m<
+        { id: string; vendor_id: string; state: string; source: string; drafted_by: string }[]
+      >`
         select id, vendor_id, state, source, drafted_by from purchase_orders
          where id in ${m(out.purchaseOrderIds)} order by vendor_id`,
     );
@@ -638,7 +765,9 @@ describe('reorder rules and procurement.reorder.draft', () => {
 
   it('is the platform’s only: refused to every person, an Executive included, and in another company', async () => {
     for (const who of [executive, manager, principalFor('agent:chief', [1])]) {
-      await expect(run(who, draftReorders, { entityId: 1 })).rejects.toMatchObject({ code: 'forbidden' });
+      await expect(run(who, draftReorders, { entityId: 1 })).rejects.toMatchObject({
+        code: 'forbidden',
+      });
     }
     await expect(
       run(principalFor('system:workers', [1], { id: SYSTEM_WORKERS_PRINCIPAL_ID }), draftReorders, {

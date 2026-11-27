@@ -223,7 +223,8 @@ export const updatePurchaseOrder = defineCommand({
         const itemOf = new Map(before.map((l) => [l.id, l.itemId]));
         for (const rate of rates) {
           const itemId = itemOf.get(rate.poLineId);
-          if (itemId !== undefined) kept.set(itemId, { unitRate: rate.unitRate, quoteId: rate.quoteId });
+          if (itemId !== undefined)
+            kept.set(itemId, { unitRate: rate.unitRate, quoteId: rate.quoteId });
         }
       }
       await ctx.tx.delete(schema.poLines).where(eq(schema.poLines.poId, row.id));
@@ -309,7 +310,9 @@ export const sendPurchaseOrder = defineCommand({
       const [contact] = await ctx.tx
         .select({ id: c.id })
         .from(c)
-        .where(and(eq(c.id, input.vendorContactId), eq(c.vendorId, row.vendorId), isNotNull(c.email)))
+        .where(
+          and(eq(c.id, input.vendorContactId), eq(c.vendorId, row.vendorId), isNotNull(c.email)),
+        )
         .limit(1);
       if (!contact) {
         throw new DomainError('validation_failed', 'the vendor’s person has no email address', {

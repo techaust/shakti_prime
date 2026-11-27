@@ -187,10 +187,7 @@ export const poLines = pgTable(
     check('po_lines_line_no_check', sql`${t.lineNo} between 1 and 200`),
     check('po_lines_qty_check', sql`${t.qty} > 0`),
     check('po_lines_factor_check', sql`${t.unitFactor} >= 1`),
-    check(
-      'po_lines_received_check',
-      sql`${t.qtyReceived} >= 0 and ${t.qtyReceived} <= ${t.qty}`,
-    ),
+    check('po_lines_received_check', sql`${t.qtyReceived} >= 0 and ${t.qtyReceived} <= ${t.qty}`),
     check('po_lines_hsn_check', sql`${t.hsn} ~ '^([0-9]{4}|[0-9]{6}|[0-9]{8})$'`),
     check(
       'po_lines_tax_rate_check',

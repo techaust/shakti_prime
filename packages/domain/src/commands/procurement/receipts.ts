@@ -89,7 +89,9 @@ async function receiptBins(
   const rows = await ctx.tx
     .select({ id: b.id, kind: b.kind })
     .from(b)
-    .where(and(eq(b.warehouseId, hubId), isNull(b.archivedAt), inArray(b.kind, [...RECEIVING_KINDS])));
+    .where(
+      and(eq(b.warehouseId, hubId), isNull(b.archivedAt), inArray(b.kind, [...RECEIVING_KINDS])),
+    );
   return {
     receiving: rows.find((r) => r.kind === 'receiving')?.id,
     usable: new Set(rows.map((r) => r.id)),
@@ -144,10 +146,14 @@ async function checkLines(
     }
     const binId = input.binId ?? bins.receiving;
     if (binId === undefined || !bins.usable.has(binId)) {
-      throw new DomainError('validation_failed', 'the bin is not one goods are received into at the hub', {
-        reason: 'goods_receipt_bin_unusable',
-        itemId: line.itemId,
-      });
+      throw new DomainError(
+        'validation_failed',
+        'the bin is not one goods are received into at the hub',
+        {
+          reason: 'goods_receipt_bin_unusable',
+          itemId: line.itemId,
+        },
+      );
     }
     const units = stockQty(input.qty, line.unitFactor);
     const serialNos = (input.serialNos ?? []).map((s) => s.trim());
@@ -307,7 +313,10 @@ export const postGoodsReceipt = defineCommand({
     for (const c of checked) {
       await ctx.tx
         .update(schema.poLines)
-        .set({ qtyReceived: after.qty.get(c.line.id) ?? c.line.qtyReceived, updatedBy: ctx.principal.id })
+        .set({
+          qtyReceived: after.qty.get(c.line.id) ?? c.line.qtyReceived,
+          updatedBy: ctx.principal.id,
+        })
         .where(eq(schema.poLines.id, c.line.id));
     }
     await setOrderState(ctx, order, to);

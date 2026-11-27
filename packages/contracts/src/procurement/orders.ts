@@ -62,10 +62,13 @@ export const PurchaseOrderLineInput = z
     rateFromQuote: z.boolean().optional(),
   })
   .strict()
-  .refine((line) => !(line.rateFromQuote === true && line.rate !== undefined && line.rate !== null), {
-    message: 'a typed rate or the quote, not both',
-    path: ['rateFromQuote'],
-  });
+  .refine(
+    (line) => !(line.rateFromQuote === true && line.rate !== undefined && line.rate !== null),
+    {
+      message: 'a typed rate or the quote, not both',
+      path: ['rateFromQuote'],
+    },
+  );
 export type PurchaseOrderLineInput = z.input<typeof PurchaseOrderLineInput>;
 
 const Lines = z
@@ -176,9 +179,7 @@ export const PostGoodsReceiptInput = z
 export type PostGoodsReceiptInput = z.input<typeof PostGoodsReceiptInput>;
 
 /** `procurement.grn.reverse`: the whole receipt, with a reason. */
-export const ReverseGoodsReceiptInput = z
-  .object({ receiptId: IdSchema, reason: Reason })
-  .strict();
+export const ReverseGoodsReceiptInput = z.object({ receiptId: IdSchema, reason: Reason }).strict();
 export type ReverseGoodsReceiptInput = z.infer<typeof ReverseGoodsReceiptInput>;
 
 /** What the receipt commands answer: no rate. */

@@ -61,7 +61,11 @@ describe('the purchase order machine (question 5 (a))', () => {
   it('refuses an approval without procurement.po.approve, and the platform', () => {
     const writer = holding([{ key: 'procurement.po.write', scope: 'entity' }], 'inventory_manager');
     expect(() =>
-      transition(purchaseOrderMachine, record(), 'approve', { actor: writer, now: NOW, params: {} }),
+      transition(purchaseOrderMachine, record(), 'approve', {
+        actor: writer,
+        now: NOW,
+        params: {},
+      }),
     ).toThrow(expect.objectContaining({ code: 'forbidden' }));
     expect(() =>
       transition(purchaseOrderMachine, record(), 'approve', {
@@ -81,7 +85,11 @@ describe('the purchase order machine (question 5 (a))', () => {
       }).to,
     ).toBe('draft');
     expect(() =>
-      transition(purchaseOrderMachine, record(), 'update', { actor: platform, now: NOW, params: {} }),
+      transition(purchaseOrderMachine, record(), 'update', {
+        actor: platform,
+        now: NOW,
+        params: {},
+      }),
     ).toThrow(expect.objectContaining({ code: 'forbidden' }));
   });
 
@@ -93,7 +101,15 @@ describe('the purchase order machine (question 5 (a))', () => {
         now: NOW,
         params: {},
       }),
-    ).toThrow(expect.objectContaining({ details: expect.objectContaining({ reason: 'purchase_order_transition_not_allowed' }) }));
+    ).toThrow(
+      expect.objectContaining({
+        details: {
+          reason: 'purchase_order_transition_not_allowed',
+          state: 'approved',
+          event: 'update',
+        },
+      }),
+    );
     expect(() =>
       transition(purchaseOrderMachine, record({ state: 'closed' }), 'unreceive', {
         actor,

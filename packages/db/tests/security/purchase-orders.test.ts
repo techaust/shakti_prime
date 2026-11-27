@@ -40,7 +40,12 @@ type Pool = 'app_user' | 'app_reader';
 const POOLS: Pool[] = ['app_user', 'app_reader'];
 
 /** How many of this file's rows of `table` (by `key`) `principal` reads on the pool. */
-async function visible(principal: Principal, table: string, key: string, pool: Pool): Promise<number> {
+async function visible(
+  principal: Principal,
+  table: string,
+  key: string,
+  pool: Pool,
+): Promise<number> {
   return withRequestContext(
     principal,
     {},
@@ -57,7 +62,10 @@ async function visible(principal: Principal, table: string, key: string, pool: P
 }
 
 /** The database's own failure of a statement run as `principal`, or the rows it touched. */
-async function attempt(principal: Principal, statement: SQL): Promise<number | { code?: string; constraint?: string }> {
+async function attempt(
+  principal: Principal,
+  statement: SQL,
+): Promise<number | { code?: string; constraint?: string }> {
   try {
     return await withRequestContext(principal, {}, async ({ tx }) => {
       const rows = (await tx.execute(statement)) as unknown as unknown[];
@@ -126,7 +134,9 @@ afterAll(async () => {
 const holdsRates = (role: RoleKey): boolean =>
   !role.startsWith('agent:') &&
   !role.startsWith('system:') &&
-  STAFF_MATRIX['procurement.rate.read'][role as keyof (typeof STAFF_MATRIX)['procurement.rate.read']] !== undefined;
+  STAFF_MATRIX['procurement.rate.read'][
+    role as keyof (typeof STAFF_MATRIX)['procurement.rate.read']
+  ] !== undefined;
 
 describe('rates per role on every table and pool (INV-04)', () => {
   it.each(POOLS)('only a holder of procurement.rate.read reads a rate, on %s', async (pool) => {
@@ -208,37 +218,59 @@ describe('the order’s guard', () => {
   });
 
   it('refuses the drafter their own approval, and a line without its GST rate', async () => {
-    expect(await attempt(drafter, approve(drafter))).toMatchObject({ constraint: 'po_self_approval' });
-    expect(await attempt(approver, approve(approver))).toMatchObject({ constraint: 'po_lines_incomplete' });
+    expect(await attempt(drafter, approve(drafter))).toMatchObject({
+      constraint: 'po_self_approval',
+    });
+    expect(await attempt(approver, approve(approver))).toMatchObject({
+      constraint: 'po_lines_incomplete',
+    });
     expect(await attempt(principalFor('general_manager', [1]), approve(approver))).toBe(0);
   });
 
   it('refuses a change of a sent order’s terms and lines, and a move the machine lacks', async () => {
     expect(
-      await attempt(drafter, sql`update purchase_orders set notes = 'later', updated_by = ${drafter.id}
-                                  where id = ${ids.order} returning id`),
+      await attempt(
+        drafter,
+        sql`update purchase_orders set notes = 'later', updated_by = ${drafter.id}
+                                  where id = ${ids.order} returning id`,
+      ),
     ).toMatchObject({ constraint: 'purchase_order_not_draft' });
     expect(
-      await attempt(drafter, sql`update po_lines set qty = 20, updated_by = ${drafter.id}
-                                  where id = ${ids.line} returning id`),
+      await attempt(
+        drafter,
+        sql`update po_lines set qty = 20, updated_by = ${drafter.id}
+                                  where id = ${ids.line} returning id`,
+      ),
     ).toMatchObject({ constraint: 'purchase_order_not_draft' });
     expect(
-      await attempt(drafter, sql`update purchase_orders set state = 'draft', updated_by = ${drafter.id}
-                                  where id = ${ids.order} returning id`),
+      await attempt(
+        drafter,
+        sql`update purchase_orders set state = 'draft', updated_by = ${drafter.id}
+                                  where id = ${ids.order} returning id`,
+      ),
     ).toMatchObject({ constraint: 'purchase_order_transition_not_allowed' });
     expect(
-      await attempt(drafter, sql`delete from po_line_rates where po_line_id = ${ids.line} returning po_line_id`),
+      await attempt(
+        drafter,
+        sql`delete from po_line_rates where po_line_id = ${ids.line} returning po_line_id`,
+      ),
     ).toBe(0);
   });
 
   it('keeps a receipt line’s rate as written, for every role', async () => {
     expect(
-      await attempt(executive, sql`update goods_receipt_line_rates set unit_rate = 1
-                                    where receipt_line_id = ${ids.receiptLine} returning receipt_line_id`),
+      await attempt(
+        executive,
+        sql`update goods_receipt_line_rates set unit_rate = 1
+                                    where receipt_line_id = ${ids.receiptLine} returning receipt_line_id`,
+      ),
     ).toMatchObject({ code: '42501' });
     expect(
-      await attempt(executive, sql`insert into goods_receipt_line_rates (receipt_line_id, entity_id, unit_rate)
-                                    values (${ids.receiptLine}, 1, 1) returning receipt_line_id`),
+      await attempt(
+        executive,
+        sql`insert into goods_receipt_line_rates (receipt_line_id, entity_id, unit_rate)
+                                    values (${ids.receiptLine}, 1, 1) returning receipt_line_id`,
+      ),
     ).toMatchObject({ code: '42501' });
   });
 });
@@ -254,7 +286,10 @@ describe('the receipt and reorder definers', () => {
       }
     }
     expect(
-      await attempt(principalFor('inventory_manager', [2]), sql`select app.goods_receipt_post(${ids.receipt}::uuid, '{}'::jsonb)`),
+      await attempt(
+        principalFor('inventory_manager', [2]),
+        sql`select app.goods_receipt_post(${ids.receipt}::uuid, '{}'::jsonb)`,
+      ),
     ).toMatchObject({ code: '42501' });
     // A receipt already in stock is not posted again.
     expect(
@@ -264,7 +299,9 @@ describe('the receipt and reorder definers', () => {
 
   it('refuse the reorder job’s reads and drafts to every person, an Executive included', async () => {
     for (const who of [executive, drafter, principalFor('agent:sizing', [1])]) {
-      expect(await attempt(who, sql`select * from app.reorder_shortfalls(1::smallint)`)).toMatchObject({
+      expect(
+        await attempt(who, sql`select * from app.reorder_shortfalls(1::smallint)`),
+      ).toMatchObject({
         code: '42501',
       });
       expect(

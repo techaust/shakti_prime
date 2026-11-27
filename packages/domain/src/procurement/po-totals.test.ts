@@ -49,7 +49,10 @@ describe('purchaseOrderTotals', () => {
 
   it('charges IGST across states and rounds the grand total to the rupee', () => {
     expect(
-      purchaseOrderTotals([line('999.99')], { vendorStateCode: '27', placeOfSupplyStateCode: '08' }),
+      purchaseOrderTotals([line('999.99')], {
+        vendorStateCode: '27',
+        placeOfSupplyStateCode: '08',
+      }),
     ).toEqual({
       subtotal: '999.99',
       cgst: '0.00',

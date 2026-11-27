@@ -78,14 +78,16 @@ export async function orderRates(
 }
 
 /** What the machine reads of an order: its lines and, for a reader of rates, its grand total. */
-export async function orderRecord(ctx: CommandContext, row: OrderRow): Promise<PurchaseOrderRecord> {
+export async function orderRecord(
+  ctx: CommandContext,
+  row: OrderRow,
+): Promise<PurchaseOrderRecord> {
   const lines = await orderLines(ctx, row.id);
   const rates = await orderRates(
     ctx,
     lines.map((l) => l.id),
   );
-  const complete =
-    lines.length > 0 && lines.every((l) => l.taxRatePct !== null && rates.has(l.id));
+  const complete = lines.length > 0 && lines.every((l) => l.taxRatePct !== null && rates.has(l.id));
   const totals = complete
     ? purchaseOrderTotals(
         lines.map((l) => ({
@@ -135,7 +137,10 @@ export async function setOrderState(
     .where(eq(schema.purchaseOrders.id, row.id));
 }
 
-export function orderRef(row: Pick<OrderRow, 'id' | 'entityId' | 'poNo'>, state: string): PurchaseOrderRefDto {
+export function orderRef(
+  row: Pick<OrderRow, 'id' | 'entityId' | 'poNo'>,
+  state: string,
+): PurchaseOrderRefDto {
   return { id: row.id, entityId: row.entityId, poNo: row.poNo, state: state as PurchaseOrderState };
 }
 
@@ -145,7 +150,11 @@ export async function activeVendor(
   vendorId: string,
 ): Promise<{ id: string; stateCode: string | null }> {
   const [vendor] = await ctx.tx
-    .select({ id: schema.vendors.id, stateCode: schema.vendors.stateCode, isActive: schema.vendors.isActive })
+    .select({
+      id: schema.vendors.id,
+      stateCode: schema.vendors.stateCode,
+      isActive: schema.vendors.isActive,
+    })
     .from(schema.vendors)
     .where(eq(schema.vendors.id, vendorId))
     .limit(1);
@@ -173,12 +182,13 @@ export async function deliveryHub(
     .from(w)
     .where(eq(w.id, warehouseId))
     .limit(1);
-  if (!hub || hub.archivedAt !== null || hub.kind === 'transit' || hub.stateCode === null) {
+  const stateCode = hub?.archivedAt === null && hub.kind !== 'transit' ? hub.stateCode : null;
+  if (hub === undefined || stateCode === null) {
     throw new DomainError('validation_failed', `hub ${warehouseId} does not take deliveries`, {
       reason: 'purchase_order_hub_unusable',
     });
   }
-  return { id: hub.id, stateCode: hub.stateCode };
+  return { id: hub.id, stateCode };
 }
 
 interface ItemFacts {
@@ -190,7 +200,10 @@ interface ItemFacts {
 }
 
 /** The items of the lines: in the catalogue, active and stocked. */
-async function orderItems(ctx: CommandContext, itemIds: readonly string[]): Promise<Map<string, ItemFacts>> {
+async function orderItems(
+  ctx: CommandContext,
+  itemIds: readonly string[],
+): Promise<Map<string, ItemFacts>> {
   const i = schema.items;
   const rows = await ctx.tx
     .select({
@@ -241,10 +254,7 @@ export async function lineTaxRates(
           tr.itemId,
           items.map((x) => x.id),
         ),
-        and(
-          isNull(tr.itemId),
-          inArray(tr.hsn, [...new Set(items.map((x) => x.hsn))]),
-        ),
+        and(isNull(tr.itemId), inArray(tr.hsn, [...new Set(items.map((x) => x.hsn))])),
       ),
     );
   const rates = rows.map((r) => TaxRateRowSchema.parse(r));
@@ -253,7 +263,8 @@ export async function lineTaxRates(
     try {
       out.set(item.id, resolveRate(rates, { hsn: item.hsn, itemId: item.id, on: ctx.now }));
     } catch (e) {
-      if (e instanceof DomainError && e.details?.reason === 'tax_rate_missing') out.set(item.id, null);
+      if (e instanceof DomainError && e.details?.reason === 'tax_rate_missing')
+        out.set(item.id, null);
       else throw e;
     }
   }
@@ -295,8 +306,13 @@ async function quoteRates(
 }
 
 /** Refuses a typed or quoted rate from a caller without `procurement.rate.read`. */
-export function assertRatesAllowed(ctx: CommandContext, lines: readonly PurchaseOrderLineInput[]): void {
-  const asks = lines.some((l) => (l.rate !== undefined && l.rate !== null) || l.rateFromQuote === true);
+export function assertRatesAllowed(
+  ctx: CommandContext,
+  lines: readonly PurchaseOrderLineInput[],
+): void {
+  const asks = lines.some(
+    (l) => (l.rate !== undefined && l.rate !== null) || l.rateFromQuote === true,
+  );
   if (asks && !readsRates(ctx.principal)) {
     throw new DomainError('forbidden', 'a rate needs procurement.rate.read', {
       reason: 'procurement_rate_required',

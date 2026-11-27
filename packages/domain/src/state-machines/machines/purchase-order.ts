@@ -61,7 +61,8 @@ const linesComplete: G = {
 };
 
 const notOwnDraft: G = {
-  description: 'the approver did not draft the order, unless they are an Executive (question 5 (a))',
+  description:
+    'the approver did not draft the order, unless they are an Executive (question 5 (a))',
   check: (record, { actor }) =>
     actor.kind === 'principal' &&
     actor.principal.id === record.draftedBy &&
@@ -163,7 +164,8 @@ export const purchaseOrderMachine = defineMachine<
       effects: [
         {
           key: 'email_pdf',
-          description: 'by email: the PDF to the vendor’s person through the mailer (worker on the event)',
+          description:
+            'by email: the PDF to the vendor’s person through the mailer (worker on the event)',
         },
       ],
     },
@@ -174,9 +176,7 @@ export const purchaseOrderMachine = defineMachine<
       permission: 'procurement.grn.write',
       scope: 'entity',
       emits: 'procurement.receipt.posted',
-      effects: [
-        { key: 'stock_in', description: '`receipt` movements through `app.stock_move()`' },
-      ],
+      effects: [{ key: 'stock_in', description: '`receipt` movements through `app.stock_move()`' }],
       note: 'A receipt that leaves some line short.',
     },
     {
@@ -186,9 +186,7 @@ export const purchaseOrderMachine = defineMachine<
       permission: 'procurement.grn.write',
       scope: 'entity',
       emits: 'procurement.receipt.posted',
-      effects: [
-        { key: 'stock_in', description: '`receipt` movements through `app.stock_move()`' },
-      ],
+      effects: [{ key: 'stock_in', description: '`receipt` movements through `app.stock_move()`' }],
       note: 'A receipt after which every line is received in full.',
     },
     {

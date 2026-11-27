@@ -1079,7 +1079,13 @@ export const PURCHASE_ORDER_STATES = [
 ] as const satisfies readonly PurchaseOrderState[];
 
 /** How a purchase order reached its vendor. */
-export const PURCHASE_ORDER_SENT_VIA = ['email', 'by_hand'] as const satisfies readonly PurchaseOrderSentVia[];
+export const PURCHASE_ORDER_SENT_VIA = [
+  'email',
+  'by_hand',
+] as const satisfies readonly PurchaseOrderSentVia[];
 
 /** A goods receipt's states. */
-export const GOODS_RECEIPT_STATES = ['posted', 'reversed'] as const satisfies readonly GoodsReceiptState[];
+export const GOODS_RECEIPT_STATES = [
+  'posted',
+  'reversed',
+] as const satisfies readonly GoodsReceiptState[];

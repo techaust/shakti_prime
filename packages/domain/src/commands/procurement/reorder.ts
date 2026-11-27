@@ -51,7 +51,12 @@ export const setReorderRule = defineCommand({
     await deliveryHub(ctx, input.warehouseId);
     const i = schema.items;
     const [item] = await ctx.tx
-      .select({ isActive: i.isActive, archivedAt: i.archivedAt, isStocked: i.isStocked, tracked: i.isSerialTracked })
+      .select({
+        isActive: i.isActive,
+        archivedAt: i.archivedAt,
+        isStocked: i.isStocked,
+        tracked: i.isSerialTracked,
+      })
       .from(i)
       .where(eq(i.id, input.itemId))
       .limit(1);
@@ -64,16 +69,24 @@ export const setReorderRule = defineCommand({
     const level = qty3(input.reorderLevel);
     const reorderQty = qty3(input.reorderQty);
     if (item.tracked && (!level.endsWith('.000') || !reorderQty.endsWith('.000'))) {
-      throw new DomainError('validation_failed', 'a serial-tracked item is counted in whole units', {
-        reason: 'reorder_rule_whole_units',
-      });
+      throw new DomainError(
+        'validation_failed',
+        'a serial-tracked item is counted in whole units',
+        {
+          reason: 'reorder_rule_whole_units',
+        },
+      );
     }
     const r = schema.reorderRules;
     const [existing] = await ctx.tx
       .select()
       .from(r)
       .where(
-        and(eq(r.entityId, input.entityId), eq(r.itemId, input.itemId), eq(r.warehouseId, input.warehouseId)),
+        and(
+          eq(r.entityId, input.entityId),
+          eq(r.itemId, input.itemId),
+          eq(r.warehouseId, input.warehouseId),
+        ),
       )
       .limit(1)
       .for('update');
@@ -210,7 +223,8 @@ export const draftReorders = defineCommand({
       groups.set(key, [...(groups.get(key) ?? []), row]);
     }
     const purchaseOrderIds: string[] = [];
-    if (groups.size === 0) return { entityId: input.entityId, purchaseOrderIds, itemsWithoutVendor };
+    if (groups.size === 0)
+      return { entityId: input.entityId, purchaseOrderIds, itemsWithoutVendor };
 
     const code = await companyCode(ctx, input.entityId);
     const taxes = await lineTaxRates(
