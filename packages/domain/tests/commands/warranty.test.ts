@@ -214,7 +214,7 @@ describe('inventory.warranty.identify_serial', () => {
     const ok = await run(
       manager,
       identifyWarrantySerial,
-      { claimId: late.id, serialId: failed },
+      { entityId: 1, claimId: late.id, serialId: failed },
       new Date('2027-03-10T18:00:00Z'),
     );
     expect(ok.state).toBe('serial_identified');
@@ -225,7 +225,7 @@ describe('inventory.warranty.identify_serial', () => {
       run(
         manager,
         identifyWarrantySerial,
-        { claimId: after.id, serialId: other },
+        { entityId: 1, claimId: after.id, serialId: other },
         new Date('2027-03-10T19:00:00Z'),
       ),
     ).rejects.toMatchObject({
@@ -243,21 +243,25 @@ describe('inventory.warranty.identify_serial', () => {
     const undated = await serial(null);
     const claim = await raised();
     await expect(
-      run(manager, identifyWarrantySerial, { claimId: claim.id, serialId: undated }),
+      run(manager, identifyWarrantySerial, { entityId: 1, claimId: claim.id, serialId: undated }),
     ).rejects.toMatchObject({ details: { reason: 'warranty_expired', warrantyUntil: null } });
     const theirs = await serial('2099-01-31', { owner: otherAccount });
     await expect(
-      run(manager, identifyWarrantySerial, { claimId: claim.id, serialId: theirs }),
+      run(manager, identifyWarrantySerial, { entityId: 1, claimId: claim.id, serialId: theirs }),
     ).rejects.toMatchObject({ details: { reason: 'warranty_serial_other_customer' } });
     const claimed = await serial('2099-01-31');
     const first = await raised();
-    await run(manager, identifyWarrantySerial, { claimId: first.id, serialId: claimed });
+    await run(manager, identifyWarrantySerial, {
+      entityId: 1,
+      claimId: first.id,
+      serialId: claimed,
+    });
     await expect(
-      run(manager, identifyWarrantySerial, { claimId: claim.id, serialId: claimed }),
+      run(manager, identifyWarrantySerial, { entityId: 1, claimId: claim.id, serialId: claimed }),
     ).rejects.toMatchObject({ details: { reason: 'warranty_claim_open' } });
     // Identified once, the step is not repeated.
     await expect(
-      run(manager, identifyWarrantySerial, { claimId: first.id, serialId: claimed }),
+      run(manager, identifyWarrantySerial, { entityId: 1, claimId: first.id, serialId: claimed }),
     ).rejects.toMatchObject({ details: { reason: 'warranty_claim_transition_not_allowed' } });
   });
 
@@ -266,10 +270,11 @@ describe('inventory.warranty.identify_serial', () => {
     const failed = await serial('2099-01-31');
     const elsewhere = await createTestPrincipal('inventory_manager', [2]);
     await expect(
-      run(elsewhere, identifyWarrantySerial, { claimId: claim.id, serialId: failed }),
+      run(elsewhere, identifyWarrantySerial, { entityId: 2, claimId: claim.id, serialId: failed }),
     ).rejects.toMatchObject({ code: 'not_found' });
     await expect(
       run(principalFor('general_manager', [1]), identifyWarrantySerial, {
+        entityId: 1,
         claimId: claim.id,
         serialId: failed,
       }),
@@ -286,22 +291,32 @@ describe('inventory.warranty.reject', () => {
     });
     await expect(
       run(principalFor('accounts', [1]), rejectWarrantyClaim, {
+        entityId: 1,
         claimId: claim.id,
         rejectedReason: 'Damage, not a fault',
       }),
     ).rejects.toMatchObject({ code: 'forbidden' });
     const done = await run(manager, rejectWarrantyClaim, {
+      entityId: 1,
       claimId: claim.id,
       rejectedReason: 'Damage, not a fault',
     });
     expect(done.state).toBe('rejected');
     await expect(
-      run(manager, rejectWarrantyClaim, { claimId: claim.id, rejectedReason: 'Again' }),
+      run(manager, rejectWarrantyClaim, {
+        entityId: 1,
+        claimId: claim.id,
+        rejectedReason: 'Again',
+      }),
     ).rejects.toMatchObject({ details: { reason: 'warranty_claim_transition_not_allowed' } });
     // A manager of another company does not see the claim.
     const elsewhere = await createTestPrincipal('inventory_manager', [2]);
     await expect(
-      run(elsewhere, rejectWarrantyClaim, { claimId: claim.id, rejectedReason: 'Not a fault' }),
+      run(elsewhere, rejectWarrantyClaim, {
+        entityId: 2,
+        claimId: claim.id,
+        rejectedReason: 'Not a fault',
+      }),
     ).rejects.toMatchObject({ code: 'not_found' });
     const events = await asOutboxPublisher(
       (m) => m<{ type: string }[]>`select type from outbox_events where aggregate_id = ${claim.id}
@@ -330,7 +345,8 @@ describe('inventory.warranty.settle', () => {
     );
     return id;
   }
-  const credit = (claimId: string, creditAmount = '16250.50') => ({
+  const credit = (claimId: string, creditAmount = '16250.50', entityId = 1) => ({
+    entityId,
     claimId,
     settlement: 'credit',
     creditAmount,
@@ -390,5 +406,8 @@ describe('inventory.warranty.settle', () => {
     await expect(run(manager, settleWarrantyClaim, credit(claimId))).rejects.toMatchObject({
       code: 'not_found',
     });
+    await expect(
+      run(manager, settleWarrantyClaim, credit(claimId, '16250.50', 2)),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });

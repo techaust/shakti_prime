@@ -85,7 +85,14 @@ async function uploaded(csv: string, who: Principal = exec): Promise<ImportJobDt
 
 async function previewed(csv: string): Promise<ImportJobDto> {
   const job = await uploaded(csv);
-  await run(mapImportJob, { entityId: ENTITY, jobId: job.id, mapping: MAPPING });
+  const header = csv.split('\n')[0]?.split(',') ?? [];
+  // The mapping, keeping only the columns the file has.
+  const mapping = {
+    columns: Object.fromEntries(
+      Object.entries(MAPPING.columns).filter(([, column]) => header.includes(column)),
+    ),
+  };
+  await run(mapImportJob, { entityId: ENTITY, jobId: job.id, mapping });
   return run(previewImportJob, { entityId: ENTITY, jobId: job.id });
 }
 
@@ -200,21 +207,21 @@ describe('the installed base import', () => {
         .map((r) => [r.rowNo, r.errors.map((e) => e.code).join('+')]);
     };
     const found = [
-      [5, 'sku_unknown'],
-      [6, 'serial_not_tracked'],
-      [8, 'serial_taken'],
-      [9, 'customer_unknown'],
-      [10, 'site_unknown'],
-      [11, 'date_invalid'],
-      [12, 'warranty_unknown'],
-      [13, 'company_mismatch'],
+      [4, 'sku_unknown'],
+      [5, 'serial_not_tracked'],
+      [7, 'serial_taken'],
+      [8, 'customer_unknown'],
+      [9, 'site_unknown'],
+      [10, 'date_invalid'],
+      [11, 'warranty_unknown'],
+      [12, 'company_mismatch'],
     ];
     expect(await refusals()).toEqual(found);
 
     const done = await committed(job);
     expect(done).toMatchObject({ state: 'committed', committedRows: 3 });
     expect(await refusals()).toEqual(
-      [...found, [7, 'serial_taken']].sort((a, b) => Number(a[0]) - Number(b[0])),
+      [...found, [6, 'serial_taken']].sort((a, b) => Number(a[0]) - Number(b[0])),
     );
     expect(await serial(pump, `IB-${tag}-1`)).toMatchObject({
       state: 'with_customer',

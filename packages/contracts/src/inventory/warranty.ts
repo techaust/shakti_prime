@@ -57,13 +57,13 @@ export type RaiseWarrantyClaimInput = z.input<typeof RaiseWarrantyClaimInput>;
 
 /** `inventory.warranty.identify_serial`: the failed serial, in warranty by its date in India. */
 export const IdentifyWarrantySerialInput = z
-  .object({ claimId: IdSchema, serialId: IdSchema })
+  .object({ entityId: EntityIdSchema, claimId: IdSchema, serialId: IdSchema })
   .strict();
 export type IdentifyWarrantySerialInput = z.input<typeof IdentifyWarrantySerialInput>;
 
 /** `inventory.warranty.reject`: out of warranty or not a fault, with why. */
 export const RejectWarrantyClaimInput = z
-  .object({ claimId: IdSchema, rejectedReason: Reason })
+  .object({ entityId: EntityIdSchema, claimId: IdSchema, rejectedReason: Reason })
   .strict();
 export type RejectWarrantyClaimInput = z.input<typeof RejectWarrantyClaimInput>;
 
@@ -79,6 +79,7 @@ export const SupplierCreditSchema = MoneySchema.refine((v) => Number(v) > 0, {
  */
 export const SettleWarrantyClaimInput = z
   .object({
+    entityId: EntityIdSchema,
     claimId: IdSchema,
     settlement: z.literal('credit'),
     creditAmount: SupplierCreditSchema,

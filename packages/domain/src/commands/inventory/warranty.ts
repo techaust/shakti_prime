@@ -55,8 +55,13 @@ interface ClaimRow {
   state: WarrantyClaimState;
 }
 
-/** The claim, locked for this transaction's step, in a company of the request. */
-async function lockClaim(ctx: CommandContext, claimId: string): Promise<ClaimRow> {
+/** The claim of the company named, locked for this transaction's step. */
+async function lockClaim(
+  ctx: CommandContext,
+  entityId: number,
+  claimId: string,
+): Promise<ClaimRow> {
+  assertEntityInScope(ctx.entityIds, entityId);
   const c = schema.warrantyClaims;
   const [row] = await ctx.tx
     .select({
@@ -70,7 +75,7 @@ async function lockClaim(ctx: CommandContext, claimId: string): Promise<ClaimRow
       state: c.state,
     })
     .from(c)
-    .where(eq(c.id, claimId))
+    .where(and(eq(c.id, claimId), eq(c.entityId, entityId)))
     .for('update')
     .limit(1);
   if (!row) {
@@ -78,7 +83,6 @@ async function lockClaim(ctx: CommandContext, claimId: string): Promise<ClaimRow
       reason: 'warranty_claim_missing',
     });
   }
-  assertEntityInScope(ctx.entityIds, row.entityId);
   return { ...row, state: row.state as WarrantyClaimState };
 }
 
@@ -328,7 +332,7 @@ export const identifyWarrantySerial = defineCommand({
   auditFields: CLAIM_AUDIT_FIELDS,
   constraintReasons: CLAIM_RACES,
   async handler(ctx, input) {
-    const claim = await lockClaim(ctx, input.claimId);
+    const claim = await lockClaim(ctx, input.entityId, input.claimId);
     const serial = await serialOf(ctx, claim.entityId, input.serialId);
     const to = fire(
       ctx,
@@ -369,7 +373,7 @@ export const rejectWarrantyClaim = defineCommand({
   output: WarrantyClaimChangedDto,
   auditFields: CLAIM_AUDIT_FIELDS,
   async handler(ctx, input) {
-    const claim = await lockClaim(ctx, input.claimId);
+    const claim = await lockClaim(ctx, input.entityId, input.claimId);
     const to = fire(ctx, recordOf(claim), 'reject', { reason: input.rejectedReason });
     await writeStep(ctx, claim, to, { rejectedReason: input.rejectedReason });
     ctx.audit({
@@ -404,10 +408,14 @@ export const settleWarrantyClaim = defineCommand({
   input: SettleWarrantyClaimInput,
   output: WarrantyClaimChangedDto,
   // The audit row's input leaves the credit out: it is a cost (finance.cost.read).
-  auditInput: (input) => ({ claimId: input.claimId, settlement: input.settlement }),
+  auditInput: (input) => ({
+    entityId: input.entityId,
+    claimId: input.claimId,
+    settlement: input.settlement,
+  }),
   auditFields: CLAIM_AUDIT_FIELDS,
   async handler(ctx, input) {
-    const claim = await lockClaim(ctx, input.claimId);
+    const claim = await lockClaim(ctx, input.entityId, input.claimId);
     // The guard reads the settlement as recorded, which the definer does next in this transaction.
     const to = fire(ctx, recordOf(claim, { supplierSettled: true }), 'settle');
     await ctx.tx.execute(

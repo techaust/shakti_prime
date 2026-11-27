@@ -192,7 +192,7 @@ export async function previewInstalledBase(
     if (untilCell !== '') {
       warrantyUntil = parseSheetDate(untilCell);
       if (warrantyUntil === undefined) add({ field: 'warrantyUntil', code: 'date_invalid' });
-    } else if (deliveredOn !== undefined && item !== undefined) {
+    } else if (deliveredOn !== undefined && item?.tracked === true && item.active) {
       if (item.months === null) add({ field: 'warrantyUntil', code: 'warranty_unknown' });
       else warrantyUntil = warrantyUntilFrom(deliveredOn, item.months);
     }
