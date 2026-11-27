@@ -10,6 +10,7 @@ import {
   RejectCustomerLoanInput,
   SanctionCustomerLoanInput,
   UpdateLenderInput,
+  WaiveLoanGatesInput,
   type AccountLoanRowDto,
   type CustomerLoanDto,
   type LenderDto,
@@ -27,6 +28,7 @@ import {
   rejectCustomerLoan as rejectCustomerLoanCommand,
   sanctionCustomerLoan as sanctionCustomerLoanCommand,
   updateLender as updateLenderCommand,
+  waiveLoanGates as waiveLoanGatesCommand,
   type AnyCommand,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
@@ -154,6 +156,20 @@ export async function rejectLoan(
     'rejectLoan',
     RejectCustomerLoanInput,
     rejectCustomerLoanCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Records that the order no longer waits for a loan its lender turned down, with the reason. */
+export async function waiveLoanGates(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<CustomerLoanDto>> {
+  return companyCommand(
+    'waiveLoanGates',
+    WaiveLoanGatesInput,
+    waiveLoanGatesCommand,
     rawInput,
     idempotencyKey,
   );

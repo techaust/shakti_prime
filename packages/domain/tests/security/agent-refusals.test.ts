@@ -97,6 +97,7 @@ const J2_LOAN_INPUTS: Record<string, unknown> = {
   'crm.loan.sanction': { entityId: 1, loanId: newId(), sanctionedAmount: '1000.00' },
   'crm.loan.disburse': { entityId: 1, loanId: newId() },
   'crm.loan.reject': { entityId: 1, loanId: newId(), reason: 'Refused' },
+  'crm.loan.gates.waive': { entityId: 1, loanId: newId(), reason: 'Paid in cash' },
 };
 
 const INPUTS: Record<string, unknown> = {

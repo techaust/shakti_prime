@@ -282,6 +282,7 @@ const ACTIONS = {
   'crm.loan.sanction': 'loanSanction',
   'crm.loan.disburse': 'loanDisburse',
   'crm.loan.reject': 'loanReject',
+  'crm.loan.gates.waive': 'loanGatesWaive',
   'crm.lender.create': 'lenderCreate',
   'crm.lender.update': 'lenderUpdate',
 } as const;
@@ -915,6 +916,7 @@ const FIELD_KINDS = [
   ['loanReference', 'text'],
   ['dispatchGate', 'loanDispatchGate'],
   ['rejectedReason', 'text'],
+  ['waiverReason', 'text'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

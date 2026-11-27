@@ -2,8 +2,10 @@
 // principal acting in it and kept only by the Executive; a customer's loan is read with the
 // customer in the loan's company and written with crm.account.write over that relationship, on an
 // order of the company that is not cancelled, one active loan per order even when two are written
-// at once; the table holds the customer-loan machine's moves and follows its order through a
-// customer merge; app.order_loan_gate() answers each gate per state, only to the callers it names.
+// at once; the table holds the customer-loan machine's moves and the waiver of a turned-down loan's
+// gates, and follows its order through a customer merge and its undoing; app.order_loan_gate()
+// answers the dispatch gate per state, holds it after a turn-down until a new loan or a waiver, and
+// answers exactly the readers the loan's read policy lets in, and the operations roles.
 // Every check runs as app_user under real row security, and the reads again on the app_reader pool.
 import type { Principal, RoleKey } from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
@@ -21,10 +23,22 @@ const OTHER_CALLER = id(0x0002);
 const EXECUTIVE = id(0x0003);
 const TEAM_1 = id(0x0004);
 const TEAM_2 = id(0x0005);
+/** A Tele-caller who owns a lead of a customer whose relationship OWNER holds. */
+const LEAD_OWNER = id(0x0006);
 /** The customer of each company, and a second one of company 1 a merge moves an order to. */
 const ACCOUNT_1 = id(0x0011);
 const ACCOUNT_2 = id(0x0012);
 const ACCOUNT_KEPT = id(0x0013);
+/** A customer of company 1 that LEAD_OWNER reads only through their own lead. */
+const ACCOUNT_LEAD = id(0x0014);
+/** Two customers of company 1 that app.merge_customers() merges, a lead's order and loan moving. */
+const ACCOUNT_MERGE_KEPT = id(0x0015);
+const ACCOUNT_MERGED = id(0x0016);
+const LEAD_READ = id(0x0041);
+const LEAD_MERGED = id(0x0042);
+const QUOTE_MERGED = id(0x0051);
+const PRICE_LIST = id(0x0061);
+const MERGE = id(0x0071);
 const LENDER_1 = id(0x0021);
 const LENDER_2 = id(0x0022);
 const LENDER_OFF = id(0x0023);
@@ -33,6 +47,9 @@ const order1 = (n: number): string => id(0x0100 | n);
 const ORDERS_1 = 16;
 const ORDER_2 = id(0x0201);
 const ORDER_CANCELLED = id(0x0202);
+const ORDER_LEAD = id(0x0203);
+const ORDER_MERGED = id(0x0204);
+const ORDER_CANCELLED_2 = id(0x0205);
 /** A loan of each company, applied for, read by the read tests. */
 const LOAN_1 = id(0x0301);
 const LOAN_2 = id(0x0302);
@@ -43,7 +60,11 @@ async function removeFixture(): Promise<void> {
       await tx`set local session_replication_role = replica`;
       await tx`delete from customer_loans where id::text like ${like} or sales_order_id::text like ${like}`;
       await tx`delete from lenders where id::text like ${like}`;
+      await tx`delete from customer_merges where id::text like ${like}`;
       await tx`delete from sales_orders where id::text like ${like}`;
+      await tx`delete from quotes where id::text like ${like}`;
+      await tx`delete from price_lists where id::text like ${like}`;
+      await tx`delete from opportunities where id::text like ${like}`;
       await tx`delete from account_entities where id::text like ${like}`;
       await tx`delete from accounts where id::text like ${like}`;
       await tx`delete from teams where id::text like ${like}`;
@@ -59,6 +80,7 @@ beforeAll(async () => {
         [OWNER, 'loans suite caller'],
         [OTHER_CALLER, 'loans suite other caller'],
         [EXECUTIVE, 'loans suite executive'],
+        [LEAD_OWNER, 'loans suite lead owner'],
       ] as const) {
         await tx`insert into principals (id, kind, display_name)
           values (${person}, 'user', ${name}) on conflict (id) do nothing`;
@@ -68,11 +90,35 @@ beforeAll(async () => {
       await tx`insert into accounts (id, type, name, created_by) values
         (${ACCOUNT_1}, 'farm', 'loans suite customer 1', ${OWNER}),
         (${ACCOUNT_2}, 'farm', 'loans suite customer 2', ${OWNER}),
-        (${ACCOUNT_KEPT}, 'farm', 'loans suite kept customer', ${OWNER})`;
+        (${ACCOUNT_KEPT}, 'farm', 'loans suite kept customer', ${OWNER}),
+        (${ACCOUNT_LEAD}, 'farm', 'loans suite customer of a lead', ${OWNER}),
+        (${ACCOUNT_MERGE_KEPT}, 'farm', 'loans suite merge kept customer', ${OWNER}),
+        (${ACCOUNT_MERGED}, 'farm', 'loans suite merged customer', ${OWNER})`;
       await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by) values
         (${id(0x0031)}, ${ACCOUNT_1}, 1, ${OWNER}, ${TEAM_1}, ${OWNER}),
         (${id(0x0032)}, ${ACCOUNT_2}, 2, ${OWNER}, ${TEAM_2}, ${OWNER}),
-        (${id(0x0033)}, ${ACCOUNT_KEPT}, 1, ${OWNER}, ${TEAM_1}, ${OWNER})`;
+        (${id(0x0033)}, ${ACCOUNT_KEPT}, 1, ${OWNER}, ${TEAM_1}, ${OWNER}),
+        (${id(0x0034)}, ${ACCOUNT_LEAD}, 1, ${OWNER}, ${TEAM_1}, ${OWNER}),
+        (${id(0x0035)}, ${ACCOUNT_MERGE_KEPT}, 1, ${OWNER}, ${TEAM_1}, ${OWNER}),
+        (${id(0x0036)}, ${ACCOUNT_MERGED}, 1, ${OWNER}, ${TEAM_1}, ${OWNER})`;
+      // A live lead of each, in a stage and its own pipeline; the merged customer's lead has an
+      // accepted quote's order, on an archived price list of this file.
+      for (const [lead, account, owner] of [
+        [LEAD_READ, ACCOUNT_LEAD, LEAD_OWNER],
+        [LEAD_MERGED, ACCOUNT_MERGED, OWNER],
+      ] as const) {
+        await tx`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, created_by)
+          select ${lead}, 1, ${account}, s.pipeline_id, s.id, ${owner}, ${owner}
+            from (select pipeline_id, id from pipeline_stages order by id limit 1) s`;
+      }
+      await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, archived_at)
+        values (${PRICE_LIST}, ${tierId('dealer')}, 1, 9241, '2090-01-01', now())`;
+      await tx`insert into quotes (id, entity_id, quote_no, fy, opportunity_id, account_id, tier_id,
+                 price_list_id, scheme, place_of_supply_state, supply_kind, valid_until, subtotal,
+                 cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
+        values (${QUOTE_MERGED}, 1, 'J2S/Q/2098-99/0001', '2098-99', ${LEAD_MERGED}, ${ACCOUNT_MERGED},
+                ${tierId('dealer')}, ${PRICE_LIST}, 'none', '08', 'intra', now() + interval '5 days',
+                0, 0, 0, 0, 0, 0, 0, ${OWNER})`;
       await tx`insert into lenders (id, entity_id, name, is_active, created_by) values
         (${LENDER_1}, 1, 'loans suite bank one', true, ${EXECUTIVE}),
         (${LENDER_2}, 2, 'loans suite bank two', true, ${EXECUTIVE}),
@@ -86,6 +132,8 @@ beforeAll(async () => {
         ]),
         [ORDER_2, 2, ACCOUNT_2, 'draft'],
         [ORDER_CANCELLED, 1, ACCOUNT_1, 'cancelled'],
+        [ORDER_LEAD, 1, ACCOUNT_LEAD, 'draft'],
+        [ORDER_CANCELLED_2, 1, ACCOUNT_1, 'cancelled'],
       ];
       for (const [orderId, entity, account, state] of orders) {
         await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id,
@@ -95,6 +143,12 @@ beforeAll(async () => {
                   ${tierId('dealer')}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${state},
                   ${state === 'cancelled' ? 'loans suite cancel' : null}, ${OWNER})`;
       }
+      await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, opportunity_id, quote_id,
+                 tier_id, price_list_id, place_of_supply_state, supply_kind, subtotal, cgst, sgst,
+                 igst, tax_total, round_off, grand_total, state, created_by)
+        values (${ORDER_MERGED}, 1, 'J2S/2098-99/0204', '2098-99', ${ACCOUNT_MERGED}, ${LEAD_MERGED},
+                ${QUOTE_MERGED}, ${tierId('dealer')}, ${PRICE_LIST}, '08', 'intra', 0, 0, 0, 0, 0,
+                0, 0, 'draft', ${OWNER})`;
       await tx`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, created_by) values
         (${LOAN_1}, 1, ${ACCOUNT_1}, ${order1(0)}, ${LENDER_1}, 150000.00, ${OWNER}),
         (${LOAN_2}, 2, ${ACCOUNT_2}, ${ORDER_2}, ${LENDER_2}, 90000.00, ${OWNER})`;
@@ -180,6 +234,7 @@ async function setLoan(
   loanId: string,
   state: 'applied' | 'sanctioned' | 'disbursed' | 'rejected',
   gates: Record<string, unknown> = { dispatch: 'disbursed' },
+  waived = false,
 ): Promise<void> {
   await asMigrator((m) =>
     m.begin(async (tx) => {
@@ -190,7 +245,10 @@ async function setLoan(
           sanctioned_at = ${state === 'sanctioned' || state === 'disbursed' ? new Date() : null},
           disbursed_at = ${state === 'disbursed' ? new Date() : null},
           rejected_reason = ${state === 'rejected' ? 'loans suite rejection' : null},
-          gates_json = ${tx.json(gates)}
+          gates_json = ${tx.json(gates)},
+          gates_waived_at = ${waived ? new Date() : null},
+          gates_waived_by = ${waived ? EXECUTIVE : null},
+          gates_waived_reason = ${waived ? 'loans suite waiver' : null}
       where id = ${loanId}`;
     }),
   );
@@ -380,6 +438,78 @@ describe('a customer loan moves only as the machine allows', () => {
   });
 });
 
+describe('a sanction or payout needs an order that is not cancelled', () => {
+  it('refuses them on a cancelled order, and lets a turn-down close the loan there', async () => {
+    const gm = as('general_manager', [1], OTHER_CALLER);
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, created_by)
+        values (${id(0x0415)}, 1, ${ACCOUNT_1}, ${ORDER_CANCELLED_2}, ${LENDER_1}, 1000.00, ${OWNER})`,
+    );
+    const sanction = sql`update customer_loans
+      set state = 'sanctioned', sanctioned_amount = 1000.00, sanctioned_at = now(), updated_by = ${OTHER_CALLER}
+      where id = ${id(0x0415)} returning id`;
+    expect(causeOf(await attempt(gm, sanction))).toContain('row-level security');
+    const reject = sql`update customer_loans
+      set state = 'rejected', rejected_reason = 'order cancelled', updated_by = ${OTHER_CALLER}
+      where id = ${id(0x0415)} returning id`;
+    expect(await attempt(gm, reject)).toBe(1);
+  });
+});
+
+describe("a turned-down loan's gates are waived once, at company scope", () => {
+  const waive = (loanId: string, by: string) =>
+    sql`update customer_loans
+      set gates_waived_at = now(), gates_waived_by = ${by}, gates_waived_reason = 'Paid in cash',
+          updated_by = ${by}
+      where id = ${loanId} returning id`;
+
+  it('only on a rejected loan, by a person writing customers across the company, and never again', async () => {
+    const gm = as('general_manager', [1], OTHER_CALLER);
+    expect(await attempt(gm, newLoan(id(0x0416), order1(13), OTHER_CALLER))).toBe(1);
+    expect(causeOf(await attempt(gm, waive(id(0x0416), OTHER_CALLER)))).toContain(
+      "only a rejected loan's gates",
+    );
+    await setLoan(id(0x0416), 'rejected');
+    // The relationship's owner writes the customer, at own scope only.
+    expect(causeOf(await attempt(as('tele_caller_cc', [1]), waive(id(0x0416), OWNER)))).toContain(
+      'company scope',
+    );
+    // A waiver is recorded whole.
+    const partial = sql`update customer_loans
+      set gates_waived_at = now(), updated_by = ${OTHER_CALLER} where id = ${id(0x0416)} returning id`;
+    expect(causeOf(await attempt(gm, partial))).toContain('customer_loans_waiver_check');
+    expect(await attempt(gm, waive(id(0x0416), OTHER_CALLER))).toBe(1);
+    expect(causeOf(await attempt(gm, waive(id(0x0416), OTHER_CALLER)))).toContain(
+      'recorded waiver does not change',
+    );
+    const touch = sql`update customer_loans set reference = 'LN-2', updated_by = ${OTHER_CALLER}
+                       where id = ${id(0x0416)} returning id`;
+    expect(causeOf(await attempt(gm, touch))).toContain('does not change');
+  });
+});
+
+describe('the gates hold the dispatch and nothing else', () => {
+  it('refuses gates without a dispatch, with another key, or with an unknown value', async () => {
+    for (const gates of [{}, { dispatch: 'disbursed', milestones: {} }, { dispatch: 'later' }]) {
+      const refused = await asMigrator(
+        (
+          m,
+        ) => m`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, gates_json, created_by)
+          values (${id(0x0417)}, 1, ${ACCOUNT_1}, ${order1(14)}, ${LENDER_1}, 1000.00, ${m.json(gates)}, ${OWNER})`,
+      ).then(
+        () => 'inserted',
+        (e: unknown) => String((e as { constraint_name?: unknown }).constraint_name),
+      );
+      expect({ gates, refused }).toEqual({
+        gates,
+        refused: expect.stringMatching(/^customer_loans_gates(_dispatch)?_check$/) as unknown,
+      });
+    }
+  });
+});
+
 describe('a customer merge moves a loan with its order', () => {
   it('follows the order to the kept customer (ON UPDATE CASCADE)', async () => {
     await asMigrator(
@@ -397,48 +527,86 @@ describe('a customer merge moves a loan with its order', () => {
     );
     expect(row?.account).toBe(ACCOUNT_KEPT);
   });
-});
 
-describe('app.order_loan_gate() answers each gate', () => {
-  const gm = () => as('general_manager', [1], OTHER_CALLER);
-
-  it('none while the order has no active loan', async () => {
-    expect(await gate(gm(), order1(9))).toEqual({
-      loanId: null,
-      loanState: null,
-      dispatch: 'none',
-      milestones: {},
+  it("moves a paid-out loan of a lead's order through app.merge_customers(), and back on the undo", async () => {
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount,
+               state, sanctioned_amount, sanctioned_at, disbursed_at, created_by)
+        values (${id(0x0421)}, 1, ${ACCOUNT_MERGED}, ${ORDER_MERGED}, ${LENDER_1}, 1000.00,
+                'disbursed', 1000.00, now(), now(), ${OWNER})`,
+    );
+    const where = async () => {
+      const [row] = await asMigrator(
+        (m) => m<{ loan: string; order: string; state: string }[]>`
+          select cl.account_id::text as loan, so.account_id::text as order, cl.state
+            from customer_loans cl join sales_orders so on so.id = cl.sales_order_id
+           where cl.id = ${id(0x0421)}`,
+      );
+      return row;
+    };
+    const exec = as('executive', [1], EXECUTIVE);
+    const call = async (statement: SQL) =>
+      withRequestContext(exec, {}, async ({ tx }) => {
+        const [row] = (await tx.execute(statement)) as unknown as { r: { status: string } }[];
+        return row?.r.status;
+      });
+    expect(
+      await call(
+        sql`select app.merge_customers(${MERGE}::uuid, ${ACCOUNT_MERGE_KEPT}::uuid,
+                                       ${ACCOUNT_MERGED}::uuid, 1::smallint, null::uuid) as r`,
+      ),
+    ).toBe('merged');
+    // The lead moved, its order with it, and the loan with the order (the guard lets a merge move
+    // a paid-out loan's customer and nothing else).
+    expect(await where()).toEqual({
+      loan: ACCOUNT_MERGE_KEPT,
+      order: ACCOUNT_MERGE_KEPT,
+      state: 'disbursed',
+    });
+    expect(await call(sql`select app.unmerge_customers(${MERGE}::uuid) as r`)).toBe('undone');
+    expect(await where()).toEqual({
+      loan: ACCOUNT_MERGED,
+      order: ACCOUNT_MERGED,
+      state: 'disbursed',
     });
   });
+});
 
-  it('per state, for the dispatch and each milestone', async () => {
+describe('app.order_loan_gate() answers the dispatch gate', () => {
+  const gm = () => as('general_manager', [1], OTHER_CALLER);
+  const nothing = { loanId: null, loanState: null, dispatch: 'none', waived: false, reason: null };
+
+  it('none while the order has no loan', async () => {
+    expect(await gate(gm(), order1(9))).toEqual(nothing);
+  });
+
+  it('per state, with the loan and its state', async () => {
     const loan = id(0x0430);
     await asMigrator(
       (
         m,
-      ) => m`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, gates_json, created_by)
-        values (${loan}, 1, ${ACCOUNT_1}, ${order1(10)}, ${LENDER_1}, 1000.00,
-                ${m.json({ dispatch: 'disbursed', milestones: { advance: 'sanctioned', balance: 'disbursed' } })},
-                ${OWNER})`,
+      ) => m`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, created_by)
+        values (${loan}, 1, ${ACCOUNT_1}, ${order1(10)}, ${LENDER_1}, 1000.00, ${OWNER})`,
     );
-    const expected = {
-      applied: { dispatch: 'pending', milestones: { advance: 'pending', balance: 'pending' } },
-      sanctioned: { dispatch: 'pending', milestones: { advance: 'met', balance: 'pending' } },
-      disbursed: { dispatch: 'met', milestones: { advance: 'met', balance: 'met' } },
-    } as const;
+    const expected = { applied: 'pending', sanctioned: 'pending', disbursed: 'met' } as const;
     for (const state of ['applied', 'sanctioned', 'disbursed'] as const) {
-      await setLoan(loan, state, {
-        dispatch: 'disbursed',
-        milestones: { advance: 'sanctioned', balance: 'disbursed' },
-      });
+      await setLoan(loan, state);
       expect({ state, answer: await gate(gm(), order1(10)) }).toEqual({
         state,
-        answer: { loanId: loan, loanState: state, ...expected[state] },
+        answer: {
+          loanId: loan,
+          loanState: state,
+          dispatch: expected[state],
+          waived: false,
+          reason: null,
+        },
       });
     }
   });
 
-  it('on sanction when the dispatch waits for it; none when it waits for nothing; none once rejected', async () => {
+  it('on sanction when the dispatch waits for it, and none when it waits for nothing', async () => {
     const loan = id(0x0431);
     await asMigrator(
       (
@@ -455,8 +623,54 @@ describe('app.order_loan_gate() answers each gate', () => {
       dispatch: 'none',
       loanState: 'sanctioned',
     });
-    await setLoan(loan, 'rejected', { dispatch: 'disbursed' });
-    expect(await gate(gm(), order1(11))).toMatchObject({ dispatch: 'none', loanId: null });
+    // A turned-down loan that held nothing back holds nothing.
+    await setLoan(loan, 'rejected', { dispatch: 'none' });
+    expect(await gate(gm(), order1(11))).toMatchObject({
+      dispatch: 'none',
+      loanId: loan,
+      loanState: 'rejected',
+      reason: null,
+    });
+  });
+
+  it('pending after a turn-down, until a new loan replaces it or its gates are waived', async () => {
+    const first = id(0x0433);
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, created_by)
+        values (${first}, 1, ${ACCOUNT_1}, ${order1(15)}, ${LENDER_1}, 1000.00, ${OWNER})`,
+    );
+    await setLoan(first, 'sanctioned');
+    await setLoan(first, 'rejected');
+    const heldBy = (loanId: string) => ({
+      loanId,
+      loanState: 'rejected',
+      dispatch: 'pending',
+      waived: false,
+      reason: 'loan_rejected',
+    });
+    expect(await gate(gm(), order1(15))).toEqual(heldBy(first));
+    // A new loan replaces it: the gate follows the new loan.
+    const second = id(0x0434);
+    expect(await attempt(gm(), newLoan(second, order1(15), OTHER_CALLER))).toBe(1);
+    expect(await gate(gm(), order1(15))).toMatchObject({
+      loanId: second,
+      loanState: 'applied',
+      dispatch: 'pending',
+      reason: null,
+    });
+    // Turned down too, the newest turned-down loan holds the order; its waiver releases it.
+    await setLoan(second, 'rejected');
+    expect(await gate(gm(), order1(15))).toEqual(heldBy(second));
+    await setLoan(second, 'rejected', { dispatch: 'disbursed' }, true);
+    expect(await gate(gm(), order1(15))).toEqual({
+      loanId: second,
+      loanState: 'rejected',
+      dispatch: 'none',
+      waived: true,
+      reason: null,
+    });
   });
 
   it('to the person dispatching and to Accounts, who may not read the customer', async () => {
@@ -472,6 +686,35 @@ describe('app.order_loan_gate() answers each gate', () => {
       as('tele_caller_cc', [1]),
     ]) {
       expect(await gate(principal, order1(12))).toMatchObject({ dispatch: 'pending' });
+    }
+  });
+
+  it('to exactly the readers the loan read policy lets in: a person reading the customer through their own lead', async () => {
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, created_by)
+        values (${id(0x0435)}, 1, ${ACCOUNT_LEAD}, ${ORDER_LEAD}, ${LENDER_1}, 1000.00, ${OWNER})`,
+    );
+    const leadOwner = as('tele_caller_cc', [1], LEAD_OWNER);
+    for (const pool of ['app_user', 'app_reader'] as const) {
+      expect(await visible(leadOwner, 'customer_loans', pool)).toContain(id(0x0435));
+    }
+    expect(await gate(leadOwner, ORDER_LEAD)).toMatchObject({
+      loanId: id(0x0435),
+      dispatch: 'pending',
+    });
+    // An archived lead reads the customer no more: neither the loan nor its gate.
+    await asMigrator(
+      (m) => m`update opportunities set archived_at = now() where id = ${LEAD_READ}`,
+    );
+    try {
+      expect(await visible(leadOwner, 'customer_loans', 'app_user')).not.toContain(id(0x0435));
+      expect(await gate(leadOwner, ORDER_LEAD)).toBeNull();
+    } finally {
+      await asMigrator(
+        (m) => m`update opportunities set archived_at = null where id = ${LEAD_READ}`,
+      );
     }
   });
 

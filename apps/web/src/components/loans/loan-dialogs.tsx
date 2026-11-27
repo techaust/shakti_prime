@@ -16,7 +16,13 @@ import {
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
-import { createLoan, disburseLoan, rejectLoan, sanctionLoan } from '../../actions/loans';
+import {
+  createLoan,
+  disburseLoan,
+  rejectLoan,
+  sanctionLoan,
+  waiveLoanGates,
+} from '../../actions/loans';
 import { LOAN_DISPATCH_GATES } from '../../screens/contract-values';
 import { moneyFromTyped } from '../../screens/format';
 import { lenderNameOk, LOAN_REFERENCE } from '../../screens/loans';
@@ -24,7 +30,7 @@ import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand } from '../screens/use-command';
 
-export type LoanDialogKind = 'create' | 'sanction' | 'disburse' | 'reject';
+export type LoanDialogKind = 'create' | 'sanction' | 'disburse' | 'reject' | 'waive';
 
 /** An amount typed in rupees, above zero, as the contract takes it; undefined when it is not. */
 function amountOf(typed: string): string | undefined {
@@ -40,8 +46,8 @@ interface FormProps {
 }
 
 /**
- * The Loan tab's dialogs: record a loan on the order, its sanction with the amount, its payout, or
- * the lender's turn-down with the reason. Each runs its command once per form (one idempotency key)
+ * The Loan tab's dialogs: record a loan on the order, its sanction with the amount, its payout, the
+ * lender's turn-down with the reason, or that the order no longer waits for a turned-down loan. Each runs its command once per form (one idempotency key)
  * and hands the saved sentence back for the toast.
  */
 export function LoanDialog({ kind, ...props }: FormProps & { kind: LoanDialogKind }) {
@@ -60,8 +66,10 @@ export function LoanDialog({ kind, ...props }: FormProps & { kind: LoanDialogKin
           <SanctionForm {...props} />
         ) : kind === 'disburse' ? (
           <DisburseForm {...props} />
-        ) : (
+        ) : kind === 'reject' ? (
           <RejectForm {...props} />
+        ) : (
+          <WaiveForm {...props} />
         )}
       </DialogContent>
     </Dialog>
@@ -357,6 +365,36 @@ function RejectForm({ view, loan, onClose, onSaved }: FormProps) {
       </Field>
       <FailureMessage failure={formFailure} />
       <Footer pending={pending} submit={t('reject.submit')} onClose={onClose} danger />
+    </form>
+  );
+}
+
+function WaiveForm({ view, loan, onClose, onSaved }: FormProps) {
+  const t = useTranslations('loans');
+  const { run, pending, failure } = useCommand(waiveLoanGates);
+  const { fieldError, formFailure } = useFieldFailure(failure, ['reason']);
+  if (loan === undefined) return null;
+
+  function submit(e: SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending || loan === undefined) return;
+    const reason = formText(new FormData(e.currentTarget), 'reason').trim();
+    run({ entityId: view.entityId, loanId: loan.id, reason }, () => {
+      onSaved(t('waive.saved'));
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+      <DialogHeader>
+        <DialogTitle>{t('waive.title')}</DialogTitle>
+        <DialogDescription>{t('waive.intro')}</DialogDescription>
+      </DialogHeader>
+      <Field id="loan-waive-reason" label={t('waive.reason')} error={fieldError('reason')}>
+        <Textarea name="reason" maxLength={300} rows={3} required />
+      </Field>
+      <FailureMessage failure={formFailure} />
+      <Footer pending={pending} submit={t('waive.submit')} onClose={onClose} />
     </form>
   );
 }

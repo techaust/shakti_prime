@@ -17,6 +17,7 @@ import { disburseCustomerLoan } from '../../src/commands/crm/loans-disburse';
 import { createLender, updateLender } from '../../src/commands/crm/loans-lenders';
 import { rejectCustomerLoan } from '../../src/commands/crm/loans-reject';
 import { sanctionCustomerLoan } from '../../src/commands/crm/loans-sanction';
+import { waiveLoanGates } from '../../src/commands/crm/loans-waive';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import {
   getOrderLoans,
@@ -27,7 +28,8 @@ import {
 
 // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2): crm.loan.create, .sanction,
 // .disburse and .reject with crm.account.write over the customer's relationship in the order's
-// company, and crm.lender.create and .update with admin.entities.write. Loans are made in company
+// company, crm.loan.gates.waive with crm.account.write at company scope, and crm.lender.create and
+// .update with admin.entities.write. Loans are made in company
 // 2 on synthetic orders of this file; company 4 is used, its other lenders switched off for the
 // file and back on afterwards, to record a lender's typed name while the company's list is empty.
 // Every amount is a synthetic test value, never a client figure.
@@ -298,13 +300,7 @@ describe('crm.loan.sanction, .disburse and .reject', () => {
       },
       {
         type: 'crm.loan.gates_released',
-        payload: {
-          salesOrderId: orderId,
-          state: 'disbursed',
-          dispatch: true,
-          milestones: [],
-          v: 1,
-        },
+        payload: { salesOrderId: orderId, state: 'disbursed', dispatch: true, v: 1 },
       },
     ]);
     // A disbursed loan is done: it is never rejected afterwards.
@@ -313,14 +309,9 @@ describe('crm.loan.sanction, .disburse and .reject', () => {
     ).rejects.toMatchObject(reason('customer_loan_transition_not_allowed'));
   });
 
-  it('a sanction releases what waits for it, and the milestones it names', async () => {
+  it('a sanction releases a dispatch that waits for it', async () => {
     const orderId = await newOrder();
-    const loan = await create(gm, orderId, {
-      gates: {
-        dispatch: 'sanctioned',
-        milestones: { advance: 'sanctioned', balance: 'disbursed' },
-      },
-    });
+    const loan = await create(gm, orderId, { gates: { dispatch: 'sanctioned' } });
     await run(gm, sanctionCustomerLoan, {
       entityId: E,
       loanId: loan.id,
@@ -331,9 +322,36 @@ describe('crm.loan.sanction, .disburse and .reject', () => {
       salesOrderId: orderId,
       state: 'sanctioned',
       dispatch: true,
-      milestones: ['advance'],
       v: 1,
     });
+    // Gates name the dispatch only: a payment milestone keeps its own loan gate (Phase 5).
+    await expect(
+      create(gm, await newOrder(), { gates: { dispatch: 'sanctioned', milestones: {} } }),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
+  });
+
+  it('a sanction or payout is refused once the order is cancelled; a turn-down still closes the loan', async () => {
+    const orderId = await newOrder();
+    const loan = await create(gm, orderId);
+    const sanctioned = await create(gm, await newOrder());
+    await run(gm, sanctionCustomerLoan, {
+      entityId: E,
+      loanId: sanctioned.id,
+      sanctionedAmount: '1000.00',
+    });
+    await asMigrator(
+      (m) => m`update sales_orders set state = 'cancelled', cancel_reason = 'loan suite cancel'
+                where id in ${m([orderId, sanctioned.salesOrderId])}`,
+    );
+    await expect(
+      run(gm, sanctionCustomerLoan, { entityId: E, loanId: loan.id, sanctionedAmount: '1000.00' }),
+    ).rejects.toMatchObject({ code: 'conflict', ...reason('loan_order_cancelled') });
+    await expect(
+      run(gm, disburseCustomerLoan, { entityId: E, loanId: sanctioned.id }),
+    ).rejects.toMatchObject({ code: 'conflict', ...reason('loan_order_cancelled') });
+    await expect(
+      run(gm, rejectCustomerLoan, { entityId: E, loanId: loan.id, reason: 'Order cancelled' }),
+    ).resolves.toMatchObject({ state: 'rejected' });
   });
 
   it('a rejection says why, frees the order for another loan, and tells who to offer another route', async () => {
@@ -363,11 +381,21 @@ describe('crm.loan.sanction, .disburse and .reject', () => {
         v: 1,
       },
     });
-    expect(await asPrincipal(gm, (ctx) => orderLoanGate(ctx, orderId))).toMatchObject({
-      loanId: null,
-      dispatch: 'none',
+    // The turned-down loan keeps holding the dispatch until a person decides.
+    expect(await asPrincipal(gm, (ctx) => orderLoanGate(ctx, orderId))).toEqual({
+      loanId: loan.id,
+      loanState: 'rejected',
+      dispatch: 'pending',
+      waived: false,
+      reason: 'loan_rejected',
     });
-    await expect(create(gm, orderId)).resolves.toMatchObject({ state: 'applied' });
+    // A new loan replaces it.
+    const next = await create(gm, orderId);
+    expect(await asPrincipal(gm, (ctx) => orderLoanGate(ctx, orderId))).toMatchObject({
+      loanId: next.id,
+      loanState: 'applied',
+      reason: null,
+    });
   });
 
   it.each([
@@ -385,6 +413,84 @@ describe('crm.loan.sanction, .disburse and .reject', () => {
       await expect(run(otherCaller, command, input)).rejects.toMatchObject(reason('loan_missing'));
     },
   );
+});
+
+describe('crm.loan.gates.waive', () => {
+  const waive = (who: Principal, loanId: string, why = 'Customer pays in cash') =>
+    run(who, waiveLoanGates, { entityId: E, loanId, reason: why }) as Promise<CustomerLoanDto>;
+
+  async function turnedDown(orderId: string): Promise<CustomerLoanDto> {
+    const loan = await create(gm, orderId);
+    return (await run(gm, rejectCustomerLoan, {
+      entityId: E,
+      loanId: loan.id,
+      reason: 'Income papers not accepted',
+    })) as CustomerLoanDto;
+  }
+
+  it('records that the order no longer waits on a turned-down loan, audited, and releases the dispatch', async () => {
+    const orderId = await newOrder();
+    const loan = await turnedDown(orderId);
+    const waived = await waive(gm, loan.id);
+    expect(waived).toMatchObject({ state: 'rejected', gatesWaivedReason: 'Customer pays in cash' });
+    expect(waived.gatesWaivedAt).not.toBeNull();
+    expect(await asPrincipal(gm, (ctx) => orderLoanGate(ctx, orderId))).toEqual({
+      loanId: loan.id,
+      loanState: 'rejected',
+      dispatch: 'none',
+      waived: true,
+      reason: null,
+    });
+    expect((await eventsOf(loan.id)).at(-1)).toEqual({
+      type: 'crm.loan.gates_released',
+      payload: { salesOrderId: orderId, state: 'rejected', dispatch: true, v: 1 },
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ before: Record<string, unknown>; after: Record<string, unknown> }[]>`
+        select before_json as before, after_json as after from audit_logs
+         where command = 'crm.loan.gates.waive' and outcome = 'ok' and aggregate_id = ${loan.id}`,
+    );
+    expect(row).toMatchObject({
+      before: { waiverReason: null },
+      after: { loanState: 'rejected', waiverReason: 'Customer pays in cash' },
+    });
+    // Once: a waived loan holds nothing more to waive.
+    await expect(waive(gm, loan.id)).rejects.toMatchObject({
+      code: 'conflict',
+      ...reason('loan_gates_not_held'),
+    });
+  });
+
+  it('refuses a loan that holds nothing back: under way, replaced by a newer loan, or holding nothing', async () => {
+    const orderId = await newOrder();
+    const first = await turnedDown(orderId);
+    const second = await create(gm, orderId);
+    await expect(waive(gm, second.id)).rejects.toMatchObject(reason('loan_gates_not_held'));
+    await expect(waive(gm, first.id)).rejects.toMatchObject(reason('loan_gates_not_held'));
+    const free = await create(gm, await newOrder(), { gates: { dispatch: 'none' } });
+    await run(gm, rejectCustomerLoan, { entityId: E, loanId: free.id, reason: 'Refused' });
+    await expect(waive(gm, free.id)).rejects.toMatchObject(reason('loan_gates_not_held'));
+  });
+
+  it('is refused at own scope, to Accounts, to a company outside the request, and without a reason', async () => {
+    const loan = await turnedDown(await newOrder());
+    // The relationship's owner writes the customer at own scope only.
+    await expect(waive(caller, loan.id)).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(waive(accounts, loan.id)).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(waive(gm1, loan.id)).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(waive(gm, loan.id, ' ')).rejects.toMatchObject({ code: 'validation_failed' });
+    await expect(waive(gm, loan.id)).resolves.toMatchObject({ state: 'rejected' });
+  });
+
+  it('takes two waivers of one loan one after the other: the second finds nothing held', async () => {
+    const loan = await turnedDown(await newOrder());
+    const results = await Promise.allSettled([waive(gm, loan.id), waive(exec, loan.id)]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const refused = results.find((r) => r.status === 'rejected');
+    expect(refused?.status === 'rejected' ? refused.reason : undefined).toMatchObject(
+      reason('loan_gates_not_held'),
+    );
+  });
 });
 
 describe('crm.lender.create and crm.lender.update', () => {
@@ -436,13 +542,14 @@ describe('the loan reads', () => {
       orderId,
       accountId: ACCOUNT,
       canWrite: true,
+      canWaive: true,
       gate: { loanId: loan.id, dispatch: 'pending' },
     });
     expect(tab.loans.map((l) => l.id)).toEqual([loan.id]);
     expect(tab.lenders.map((l) => l.id)).toContain(lender.id);
     // Accounts reads the loan and its gate, and may not record one.
     expect(await read(accounts)).toMatchObject({ canWrite: false, loans: [{ id: loan.id }] });
-    expect(await read(caller)).toMatchObject({ canWrite: true });
+    expect(await read(caller)).toMatchObject({ canWrite: true, canWaive: false });
     await expect(read(otherCaller)).rejects.toMatchObject(reason('order_missing'));
     await expect(
       asPrincipal(gm1, (ctx) => getOrderLoans(ctx, { entityId: E, orderId })),

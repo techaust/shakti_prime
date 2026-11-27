@@ -36,7 +36,8 @@ function activeLoan(loans: readonly CustomerLoanDto[]): CustomerLoanDto | undefi
  * waits for the customer's loan, the active loan with its lender, amounts and dates, and the moves
  * a person who looks after the customer may record (sanction, payout, turn-down), each through its
  * command; then the tab reads the order's loans and gate again. Loans the lender turned down are
- * listed below, with the reason.
+ * listed below, with the reason. While a turned-down loan still holds the dispatch, a person who
+ * writes customers across the company may record that the order no longer waits for a loan.
  */
 export function OrderLoanPanel({ initial }: { initial: OrderLoansDto }) {
   const t = useTranslations('loans');
@@ -45,6 +46,11 @@ export function OrderLoanPanel({ initial }: { initial: OrderLoansDto }) {
   const [failure, setFailure] = useState<CommandFailure | undefined>();
   const active = activeLoan(view.loans);
   const earlier = view.loans.filter((l) => l !== active);
+  // The turned-down loan that still holds the dispatch, until a new loan or a waiver.
+  const heldBy =
+    view.gate.reason === 'loan_rejected'
+      ? view.loans.find((l) => l.id === view.gate.loanId)
+      : undefined;
 
   async function reload(saved: string) {
     setDialog(undefined);
@@ -85,9 +91,19 @@ export function OrderLoanPanel({ initial }: { initial: OrderLoansDto }) {
       </div>
       <p className="flex flex-wrap items-center gap-2">
         <StatusBadge tone={LOAN_GATE_TONE[view.gate.dispatch]}>
-          {t(`gate.${view.gate.dispatch}Note`)}
+          {heldBy === undefined ? t(`gate.${view.gate.dispatch}Note`) : t('gate.turnedDownNote')}
         </StatusBadge>
       </p>
+      {heldBy === undefined ? null : (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-text-muted text-sm">{t('tab.turnedDownHelp')}</p>
+          {view.canWaive ? (
+            <Button size="sm" variant="secondary" onClick={open('waive')}>
+              {t('tab.stopWaiting')}
+            </Button>
+          ) : null}
+        </div>
+      )}
       <FailureMessage failure={failure} />
       {active === undefined ? (
         <p className="text-text-muted">{t('tab.empty')}</p>
@@ -166,6 +182,11 @@ export function OrderLoanPanel({ initial }: { initial: OrderLoansDto }) {
                     {t('tab.turnedDownBecause', { reason: loan.rejectedReason })}
                   </span>
                 )}
+                {loan.gatesWaivedReason === null ? null : (
+                  <span className="text-text-muted text-sm">
+                    {t('tab.waivedBecause', { reason: loan.gatesWaivedReason })}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -175,7 +196,7 @@ export function OrderLoanPanel({ initial }: { initial: OrderLoansDto }) {
         <LoanDialog
           kind={dialog}
           view={view}
-          loan={active}
+          loan={dialog === 'waive' ? heldBy : active}
           onClose={() => {
             setDialog(undefined);
           }}

@@ -567,7 +567,8 @@
     "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
     "loan_active_exists": "This order already has a loan in progress. Record the lender's answer on that loan before you add another.",
     "loan_missing": "We couldn't find this loan. It may belong to another company or a colleague's customer.",
-    "loan_order_cancelled": "This order is cancelled, so a loan can't be added to it.",
+    "loan_order_cancelled": "This order is cancelled, so its loan can't be recorded or moved on.",
+    "loan_gates_not_held": "This order is not waiting for this loan any more. Refresh the page to see where it stands.",
     "loan_lender_missing": "This lender is no longer on the company's list. Choose another lender.",
     "loan_lender_from_list": "Choose the lender from the list. Ask an Executive to add a lender that is missing.",
     "lender_name_taken": "This company already has a lender with this name.",
@@ -2005,6 +2006,7 @@
       "loanSanction": "Loan sanctioned",
       "loanDisburse": "Loan paid out",
       "loanReject": "Loan turned down",
+      "loanGatesWaive": "Order stopped waiting for a loan",
       "lenderCreate": "Lender added",
       "lenderUpdate": "Lender changed"
     },
@@ -2427,7 +2429,8 @@
       "lenderName": "Lender",
       "loanReference": "Lender's reference",
       "dispatchGate": "Dispatch waits for",
-      "rejectedReason": "Why the lender turned it down"
+      "rejectedReason": "Why the lender turned it down",
+      "waiverReason": "Why the order no longer waits for a loan"
     },
     "values": {
       "percent": "{value}%",
@@ -5716,16 +5719,20 @@
       "paidOutOn": "Paid out on",
       "dispatchWaitsFor": "Dispatch waits for",
       "turnedDownBecause": "Turned down because: {reason}",
+      "waivedBecause": "The order no longer waits for this loan: {reason}",
       "earlier": "Earlier loans",
       "recordSanction": "Record sanction",
       "recordPayout": "Record payout",
       "recordTurnDown": "Record turn-down",
-      "readOnly": "Only a person who looks after this customer can record or update its loan."
+      "stopWaiting": "Stop waiting for a loan",
+      "readOnly": "Only a person who looks after this customer can record or update its loan.",
+      "turnedDownHelp": "The lender turned this order's loan down, so its dispatch still waits. Record a new loan, or record that the order no longer waits for one."
     },
     "gate": {
       "pendingNote": "Dispatch waits for this loan",
       "metNote": "The loan lets the dispatch go",
-      "noneNote": "Dispatch does not wait for a loan"
+      "noneNote": "Dispatch does not wait for a loan",
+      "turnedDownNote": "Dispatch waits: the loan was turned down"
     },
     "create": {
       "title": "Record a loan",
@@ -5762,10 +5769,17 @@
     },
     "reject": {
       "title": "Record a turn-down",
-      "intro": "Record that the lender turned the loan down, and the reason they gave. The order can then take another loan.",
+      "intro": "Record that the lender turned the loan down, and the reason they gave. The dispatch keeps waiting until another loan is recorded, or someone records that the order no longer waits for one.",
       "reason": "Reason the lender gave",
       "submit": "Record turn-down",
       "saved": "Turn-down recorded"
+    },
+    "waive": {
+      "title": "Stop waiting for a loan",
+      "intro": "Record that this order's dispatch no longer waits for a loan, and why. Do this only when the customer pays another way.",
+      "reason": "Why the order no longer waits",
+      "submit": "Stop waiting",
+      "saved": "The order no longer waits for a loan"
     },
     "account": {
       "sectionTitle": "Loans",
