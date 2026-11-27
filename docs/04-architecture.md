@@ -232,6 +232,7 @@ sequenceDiagram
   | `lead-rescore` | 21:30 UTC | `/workers/crm/rescore` |
   | `duplicate-scan` | 22:00 UTC | `/workers/crm/duplicates` |
   | `quote-expire` | 18:35 UTC (00:05 IST) | `/workers/quotes/expire` |
+  | `reservation-scan` | 18:50 UTC (00:20 IST) | `/workers/reservations/scan` |
   | `lead-anonymise` | 22:30 UTC (04:00 IST) | `/workers/crm/anonymise` |
   | `webhook-sweep` | every minute | `/workers/webhooks/sweep` |
 

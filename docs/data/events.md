@@ -51,7 +51,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-69 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+69 types, 26 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -100,13 +100,13 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch` | none |
+| [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch` | `POST /api/v1/workers/outbox/inventory.stock.moved` (QStash URL group `evt-inventory.stock.moved`) |
 | [`inventory.reservation.filled`](#inventoryreservationfilled) | Stock that arrived went to backorders of an item in a company, in order of confirmation: the orders that took some (up to 200) and how many they were; never a quantity. | `inventory.reservation.fill` | none |
 | [`inventory.reservation.extended`](#inventoryreservationextended) | A person held an order's reservation longer, once, with a reason. | `inventory.reservation.extend` | none |
-| [`inventory.reservation.released`](#inventoryreservationreleased) | A person freed an order's reservation of an item by hand, with a reason; it is back on order, and the item's free stock goes to the backorders in the queue. | `inventory.reservation.release` | none |
-| [`inventory.reservation.moved`](#inventoryreservationmoved) | A person reserved an order's stock from another hub instead: the old reservation, the hub and the new reservations. | `inventory.reservation.move` | none |
-| [`inventory.reservation.lapsed`](#inventoryreservationlapsed) | The daily scan lapsed an order's reservations whose hold ran out: their stock is free and goes to the backorders of those items in the queue, and the order's quantity is back on order. | `inventory.reservation.scan` | none |
-| [`inventory.reservation.expiring`](#inventoryreservationexpiring) | An order's reservations lapse on `expiresAt`: the order's owner (`ownerId`) and the company's Inventory Manager are told before. | `inventory.reservation.scan` | none |
+| [`inventory.reservation.released`](#inventoryreservationreleased) | An order's reservation of an item was freed, by a person with a reason (it is back on order) or with the order's cancellation; the item's free stock goes to the backorders in the queue. | `inventory.reservation.release`, `sales.order.cancel` | `POST /api/v1/workers/outbox/inventory.reservation.released` (QStash URL group `evt-inventory.reservation.released`) |
+| [`inventory.reservation.moved`](#inventoryreservationmoved) | A person reserved an order's stock from another hub instead: the old reservation, the hub and the new reservations. | `inventory.reservation.move` | `POST /api/v1/workers/outbox/inventory.reservation.moved` (QStash URL group `evt-inventory.reservation.moved`) |
+| [`inventory.reservation.lapsed`](#inventoryreservationlapsed) | The daily scan lapsed an order's reservations whose hold ran out: their stock is free and goes to the backorders of those items in the queue, and the order's quantity is back on order. | `inventory.reservation.scan` | `POST /api/v1/workers/outbox/inventory.reservation.lapsed` (QStash URL group `evt-inventory.reservation.lapsed`) |
+| [`inventory.reservation.expiring`](#inventoryreservationexpiring) | An order's reservations lapse on `expiresAt`: the order's owner (`ownerId`) and the company's Inventory Manager are told before. | `inventory.reservation.scan` | `POST /api/v1/workers/outbox/inventory.reservation.expiring` (QStash URL group `evt-inventory.reservation.expiring`) |
 
 ### Sign-in
 
