@@ -5,7 +5,7 @@
 // people on 40,000 assignments, and one Field Engineer on 12 projects of company 1; then prints
 // `EXPLAIN (ANALYZE, BUFFERS)` of the `/projects` list under the policies as that engineer (whose
 // rows the `own` predicate `app.project_is_mine()` decides) and as a Project Manager, with and
-// without filters, and of the customers' read. Removes what it made at the end. Local database
+// without filters, of the filters' owners, and of the customers' read. Removes what it made at the end. Local database
 // only (prepareDatabase refuses any other host). Not part of CI.
 import {
   asMigrator,
@@ -17,7 +17,12 @@ import {
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { hasGrant, type Principal } from '@shakti/contracts';
-import { ownProjectIds, projectListQuery } from '../../src/queries/projects/list-projects';
+import {
+  ownProjectIds,
+  ownProjectIdsQuery,
+  projectListQuery,
+  projectOwnersQuery,
+} from '../../src/queries/projects/list-projects';
 
 const PER_COMPANY = { 1: 20_000, 2: 5_000, 3: 5_000, 4: 5_000 } as const;
 const PEOPLE = 200;
@@ -33,13 +38,9 @@ async function explain(
       ? undefined
       : await ownProjectIds(ctx, input.entityId);
     if (only !== undefined) {
-      const ids = (await ctx.tx.execute(sql`explain (analyze, buffers, costs off)
-        select id from projects where entity_id = ${input.entityId} and owner_id = ${who.id}
-        union select project_id from project_assignments
-               where entity_id = ${input.entityId} and person_id = ${who.id} limit 1000`)) as unknown as Record<
-        string,
-        string
-      >[];
+      const ids = (await ctx.tx.execute(
+        sql`explain (analyze, buffers, costs off) ${ownProjectIdsQuery(ctx, input.entityId)}`,
+      )) as unknown as Record<string, string>[];
       process.stdout.write(
         `\n=== ${label}: own projects first ===\n${ids.map((r) => Object.values(r)[0]).join('\n')}\n`,
       );
@@ -169,6 +170,24 @@ async function main(): Promise<void> {
     step: 'install',
     limit: 50,
   });
+  // The filters' owners (J1 review 1): the engineer's of their own projects, by id; the manager's
+  // of the company.
+  for (const [label, who] of [
+    ['Field Engineer', engineer],
+    ['Project Manager', manager],
+  ] as const) {
+    await asPrincipal(who, async (ctx) => {
+      const only = hasGrant(who.permissions, 'projects.read', 'entity')
+        ? undefined
+        : await ownProjectIds(ctx, 1);
+      const rows = (await ctx.tx.execute(
+        sql`explain (analyze, buffers, costs off) ${projectOwnersQuery(ctx, 1, only)}`,
+      )) as unknown as Record<string, string>[];
+      process.stdout.write(
+        `\n=== ${label}, the filters' owners ===\n${rows.map((r) => Object.values(r)[0]).join('\n')}\n`,
+      );
+    });
+  }
   // The own predicate over the whole company, as the policy alone would run it.
   await asPrincipal(engineer, async ({ tx }) => {
     const rows = (await tx.execute(

@@ -190,6 +190,15 @@ export async function listProjects(
  * over the years never loses an open one from their list.
  */
 export async function ownProjectIds(ctx: ProjectReadContext, entityId: number): Promise<string[]> {
+  const rows = await ownProjectIdsQuery(ctx, entityId);
+  return rows.map((r) => r.id);
+}
+
+/**
+ * The query `ownProjectIds` runs, unexecuted, so its plan can be read
+ * (`tests/spike/projects-explain.ts`). Checks the permission and the company first.
+ */
+export function ownProjectIdsQuery(ctx: ProjectReadContext, entityId: number) {
   checkProjectRead(ctx);
   requireCompany(ctx, entityId);
   const p = schema.projects;
@@ -205,13 +214,12 @@ export async function ownProjectIds(ctx: ProjectReadContext, entityId: number): 
         .from(a)
         .where(and(eq(a.entityId, entityId), eq(a.personId, me))),
     );
-  const rows = await ctx.tx
+  return ctx.tx
     .select({ id: p.id })
     .from(p)
     .where(and(eq(p.entityId, entityId), inArray(p.id, mine)))
     .orderBy(sql`${p.state} in ('completed', 'cancelled')`, desc(p.updatedAt), desc(p.id))
     .limit(1000);
-  return rows.map((r) => r.id);
 }
 
 /**
@@ -275,22 +283,7 @@ export async function listProjectFilters(
   const only = hasGrant(ctx.principal.permissions, 'projects.read', 'entity')
     ? undefined
     : await ownProjectIds(ctx, input.entityId);
-  const p = schema.projects;
-  const owners =
-    only?.length === 0
-      ? []
-      : await ctx.tx
-          .selectDistinct({ id: schema.principals.id, name: schema.principals.displayName })
-          .from(p)
-          .innerJoin(schema.principals, eq(schema.principals.id, p.ownerId))
-          .where(
-            and(
-              eq(p.entityId, input.entityId),
-              only === undefined ? undefined : sql`${p.id} = any(${`{${only.join(',')}}`}::uuid[])`,
-            ),
-          )
-          .orderBy(asc(schema.principals.displayName), asc(schema.principals.id))
-          .limit(200);
+  const owners = only?.length === 0 ? [] : await projectOwnersQuery(ctx, input.entityId, only);
   const t = schema.projectFlowTemplates;
   const templates = await ctx.tx
     .select({ steps: t.stepsJson })
@@ -315,6 +308,31 @@ export async function listProjectFilters(
     owners,
     steps: [...titles].map(([key, title]) => ({ key, title })),
   });
+}
+
+/**
+ * The people who own a project of the company the caller reads, by name; for a caller reading at
+ * `own` scope only, of their own projects (`only`), named by id. Unexecuted, so its plan can be
+ * read (`tests/spike/projects-explain.ts`).
+ */
+export function projectOwnersQuery(
+  ctx: ProjectReadContext,
+  entityId: number,
+  only: readonly string[] | undefined,
+) {
+  const p = schema.projects;
+  return ctx.tx
+    .selectDistinct({ id: schema.principals.id, name: schema.principals.displayName })
+    .from(p)
+    .innerJoin(schema.principals, eq(schema.principals.id, p.ownerId))
+    .where(
+      and(
+        eq(p.entityId, entityId),
+        only === undefined ? undefined : sql`${p.id} = any(${`{${only.join(',')}}`}::uuid[])`,
+      ),
+    )
+    .orderBy(asc(schema.principals.displayName), asc(schema.principals.id))
+    .limit(200);
 }
 
 /**
