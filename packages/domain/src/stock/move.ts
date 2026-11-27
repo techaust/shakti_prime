@@ -51,6 +51,7 @@ export type StockMoveLine = StockMovementLine | StockReversalLine;
 const CONFLICTS: ReadonlySet<StockRefusal> = new Set<StockRefusal>([
   'stock_insufficient',
   'stock_serial_not_in_bin',
+  'stock_serial_state',
   'stock_serial_exists',
   'stock_already_reversed',
   'opening_stock_posted',

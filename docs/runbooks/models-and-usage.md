@@ -84,6 +84,7 @@ Before starting any agent, the lead reads one number: the 5-hour window (the pla
 | The 5-hour window over 95 % | Nothing new starts until it resets; a review or a running agent continues and commits as it goes |
 | A cloud reading older than two hours | One agent at a time |
 | No cloud reading that day | Nothing new; the lead finishes, reviews and merges what is in flight, asks again, and never guesses a reading |
+| Seats (each account read alone, from the owner's one line for all five; 27-11-2026) | Under two hours old: as above, up to the seat file's `max_agents`; two to five hours old: finished agents replaced, none added; older or none that day: at most two agents; a usage-limit stop pauses that account's lanes for five hours |
 
 The usage card also shows a Fable bar where the plan has one. It stays at 0 %; a higher reading means a conversation or an agent ran on Fable 5.1, and the lead tells the owner.
 
