@@ -456,7 +456,7 @@ export const API_ENDPOINTS = {
     auth: 'connector_hmac',
     idempotencyKey: false,
     response: ConnectorReleaseResponse,
-    errors: ['unauthorized', 'rate_limited'],
+    errors: ['unauthorized', 'not_found', 'rate_limited'],
   },
   'workers.outbox.publish': {
     method: 'POST',
