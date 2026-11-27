@@ -2007,6 +2007,8 @@
       "milestoneWaive": "Payment waived",
       "paymentTermsPublish": "Payment terms published",
       "proformaPdfAttach": "Proforma document attached",
+      "orderFinanceSettled": "A cancelled order's proforma and payments cancelled",
+      "milestonesFellDue": "Payments fell due",
       "hubCreate": "Hub added",
       "hubUpdate": "Hub changed",
       "hubArchive": "Hub archived",
@@ -2088,7 +2090,8 @@
       "milestonesPlanned": "Payments planned",
       "milestoneWaived": "Payment waived",
       "paymentTermsPublished": "Payment terms published",
-      "labelsRequested": "Labels sent for printing"
+      "labelsRequested": "Labels sent for printing",
+      "milestonesPlanFailed": "Payments could not be planned"
     },
     "sheet": {
       "title": "{action}",
@@ -2418,6 +2421,8 @@
       "dueOn": "Due on",
       "waiveReason": "Why it was waived",
       "stepCount": "Payment steps",
+      "paymentPlanFailure": "Why the payments could not be planned",
+      "milestonesCancelled": "Payments cancelled",
       "restored": "Vendors put back as they were",
       "hubCode": "Hub code",
       "hubName": "Hub name",

@@ -29,7 +29,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Knowledge Vault file | **yes** | 5 | 7 | 0 | [knowledge-file.md](knowledge-file.md) |
 | Serial | **yes** | 8 | 18 | 14 | [serial.md](serial.md) |
 | Proforma | **yes** | 2 | 2 | 0 | [proforma.md](proforma.md) |
-| Payment milestone | **yes** | 5 | 5 | 1 | [payment-milestone.md](payment-milestone.md) |
+| Payment milestone | **yes** | 6 | 6 | 2 | [payment-milestone.md](payment-milestone.md) |
 
 ## Workshop defaults
 

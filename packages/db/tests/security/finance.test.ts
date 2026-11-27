@@ -155,6 +155,8 @@ afterAll(async () => {
       await tx`delete from proforma_lines where proforma_id in
                  (select id from proformas where sales_order_id in (${orders}))`;
       await tx`delete from proformas where sales_order_id in (${orders})`;
+      await tx`delete from files where purpose = 'proforma_pdf' and entity_id = ${E}
+                 and sha256 = ${'e'.repeat(64)}`;
       await tx`delete from payment_milestone_templates where entity_id = ${E}`;
       await tx`delete from sales_order_lines where sales_order_id in (${orders})`;
       await tx`delete from sales_orders where price_list_id = ${LIST}`;
@@ -432,8 +434,9 @@ describe('finance.read and the gates', () => {
         by,
         sql`select app.order_dispatch_payment_gate(${orderId}::uuid) as gate`,
       );
-    // No milestones yet: nothing holds the dispatch.
-    expect((await gate(inventory))?.gate).toBe('clear');
+    // No milestones yet, under the standard terms (a balance before dispatch): the dispatch waits
+    // until they are planned (review finding 3).
+    expect((await gate(inventory))?.gate).toBe('open');
     await record(accounts, orderId, rows(orderId, ['590.00', '590.00']));
     expect((await gate(inventory))?.gate).toBe('open');
     expect((await gate(lc))?.gate).toBe('open');
@@ -492,6 +495,116 @@ describe('finance.read and the gates', () => {
     expect((await facts(workers(), order))?.facts).toMatchObject({
       segment: 'residential_rooftop',
     });
+  });
+
+  it('the follow-up definers answer the platform alone, and only for what they name', async () => {
+    const orderId = await confirmedOrder();
+    for (const [query, pattern] of [
+      [
+        sql`select app.record_order_milestone_failure(${orderId}::uuid, 'forbidden') as x`,
+        /finance.milestones.process is required/,
+      ],
+      [
+        sql`select app.cancel_order_finance(${orderId}::uuid) as x`,
+        /finance.milestones.process is required/,
+      ],
+      [
+        sql`select app.order_waiting_milestones(${orderId}::uuid) as x`,
+        /finance.milestones.process is required/,
+      ],
+      [
+        sql`select app.milestones_fall_due(${orderId}::uuid, '{}'::uuid[], current_date) as x`,
+        /finance.milestones.process is required/,
+      ],
+      [
+        sql`select * from app.notice_finance_people(${E}::smallint, ${orderId}::uuid)`,
+        /notifications.send is required/,
+      ],
+    ] as const) {
+      expect(await failure(one(accounts, query))).toMatch(pattern);
+    }
+    // A failure is recorded on a confirmed order with no milestones, and only on it.
+    const recordFailure = (order: string) =>
+      one<{ x: boolean }>(
+        workers(),
+        sql`select app.record_order_milestone_failure(${order}::uuid, 'milestone_amounts_exceed_total') as x`,
+      );
+    expect((await recordFailure(orderId))?.x).toBe(true);
+    const draft = await confirmedOrder(lc, 'draft');
+    expect((await recordFailure(draft))?.x).toBe(false);
+    expect(
+      await failure(
+        one(
+          workers(),
+          sql`select app.record_order_milestone_failure(${orderId}::uuid, 'other') as x`,
+        ),
+      ),
+    ).toMatch(/an unknown reason/);
+    // Recording the milestones clears it, and a request changes neither column.
+    await record(accounts, orderId, rows(orderId, ['590.00', '590.00']));
+    const [after] = await asMigrator(
+      (m) =>
+        m<
+          { f: string | null }[]
+        >`select payment_plan_failure as f from sales_orders where id = ${orderId}`,
+    );
+    expect(after?.f).toBeNull();
+    expect(
+      await failure(
+        asPrincipal(exec, async ({ tx }) =>
+          tx.execute(sql`update sales_orders set payment_plan_failure = 'forbidden', payment_plan_failed_at = now()
+                         where id = ${orderId}`),
+        ),
+      ),
+    ).toMatch(/permission denied/);
+    // An order not cancelled settles nothing.
+    expect(
+      (
+        await one<{ x: unknown }>(
+          workers(),
+          sql`select app.cancel_order_finance(${orderId}::uuid) as x`,
+        )
+      )?.x,
+    ).toBeNull();
+  });
+
+  it('replaces a proforma’s PDF only with one printed after its cancel', async () => {
+    const orderId = await confirmedOrder();
+    const id = newId();
+    await asPrincipal(accounts, async ({ tx }) => {
+      await tx.execute(insertProforma(id, orderId, accounts));
+      await tx.execute(copyLine(id, orderId));
+    });
+    const file = async () => {
+      const fileId = newId();
+      await asMigrator(
+        (
+          m,
+        ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+                 values (${fileId}, ${E}, 'proforma_pdf', 'local', ${`${String(E)}/proforma_pdf/${fileId}`},
+                         'p.pdf', 'application/pdf', 1, ${'e'.repeat(64)}, 'ready', ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
+      );
+      return fileId;
+    };
+    const attach = async (fileId: string) =>
+      (
+        await one<{ x: boolean }>(
+          workers(),
+          sql`select app.attach_proforma_pdf(${E}::smallint, ${id}::uuid, ${fileId}::uuid) as x`,
+        )
+      )?.x;
+    const live = await file();
+    expect(await attach(live)).toBe(true);
+    expect(await attach(await file())).toBe(false);
+    const early = await file();
+    await asPrincipal(accounts, async ({ tx }) =>
+      tx.execute(sql`update proformas set state = 'cancelled', cancel_reason = 'wrong address',
+                       cancelled_at = now(), cancelled_by = ${accounts.id}, updated_by = ${accounts.id}
+                      where id = ${id}`),
+    );
+    // A file recorded before the cancel is not the cancelled copy.
+    expect(await attach(early)).toBe(false);
+    expect(await attach(await file())).toBe(true);
   });
 
   it('app.order_loan_gate() answers the platform planning milestones', async () => {

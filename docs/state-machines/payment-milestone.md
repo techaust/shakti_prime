@@ -17,6 +17,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `part_paid` | – | Tally receipts paid part of it (TC3). |
 | `paid` | terminal | – |
 | `waived` | terminal | – |
+| `cancelled` | terminal | Its order was cancelled while it still waited for money. |
 
 ## Transitions
 
@@ -27,15 +28,17 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `pay_part` *(proposed)* | `pending`, `due`, `part_paid` → `part_paid` | the platform only | – | – | – |
 | `pay` | `pending`, `due`, `part_paid` → `paid` | the platform only | – | – | – |
 | `waive` | `pending`, `due`, `part_paid` → `waived` | `finance.payment.write` at all scope or wider | a reason is given | `set_waiver`: keep who waived it, when and why (audited); a dispatch no longer waits for it | `finance.milestone.waived` |
+| `cancel` *(proposed)* | `pending`, `due`, `part_paid` → `cancelled` | the platform only | – | – | – |
 
 Any other event, or an event from a state not listed for it, answers `conflict` with reason `payment_milestone_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `payment_milestones.state` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/events.md)).
 
 ## Notes
 
 - `plan`: Planned once per order from the company's current terms for its segment (or the named default), by the platform when the order is confirmed or by Accounts by hand.
-- `fall_due`: An on-confirmation milestone falls due as it is planned; the dispatch (D2), the installation and the Tally invoice (TC3) bring the others due.
+- `fall_due`: An on-confirmation milestone falls due as it is planned, or when the order's loan reaches the state it waits for (`finance.milestone.refresh` on the loan's events); the dispatch (D2), the installation and the Tally invoice (TC3) bring the others due.
 - `pay_part`: A Tally receipt applied to it, short of its amount (TC3).
 - `pay`: Tally receipts applied to it reach its amount (TC3).
+- `cancel`: The platform, when its order is cancelled (`finance.order.settle_cancelled` on `sales.order.cancelled`).
 
 ## Diagram
 
@@ -52,6 +55,10 @@ stateDiagram-v2
   pending --> waived : waive
   due --> waived : waive
   part_paid --> waived : waive
+  pending --> cancelled : cancel
+  due --> cancelled : cancel
+  part_paid --> cancelled : cancel
   paid --> [*]
   waived --> [*]
+  cancelled --> [*]
 ```

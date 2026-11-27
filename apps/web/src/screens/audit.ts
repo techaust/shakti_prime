@@ -288,6 +288,8 @@ const ACTIONS = {
   'finance.milestone.waive': 'milestoneWaive',
   'finance.terms.publish': 'paymentTermsPublish',
   'finance.proforma.pdf.attach': 'proformaPdfAttach',
+  'finance.order.settle_cancelled': 'orderFinanceSettled',
+  'finance.milestone.refresh': 'milestonesFellDue',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -378,6 +380,7 @@ const EVENT_NAMES = {
   'finance.milestones.planned': 'milestonesPlanned',
   'finance.milestone.waived': 'milestoneWaived',
   'finance.terms.published': 'paymentTermsPublished',
+  'finance.milestones.plan_failed': 'milestonesPlanFailed',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -922,6 +925,8 @@ const FIELD_KINDS = [
   ['dueOn', 'date'],
   ['waiveReason', 'text'],
   ['stepCount', 'number'],
+  ['paymentPlanFailure', 'errorCode'],
+  ['milestonesCancelled', 'number'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

@@ -52,7 +52,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-69 types, 22 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+70 types, 24 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -144,7 +144,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote`, `finance.proforma.issue` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+| [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote`, `finance.proforma.issue`, `finance.proforma.cancel`, `finance.order.settle_cancelled` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
 | [`print.labels.requested`](#printlabelsrequested) | A sheet of QR labels is to be printed: the render worker reads the serials or bins, prints the labels at the stock size and stores the PDF. | `inventory.label.print`, `inventory.label.reprint` | `POST /api/v1/workers/outbox/print.labels.requested` (QStash URL group `evt-print.labels.requested`) |
 
 ### knowledge
@@ -190,7 +190,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone and plans the order's payment milestones. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.confirmed` (QStash URL group `evt-sales.order.confirmed`) |
 | [`sales.order.credit_held`](#salesordercredit_held) | Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.credit_held` (QStash URL group `evt-sales.order.credit_held`) |
 | [`sales.order.credit_released`](#salesordercredit_released) | The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once. | `sales.credit.release` | none |
-| [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. | `sales.order.cancel` | none |
+| [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. The platform cancels its live proforma and its waiting payments. | `sales.order.cancel` | `POST /api/v1/workers/outbox/sales.order.cancelled` (QStash URL group `evt-sales.order.cancelled`) |
 | [`sales.commission.accrued`](#salescommissionaccrued) | A referral partner's commission was recorded on a confirmed order by the partner's rule in force that day. | `sales.order.confirm` | none |
 
 ### procurement
@@ -208,8 +208,9 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`finance.proforma.issued`](#financeproformaissued) | A proforma of a confirmed order was issued with the order's lines and tax copied, and numbered from the company's proforma series. | `finance.proforma.issue` | none |
-| [`finance.proforma.cancelled`](#financeproformacancelled) | A proforma was cancelled with a reason; its number stays used. | `finance.proforma.cancel` | none |
+| [`finance.proforma.cancelled`](#financeproformacancelled) | A proforma was cancelled with a reason; its number stays used. | `finance.proforma.cancel`, `finance.order.settle_cancelled` | none |
 | [`finance.milestones.planned`](#financemilestonesplanned) | An order's payment milestones were planned from its company's terms for its segment (`templateVersion` null: the named default); `dueCount` of them fell due at once. | `finance.milestone.plan`, `finance.milestone.plan_confirmed` | none |
+| [`finance.milestones.plan_failed`](#financemilestonesplan_failed) | The platform could not plan a confirmed order's payments (`reason`: the terms' fixed amounts pass its total, or a loan's gate could not be read); Accounts are told, and its dispatch waits until they are planned. | `finance.milestone.plan_confirmed` | `POST /api/v1/workers/outbox/finance.milestones.plan_failed` (QStash URL group `evt-finance.milestones.plan_failed`) |
 | [`finance.milestone.waived`](#financemilestonewaived) | The Executive waived a payment milestone of an order, with a reason. | `finance.milestone.waive` | none |
 | [`finance.terms.published`](#financetermspublished) | An Executive published a new version of a company's payment terms for a segment. | `finance.terms.publish` | none |
 
@@ -703,6 +704,12 @@ No fields apart from `v`.
 | `count` | whole number from 1 to 10 |
 | `dueCount` | whole number from 0 to 10 |
 | `templateVersion` | whole number from 1 or null |
+
+### finance.milestones.plan_failed
+
+| Field | Type |
+|---|---|
+| `reason` | one of `milestone_amounts_exceed_total`, `forbidden` |
 
 ### finance.milestone.waived
 

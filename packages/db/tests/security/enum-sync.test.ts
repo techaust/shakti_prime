@@ -2,6 +2,7 @@ import {
   MilestoneDueRuleSchema,
   MilestoneLoanGateSchema,
   PaymentMilestoneStateSchema,
+  PaymentPlanFailureSchema,
   ProformaStateSchema,
   VOICE_SESSION_MODES,
   AGENT_ACTION_STATES,
@@ -225,7 +226,14 @@ const PAIRS: Record<string, readonly string[]> = {
   payment_milestones_loan_gate_check: MilestoneLoanGateSchema.options,
   payment_milestones_state_check: PaymentMilestoneStateSchema.options,
   // What is paid matches the state: nothing while pending or due, part, or all.
-  payment_milestones_paid_check: PaymentMilestoneStateSchema.exclude(['waived']).options,
+  payment_milestones_paid_check: PaymentMilestoneStateSchema.extract([
+    'pending',
+    'due',
+    'part_paid',
+    'paid',
+  ]).options,
+  // FN1 fix round: why the platform could not plan an order's payments.
+  sales_orders_payment_plan_failure_check: PaymentPlanFailureSchema.options,
   // Only a waived milestone carries its waiver.
   payment_milestones_waive_check: PaymentMilestoneStateSchema.extract(['waived']).options,
   // Only a pump sizing names a catalogue pump.
