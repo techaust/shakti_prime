@@ -515,5 +515,8 @@ describe('the platform’s jobs', () => {
     await expect(run(workers(), scanReservations, { entityId: 3 })).rejects.toMatchObject({
       code: 'forbidden',
     });
+    await expect(
+      run(workers(), fillBackorders, { entityId: 3, itemIds: [f.panel] }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });

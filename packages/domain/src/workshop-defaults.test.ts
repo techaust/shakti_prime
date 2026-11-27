@@ -29,7 +29,7 @@ describe('workshop defaults', () => {
       credit: { exposureCountsConfirmedOrders: true },
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
       // H1 stock ledger
-      stock: { reversalDays: 7 },
+      stock: { reversalDays: 7, reservationHoldDays: 15, reservationReminderDays: 2 },
       crm: {
         dispositions: [
           { key: 1, code: 'interested', label: 'Interested', nextAction: 'callback' },
