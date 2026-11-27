@@ -1,17 +1,26 @@
-import { newId, serializeGrants, type Principal } from '@shakti/contracts';
+import {
+  hasGrant,
+  newId,
+  ROLE_KEYS,
+  serializeGrants,
+  type PermissionGrant,
+  type Principal,
+} from '@shakti/contracts';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { asMigrator, closeDb, createTestPrincipal } from '../../src/testing/index';
+import { asMigrator, closeDb, createTestPrincipal, principalFor } from '../../src/testing/index';
 
 afterAll(closeDb);
 
 /**
- * X4, serial moves as data (docs/runs/phase3/x4-stock-reasons.md, the addendum): how a serial moves
- * on each reason and direction of `app.stock_move()` is a row of `app.stock_reason_serial_moves`.
- * Each of H1's rows moves a serial exactly as 0231's serial block did, a tracked line with no row
- * is refused with `stock_serial_state`, and the rows the wave 2 slices name (here written in a
- * transaction that is rolled back) move a serial to and from a customer, with the delivery's
- * customer on the line.
+ * X4, moves as data (docs/runs/phase3/x4-stock-reasons.md, the addenda and the review's fixes):
+ * which directions a line of each reason of `app.stock_move()` may take, and how a serial moves on
+ * each, is a row of `app.stock_reason_moves`. Each of H1's rows allows exactly 0231's directions and
+ * moves a serial exactly as 0231's serial block did; a line, tracked or not, whose reason and
+ * direction have no row is refused with `stock_movement_shape`; a reversal takes the row and the
+ * grant of the reason it reverses when that reason has its own reversal rows, else H1's; and the
+ * rows the wave 2 slices name (here written in a transaction that is rolled back) move a serial to
+ * and from a customer of the line's company, with the delivery's customer on the line.
  *
  * Every case runs in one migrator transaction rolled back at its end, so its hubs, bins, items,
  * customers, movements and rows are never seen by another test. The definer is called there with a
@@ -23,6 +32,7 @@ type Tx = postgres.TransactionSql;
 interface MoveRow {
   reason: string;
   direction: string;
+  reverses_reason?: string;
   from_states: string[];
   creates: boolean;
   to_state: string;
@@ -337,27 +347,29 @@ beforeAll(async () => {
   exec = await createTestPrincipal('executive', [1, 2]);
 });
 
-describe('app.stock_reason_serial_moves, the serial rules', () => {
+describe('app.stock_reason_moves, the directions and serial rules', () => {
   it('holds H1’s serial rules exactly, as H1’s rows', async () => {
     const rows = await asMigrator(
       (m) => m<(MoveRow & { opened_by: string })[]>`
-        select reason, direction, from_states, creates, to_state, opened_by
-          from app.stock_reason_serial_moves order by reason, direction`,
+        select reason, direction, reverses_reason, from_states, creates, to_state, opened_by
+          from app.stock_reason_moves order by reason, direction, reverses_reason`,
     );
     const h1 = rows
       .filter((r) => r.opened_by === 'h1-stock-ledger')
       .map((r) => ({
         reason: r.reason,
         direction: r.direction,
+        reverses_reason: r.reverses_reason,
         from_states: r.from_states,
         creates: r.creates,
         to_state: r.to_state,
       }));
-    expect(h1).toEqual(H1_MOVES);
+    // H1's reversal rows are keyed by no reason: they serve a reversal of any reason.
+    expect(h1).toEqual(H1_MOVES.map((m) => ({ ...m, reverses_reason: '' })));
   });
 
   it('refuses a row the ledger could never post', async () => {
-    const attempts: [string, string, string[], boolean, string, string][] = [
+    const attempts: [string, string, string[], boolean, string, string, string?][] = [
       // A direction the ledger has not, and a state the serial machine has not.
       ['count', 'sideways', ['in_stock'], false, 'in_stock', '23514'],
       ['receipt', 'in', ['lost'], false, 'in_stock', '23514'],
@@ -373,8 +385,12 @@ describe('app.stock_reason_serial_moves, the serial rules', () => {
       ['transfer', 'transfer', ['in_stock'], false, 'scrapped', '23514'],
       // A reason with no grant row.
       ['surplus_in', 'in', ['scrapped'], false, 'in_stock', '23503'],
+      // Only a reversal row is keyed by the reason it reverses, and never by the reversal itself.
+      ['adjust_gain', 'in', ['scrapped'], false, 'in_stock', '23514', 'receipt'],
+      ['reversal', 'out', ['in_stock'], false, 'scrapped', '23514', 'reversal'],
+      ['reversal', 'out', ['in_stock'], false, 'scrapped', '23514', 'restock'],
     ];
-    for (const [reason, direction, fromStates, creates, toState, code] of attempts) {
+    for (const [reason, direction, fromStates, creates, toState, code, reverses = ''] of attempts) {
       const outcome = await asMigrator(async (m) => {
         try {
           await m.begin(async (tx) => {
@@ -382,11 +398,11 @@ describe('app.stock_reason_serial_moves, the serial rules', () => {
               select r, 'inventory.stock.adjust:entity', 'x4-stock-reasons'
                 from unnest(array['receipt', 'return_customer', 'warranty_replacement', 'return_supplier']) r
               on conflict (reason) do nothing`;
-            await tx`delete from app.stock_reason_serial_moves where reason = ${reason}`;
-            await tx`insert into app.stock_reason_serial_moves
-                (reason, direction, from_states, creates, to_state, opened_by)
-              values (${reason}, ${direction}, ${textArray(fromStates)}::text[], ${creates}, ${toState},
-                      'x4-stock-reasons')`;
+            await tx`delete from app.stock_reason_moves where reason = ${reason}`;
+            await tx`insert into app.stock_reason_moves
+                (reason, direction, reverses_reason, from_states, creates, to_state, opened_by)
+              values (${reason}, ${direction}, ${reverses}, ${textArray(fromStates)}::text[], ${creates},
+                      ${toState}, 'x4-stock-reasons')`;
             throw new RolledBack('the row was let in');
           });
         } catch (e) {
@@ -394,9 +410,10 @@ describe('app.stock_reason_serial_moves, the serial rules', () => {
         }
         return undefined;
       });
-      expect({ reason, direction, fromStates, toState, code: outcome }).toEqual({
+      expect({ reason, direction, reverses, fromStates, toState, code: outcome }).toEqual({
         reason,
         direction,
+        reverses,
         fromStates,
         toState,
         code,
@@ -590,28 +607,126 @@ describe('each of H1’s rows moves a serial as 0231 did', () => {
   });
 });
 
-describe('a line whose reason and direction have no row', () => {
-  it('is refused with stock_serial_state for a tracked item, and posts for an untracked one', async () => {
+const DIRECTIONS = ['in', 'out', 'transfer'] as const;
+type Direction = (typeof DIRECTIONS)[number];
+
+/** A line's bins for a direction: into bin B, out of bin A, or from A to B. */
+const binsFor = (f: Fixture, direction: Direction): Line =>
+  direction === 'in'
+    ? { to_bin_id: f.binB }
+    : direction === 'out'
+      ? { from_bin_id: f.binA }
+      : { from_bin_id: f.binA, to_bin_id: f.binB };
+
+/** Ten metres of cable gained into bin A, so a line may take cable out of it. */
+const cableStock = (f: Fixture): Line => ({
+  reason: 'adjust_gain',
+  entity_id: 1,
+  item_id: f.cable,
+  to_bin_id: f.binA,
+  qty: '10',
+});
+
+/** A post of the reason on every direction, an untracked line and a tracked one, refused for its shape. */
+async function refusedEveryWay(
+  tx: Tx,
+  f: Fixture,
+  reason: string,
+  serialNo: string,
+  directions: readonly Direction[] = DIRECTIONS,
+): Promise<void> {
+  for (const direction of directions) {
+    for (const item of [{ item_id: f.cable }, { item_id: f.pump, serial_no: serialNo }]) {
+      const outcome = await post(tx, [
+        { reason, entity_id: 1, qty: '1', ...binsFor(f, direction), ...item },
+      ]);
+      expect({ reason, direction, ...item, ...outcome }).toEqual({
+        reason,
+        direction,
+        ...item,
+        ...refused('stock_movement_shape'),
+      });
+    }
+  }
+}
+
+describe('every line takes only a direction its reason has a row for', () => {
+  /** H1's directions, as 0231's direction check had them. */
+  const H1_DIRECTIONS: Record<string, readonly Direction[]> = {
+    opening: ['in'],
+    adjust_gain: ['in'],
+    adjust_loss: ['out'],
+    damage: ['out'],
+    count: ['in', 'out'],
+    transfer: ['transfer'],
+  };
+
+  it.each(Object.keys(H1_DIRECTIONS))(
+    '%s: a line posts in each of 0231’s directions and is refused in the others, tracked or not',
+    async (reason) => {
+      await rolledBack(async (tx) => {
+        const f = await fixture(tx);
+        const { inStock } = await serials(tx, f);
+        await posted(tx, [cableStock(f)]);
+        // Opening stock goes to company 2 under one reference, as the opening rule takes it.
+        await clearOpenings(tx);
+        const opening =
+          reason === 'opening'
+            ? { entity_id: 2, ref_type: 'opening_stock', ref_id: newId() }
+            : { entity_id: 1 };
+        const allowed = H1_DIRECTIONS[reason] ?? [];
+        for (const direction of allowed) {
+          await posted(tx, [
+            { reason, item_id: f.cable, qty: '1', ...binsFor(f, direction), ...opening },
+          ]);
+        }
+        await refusedEveryWay(
+          tx,
+          f,
+          reason,
+          inStock,
+          DIRECTIONS.filter((d) => !allowed.includes(d)),
+        );
+      });
+    },
+  );
+
+  it('an opened reason is refused in a direction it has no row for, tracked or not', async () => {
     await rolledBack(async (tx) => {
       const f = await fixture(tx);
       const { inStock } = await serials(tx, f);
-      // A reason opened with its grant alone: it moves stock, never a serial.
+      await posted(tx, [cableStock(f)]);
+      // A receipt opened as U2 names it: into a bin only.
+      await tx`insert into app.stock_reason_grants (reason, permission, reversible, opened_by)
+        values ('receipt', 'inventory.stock.adjust:entity', true, 'x4-stock-reasons')`;
+      await tx`insert into app.stock_reason_moves (reason, direction, from_states, creates, to_state, opened_by)
+        values ('receipt', 'in', '{}', true, 'in_stock', 'x4-stock-reasons')`;
+      await posted(tx, [
+        { reason: 'receipt', entity_id: 1, item_id: f.cable, qty: '4', ...binsFor(f, 'in') },
+      ]);
+      await refusedEveryWay(tx, f, 'receipt', inStock, ['out', 'transfer']);
+      // A reason opened with its grant alone takes no direction at all.
       await tx`insert into app.stock_reason_grants (reason, permission, opened_by)
         values ('surplus_in', 'inventory.stock.adjust:entity', 'x4-stock-reasons')`;
-      expect(await post(tx, [{ ...gain(f, `SU-${f.tag}`), reason: 'surplus_in' }])).toEqual(
-        refused('stock_serial_state'),
-      );
+      await refusedEveryWay(tx, f, 'surplus_in', inStock);
+    });
+  });
+
+  it('a row taken away closes its direction, for a reversal too', async () => {
+    await rolledBack(async (tx) => {
+      const f = await fixture(tx);
+      const { inStock } = await serials(tx, f);
+      const [gained] = await posted(tx, [cableStock(f)]);
+      await tx`delete from app.stock_reason_moves where reason = 'count' and direction = 'out'`;
+      await refusedEveryWay(tx, f, 'count', inStock, ['out']);
       await posted(tx, [
-        { reason: 'surplus_in', entity_id: 1, item_id: f.cable, to_bin_id: f.binA, qty: '2' },
+        { reason: 'count', entity_id: 1, item_id: f.cable, qty: '1', ...binsFor(f, 'in') },
       ]);
-      // One of H1's rows taken away: that direction of the reason moves no serial any more.
-      await tx`delete from app.stock_reason_serial_moves where reason = 'count' and direction = 'out'`;
-      expect(await post(tx, [{ ...lose(f, inStock), reason: 'count' }])).toEqual(
-        refused('stock_serial_state'),
+      // A gain reversed goes out of its bin: with H1's reversal row out taken away, it cannot.
+      await tx`delete from app.stock_reason_moves where reason = 'reversal' and direction = 'out'`;
+      expect(await post(tx, [{ reason: 'reversal', reverses_id: gained }])).toEqual(
+        refused('stock_movement_shape'),
       );
-      await posted(tx, [
-        { reason: 'count', entity_id: 1, item_id: f.cable, from_bin_id: f.binA, qty: '1' },
-      ]);
       expect(await serial(tx, f.pump, inStock)).toMatchObject({ state: 'in_stock', bin: f.binA });
     });
   });
@@ -625,6 +740,9 @@ describe('which reasons a reversal reverses (addendum 2)', () => {
       await tx`insert into app.stock_reason_grants (reason, permission, reversible, opened_by) values
         ('receipt', 'inventory.stock.adjust:entity', true, 'x4-stock-reasons'),
         ('surplus_in', 'inventory.stock.adjust:entity', false, 'x4-stock-reasons')`;
+      await tx`insert into app.stock_reason_moves (reason, direction, from_states, creates, to_state, opened_by) values
+        ('receipt', 'in', '{}', true, 'in_stock', 'x4-stock-reasons'),
+        ('surplus_in', 'in', '{scrapped}', false, 'in_stock', 'x4-stock-reasons')`;
       const into = (reason: string): Line => ({
         reason,
         entity_id: 1,
@@ -653,6 +771,106 @@ describe('which reasons a reversal reverses (addendum 2)', () => {
   });
 });
 
+describe('a reversal is described by the reason it reverses', () => {
+  const only = (...grants: PermissionGrant[]): Principal => ({ ...exec, permissions: grants });
+  const adjust: PermissionGrant = { key: 'inventory.stock.adjust', scope: 'entity' };
+
+  it.each(['transfer', 'adjust_gain'])(
+    'H1’s %s reversed takes the reversal row’s grant, role by role, as in H1',
+    async (reason) => {
+      await rolledBack(async (tx) => {
+        const f = await fixture(tx);
+        const { inStock } = await serials(tx, f);
+        const [moved] = await posted(tx, [
+          reason === 'transfer' ? transfer(f, inStock) : gain(f, `RG-${f.tag}`),
+        ]);
+        const reverse: Line = { reason: 'reversal', reverses_id: moved };
+        await posted(tx, [reverse]);
+        // Reversed once already: a caller with the grant meets that, one without meets the grant.
+        const holders: string[] = [];
+        const others: string[] = [];
+        for (const roleKey of ROLE_KEYS) {
+          const who = principalFor(roleKey, [1]);
+          const holds = hasGrant(who.permissions, 'inventory.stock.adjust', 'entity');
+          (holds ? holders : others).push(roleKey);
+          expect({ roleKey, ...(await post(tx, [reverse], [1], who)) }).toEqual({
+            roleKey,
+            ...(holds ? refused('stock_already_reversed') : { code: '42501' }),
+          });
+        }
+        expect(holders.length).toBeGreaterThan(0);
+        expect(others.length).toBeGreaterThan(0);
+        // A transfer's own grant does not reverse it.
+        expect(
+          await post(tx, [reverse], [1], only({ key: 'inventory.stock.move', scope: 'entity' })),
+        ).toEqual({ code: '42501' });
+      });
+    },
+  );
+
+  it('an opened reason with its own reversal row: reversed with that reason’s grant, by that row', async () => {
+    await rolledBack(async (tx) => {
+      const f = await fixture(tx);
+      // A receipt whose reversal sends the goods back to their supplier, under the receipt's grant.
+      await tx`insert into app.stock_reason_grants (reason, permission, reversible, opened_by)
+        values ('receipt', 'procurement.grn.write:entity', true, 'x4-stock-reasons')`;
+      await tx`insert into app.stock_reason_moves
+          (reason, direction, reverses_reason, from_states, creates, to_state, opened_by) values
+        ('receipt', 'in', '', '{}', true, 'in_stock', 'x4-stock-reasons'),
+        ('reversal', 'out', 'receipt', '{in_stock}', false, 'with_supplier', 'x4-stock-reasons')`;
+      const receive = (item: Line): Line => ({
+        reason: 'receipt',
+        entity_id: 1,
+        to_bin_id: f.binB,
+        qty: '1',
+        ...item,
+      });
+      const first = `RV-${f.tag}`;
+      const [pumpIn, secondIn, cableIn] = await posted(tx, [
+        receive({ item_id: f.pump, serial_no: first }),
+        receive({ item_id: f.pump, serial_no: `RW-${f.tag}` }),
+        receive({ item_id: f.cable, qty: '3' }),
+      ]);
+      const [gained] = await posted(tx, [gain(f, `RG-${f.tag}`)]);
+      const store = only({ key: 'procurement.grn.write', scope: 'entity' });
+
+      // The receipt's grant reverses it; the stock grant alone does not.
+      expect(
+        await post(tx, [{ reason: 'reversal', reverses_id: secondIn }], [1], only(adjust)),
+      ).toEqual({ code: '42501' });
+      await settle(tx, f.pump, first);
+      expect(
+        (
+          await post(
+            tx,
+            [
+              { reason: 'reversal', reverses_id: pumpIn },
+              { reason: 'reversal', reverses_id: cableIn },
+            ],
+            [1],
+            store,
+          )
+        ).code,
+      ).toBeUndefined();
+      // By the receipt's own row: back to the supplier, where H1's row would have scrapped it.
+      expect(await serial(tx, f.pump, first)).toMatchObject({
+        state: 'with_supplier',
+        bin: null,
+        moved: true,
+      });
+      const [{ q } = { q: '' }] = await tx<{ q: string }[]>`
+        select qty_on_hand::text as q from stock_balances
+         where entity_id = 1 and bin_id = ${f.binB} and item_id = ${f.cable}`;
+      expect(q).toBe('0.000');
+      // H1's movements keep the reversal row's grant, whoever opened the receipt.
+      expect(await post(tx, [{ reason: 'reversal', reverses_id: gained }], [1], store)).toEqual({
+        code: '42501',
+      });
+      await posted(tx, [{ reason: 'reversal', reverses_id: gained }]);
+    });
+  });
+});
+
 describe('the rows the wave 2 slices name, and a delivery’s customer on a line', () => {
   async function openWave2(tx: Tx): Promise<void> {
     for (const [reason, permission] of WAVE2_GRANTS) {
@@ -660,11 +878,11 @@ describe('the rows the wave 2 slices name, and a delivery’s customer on a line
         values (${reason}, ${permission}, 'x4-stock-reasons') on conflict (reason) do nothing`;
     }
     for (const m of WAVE2_MOVES) {
-      await tx`insert into app.stock_reason_serial_moves
+      await tx`insert into app.stock_reason_moves
           (reason, direction, from_states, creates, to_state, opened_by)
         values (${m.reason}, ${m.direction}, ${textArray(m.from_states)}::text[], ${m.creates}, ${m.to_state},
                 'x4-stock-reasons')
-        on conflict (reason, direction) do nothing`;
+        on conflict (reason, direction, reverses_reason) do nothing`;
     }
   }
 
@@ -767,7 +985,7 @@ describe('the rows the wave 2 slices name, and a delivery’s customer on a line
     });
   });
 
-  it('takes a customer only on a line whose serial goes to one, and only one the request’s companies know', async () => {
+  it('takes a customer only on a line whose serial goes to one, and only one the line’s company knows', async () => {
     await rolledBack(async (tx) => {
       const f = await fixture(tx);
       await openWave2(tx);
@@ -791,7 +1009,7 @@ describe('the rows the wave 2 slices name, and a delivery’s customer on a line
         ]),
       ).toEqual(shape);
       expect(await post(tx, [replace(f, inStock, { site_id: f.site })])).toEqual(shape);
-      // A customer of company 2 alone, in a request on company 1; a site of another customer.
+      // A customer of company 2 alone, for a company 1 serial; a site of another customer.
       const missing = refused('stock_customer_missing');
       expect(await post(tx, [replace(f, inStock, { account_id: f.otherAccount })], [1])).toEqual(
         missing,
@@ -799,11 +1017,15 @@ describe('the rows the wave 2 slices name, and a delivery’s customer on a line
       expect(
         await post(tx, [replace(f, inStock, { account_id: f.account, site_id: f.otherSite })], [1]),
       ).toEqual(missing);
-      // The same customer, in a request on company 2 as well, is known to the request.
-      await posted(tx, [replace(f, inStock, { account_id: f.otherAccount })], [1, 2]);
+      // Still refused in a request on company 2 as well: the customer must be the line's company's.
+      expect(await post(tx, [replace(f, inStock, { account_id: f.otherAccount })], [1, 2])).toEqual(
+        missing,
+      );
+      // The line's company's customer, without a site, in the same request.
+      await posted(tx, [replace(f, inStock, { account_id: f.account })], [1, 2]);
       expect(await serial(tx, f.pump, inStock)).toMatchObject({
         state: 'with_customer',
-        account: f.otherAccount,
+        account: f.account,
         site: null,
         delivered: null,
       });

@@ -28,9 +28,10 @@ afterAll(closeDb);
  * X4, the stock ledger's reason registry (docs/runs/phase3/x4-stock-reasons.md): the permission
  * each movement reason of `app.stock_move()` needs is a row of `app.stock_reason_grants`, which
  * only the definer reads. Every row gives exactly its permission, a reason with no row is refused
- * with `stock_reason_not_open`, and one insert opens a reason. The serial rules beside it
- * (`app.stock_reason_serial_moves`) are tested in stock-serial-moves.test.ts; H1's own ledger
- * tests (stock-ledger.test.ts here, packages/domain/tests/stock) run unchanged beside these.
+ * with `stock_reason_not_open`, and one insert opens a reason. The directions and serial rules
+ * beside it (`app.stock_reason_moves`), and the reversal's grant, which depends on the movement it
+ * reverses, are tested in stock-reason-moves.test.ts; H1's own ledger tests (stock-ledger.test.ts
+ * here, packages/domain/tests/stock) run unchanged beside these.
  */
 
 interface ReasonGrant {
@@ -179,7 +180,8 @@ describe('app.stock_reason_grants, the registry', () => {
 describe('app.stock_move() reads the registry', () => {
   it('every row gives exactly its permission, role by role and agent by agent', async () => {
     expect(grants.length).toBeGreaterThanOrEqual(Object.keys(H1_GRANTS).length);
-    for (const g of grants) {
+    // A reversal's grant is checked once the movement it reverses is read (stock-reason-moves).
+    for (const g of grants.filter((r) => r.reason !== 'reversal')) {
       const { key, scope } = splitPermission(g.permission);
       const holders: string[] = [];
       const others: string[] = [];
@@ -256,7 +258,7 @@ describe('app.stock_move() reads the registry', () => {
 });
 
 /** The registry's two tables, written only by migrations and read only by the definer. */
-const REGISTRY = ['app.stock_reason_grants', 'app.stock_reason_serial_moves'] as const;
+const REGISTRY = ['app.stock_reason_grants', 'app.stock_reason_moves'] as const;
 
 describe.each(REGISTRY)('no request role, reporting or agent reads or writes %s', (table) => {
   it('no database role but the backup holds a privilege on it, and the backup only reads', async () => {
@@ -309,10 +311,10 @@ describe.each(REGISTRY)('no request role, reporting or agent reads or writes %s'
             sql`delete from app.stock_reason_grants`,
           ]
         : [
-            sql`insert into app.stock_reason_serial_moves (reason, direction, from_states, to_state, opened_by)
+            sql`insert into app.stock_reason_moves (reason, direction, from_states, to_state, opened_by)
                 values ('transfer', 'out', '{in_stock}', 'scrapped', 'x4-stock-reasons')`,
-            sql`update app.stock_reason_serial_moves set from_states = '{in_stock,faulty}'`,
-            sql`delete from app.stock_reason_serial_moves`,
+            sql`update app.stock_reason_moves set from_states = '{in_stock,faulty}'`,
+            sql`delete from app.stock_reason_moves`,
           ];
     const codes = [app.code, reader.code];
     for (const write of writes) {
