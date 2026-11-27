@@ -7,6 +7,7 @@
 #   GONE <lane id>       a running lane the lead took out of the file (finish or stop it, then drop it)
 #   DONE <lane id>       a running lane whose done_when subject is already on its branch
 #   MAX <n>              the seat's max_agents (always printed with NEW, GONE or DONE)
+# A lane whose branch tip is `report: <slug> blocked` is held until the lead answers on the branch.
 # Prints WAIT after about 25 minutes with nothing to report; run it again at once.
 # It reads only; it never writes, commits or pushes.
 set -uo pipefail
@@ -48,6 +49,10 @@ while [ "$(date +%s)" -lt "$end" ]; do
     fi
     [[ "$running" == *",$id,"* ]] && continue
     [ "$role" = idle ] && continue
+    # Held: the branch's newest commit is this slice's blocked report; the lead's answer (any later
+    # commit on the branch) or a replaced lane releases it.
+    slug="$(basename "$run" .md)"
+    [ "$(git log -1 --format=%s "origin/$branch" 2>/dev/null)" = "report: $slug blocked" ] && continue
     if [ -n "$waitf" ] && [ "$waitf" != none ] && ! has_subject "$branch" "$waitf"; then continue; fi
     new+=("$id")
   done < <(lanes "$file")

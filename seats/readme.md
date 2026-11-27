@@ -21,7 +21,7 @@ lane: ...
 ```
 - A blank line separates the lanes.
 - The lead adds lanes and takes them out. It never changes a lane's `branch`, `role` or `done_when` after a seat may have started it. A changed lane gets a new number.
-- A lane is finished once its `done_when` subject is on its branch on GitHub. A seat therefore keeps no state: after a restart it starts every lane that is not finished, from the branch as pushed.
+- A lane is finished once its `done_when` subject is on its branch on GitHub. A lane whose branch ends with `report: <slug> blocked` is held, and `wait.sh` does not offer it again, until the lead answers with a commit on the branch. A seat therefore keeps no state: after a restart it starts every lane that is not finished, from the branch as pushed.
 
 ## The loop, for seat <n>
 Start every shell command with `. tools/integration/lib.sh &&`. Keep a list of the lanes you are running, as lane id, slot and agent.
