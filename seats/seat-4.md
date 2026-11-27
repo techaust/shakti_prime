@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 2
-updated: 2026-11-27T16:56Z
+updated: 2026-11-27T17:24Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -50,3 +50,11 @@ run_file: docs/runs/phase4/j1-projects.md
 wait_for: none
 done_when: report: j1-projects done
 note: continue. The lead read the early check (27-11 16:25 UTC): accepted, decisions 1 to 8 included. Go on to status_summary, the screens, the template editor and the journeys. Take EXPLAIN of the projects list as a Field Engineer at volume (app.project_is_mine per row) and record it.
+
+lane: 53
+role: fix
+branch: feat/f1-field-foundation
+run_file: docs/runs/phase4/f1-field-foundation.md
+wait_for: none
+done_when: report: f1-field-foundation fixes
+note: the one fix round, as the lead's triage under the Review table says (findings 1, 2, 3, 5, 6, 7, 8 and the six packages the lead installed). Finding 1 is critical: first.

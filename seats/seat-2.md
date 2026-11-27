@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T16:00Z
+updated: 2026-11-27T17:24Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -106,3 +106,11 @@ run_file: docs/runs/phase5/tc1-tally-connector.md
 wait_for: none
 done_when: report: tc1-tally-connector done
 note: continue. The lead read the early check (27-11 16:10 UTC): accepted, assumptions 1 to 13 and 16 included; the spike script may import the reader by path. Now (a) add an optional ledgerBalances list (party ledger GUID, name, closing balance, as of) to the snapshot contract in packages/contracts/src/api/connector.ts and send the Sundry Debtors closing balances with each daily snapshot (dealer outstanding, your point 3); (b) the lead added esbuild as a dev dependency: drop the eslint-disable and import it normally (point 14); (c) add the fence block for apps/tally-connector to eslint.config.mjs like apps/voice-agent's (point 15, a checks change the owner labels). Then the final checks and report done.
+
+lane: 54
+role: review
+branch: feat/f1-field-foundation
+run_file: docs/runs/phase4/f1-field-foundation.md
+wait_for: report: f1-field-foundation fixes
+done_when: review: f1-field-foundation re-check done
+note: re-check of the fix diff only (the review found a critical): confirm findings 1, 2, 3, 5 to 8 fixed with tests, and the packages wired with no token, phone or identity number reaching Sentry. Commit the result as review: f1-field-foundation re-check done.
