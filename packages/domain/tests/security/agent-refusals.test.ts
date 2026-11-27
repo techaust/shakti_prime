@@ -87,7 +87,22 @@ const U1_QUOTE_INPUTS: Record<string, unknown> = {
   'procurement.quote.withdraw': { quoteId: newId() },
 };
 
+/** TC2: Admin › Integrations › Tally, an Executive's alone (admin.integrations.write). */
+const TC2_CONNECTOR_INPUTS: Record<string, unknown> = {
+  'tally.connector.register': {
+    name: 'Refused connector',
+    keyHash: 'b'.repeat(64),
+    keyHint: 'abcd',
+  },
+  'tally.connector.map': { connectorId: newId(), tallyCompany: 'Refused company', entityId: 1 },
+  'tally.connector.unmap': { connectorId: newId(), entityId: 1 },
+  'tally.connector.rotate': { connectorId: newId(), keyHash: 'c'.repeat(64), keyHint: 'efgh' },
+  'tally.connector.retire_key': { connectorId: newId() },
+  'tally.connector.revoke': { connectorId: newId() },
+};
+
 const INPUTS: Record<string, unknown> = {
+  ...TC2_CONNECTOR_INPUTS,
   // A customer's price tier decides every price they are quoted (PRICE-1).
   'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
   // The human controls of the agents (SECURITY §3.3): no agent decides on its own suggestions,
@@ -527,6 +542,9 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     body: 'Thank you for writing to us.',
     draftedByAgentActionId: newId(),
   },
+  // TC2: the connectors are an Executive's, and a held Tally snapshot is confirmed by Accounts.
+  ...TC2_CONNECTOR_INPUTS,
+  'tally.snapshot.confirm': { entityId: 1, snapshotId: newId() },
   // U1: the vendor master and supplier quotes are changed by people only.
   ...U1_QUOTE_INPUTS,
   'procurement.vendor.create': { name: 'Rajasthan Cables' },
@@ -912,6 +930,36 @@ describe('agent principals cannot upload a file of any purpose', () => {
 
 describe("agent principals cannot run the platform's own work: the file checks, the nightly rescoring and the quote expiry", () => {
   const CHECKS: Record<string, unknown> = {
+    // TC2: a Tally connector's own calls, its principal's alone (tally.connector.sync).
+    'tally.batch.ingest': {
+      entityId: 1,
+      batch: {
+        company: 'Refused company',
+        entityCode: 'SS',
+        fromAlterId: 0,
+        maxAlterId: 0,
+        vouchers: [],
+        ledgers: [],
+      },
+    },
+    'tally.snapshot.record': {
+      entityId: 1,
+      snapshot: {
+        company: 'Refused company',
+        entityCode: 'SS',
+        asOf: '2026-11-27T00:00:00.000Z',
+        fromDate: '2026-04-01',
+        voucherGuids: [],
+      },
+    },
+    'tally.heartbeat.record': {
+      heartbeat: {
+        connectorVersion: '1.0.0',
+        tallyVersion: 'TallyPrime',
+        companies: [{ name: 'Refused company', lastAlterId: 0, reachable: true }],
+        queueDepth: 0,
+      },
+    },
     'crm.lead.score_refresh': { entityId: 1, afterId: null },
     'crm.duplicate.scan': { entityId: 1, afterId: null },
     'sales.quote.expire': { entityId: 1, afterId: null },

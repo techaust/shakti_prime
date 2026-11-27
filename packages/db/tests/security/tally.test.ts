@@ -241,7 +241,7 @@ describe('a connector principal reads no table', () => {
 
   it('holds only tally.connector.sync, which no person’s role may hold', async () => {
     expect(SYSTEM_MATRIX['system:tally_connector']).toEqual([
-      { key: 'tally.connector.sync', scope: 'entity' },
+      { key: 'tally.connector.sync', scope: 'all' },
     ]);
     const [row] = await withoutContext<{ only: boolean; staff: boolean }>(sql`
       select 'tally.connector.sync' = any (app.platform_only_permissions()) as only,

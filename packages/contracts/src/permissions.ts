@@ -424,8 +424,9 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'voice.session.record': ['all'],
   // W2 media retention.
   'messaging.media.expire': ['all'],
-  // TC2: a connector acts for the companies mapped to it, never for every company.
-  'tally.connector.sync': ['entity'],
+  // TC2: held for every company, as the workers' are; a connector's principal names only the
+  // companies mapped to it, and its definers check the mapping.
+  'tally.connector.sync': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {
