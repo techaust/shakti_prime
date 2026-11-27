@@ -1,5 +1,8 @@
 import {
+  newId,
+  PROJECT_ORDER_CANCELLED_REASON,
   SYSTEM_WORKERS_PRINCIPAL_ID,
+  type CancelForOrderDto,
   type DraftProjectDto,
   type Principal,
   type ProjectDto,
@@ -21,7 +24,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { failureOf, runCommand } from '../../src/command/run-command';
+import { notifyEvent } from '../../src/commands/notifications/notify';
 import { assignProject } from '../../src/commands/projects/assign-project';
+import { cancelForOrder } from '../../src/commands/projects/cancel-for-order';
 import { createProject, draftProject } from '../../src/commands/projects/create-project';
 import {
   cancelProject,
@@ -40,6 +45,7 @@ import {
   listProjects,
   listProjectTemplates,
   orderProject,
+  ownProjectIds,
 } from '../../src/queries/projects/list-projects';
 import { readProject } from '../../src/queries/projects/project-dto';
 import { WORKSHOP_DEFAULTS } from '../../src/workshop-defaults';
@@ -387,6 +393,20 @@ describe('projects.project.create: a Project Manager makes a project by hand', (
     ).toMatchObject({ code: 'conflict', reason: 'project_exists' });
   });
 
+  it("honours the business line the manager chooses over the lead's, and takes the lead's without one", async () => {
+    const chosen = await run<ProjectDto>(manager, createProject, {
+      entityId: E,
+      orderId: await makeOrder({ segment: 'farmer_pumps' }),
+      segment: 'commercial_epc',
+    });
+    expect(chosen.segment).toBe('commercial_epc');
+    const fromLead = await run<ProjectDto>(manager, createProject, {
+      entityId: E,
+      orderId: await makeOrder({ segment: 'farmer_pumps' }),
+    });
+    expect(fromLead.segment).toBe('farmer_pumps');
+  });
+
   it('refuses an unconfirmed order, and allows a new project once the last was cancelled', async () => {
     const unconfirmed = await makeOrder({ segment: 'farmer_pumps', state: 'draft' });
     expect(
@@ -689,6 +709,28 @@ describe('the project reads: the list, the page, Account 360, the order link, ch
     ).toBeNull();
   });
 
+  it('an own-scope caller’s projects come open ones first, then the newest change (J1 review 8)', async () => {
+    const open = await draftedId(await makeOrder({ segment: 'farmer_pumps' }));
+    const finished = await draftedId(await makeOrder({ segment: 'farmer_pumps' }));
+    for (const projectId of [open, finished]) {
+      await run(manager, assignProject, {
+        entityId: E,
+        projectId,
+        ownerId: null,
+        assigneeIds: [engineer.id],
+      });
+    }
+    for (const key of WORKSHOP_DEFAULTS.projects.standardSteps) {
+      await run(manager, completeMilestone, { entityId: E, projectId: finished, milestoneKey: key });
+    }
+    await run(manager, completeProject, { entityId: E, projectId: finished });
+    // The finished project is the newest change, and still comes after the open one.
+    await asMigrator((m) => m`update projects set updated_at = now() where id = ${finished}`);
+    const ids = await asPrincipal(engineer, (ctx) => ownProjectIds(ctx, E));
+    expect(ids).toEqual(expect.arrayContaining([open, finished]));
+    expect(ids.indexOf(open)).toBeLessThan(ids.indexOf(finished));
+  });
+
   it('reads the checklists, the filter choices and the people a manager may name', async () => {
     const templates = await asPrincipal(engineer, (ctx) =>
       listProjectTemplates(ctx, { entityId: E }),
@@ -703,7 +745,25 @@ describe('the project reads: the list, the page, Account 360, the order link, ch
     expect(rooftop?.current?.steps.map((s) => s.key)).toEqual(['survey', 'net_meter', 'install']);
     const filters = await asPrincipal(manager, (ctx) => listProjectFilters(ctx, { entityId: E }));
     expect(filters.owners.map((o) => o.id)).toContain(manager.id);
-    expect(filters.steps).toEqual(expect.arrayContaining(['survey', 'net_meter', 'handover']));
+    // Each step with the newest title the Executive published for it; a default step never
+    // published has none, and the screen names it from the catalogue.
+    expect(filters.steps).toEqual(
+      expect.arrayContaining([
+        { key: 'survey', title: 'Step survey' },
+        { key: 'net_meter', title: 'Step net_meter' },
+        { key: 'handover', title: null },
+      ]),
+    );
+    // An engineer's choices come from their own projects alone: the owner of the one they are on.
+    const own = await asPrincipal(strangerEngineer, (ctx) =>
+      listProjectFilters(ctx, { entityId: E }),
+    );
+    expect(own.owners.map((o) => o.id)).toEqual([manager.id]);
+    expect(
+      (
+        await asPrincipal(engineer, (ctx) => listProjectFilters(ctx, { entityId: E }))
+      ).owners.every((o) => o.id === manager.id),
+    ).toBe(true);
     const people = await asPrincipal(manager, (ctx) => listProjectPeople(ctx, { entityId: E }));
     expect(people.people.map((p) => p.id)).toEqual(
       expect.arrayContaining([engineer.id, strangerEngineer.id]),
@@ -711,5 +771,123 @@ describe('the project reads: the list, the page, Account 360, the order link, ch
     await expect(
       asPrincipal(engineer, (ctx) => listProjectPeople(ctx, { entityId: E })),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('projects.project.cancel_for_order: the project of a cancelled order (J1 review 2)', () => {
+  /** Cancels the order as the sales flow does, leaving its lines and commission to their own suites. */
+  async function cancelOrder(orderId: string): Promise<void> {
+    await asMigrator(
+      (m) => m`update sales_orders set state = 'cancelled', cancel_reason = 'projects suite'
+                where id = ${orderId}`,
+    );
+  }
+  const close = (orderId: string, who: Principal = workers()) =>
+    run<CancelForOrderDto>(who, cancelForOrder, { entityId: E, orderId });
+
+  async function noticesOf(projectId: string): Promise<string[]> {
+    const rows = await asMigrator(
+      (m) =>
+        m<{ user_id: string }[]>`
+        select user_id::text as user_id from notifications
+         where type = 'project_order_cancelled' and subject_id = ${projectId} order by user_id`,
+    );
+    return rows.map((r) => r.user_id);
+  }
+
+  async function notify(projectId: string): Promise<void> {
+    await run(workers(), notifyEvent, {
+      event: 'projects.project.order_cancelled',
+      entityId: E,
+      eventId: newId(),
+      projectId,
+    });
+  }
+
+  it('cancels a project none of whose steps is done, with the order as its reason, once', async () => {
+    const order = await makeOrder({ segment: 'farmer_pumps' });
+    const projectId = await draftedId(order);
+    await run(manager, holdProject, { entityId: E, projectId, reason: 'waiting for the order' });
+    await cancelOrder(order);
+    expect(await close(order)).toEqual({ outcome: 'cancelled', projectId });
+    expect(await read(manager, projectId)).toMatchObject({
+      state: 'cancelled',
+      cancelReason: PROJECT_ORDER_CANCELLED_REASON,
+      holdReason: null,
+    });
+    expect(await eventsOf(projectId)).toEqual([
+      'projects.project.drafted',
+      'projects.project.held',
+      'projects.project.cancelled',
+    ]);
+    // A repeat delivery finds nothing to close and emits nothing.
+    expect(await close(order)).toEqual({ outcome: 'none' });
+    expect((await eventsOf(projectId)).length).toBe(3);
+  });
+
+  it('keeps a project with a step done and tells its owner, or the company’s managers when it has none', async () => {
+    const owned = await makeOrder({ segment: 'farmer_pumps' });
+    const ownedId = await draftedId(owned);
+    await run(manager, assignProject, {
+      entityId: E,
+      projectId: ownedId,
+      ownerId: manager.id,
+      assigneeIds: [engineer.id],
+    });
+    const [first] = WORKSHOP_DEFAULTS.projects.standardSteps;
+    await run(engineer, completeMilestone, { entityId: E, projectId: ownedId, milestoneKey: first });
+    await cancelOrder(owned);
+    expect(await close(owned)).toEqual({ outcome: 'kept', projectId: ownedId });
+    expect((await read(manager, ownedId)).state).toBe('active');
+    expect(await eventsOf(ownedId)).toContain('projects.project.order_cancelled');
+    await notify(ownedId);
+    await notify(ownedId);
+    expect(await noticesOf(ownedId)).toEqual([manager.id]);
+
+    // Nobody runs it: the company's Project Managers and General Managers, not the Executive.
+    const unowned = await makeOrder({ segment: 'farmer_pumps' });
+    const unownedId = await draftedId(unowned);
+    await run(manager, completeMilestone, {
+      entityId: E,
+      projectId: unownedId,
+      milestoneKey: first,
+    });
+    await cancelOrder(unowned);
+    expect(await close(unowned)).toEqual({ outcome: 'kept', projectId: unownedId });
+    await notify(unownedId);
+    const told = await noticesOf(unownedId);
+    expect(told).toEqual(expect.arrayContaining([manager.id, gm.id]));
+    expect(told).not.toContain(executive.id);
+    expect(told).not.toContain(engineer.id);
+  });
+
+  it('keeps a PM Surya Ghar project for the subsidy flow, and leaves a live order’s project alone', async () => {
+    const surya = await makeOrder({ segment: 'residential_rooftop', scheme: 'pm_surya_ghar' });
+    const suryaId = await draftedId(surya);
+    await cancelOrder(surya);
+    expect(await close(surya)).toEqual({ outcome: 'kept', projectId: suryaId });
+    expect((await read(manager, suryaId)).state).toBe('active');
+    const live = await makeOrder({ segment: 'farmer_pumps' });
+    const liveId = await draftedId(live);
+    expect(await close(live)).toEqual({ outcome: 'none' });
+    expect((await read(manager, liveId)).state).toBe('active');
+  });
+
+  it('is refused to every person and agent, and to the platform acting in another company', async () => {
+    const order = await makeOrder({ segment: 'farmer_pumps' });
+    await draftedId(order);
+    await cancelOrder(order);
+    for (const who of [manager, executive, principalFor('agent:orchestrator', [E])]) {
+      expect(await failure(who, cancelForOrder, { entityId: E, orderId: order })).toMatchObject({
+        code: 'forbidden',
+      });
+    }
+    expect(
+      await failure(workers([OTHER]), cancelForOrder, { entityId: E, orderId: order }),
+    ).toMatchObject({ code: 'forbidden' });
+    // The platform of the other company finds no order of this one.
+    expect(
+      await run(workers([OTHER]), cancelForOrder, { entityId: OTHER, orderId: order }),
+    ).toEqual({ outcome: 'none' });
   });
 });

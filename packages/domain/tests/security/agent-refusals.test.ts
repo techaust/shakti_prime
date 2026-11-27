@@ -1058,6 +1058,8 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     },
     // J1: a project drafted from a confirmed order, the platform's alone.
     'projects.project.draft': { entityId: 1, orderId: newId() },
+    // J1: the project of a cancelled order, closed or kept by the platform alone.
+    'projects.project.cancel_for_order': { entityId: 1, orderId: newId() },
   };
 
   it('the Concierge holds exactly its own-scope grants: no cost, price, sales or platform-only grant', () => {

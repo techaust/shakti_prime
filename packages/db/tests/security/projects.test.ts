@@ -3,7 +3,14 @@
 // (app.project_is_mine()); its steps and people are read with it; the company's checklists by any
 // holder of projects.read. Every read runs on both pools, app_user and app_reader, for every role
 // acting in every company; the writes run as app_user under real row security.
-import { hasGrant, newId, type Principal, ROLE_KEYS, type RoleKey } from '@shakti/contracts';
+import {
+  hasGrant,
+  newId,
+  type Principal,
+  ROLE_KEYS,
+  type RoleKey,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+} from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { withRequestContext } from '../../src/context';
@@ -36,6 +43,16 @@ const stepA = (e: number): string => id(0x0300 | e);
 const stepB = (e: number): string => id(0x0400 | e);
 const assignmentA = (e: number): string => id(0x0500 | e);
 const templateOf = (e: number): string => id(0x0600 | e);
+/** Project A's second step, open after its first. */
+const stepA2 = (e: number): string => id(0x0800 | e);
+
+// Rows outside the matrix's prefix, so the reads above never count them: a cancelled order of
+// each company's dealer customer and its project C, in progress with one step open (J1 review 2).
+const Q = '01990000-0000-7000-8000-0000000f';
+const qid = (n: number): string => `${Q}${n.toString(16).padStart(4, '0')}`;
+const qlike = `${Q}%`;
+const cancelledOrder = (e: number): string => qid(0x0100 | e);
+const projectC = (e: number): string => qid(0x0200 | e);
 
 const TABLES = [
   'projects',
@@ -51,6 +68,9 @@ async function removeFixture(): Promise<void> {
       await tx`delete from project_assignments where id::text like ${like} or project_id::text like ${like}`;
       await tx`delete from project_milestones where id::text like ${like} or project_id::text like ${like}`;
       await tx`delete from projects where id::text like ${like}`;
+      await tx`delete from project_milestones where project_id::text like ${qlike}`;
+      await tx`delete from projects where id::text like ${qlike}`;
+      await tx`delete from sales_orders where id::text like ${qlike}`;
       await tx`alter table project_flow_templates disable trigger project_flow_templates_append_only`;
       await tx`delete from project_flow_templates where id::text like ${like}`;
       await tx`alter table project_flow_templates enable trigger project_flow_templates_append_only`;
@@ -105,7 +125,22 @@ beforeAll(async () => {
             from sales_orders so where so.id = ${order.lead}`;
         await tx`insert into project_milestones (id, entity_id, project_id, position, key, title) values
           (${stepA(e)}, ${e}, ${projectA(e)}, 1, 'survey', 'projects suite step'),
+          (${stepA2(e)}, ${e}, ${projectA(e)}, 2, 'install', 'projects suite step'),
           (${stepB(e)}, ${e}, ${projectB(e)}, 1, 'survey', 'projects suite step')`;
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, account_type, site_id, tier_id,
+                   place_of_supply_state, supply_kind, state, subtotal, cgst, sgst, igst, tax_total, round_off,
+                   grand_total, confirmed_at, confirmed_by, cancel_reason, created_by)
+          select ${cancelledOrder(e)}, so.entity_id, ${`PS${e.toString()}/SO/2098-99/C001`}, '2098-99', so.account_id,
+                 so.account_type, so.site_id, so.tier_id, so.place_of_supply_state, so.supply_kind, 'cancelled',
+                 0, 0, 0, 0, 0, 0, 0, now(), ${MANAGER}, 'projects suite', ${MANAGER}
+            from sales_orders so where so.id = ${order.dealer}`;
+        await tx`insert into projects (id, entity_id, project_no, fy, sales_order_id, account_id, segment, scheme,
+                   flow, owner_id, created_by)
+          select ${projectC(e)}, ${e}, ${`PS${e.toString()}/PRJ/2098-99/0003`}, '2098-99', so.id, so.account_id,
+                 'farmer_pumps', 'none', 'standard', ${MANAGER}, ${MANAGER}
+            from sales_orders so where so.id = ${cancelledOrder(e)}`;
+        await tx`insert into project_milestones (id, entity_id, project_id, position, key, title)
+          values (${qid(0x0300 | e)}, ${e}, ${projectC(e)}, 1, 'survey', 'projects suite step')`;
         await tx`insert into project_assignments (id, entity_id, project_id, person_id, created_by)
           values (${assignmentA(e)}, ${e}, ${projectA(e)}, ${ENGINEER}, ${MANAGER})`;
       }
@@ -150,6 +185,35 @@ async function attempt(principal: Principal, statement: SQL): Promise<number | E
   }
 }
 
+/** Thrown to roll a trial back once its statements ran. */
+class RolledBack extends Error {
+  constructor(readonly rows: number) {
+    super('rolled back');
+  }
+}
+
+/**
+ * Runs the statements as `principal` on app_user in one transaction and rolls it back, so the
+ * fixture stays as it was: the rows the last one touched, or the error that refused one.
+ */
+async function trial(principal: Principal, statements: SQL[]): Promise<number | Error> {
+  try {
+    await withRequestContext(principal, {}, async ({ tx }) => {
+      let rows = 0;
+      for (const statement of statements) {
+        rows = ((await tx.execute(statement)) as unknown as unknown[]).length;
+      }
+      throw new RolledBack(rows);
+    });
+    throw new Error('unreachable');
+  } catch (e) {
+    if (e instanceof RolledBack) return e.rows;
+    if (e instanceof Error && e.cause instanceof RolledBack) return e.cause.rows;
+    if (e instanceof Error) return e;
+    throw e;
+  }
+}
+
 const causeOf = (e: number | Error): string =>
   e instanceof Error ? (e.cause instanceof Error ? e.cause.message : e.message) : '';
 const codeOf = (e: number | Error): string | undefined =>
@@ -169,7 +233,9 @@ function expected(role: RoleKey, e: number): Record<Table, string[]> {
   const sort = (ids: string[]) => [...ids].sort();
   return {
     projects: sort(all ? [projectA(e), projectB(e)] : own ? [projectA(e)] : []),
-    project_milestones: sort(all ? [stepA(e), stepB(e)] : own ? [stepA(e)] : []),
+    project_milestones: sort(
+      all ? [stepA(e), stepA2(e), stepB(e)] : own ? [stepA(e), stepA2(e)] : [],
+    ),
     project_assignments: all || own ? [assignmentA(e)] : [],
     project_flow_templates: own ? [templateOf(e)] : [],
   };
@@ -207,6 +273,7 @@ describe('the `own` scope: a project the caller owns or is assigned to (app.proj
       expect(await visible(actingAs('field_engineer', 1), 'projects', pool)).toEqual([projectA(1)]);
       expect(await visible(actingAs('field_engineer', 1), 'project_milestones', pool)).toEqual([
         stepA(1),
+        stepA2(1),
       ]);
     }
     // Another engineer, on no project, reads none.
@@ -258,13 +325,13 @@ describe('writes', () => {
     expect(
       await attempt(
         engineer,
-        sql`update projects set state_changed_at = now() where id = ${projectA(1)} returning id`,
+        sql`update projects set updated_at = now() where id = ${projectA(1)} returning id`,
       ),
     ).toBe(1);
     expect(
       await attempt(
         engineer,
-        sql`update projects set state_changed_at = now() where id = ${projectB(1)} returning id`,
+        sql`update projects set updated_at = now() where id = ${projectB(1)} returning id`,
       ),
     ).toBe(0);
     expect(
@@ -279,6 +346,68 @@ describe('writes', () => {
         sql`update project_milestones set skip_reason = null where id = ${stepB(1)} returning id`,
       ),
     ).toBe(0);
+  });
+
+  it('an engineer changes no project’s state or reasons; a manager of the company does (J1 review 3)', async () => {
+    const engineer = actingAs('field_engineer', 1);
+    for (const change of [
+      sql`state = 'cancelled', cancel_reason = 'projects suite'`,
+      sql`state = 'on_hold', hold_reason = 'projects suite'`,
+      sql`hold_reason = 'projects suite'`,
+      sql`cancel_reason = 'projects suite'`,
+      sql`state_changed_at = now()`,
+    ]) {
+      const refused = await trial(engineer, [
+        sql`update projects set ${change} where id = ${projectA(1)} returning id`,
+      ]);
+      expect({ change: causeOf(refused), code: codeOf(refused) }).toMatchObject({
+        code: '42501',
+      });
+    }
+    expect(
+      await trial(actingAs('project_manager', 1, MANAGER), [
+        sql`update projects set state = 'on_hold', hold_reason = 'projects suite', state_changed_at = now()
+             where id = ${projectA(1)} returning id`,
+      ]),
+    ).toBe(1);
+  });
+
+  it('an engineer marks only the next open step done, as themselves, while the project runs (J1 review 3)', async () => {
+    const engineer = actingAs('field_engineer', 1);
+    const done = (step: string, by: string) =>
+      sql`update project_milestones set state = 'done', done_at = now(), done_by = ${by}
+           where id = ${step} returning id`;
+    expect(await trial(engineer, [done(stepA(1), ENGINEER)])).toBe(1);
+    expect(await trial(engineer, [done(stepA(1), ENGINEER), done(stepA2(1), ENGINEER)])).toBe(1);
+    for (const refused of [
+      // For someone else.
+      [done(stepA(1), MANAGER)],
+      // Out of order.
+      [done(stepA2(1), ENGINEER)],
+      // Skipped.
+      [
+        sql`update project_milestones set state = 'skipped', skip_reason = 'projects suite'
+             where id = ${stepA(1)}`,
+      ],
+      // Reopened.
+      [
+        done(stepA(1), ENGINEER),
+        sql`update project_milestones set state = 'open', done_at = null, done_by = null
+             where id = ${stepA(1)}`,
+      ],
+    ]) {
+      expect(codeOf(await trial(engineer, refused))).toBe('42501');
+    }
+    // A project on hold takes no step from the engineer: the manager holds it, then the same
+    // transaction acts as the engineer.
+    const manager = actingAs('project_manager', 1, MANAGER);
+    const held = await trial(manager, [
+      sql`update projects set state = 'on_hold', hold_reason = 'projects suite' where id = ${projectA(1)}`,
+      sql`select set_config('app.user_id', ${ENGINEER}, true),
+                 set_config('app.permissions', 'projects.read:own,projects.write:own', true)`,
+      done(stepA(1), ENGINEER),
+    ]);
+    expect(codeOf(held)).toBe('42501');
   });
 
   it('only a holder of projects.write for the company names the owner or changes the people', async () => {
@@ -432,6 +561,66 @@ describe('the definers that make a project (ADR 0020)', () => {
   });
 });
 
+describe('the project of a cancelled order: the platform alone closes it (J1 review 2)', () => {
+  const find = (who: Principal, order: string) =>
+    attempt(who, sql`select * from app.order_cancelled_project(1::smallint, ${order}::uuid)`);
+  const cancel = (who: Principal) =>
+    trial(who, [
+      sql`select 1 where app.cancel_order_project(1::smallint, ${projectC(1)}::uuid, 'order_cancelled', now())`,
+    ]);
+  const people = (who: Principal) =>
+    attempt(who, sql`select * from app.notice_project_people(1::smallint, ${projectC(1)}::uuid)`);
+
+  it('finds and cancels it for the platform, a project with no step done and a cancelled order only', async () => {
+    const workers = principalFor('system:workers', [1], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
+    const [found] = await withRequestContext(
+      workers,
+      {},
+      async ({ tx }) =>
+        (await tx.execute(
+          sql`select project_id::text as project_id, state, flow, steps_done
+                from app.order_cancelled_project(1::smallint, ${cancelledOrder(1)}::uuid)`,
+        )) as unknown as unknown[],
+    );
+    expect(found).toEqual({
+      project_id: projectC(1),
+      state: 'active',
+      flow: 'standard',
+      steps_done: 0,
+    });
+    const { dealer } = await ordersOf(1);
+    expect(await find(workers, dealer)).toBe(0);
+    expect(await cancel(workers)).toBe(1);
+    // Not a project whose order stands (a step done is the domain suite's case).
+    expect(
+      await trial(workers, [
+        sql`select 1 where app.cancel_order_project(1::smallint, ${projectA(1)}::uuid, 'order_cancelled', now())`,
+      ]),
+    ).toBe(0);
+  });
+
+  it('is refused to every person and agent, and to the platform of another company', async () => {
+    for (const role of [
+      'project_manager',
+      'executive',
+      'field_engineer',
+      'agent:orchestrator',
+    ] as const) {
+      const who = actingAs(role, 1, MANAGER);
+      expect({ role, find: codeOf(await find(who, cancelledOrder(1))) }).toEqual({
+        role,
+        find: '42501',
+      });
+      expect({ role, cancel: codeOf(await cancel(who)) }).toEqual({ role, cancel: '42501' });
+      expect({ role, people: codeOf(await people(who)) }).toEqual({ role, people: '42501' });
+    }
+    const elsewhere = principalFor('system:workers', [2]);
+    expect(codeOf(await find(elsewhere, cancelledOrder(1)))).toBe('42501');
+    expect(codeOf(await cancel(elsewhere))).toBe('42501');
+    expect(typeof (await people(principalFor('system:workers', [1])))).toBe('number');
+  });
+});
+
 describe('app.status_summary() adds the customer’s own projects with their current step (WA-03)', () => {
   it('lists the chat’s customer’s projects not cancelled, with the first open step, in the chat’s company only', async () => {
     const threads = await asMigrator(
@@ -454,7 +643,8 @@ describe('app.status_summary() adds the customer’s own projects with their cur
         )) as unknown as { ref: string; state: string; step_key: string | null }[],
     );
     const mine = lines.filter((l) => l.ref.startsWith('PS1/'));
-    // Project A is active at its survey step; project B is cancelled and left out.
+    // Project A is active at its survey step; project B is cancelled and project C's order is
+    // cancelled (J1 review 2), so both are left out.
     expect(mine).toEqual([
       {
         kind: 'project',
