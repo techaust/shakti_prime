@@ -5,9 +5,9 @@
 | Branch | `feat/fn1-proformas` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): money, document numbering, tax snapshots |
-| Usage | briefed 27-11-2026; built by Opus 5.5 at high on the seat's own account (start and early check, 27-11-2026) |
-| State | early check |
-| Next step | the lead reads the early-check diff, then the builder continues with the screens |
+| Usage | briefed 27-11-2026; built by Opus 5.5 at high on the seat's own account (start, early check and done, 27-11-2026) |
+| State | done |
+| Next step | the review; at integration, J2's `app.order_loan_gate()` replaces the stand-in (below) |
 
 ## Brief
 Build [phase5 §5](../../03-roadmap-appendix/phase5.md#5-the-money-model) (its proformas and milestones) and [§6.1](../../03-roadmap-appendix/phase5.md#61-fn1-proformas-and-payment-milestones) as written, with questions 3 (a) and 6 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -103,6 +103,44 @@ Shared registration points take one line or one block each, kept together under 
 6. Due: an on-confirmation step falls due as it is planned (unless its loan holds it); the other rules wait for moments other slices bring (D2's ready dispatch, the installation, TC3's invoice), through the machine's `fall_due`; no command moves them yet.
 7. Planning is once per order (`milestones_already_planned`); a waiver is the only change after it.
 8. `pdf_file_id` exists with no update grant yet; the PDF's path comes with the screens stage.
+
+### 27-11-2026, seat (worktree `fn1-proformas`, Postgres 54331, app 3031): done
+The lead accepted the early check (decisions 1 to 8). **J2 was not on `origin/main` when everything else was done** (last checked at `fc42a09f`, #299), so `main` is not taken in and **the stand-in `app.order_loan_gate()` is still in place** (0241 §8; made only where J2's function is absent). At integration, once J2 is in: redefine `app.order_loan_gate()` from J2's latest with `or app.has_perm('finance.milestones.process:all')` added to its first check and to `v_operations`, so the platform's planning reads a loan-gated step's gate, and drop the stand-in's block.
+
+**Built since the early check:**
+- The order page's **Payments tab** (`components/finance/order-payments-panel.tsx`, `payment-dialogs.tsx`, `rows-table.tsx`; read through `readOrderPayments`): whether the dispatch waits for a payment, the payments with their state, share, amount, paid, when due, due date and waiver; the proformas with their state, PDF and cancellation. Accounts: Issue proforma, Cancel proforma (with a reason), Plan payments for an order the platform has not planned. Executive: Waive (with a reason). A reader without `finance.read` sees the order without the tab. The order screen takes its further tabs as children, as J2's Loan tab does, so the merge meets the same lines.
+- **Settings › Payment terms** (`/settings/payment-terms`, menu entry for `finance.payment.write` at all; `payment-terms-screen.tsx`, `terms-editor.tsx`; `listPaymentTerms` with the standard terms): per company and kind of order, the current version or the standard terms, earlier versions, and the editor (payments as percentage or fixed amount, due rule, days after the invoice, loan gate; the percentages' total shown as typed; keys made from the names).
+- **The proforma PDF**: file purpose `proforma_pdf` (`files_purpose_check` widened `NOT VALID` in 0242, `app.file_purpose_grant()` with it, `files_proforma_pdf_read` in 0243), `app.proforma_for_print()` and `app.attach_proforma_pdf()` (0243), `loadProformaForPrint`, the command `finance.proforma.pdf.attach` (`files.process`), `print.document.requested` emitted on issue, and `print/proforma-template.ts` in the print registry: letterhead and logo, the order number, lines with HSN, the CGST/SGST or IGST split, rounding, the total in words, the order's payments (waived ones left out), the bank account (`app.entity_bank_envelope()` through the render worker only) and the UPI ID; light, A4, the quotation's styles shared.
+- Server actions `actions/finance.ts`; copy in `en.json` (`finance`, `print.proforma`, the nav entry, errors, audit names); `contract-values.ts` with its test; client namespaces; JavaScript budgets.
+- Journeys `e2e/finance.spec.ts` with their seed `e2e/setup/finance.ts`: per project, two dealers' orders of company 1 confirmed by the Lead Converter through `sales.order.confirm`, whose payments the platform planned on the seed's event delivery. The proforma print page in `e2e/print.spec.ts`.
+- Documents: phase5 §6.1 Built record; DATABASE §4.1 (the print and attach definers), the `files` purposes of §4.4 and the `files` row of §6.10; SECURITY §4 (proformas and payments); `docs/data` regenerated.
+
+**Tests added since the early check:**
+- `packages/domain/tests/commands/finance.test.ts`: now 21 (+5): the PDF attach refused to Accounts, the Executive, an agent and the worker outside the company; attached once, another file or purpose refused, the PDF read by the order's LC and not another; the print loader for the worker alone; the Payments tab per reader and `listPaymentTerms` for the Executive alone.
+- `packages/db/tests/security/files.test.ts`: the purpose's writer and readers; `finance.test.ts` takes the next terms version, so it runs again on a used database.
+- Web unit: `screens/finance.test.ts` 4; `print/templates.test.ts` +3 (the proforma's words, bank and UPI, a cancelled stamp and escaping); `print/documents.test.ts` +2 (the amounts as held, the dates in India, waived payments left out, IGST alone) and the registry.
+- Reader parity: `readOrderPayments`, `listPaymentTerms`, `loadProformaForPrint`.
+
+**Checks (this worktree, through the lock):**
+- `pnpm lint` (whole repository): clean. `pnpm typecheck`: 10 of 10. `turbo run test --force`: domain 2866, contracts 343, db 163, web 1250 passed and 1 skipped, ui 107, tokens 146, voice 49, voice-agent 23, copy-lint 17. `pnpm copy-lint`: clean.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: passed after the budgets below.
+- Security suites, run per workspace (each under 30 minutes), on the slot database after the journeys' seed had run on it:
+  - `@shakti/db`: 1814 of 1815, then the one failure (`files.test.ts`, the Lead Converter now reads her own proforma PDF) fixed and its file passed alone (55 of 55). Before that run I deleted the journeys' three `agent:copilot` settings (ids `0199e2e0-…a000` to `a002`), which made `alert-counts.test.ts` collide on `agent_configs_scope_unique`.
+  - `@shakti/domain`: 1540 of 1541, the one failure reader parity's list of exported queries, fixed and its file passed alone (8 of 8).
+  - `web`: 459 of 461. `outbox-route.test.ts` passes alone (the journeys' waiting events were claimed in its place). `demo-data.test.ts` fails on the retail list's prices; it passed in the early check's full run (461 of 461) and nothing here touches items or prices. I read it as the journeys' seed on this database, which a fresh database (the lead's) does not have.
+- Journeys, run here (sign-in works on this VM, Chromium 1248 at `/opt/pw-browsers`): `e2e/finance.spec.ts` on desktop-light, desktop-dark and phone (Accounts sees the payments planned on confirmation, issues a proforma and opens its PDF once the render worker attached it; the Lead Converter sees her order's payments with no Waive, Issue or Plan; the Executive publishes a version of RCREF's Commercial EPC terms), and the proforma print page: 25 passed, 2 skipped (the print page on dark and phone, light only), with axe on every page. The screenshots this made locally were removed: **the Linux baselines are not made** (`finance-order-payments-accounts`, `finance-order-payments-converter`, `finance-payment-terms`, `print-proforma`). No other journey was run; the home, catalogue and price-master pictures may move with the new menu entry.
+- `EXPLAIN (ANALYZE)` under RLS as the order's Lead Converter (`finance.read:own`), with 5,000 more confirmed orders, 10,000 payments and 5,000 proformas added and removed afterwards: an order's payments, Bitmap Index Scan on `payment_milestones_order_key_unique`, 2 rows, 3.5 ms; its proformas, Index Scan Backward on `proformas_order_idx`, 1 row, 0.96 ms; the dispatch gate 1.7 ms; a company's terms, Index Scan on `payment_milestone_templates_version_unique`, 0.05 ms.
+
+**For the lead:**
+- `apps/web/js-budget.json` changes (a checks file: `checks-ok` from the owner): `/settings/payment-terms` 208 kB (measured 197.9), `/price-master` 247 → 248 and `/catalogue` 245 → 246 for the shell's new menu entry. `tools/copy-lint/copy-lint.config.json` gains five button keys.
+- Migrations 0240 to 0243 are mine; `app.platform_only_permissions()` (0241) and `app.file_purpose_grant()` (0243) are redefined from 0222's and 0235's: check them against `main`'s latest at the merge, and the `files_purpose_check` list (0242) too.
+- The one guard D2 or J8 adds, unchanged: in `depart`, refuse `app.order_dispatch_payment_gate(order_id) = 'open'` with `payment_milestone_open`.
+
+**Decisions since the early check (assumptions):**
+9. The Payments "tab" is a section below the order's lines, as J2's Loan tab is; the order page has no tab strip.
+10. A proforma's PDF is its own purpose, read with `finance.read` (it prints the bank account and UPI ID); the proforma prints the order's payments, waived ones left out, and the UPI ID as text (no QR code: FN3's reminders carry the UPI link).
+11. Settings › Payment terms shows the standard terms where a company has published none, and the editor starts from them; a payment's key is made from its name, never shown.
+12. The journeys' orders are written as orders hold them and confirmed through the command, so the planning on confirmation is the platform's own; Accounts' order loses its proformas at each seed, so the journey issues one each run.
 
 ## Review
 
