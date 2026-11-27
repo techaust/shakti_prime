@@ -5,9 +5,9 @@
 | Branch | `feat/x4-stock-reasons` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the ledger's one write path and its grants |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; built on Opus 5.5 at high, on the seat's own account (start and end) |
-| State | built (report: done) |
-| Next step | the reviewer |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; built and fixed on Opus 5.5 at high, on the seat's own account (start and end) |
+| State | fixed (report: fixes) |
+| Next step | the lead reads the fix diff and integrates |
 
 ## Brief
 `app.stock_move()` (H1, migration 0231) maps each movement reason to the permission it needs in a `case` inside a 300-line function. Every reason except H1's own is refused with `stock_reason_not_open`. Wave 2 opens reasons in three slices at once: U2 opens `receipt`, R3 opens `warranty_replacement`, and later D2 and R2 open theirs. If each slice redefined the function, a later migration's full redefinition would silently drop an earlier slice's reason ([slice-integration §10](../../runbooks/slice-integration.md#10-lessons)). This slice moves the mapping into data, so later slices open a reason with one insert and never redefine the function.
@@ -178,6 +178,105 @@ Built by Opus 5.5 at high. Covers the brief, addendum 1 (serial moves as data, p
 **Skills loaded:** `add-table`.
 
 **For the lead at the merge:** H2 also redefines `app.stock_move()`. Its body must keep all four X4 changes and the seven `app.stock_line` attributes.
+
+### 27-11-2026, seat (cloud VM, worktree `x4-stock-reasons`, Postgres 54334): fixes
+Built by Opus 5.5 at high. This is the one fix round: findings 1, 2 and 3, as the lead's triage under the Review says. Findings 4, 5 and 6 are left as triaged (U2's, and the lead's at the merge), apart from the semicolon of finding 5, which the rewritten clause now has. The slot's database was new and empty; `pnpm db:migrate` and `pnpm db:seed` applied 0240 as it now stands.
+
+**Files**
+- `packages/db/migrations/0240_x4_stock_reasons.sql`: the opening comment block for later slices, the moves table and its seed comment, and `app.stock_move()`.
+- `packages/db/tests/security/stock-reason-moves.test.ts`, renamed from `stock-serial-moves.test.ts` to follow the table.
+- `packages/db/tests/security/stock-reasons.test.ts`: the table's new name, and the reversal row moved out of the role walk.
+- `docs/05-database.md`: the §4.1 `app.stock_move()` row and the §6.5 registry row. `pnpm db:docs` changed nothing further, since the tables live in schema `app`.
+
+**Finding 1: the customer is checked against the line's company.** The account must be linked by `account_entities` to `v_line.entity_id` (`ae.entity_id = v_line.entity_id`). The old test at 802 is reversed: in a request on companies 1 and 2, a company 1 serial delivered to a customer only company 2 knows is now refused with `stock_customer_missing`. The positive case is now the line's company's own customer, given without a site, in that same request. DATABASE now says "for a customer linked to the line's company".
+
+**Finding 2: every line's direction comes from data.**
+- **Renamed:** `app.stock_reason_serial_moves` is now `app.stock_reason_moves`. The table now governs every line, tracked or not, so the old name misled.
+  - Its constraints are renamed to match.
+  - No sibling branch named the table yet: `git grep` on `origin/feat/u2-purchase-orders`, `origin/feat/r3-warranty` and `origin/feat/h2-reservations` found no match.
+  - Its key changes anyway for finding 3, so U2's and R3's `on conflict` clauses change whatever the name.
+- **The lookup runs for every line in Pass 1.** It finds the row for the line's reason and direction. A line with no row is refused with `stock_movement_shape`.
+  - For a non-reversal line, it sits exactly where 0231's direction check stood (after the shape check, before the company check). That check is removed.
+  - The serial block reads the row found there. Its own lookup and its `stock_serial_state` refusal for a missing row are gone. `stock_serial_state` is still used for a serial in a state the row does not take.
+  - H1's seeded rows already give 0231's directions, so H1's outcomes do not change.
+- **Customer fields stay refused on an untracked line.** `move_to` is now set for every line, so the customer check also requires `v_line.tracked`. Customer fields on an untracked line are still refused, as reviewed.
+
+**Finding 3: a reversal is described by the reason it reverses.**
+- **The key.** `reverses_reason text not null default ''` joins the moves key: `(reason, direction, reverses_reason)`. `''` means any reason, as on H1's rows.
+  - A check, `stock_reason_moves_reverses_check`, allows a non-empty value only on a `reversal` row, naming one of the other fourteen reasons.
+  - A foreign key cannot hold `''`, so a check is used.
+- **The lookup.** A reversal line looks for (`reversal`, direction, the reversed reason) first, then (`reversal`, direction, `''`), with `reverses_reason in ('', v_reverses) order by reverses_reason desc limit 1`. `v_reverses` is reset to `''` on every line, so an earlier reversal's reason never reaches a later line.
+- **The permission:**
+  - **With a row keyed by the reversed reason:** the reversal needs that reason's grant row's permission.
+  - **When it falls back to H1's rows:** it needs the `reversal` grant row's permission, `inventory.stock.adjust:entity`. H1's reversals are therefore unchanged: reversing a transfer still needs `inventory.stock.adjust`, not `inventory.stock.move`.
+  - **Reversibility:** the reversed reason must still be `reversible` (`stock_reversal_not_allowed`).
+- **The comment block** now tells a slice that opens a reversible reason to add reversal rows keyed by its own reason when its reversal should need its own grant and move serials its own way. The wave 2 list names U2's optional reversal rows keyed by `receipt`.
+
+**The diff against 0231's `app.stock_move()`** (`diff` of the two function bodies, 417 and 471 lines). It has the four reviewed changes, now in this form:
+1. **Grant mapping.** The `case` is a read of the grant row. A reversal's grant check waits for its move row (`if v_reason <> 'reversal' and not app.has_perm(v_perm)` at the top).
+2. **Reversal path.**
+   - The fixed list of reversible reasons is a read of the reversed reason's grant row (`reversible`).
+   - That check, and `stock_already_reversed`, now follow the move-row lookup and the grant check.
+   - Four new variables: `v_reverses`, `v_keyed`, `v_rev_perm` and `v_rev_ok`.
+3. **Direction and serial move.**
+   - 0231's direction check is replaced by one move-row lookup for every line, refused with `stock_movement_shape`.
+   - The serial block reads the row that lookup found, as reviewed.
+4. **Customer fields.** As reviewed, now linked to the line's company and refused on an untracked line.
+
+The lock order, costs, balances, the opening rule and every other refusal are unchanged.
+
+**Refusal order on a reversal line (a change from 0231):** not open → reference shape → `stock_movement_missing` → no move row (`stock_movement_shape`) → grant (42501) → `stock_reversal_not_allowed` → `stock_already_reversed`.
+- 0231 checked the grant first. The grant now depends on the movement reversed, so it can be checked only after that movement is read.
+- The effect: a caller without the grant who names a movement that does not exist, or one of another company, is told `stock_movement_missing` instead of 42501.
+- No H1 test depends on that order. H1's suites pass unchanged.
+
+**Tests**
+- `stock-reason-moves.test.ts`: 27 tests (17 before). Every case runs in a migrator transaction that is rolled back.
+  - **New, finding 2:**
+    - One test per H1 reason (6). Each posts an untracked line in each of 0231's directions and refuses, with `stock_movement_shape`, an untracked and a tracked line in each other direction.
+    - An opened reason (`receipt` with only its `in` row) posts in, and is refused out of a bin and between bins, tracked or not (review probe A). A reason opened with its grant row alone is refused in every direction.
+    - A removed row (`count`/`out`, and H1's `reversal`/`out`) closes that direction for both kinds of line and for a reversal.
+  - **New, finding 3:**
+    - H1's transfer and adjust_gain reversed, role by role over `ROLE_KEYS`: a holder of `inventory.stock.adjust:entity` gets `stock_already_reversed`, every other role 42501. A caller holding only `inventory.stock.move:entity` cannot reverse a transfer.
+    - An opened `receipt` (grant `procurement.grn.write:entity`, reversible), with its own reversal row (`out`, keyed by `receipt`, to `with_supplier`):
+      - a caller with only the receipt's grant reverses a serial line and an untracked line;
+      - a caller with only `inventory.stock.adjust` is refused 42501;
+      - the serial ends `with_supplier` with no bin (H1's fallback row would have scrapped it);
+      - the cable balance returns to zero;
+      - the receipt's grant does not reverse an H1 gain.
+  - **Changed:**
+    - the H1 rows test now includes `reverses_reason` (`''` on every H1 row);
+    - three more malformed rows are refused (a key on a non-reversal row, a reversal keyed by `reversal`, and an unknown reason);
+    - the addendum 2 test and the wave 2 helper add the move rows each reason now needs;
+    - the customer test is reversed as finding 1 says.
+- `stock-reasons.test.ts`: 48 tests, the same count. The role walk covers every grant row except `reversal`, whose grant now depends on the movement reversed; `stock-reason-moves.test.ts` walks that row role by role, as above. The two-table privilege tests now name `app.stock_reason_moves`.
+- H1's suites are unchanged and pass: `stock-ledger.test.ts` 47; domain `tests/stock` 28 (`ledger` 21, `ledger-property` 1, `ledger-concurrency` 6).
+
+**Checks** (each through `heavy.sh`)
+- `pnpm db:migrate` and `pnpm db:seed` on the new slot database: exit 0.
+- `@shakti/db` typecheck, then `eslint --max-warnings 0 packages/db/tests/security`: exit 0.
+- db security, `stock-reason-moves` + `stock-reasons` + `stock-ledger`: 3 files, 122 passed. The first two alone: 75 passed (27 + 48).
+- domain security, `tests/stock`: 3 files, 28 passed.
+- `pnpm db:docs`: wrote the three documents, no change.
+- `pnpm test:security`: 4 of 4 tasks passed (db 64 files, 1860 tests; domain 110 files, 1519; web 39 files, 461).
+- `pnpm typecheck`: 10 of 10 tasks passed.
+- `pnpm lint` (whole repository, final): exit 0.
+- Not run: `pnpm build` and `js-budget`. The fix round changes only a SQL migration, two db security tests and DATABASE, none of which `next build` loads; the earlier report ran both on this branch. `copy-lint` and `machines:docs` do not apply: no catalogue or machine changed.
+
+**EXPLAIN (ANALYZE)** of the new move-row lookup: a reversal keyed by `receipt`, in a rolled-back transaction holding H1's rows and one keyed row.
+- On a table this small the planner chooses a seq scan: 11 rows, `Execution Time: 0.032 ms`.
+- With seq scans off: `Index Scan Backward using stock_reason_moves_pkey … Index Cond: ((reason = 'reversal') AND (direction = 'out') AND (reverses_reason = ANY ('{"",receipt}')))`, `Execution Time: 0.032 ms`.
+- The grant reads are primary-key lookups, as before. The slice still adds no list or search.
+
+**Assumptions**
+- **Reading of "the `reversal` grant row's permission then applies only where H1's seed keeps it as the fallback":** the reversal row's permission applies when the move row found is a fallback row (`reverses_reason = ''`), and the reversed reason's permission when the row is keyed by it. Taking the reversed reason's permission always would have made a transfer's reversal need `inventory.stock.move`, which changes H1.
+- **A keyed reversal row whose reversed reason has no grant row** (possible, since `reverses_reason` can carry no foreign key) falls back to the reversal row's permission and is then refused with `stock_reversal_not_allowed`.
+- **The table is renamed** (the lead allowed it if the old name misled), and the test file is renamed with it.
+- **The wave 2 list in the comment block names U2's reversal rows as optional.** Whether a receipt's reversal sends the goods back to the supplier or scraps them, and from which states (finding 4), is U2's decision.
+- **The `stock_serial_state` catalogue text is unchanged.** It still describes the one case it now covers: a serial in a state the move row does not take.
+- **Shared scratchpad.** Another seat's run writes `sec.log` in the same scratchpad, and it overwrote my first whole-suite log. I ran the suite again under `x4-` log names; the result above is from that run.
+
+**Skills loaded:** none new this round (`add-table` was loaded for the build).
 
 ## Review
 Slice-reviewer, 27-11-2026, cloud session, on f16949ea (`git diff origin/main...feat/x4-stock-reasons`), Tier A. Run in the VM on the slot's Postgres (54332), each through `heavy.sh`:
