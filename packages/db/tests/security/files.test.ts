@@ -41,6 +41,8 @@ const WRITE: Partial<Record<FilePurpose, { key: PermissionKey; scope: Scope }>> 
   consent_evidence: { key: 'crm.account.write', scope: 'own' },
   // U1: a supplier's quote document.
   vendor_quote: { key: 'procurement.rate.read', scope: 'entity' },
+  // J3: a customer document names a customer the uploader may file for, which this test's insert
+  // does not, so it is refused here; documents.test.ts covers its writers.
 };
 /**
  * A vault upload is read with its vault file by sensitivity, or by its uploader while they hold
@@ -73,6 +75,12 @@ async function failure(promise: Promise<unknown>): Promise<string> {
 }
 
 let uploader: Principal;
+/**
+ * J3: a customer document names its customer (`files_account_check`), so the fixture's names one
+ * of companies 1 and 2; it is read with its document and by its uploader until it is filed
+ * (documents.test.ts covers who uploads one), so the readers below, not its uploader, read none.
+ */
+let customer: string;
 /** One ready file of every purpose in companies 1 and 2, uploaded by `uploader`. */
 const files = new Map<string, { purpose: FilePurpose; entityId: number }>();
 
@@ -83,17 +91,23 @@ async function insertFile(
   status = 'ready',
 ): Promise<string> {
   const id = newId();
+  const account = purpose === 'customer_document' ? customer : null;
   await asMigrator(
     (
       m,
-    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
-      values (${id}, ${entityId}, ${purpose}, 'test', ${`files/${id}.pdf`}, 'file.pdf', 'application/pdf', 10, ${SHA}, ${status}, ${createdBy})`,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, account_id, created_by)
+      values (${id}, ${entityId}, ${purpose}, 'test', ${`files/${id}.pdf`}, 'file.pdf', 'application/pdf', 10, ${SHA}, ${status}, ${account}, ${createdBy})`,
   );
   return id;
 }
 
 beforeAll(async () => {
   uploader = await createTestPrincipal('executive', [1, 2]);
+  customer = newId();
+  await asMigrator(
+    (m) => m`insert into accounts (id, type, name, created_by)
+      values (${customer}, 'farm', 'files test customer', ${uploader.id})`,
+  );
   for (const entityId of [1, 2]) {
     for (const purpose of FILE_PURPOSES) {
       files.set(await insertFile(entityId, purpose, uploader.id), { purpose, entityId });
@@ -144,6 +158,8 @@ describe('a file is read by its purpose (0062)', () => {
     expect(await visible(caller)).toEqual(
       [
         'consent_evidence@1',
+        // J3: their customer document, until it is filed.
+        'customer_document@1',
         'entity_logo@1',
         'letterhead@1',
         'quote_pdf@1',

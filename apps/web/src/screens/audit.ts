@@ -277,6 +277,11 @@ const ACTIONS = {
   'procurement.item_vendor.set': 'itemVendorSet',
   'procurement.quote.record': 'vendorQuoteRecord',
   'procurement.quote.withdraw': 'vendorQuoteWithdraw',
+  // J3 customer documents and requirements.
+  'documents.file': 'documentFile',
+  'documents.unfile': 'documentUnfile',
+  'documents.view': 'documentView',
+  'documents.requirement.set': 'documentRequirementSet',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -507,6 +512,12 @@ const CODE_GROUPS = [
   'hubKind',
   'binKind',
   'stockReason',
+  // J3 customer documents and requirements
+  'documentKind',
+  'documentRequirement',
+  'documentFlow',
+  'documentStep',
+  'documentState',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -891,6 +902,18 @@ const FIELD_KINDS = [
   ['quoteValidFrom', 'date'],
   ['restored', 'number'],
   ['quoteValidUntil', 'date'],
+  // J3 customer documents and requirements (never a digit of an identity number).
+  ['documentKind', 'documentKind'],
+  ['requirementKey', 'documentRequirement'],
+  ['sensitive', 'yesNo'],
+  ['identityNumbers', 'number'],
+  ['documentState', 'documentState'],
+  ['unfiledReason', 'text'],
+  ['flow', 'documentFlow'],
+  ['stepKey', 'documentStep'],
+  ['mandatory', 'yesNo'],
+  ['acceptedKinds', 'documentKinds'],
+  ['active', 'yesNo'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
@@ -1051,6 +1074,10 @@ function known(field: FieldKey, value: unknown, aggregateType: string | null): C
   if (kind === 'sizingReasons' && Array.isArray(value)) {
     const values = value.filter((v): v is string => typeof v === 'string');
     return values.length === 0 ? EMPTY : { kind: 'codes', group: 'sizingReason', values };
+  }
+  if (kind === 'documentKinds' && Array.isArray(value)) {
+    const values = value.filter((v): v is string => typeof v === 'string');
+    return values.length === 0 ? EMPTY : { kind: 'codes', group: 'documentKind', values };
   }
   if (kind === 'listCount') {
     return Array.isArray(value) ? { kind: 'number', value: value.length } : EMPTY;

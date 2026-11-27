@@ -41,7 +41,8 @@ type Rule =
   | { kind: 'context' }
   | { kind: 'grant'; key: PermissionKey; scope: Scope }
   | { kind: 'never' }
-  | { kind: 'any'; rules: readonly Rule[] };
+  | { kind: 'any'; rules: readonly Rule[] }
+  | { kind: 'all'; rules: readonly Rule[] };
 
 interface TableRule {
   /** Who sees a row of their own company. */
@@ -85,6 +86,19 @@ const VENDOR_READ: Rule = {
 };
 const RATE_READ = grant('procurement.rate.read', 'entity');
 
+/**
+ * J3: a customer's documents by documents.read at its scope (the matrix acts as the customer's
+ * owner); a sensitive one, and an identity document's last four digits, with
+ * documents.sensitive.read for the company as well.
+ */
+const DOCUMENT_READ = grant('documents.read', 'own');
+const SENSITIVE_DOCUMENT_READ: Rule = {
+  kind: 'all',
+  rules: [DOCUMENT_READ, grant('documents.sensitive.read', 'entity')],
+};
+const documentRead = (row: MatrixRow): Rule =>
+  row.sensitive === true ? SENSITIVE_DOCUMENT_READ : DOCUMENT_READ;
+
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
@@ -116,6 +130,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   call_transcript: LEAD_READ,
   // U1: a supplier's quote document shows the rate.
   vendor_quote: RATE_READ,
+  // J3: a customer document is read with its document (the fixture's are filed).
+  customer_document: DOCUMENT_READ,
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({
@@ -224,7 +240,10 @@ const RULES: Record<MatrixTable, TableRule> = {
   },
   files: {
     read: IMPORTS,
-    readRow: (row) => fileRead(row.purpose),
+    readRow: (row) =>
+      row.purpose === 'customer_document'
+        ? { kind: 'any', rules: [documentRead(row), grant('files.process', 'entity')] }
+        : fileRead(row.purpose),
     // A supplier's quote document named by a group quote is read with that quote in any company
     // (0234, review M2): no leak of another company's file.
     leak: (e, groupVisible) =>
@@ -376,6 +395,11 @@ const RULES: Record<MatrixTable, TableRule> = {
   vendor_contacts: { read: VENDOR_READ, leak: () => sql`false` },
   item_vendors: { read: VENDOR_READ, leak: () => sql`false` },
   vendor_quotes: { read: RATE_READ, group: RATE_READ, leak: otherCompany },
+  // J3: every principal acting in a company reads its requirements; documents and identity
+  // documents by documents.read, and a sensitive one with documents.sensitive.read too.
+  document_requirements: { read: CONTEXT, leak: otherCompany },
+  documents: { read: DOCUMENT_READ, readRow: documentRead, leak: otherCompany },
+  identity_documents: { read: SENSITIVE_DOCUMENT_READ, leak: otherCompany },
 };
 
 const TABLES = Object.keys(RULES) as MatrixTable[];
@@ -384,6 +408,7 @@ const ROLES: RoleKey[] = ROLE_SEED.map((r) => r.key);
 function allows(principal: Principal, rule: Rule | undefined): boolean {
   if (rule === undefined || rule.kind === 'never') return false;
   if (rule.kind === 'any') return rule.rules.some((r) => allows(principal, r));
+  if (rule.kind === 'all') return rule.rules.every((r) => allows(principal, r));
   return rule.kind === 'context' || hasGrant(principal.permissions, rule.key, rule.scope);
 }
 

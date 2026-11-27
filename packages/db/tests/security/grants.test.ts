@@ -197,6 +197,11 @@ describe('app_user role (docs/05-database.md §3)', () => {
     stock_movement_costs: { i: false, u: false },
     stock_balances: { i: false, u: false },
     item_costs: { i: false, u: false },
+    // J3: a requirement changes only its settings, a document only its unfiling (column grants);
+    // an identity document is written once with its document and never changed.
+    document_requirements: { i: true, u: false },
+    documents: { i: true, u: false },
+    identity_documents: { i: true, u: false },
   };
 
   /**
@@ -509,8 +514,13 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.dealer_credit_position(smallint,uuid,uuid)',
       // What a dial is checked against, for the workspaces' plan of a call (0161).
       'app.dial_facts(uuid,uuid)',
+      // J3: the completeness check a step's guard asks, counting documents its caller cannot read.
+      'app.documents_missing(smallint,uuid,uuid,text,text)',
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
+      // J3: a customer document is read by its uploader until it is filed
+      // (files_customer_document_read).
+      'app.file_is_filed(uuid)',
       // The ingest lookups of a form, its sealed Page token and a website key, which the lead
       // handlers and the website route ask as queries (I1).
       'app.ingest_key_find(text)',

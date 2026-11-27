@@ -406,6 +406,13 @@ export const ENTITY_TABLES = [
   'stock_movements',
   'stock_movement_costs',
   'stock_balances',
+  // J3: a company's document requirements, read by every principal acting in it; a customer's
+  // documents, read by documents.read per scope and a sensitive one only with
+  // documents.sensitive.read; an identity document's last four digits, read with its document
+  // and only with documents.sensitive.read (docs/03-roadmap-appendix/phase4.md §6.3)
+  'document_requirements',
+  'documents',
+  'identity_documents',
 ] as const;
 
 /**

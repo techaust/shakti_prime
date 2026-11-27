@@ -116,7 +116,13 @@ export async function openFile(
     const file = await executeQuery(principal, { requestId }, (ctx) => getStoredFile(ctx, fileId), {
       name: 'openFile',
     });
-    if (file?.status !== 'ready' || file.deletedAt !== null) {
+    // A customer document opens only through its document (`documents.view`), so the opening of
+    // an identity or bank paper is audited (J3, DATABASE §4.3).
+    if (
+      file?.status !== 'ready' ||
+      file.deletedAt !== null ||
+      file.purpose === 'customer_document'
+    ) {
       throw new DomainError('not_found', 'file not visible', { reason: 'file_missing' });
     }
     // Signed by the store that holds the file's bucket; a file kept elsewhere is not opened here.

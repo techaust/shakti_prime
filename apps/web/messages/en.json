@@ -564,7 +564,14 @@
     "bin_missing": "We couldn't find that bin. Refresh the page to see the current list.",
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
-    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it."
+    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "file_not_masked": "This file was not checked for identity numbers, so it cannot be filed. Upload it again.",
+    "document_file_not_ready": "This file is still being checked. Try again in a minute.",
+    "document_file_taken": "This file is already filed. Unfile it first to file it somewhere else.",
+    "document_sensitive_forbidden": "Only people who may see identity and bank papers can file one. Ask your project manager to file it.",
+    "document_kind_not_accepted": "This requirement does not take that kind of document. Choose the kind the requirement asks for.",
+    "document_missing": "We could not find this document. It may have been unfiled, or you may not be allowed to see it.",
+    "document_already_unfiled": "This document is already unfiled."
   },
   "auth": {
     "signIn": {
@@ -1991,7 +1998,11 @@
       "binArchive": "Bin archived",
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
-      "stockReverse": "Stock movement reversed"
+      "stockReverse": "Stock movement reversed",
+      "documentFile": "Filed a customer document",
+      "documentUnfile": "Unfiled a customer document",
+      "documentView": "Opened an identity or bank paper",
+      "documentRequirementSet": "Changed a document requirement"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2400,7 +2411,18 @@
       "purchaseUnit": "Unit it is bought in",
       "purchaseUnitFactor": "Stock units in one bought unit",
       "serialPattern": "Shape of its serial numbers",
-      "isStocked": "Kept in stock"
+      "isStocked": "Kept in stock",
+      "documentKind": "Kind of document",
+      "requirementKey": "Requirement",
+      "sensitive": "Identity or bank paper",
+      "identityNumbers": "Numbers kept as last four digits",
+      "documentState": "Document",
+      "unfiledReason": "Why it was unfiled",
+      "flow": "Flow",
+      "stepKey": "Step",
+      "mandatory": "Must be filed",
+      "acceptedKinds": "Kinds it takes",
+      "active": "In use"
     },
     "values": {
       "percent": "{value}%",
@@ -6855,6 +6877,54 @@
       "supplierWarrantyUntil": "Supplier's warranty until",
       "notSet": "Not set",
       "movements": "Movements"
+    }
+  },
+  "documents": {
+    "kind": {
+      "electricity_bill": "Electricity bill",
+      "identity_proof": "Identity proof",
+      "property_papers": "Property papers",
+      "site_photo": "Site photo",
+      "sanctioned_load_letter": "Sanctioned load letter",
+      "agreement": "Agreement",
+      "commissioning_report": "Commissioning report",
+      "net_meter_certificate": "Net meter certificate",
+      "bank_proof": "Bank proof"
+    },
+    "requirement": {
+      "electricity_bill": "Electricity bill",
+      "identity_proof": "Identity proof",
+      "property_papers": "Property papers",
+      "site_photos": "Site photos",
+      "sanctioned_load_letter": "Sanctioned load letter",
+      "agreement": "Agreement",
+      "commissioning_report": "Commissioning report",
+      "net_meter_certificate": "Net meter certificate",
+      "bank_proof": "Bank proof"
+    },
+    "flow": {
+      "standard": "Standard installation",
+      "surya_ghar": "PM Surya Ghar"
+    },
+    "step": {
+      "survey": "Survey",
+      "dispatch": "Dispatch",
+      "install": "Installation",
+      "commission": "Commissioning",
+      "handover": "Handover",
+      "load_enhancement": "Load increase",
+      "portal_registration": "Portal registration",
+      "feasibility": "Feasibility",
+      "agreement": "Agreement",
+      "material": "Material",
+      "installation": "Installation",
+      "qc": "Quality check",
+      "net_metering": "Net metering",
+      "dbt_tracking": "Subsidy payment"
+    },
+    "state": {
+      "filed": "Filed",
+      "unfiled": "Unfiled"
     }
   }
 }

@@ -104,6 +104,11 @@ import {
   BIN_KINDS,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // J3 customer documents and requirements
+  DOCUMENT_FLOWS,
+  DOCUMENT_KINDS,
+  DOCUMENT_REQUIREMENT_KEYS,
+  DOCUMENT_STEPS,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
@@ -429,6 +434,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const playbook = useTranslations('playbook');
   const targets = useTranslations('targets');
   const integrations = useTranslations('integrations');
+  const documents = useTranslations('documents');
   return (group, value) => {
     switch (group) {
       case 'state': {
@@ -614,6 +620,21 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(BIN_KINDS, value) ? t(`values.binKind.${value}`) : wordsOf(value);
       case 'stockReason':
         return oneOf(STOCK_REASONS, value) ? t(`values.stockReason.${value}`) : wordsOf(value);
+      // J3 customer documents and requirements
+      case 'documentKind':
+        return oneOf(DOCUMENT_KINDS, value) ? documents(`kind.${value}`) : wordsOf(value);
+      case 'documentRequirement':
+        return oneOf(DOCUMENT_REQUIREMENT_KEYS, value)
+          ? documents(`requirement.${value}`)
+          : wordsOf(value);
+      case 'documentFlow':
+        return oneOf(DOCUMENT_FLOWS, value) ? documents(`flow.${value}`) : wordsOf(value);
+      case 'documentStep':
+        return DOCUMENT_STEPS.includes(value) ? documents(`step.${value}`) : wordsOf(value);
+      case 'documentState':
+        return value === 'filed' || value === 'unfiled'
+          ? documents(`state.${value}`)
+          : wordsOf(value);
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
       case 'fileStatus':

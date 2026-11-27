@@ -107,6 +107,13 @@ import {
   SERIAL_STATES_OUT,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // J3 customer documents and requirements
+  DOCUMENT_FILED_BY_KINDS,
+  DOCUMENT_FLOWS,
+  DOCUMENT_KINDS,
+  DOCUMENT_REQUIREMENT_KEYS,
+  IDENTITY_DOCUMENT_KINDS,
+  SENSITIVE_DOCUMENT_KINDS,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -297,6 +304,19 @@ const PAIRS: Record<string, readonly string[]> = {
   serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
   stock_movements_reason_check: STOCK_REASONS,
   stock_movements_reversal_check: ['reversal'],
+  // J3: a requirement's flow, key and kinds; a document's key, kind and filer; identity and bank
+  // papers always sensitive; a classifier's filing, and only one, carries its confidence; an
+  // identity number's kind; only a customer document names its customer.
+  document_requirements_flow_check: DOCUMENT_FLOWS,
+  document_requirements_requirement_key_check: DOCUMENT_REQUIREMENT_KEYS,
+  document_requirements_accepted_kinds_check: DOCUMENT_KINDS,
+  documents_requirement_key_check: DOCUMENT_REQUIREMENT_KEYS,
+  documents_kind_check: DOCUMENT_KINDS,
+  documents_sensitive_check: SENSITIVE_DOCUMENT_KINDS,
+  documents_filed_by_kind_check: DOCUMENT_FILED_BY_KINDS,
+  documents_confidence_check: DOCUMENT_FILED_BY_KINDS,
+  identity_documents_kind_check: IDENTITY_DOCUMENT_KINDS,
+  files_account_check: ['customer_document'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

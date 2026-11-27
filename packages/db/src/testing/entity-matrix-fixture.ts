@@ -121,6 +121,10 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   stock_movements: 'x.id::text',
   stock_movement_costs: 'x.movement_id::text',
   stock_balances: 'x.id::text',
+  // J3 customer documents and requirements.
+  document_requirements: 'x.id::text',
+  documents: 'x.id::text',
+  identity_documents: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -157,6 +161,8 @@ export interface MatrixRow {
    * `messaging.send` for the whole company (the table's `readRow`).
    */
   unmatched?: true;
+  /** J3: a sensitive customer document, or its file: read only with `documents.sensitive.read`. */
+  sensitive?: true;
 }
 
 export interface EntityMatrixFixture {
@@ -242,6 +248,10 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from import_mapping_templates where id::text like ${like}`;
       await tx`delete from playbook_conflict_checks where id::text like ${like}`;
       await tx`delete from playbook_directives where id::text like ${like}`;
+      // J3: an identity document names its document and file, a document its file.
+      await tx`delete from identity_documents where id::text like ${like}`;
+      await tx`delete from documents where id::text like ${like}`;
+      await tx`delete from document_requirements where id::text like ${like}`;
       await tx`delete from knowledge_chunks where id::text like ${like}`;
       await tx`delete from knowledge_files where id::text like ${like}`;
       await tx`delete from files where id::text like ${like}`;
@@ -411,6 +421,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     stock_movements: [],
     stock_movement_costs: [],
     stock_balances: [],
+    // J3 customer documents and requirements.
+    document_requirements: [],
+    documents: [],
+    identity_documents: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -714,6 +728,30 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
             values (${fileId}, ${e}, ${purpose}, 'matrix', ${`matrix/${fileId}`}, 'matrix file', ${type}, 1, ${sha}, 'ready', ${ownerId})`;
         }
+        // J3: the company's customer's bill and identity paper, each filed from its own customer
+        // document, the paper's last four digits, and a requirement of the company.
+        const billFile = per(e, 0x90);
+        const idFile = per(e, 0x91);
+        await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, account_id, created_by) values
+          (${billFile}, ${e}, 'customer_document', 'matrix', ${`matrix/${billFile}`}, 'matrix file', 'image/jpeg', 1, ${sha}, 'ready', ${account}, ${ownerId}),
+          (${idFile}, ${e}, 'customer_document', 'matrix', ${`matrix/${idFile}`}, 'matrix file', 'image/jpeg', 1, ${sha}, 'ready', ${account}, ${ownerId})`;
+        await tx`insert into documents (id, entity_id, account_id, requirement_key, kind, file_id, sensitive, filed_by_kind, filed_by) values
+          (${billFile}, ${e}, ${account}, 'electricity_bill', 'electricity_bill', ${billFile}, false, 'person', ${ownerId}),
+          (${idFile}, ${e}, ${account}, 'identity_proof', 'identity_proof', ${idFile}, true, 'person', ${ownerId})`;
+        await tx`insert into identity_documents (id, entity_id, account_id, document_id, kind, last4, masked_file_id, created_by)
+          values (${idFile}, ${e}, ${account}, ${idFile}, 'aadhaar', '0000', ${idFile}, ${ownerId})`;
+        await tx`insert into document_requirements (id, entity_id, flow, step_key, requirement_key, mandatory, accepted_kinds, position)
+          values (${billFile}, ${e}, 'standard', 'handover', 'agreement', false, array['agreement'], 9)`;
+        rows.files.push(
+          { key: billFile, entities: only, purpose: 'customer_document' },
+          { key: idFile, entities: only, purpose: 'customer_document', sensitive: true },
+        );
+        rows.documents.push(
+          { key: billFile, entities: only },
+          { key: idFile, entities: only, sensitive: true },
+        );
+        rows.identity_documents.push({ key: idFile, entities: only, sensitive: true });
+        rows.document_requirements.push({ key: billFile, entities: only });
         await tx`insert into knowledge_files (id, entity_id, file_id, title, sensitivity, source_type, state, created_by)
           values (${vaultFile}, ${e}, ${per(e, 0x17)}, ${`matrix vault file ${e.toString()}`}, 'staff_ai_ok', 'pdf', 'indexed', ${ownerId})`;
         await tx`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
