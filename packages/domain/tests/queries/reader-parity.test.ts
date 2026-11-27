@@ -58,6 +58,15 @@ import {
   listVendors,
   readQuoteComparison,
 } from '../../src/queries/procurement/vendor-queries';
+// U2 purchase orders and goods receipt.
+import {
+  getPurchaseOrder,
+  getPurchaseOrderPrint,
+  getReceiveGoods,
+  listGoodsReceipts,
+  listPurchaseOrders,
+  listReorderRules,
+} from '../../src/queries/procurement/order-queries';
 import { listSizingPumps } from '../../src/queries/catalogue/list-sizing-pumps';
 import {
   dialNumber,
@@ -375,6 +384,16 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
   getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
+  // U2: company 1's orders and receipts judged on one day on both pools, and an order, its
+  // receiving and its print asked for an order that does not exist.
+  listPurchaseOrders: (ctx) =>
+    listPurchaseOrders(ctx, { entityId: 1, state: 'draft', limit: 20 }, QUOTES_AT),
+  getPurchaseOrder: (ctx) => getPurchaseOrder(ctx, { purchaseOrderId: newId() }, QUOTES_AT),
+  getPurchaseOrderPrint: (ctx) =>
+    getPurchaseOrderPrint(ctx, { purchaseOrderId: newId() }, QUOTES_AT),
+  getReceiveGoods: (ctx) => getReceiveGoods(ctx, { purchaseOrderId: newId() }, QUOTES_AT),
+  listGoodsReceipts: (ctx) => listGoodsReceipts(ctx, { entityId: 1, limit: 20 }),
+  listReorderRules: (ctx) => listReorderRules(ctx, { entityId: 1, itemId: newId() }),
 };
 
 /**
