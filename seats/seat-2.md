@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T14:47Z
+updated: 2026-11-27T15:13Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -10,14 +10,6 @@ run_file: docs/runs/phase3/u2-purchase-orders.md
 wait_for: none
 done_when: report: u2-purchase-orders early check
 note: Tier A; stop at the early check.
-
-lane: 5
-role: build
-branch: fix/calling-hours-clock
-run_file: docs/runs/phase3/calling-hours-clock.md
-wait_for: none
-done_when: report: calling-hours-clock done
-note: a fix: no early check; report done.
 
 lane: 11
 role: review

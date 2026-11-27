@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 3
-updated: 2026-11-27T14:47Z
+updated: 2026-11-27T15:13Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 25
@@ -58,3 +58,11 @@ run_file: docs/runs/phase5/tc2-tally-ingest.md
 wait_for: report: tc2-tally-ingest done
 done_when: review: tc2-tally-ingest done
 note: Tier A. Attack HMAC and replay, the connector principal's reach, purchase vouchers by grant.
+
+lane: 43
+role: review
+branch: fix/calling-hours-clock
+run_file: docs/runs/phase3/calling-hours-clock.md
+wait_for: report: calling-hours-clock done
+done_when: review: calling-hours-clock done
+note: Tier B

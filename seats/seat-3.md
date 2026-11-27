@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 5
-updated: 2026-11-27T14:47Z
+updated: 2026-11-27T15:13Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -26,14 +26,6 @@ run_file: docs/runs/phase3/u2-purchase-orders.md
 wait_for: report: u2-purchase-orders done
 done_when: review: u2-purchase-orders done
 note: Tier A. Attack rate isolation on every table, DTO, PDF, event and audit value; approval limits and self-approval; serial completeness at receipt; the moving average.
-
-lane: 16
-role: review
-branch: fix/calling-hours-clock
-run_file: docs/runs/phase3/calling-hours-clock.md
-wait_for: report: calling-hours-clock done
-done_when: review: calling-hours-clock done
-note: Tier B
 
 lane: 20
 role: build
@@ -90,3 +82,11 @@ run_file: docs/runs/phase5/tc1-tally-connector.md
 wait_for: report: tc1-tally-connector done
 done_when: review: tc1-tally-connector done
 note: Tier A. Attack key handling, read-only requests to Tally, idempotent resend, the outbox across a kill.
+
+lane: 42
+role: build
+branch: fix/calling-hours-clock
+run_file: docs/runs/phase3/calling-hours-clock.md
+wait_for: none
+done_when: report: calling-hours-clock done
+note: moved from seat 2 (lane 5 made no commit in an hour). A fix: no early check. Commit every 20 minutes even while reproducing; now (after 20:30 IST) is inside the failing window, so reproduce first.
