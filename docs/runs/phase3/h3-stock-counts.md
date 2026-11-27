@@ -116,7 +116,10 @@ Shared registration points take one line or one block each, kept together under 
 - `pnpm exec eslint --max-warnings 0` on every folder touched: clean.
 - `pnpm --filter @shakti/domain exec vitest run src`: 2866 passed.
 - `pnpm --filter web exec vitest run src/screens/audit.test.ts src/errors-catalogue.test.ts`: 25 passed.
-- `pnpm test:security`: SECURITY_RESULT
+- `pnpm copy-lint`: clean.
+- `pnpm test:security` (local Postgres on 54331):
+  - db 1804 passed (63 files); domain 1528 passed (111 files); web 460 passed, 1 failed (39 files). The one failure is `apps/web/tests/demo-data.test.ts` ("puts the items, kits and prices…", the retail list's `PUMP-3HP` price read as undefined). It fails alone as well. It is the known paging fault `fix/demo-data-ist-day` fixes (`699a5817`, "demo-data reads every page of the retail list's prices") and touches nothing of this slice.
+  - Slot database: an earlier run failed 4 of H1's hub tests (`MAX_PARAMETERS_EXCEEDED`). Three suite runs had left over 60 test transit hubs and about 150 test sites live, and `inventory.hub.create` pairs a new hub with every one of them. This slice's tests now make one godown each, with no transit hub, and archive it when the file ends. I archived the old test hubs in the slot database by hand (test data only; no hub is seeded). This slice's migrations were also rolled back and regenerated there once, before they were committed in their final form. A fresh database needs neither step.
 
 **Decisions the brief left to me:**
 1. **No series kind.** A count is not a statutory document. A new series would redefine `app.next_document_no()`, which U2 redefines in this wave. The sheet will name the count by its company, hub and start time.
