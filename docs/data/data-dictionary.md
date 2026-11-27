@@ -1240,7 +1240,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### customer_loans
 
-**Catalogue entry** (05-database.md §6.2; created in J2): `entity_id`, `account_id`, `sales_order_id` (composite key to the order's `(id, entity_id, account_id)`, `ON UPDATE CASCADE`, so a loan keeps its order's company and customer and follows the order through a customer merge), `lender_id` (composite key to a lender of the company's `(id, entity_id)`) or `lender_name` (typed once while the company has no active lender; exactly one of the two), `amount` (applied for, above zero), `state` (`applied`, `sanctioned`, `disbursed`, `rejected`; the `customer-loan` machine), `state_changed_at`, `sanctioned_amount` and `sanctioned_at` (set together, at the sanction, never changed), `disbursed_at` (only a disbursed loan), `reference` (the lender's own, a code of 1 to 60 characters), `rejected_reason` (only a rejected loan, 1 to 300 characters), `gates_json` (`{ dispatch: 'disbursed' | 'sanctioned' | 'none', milestones?: { key: 'sanctioned' | 'disbursed' } }`, `LoanGatesSchema`, dispatch on disbursal by default); one active loan per order (`customer_loans_active_unique`, a partial unique index over applied, sanctioned and disbursed); read with the customer's relationship in the loan's company (`account_entities`, as `dealer_terms`), by `app_user` and `app_reader`; inserted as applied by its maker with `crm.account.write` over that relationship on an order they read that is not cancelled, naming an active lender of the company or a typed name only while it has none; afterwards a person changes only the state, the sanction, the disbursal, the reference and the reason (column grants), and `app.guard_customer_loan()` holds the machine's moves; no delete; `app.order_loan_gate()` answers its gates
+**Catalogue entry** (05-database.md §6.2; created in J2): `entity_id`, `account_id`, `sales_order_id` (composite key to the order's `(id, entity_id, account_id)`, `ON UPDATE CASCADE`, so a loan keeps its order's company and customer and follows the order through a customer merge), `lender_id` (composite key to a lender of the company's `(id, entity_id)`) or `lender_name` (typed once while the company has no active lender; exactly one of the two), `amount` (applied for, above zero), `state` (`applied`, `sanctioned`, `disbursed`, `rejected`; the `customer-loan` machine), `state_changed_at`, `sanctioned_amount` and `sanctioned_at` (set together, at the sanction, never changed), `disbursed_at` (only a disbursed loan), `reference` (the lender's own, a code of 1 to 60 characters), `rejected_reason` (only a rejected loan, 1 to 300 characters), `gates_json` (`{ dispatch: 'disbursed' | 'sanctioned' | 'none' }` and no other key, `LoanGatesSchema`, dispatch on disbursal by default; a missing dispatch fails the check), `gates_waived_at`, `gates_waived_by` and `gates_waived_reason` (set together, once, only on a rejected loan, with `crm.account.write:entity`: the order no longer waits on it, `crm.loan.gates.waive`); one active loan per order (`customer_loans_active_unique`, a partial unique index over applied, sanctioned and disbursed); read with the customer's relationship in the loan's company (`account_entities`, as `dealer_terms`), by `app_user` and `app_reader`; inserted as applied by its maker with `crm.account.write` over that relationship on an order they read that is not cancelled, naming an active lender of the company or a typed name only while it has none; afterwards a person changes only the state, the sanction, the disbursal, the reference, the reason and the waiver (column grants), sanctions and pays out only on an order they read that is not cancelled, and `app.guard_customer_loan()` holds the machine's moves and the waiver; no delete; `app.order_loan_gate()` answers its gates
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1259,6 +1259,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `reference` | text | yes |  |  |
 | `rejected_reason` | text | yes |  |  |
 | `gates_json` | jsonb | no | `'{"dispatch":"disbursed"}'::jsonb` |  |
+| `gates_waived_at` | timestamp with time zone | yes |  |  |
+| `gates_waived_by` | uuid | yes |  | → `principals.id` |
+| `gates_waived_reason` | text | yes |  |  |
 | `created_at` | timestamp with time zone | no | `now()` |  |
 | `updated_at` | timestamp with time zone | no | `now()` |  |
 | `created_by` | uuid | no |  | → `principals.id` |
@@ -1273,6 +1276,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `customer_loans_account_id_accounts_id_fk`: (`account_id`) → `accounts` (`id`)
 - `customer_loans_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
 - `customer_loans_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
+- `customer_loans_gates_waived_by_principals_id_fk`: (`gates_waived_by`) → `principals` (`id`)
 - `customer_loans_lender_fk`: (`lender_id`, `entity_id`) → `lenders` (`id`, `entity_id`)
 - `customer_loans_order_fk`: (`sales_order_id`, `entity_id`, `account_id`) → `sales_orders` (`id`, `entity_id`, `account_id`)
 - `customer_loans_updated_by_principals_id_fk`: (`updated_by`) → `principals` (`id`)
@@ -1281,13 +1285,14 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `customer_loans_amounts_check`: `"customer_loans"."amount" > 0 and ("customer_loans"."sanctioned_amount" is null or "customer_loans"."sanctioned_amount" > 0)`
 - `customer_loans_disbursed_check`: `("customer_loans"."state" = 'disbursed') = ("customer_loans"."disbursed_at" is not null)`
-- `customer_loans_gates_check`: `jsonb_typeof("customer_loans"."gates_json") = 'object' and ("customer_loans"."gates_json" -> 'milestones' is null or jsonb_typeof("customer_loans"."gates_json" -> 'milestones') = 'object')`
-- `customer_loans_gates_dispatch_check`: `"customer_loans"."gates_json" ->> 'dispatch' in ('disbursed', 'sanctioned', 'none')`
+- `customer_loans_gates_check`: `jsonb_typeof("customer_loans"."gates_json") = 'object' and "customer_loans"."gates_json" - 'dispatch' = '{}'::jsonb`
+- `customer_loans_gates_dispatch_check`: `coalesce("customer_loans"."gates_json" ->> 'dispatch', '') in ('disbursed', 'sanctioned', 'none')`
 - `customer_loans_lender_check`: `("customer_loans"."lender_id" is null) <> ("customer_loans"."lender_name" is null) and ("customer_loans"."lender_name" is null or length(btrim("customer_loans"."lender_name")) between 2 and 120)`
 - `customer_loans_reference_check`: `"customer_loans"."reference" is null or length(btrim("customer_loans"."reference")) between 1 and 60`
 - `customer_loans_rejected_check`: `("customer_loans"."state" = 'rejected') = ("customer_loans"."rejected_reason" is not null) and ("customer_loans"."rejected_reason" is null or length(btrim("customer_loans"."rejected_reason")) between 1 and 300)`
 - `customer_loans_sanction_check`: `("customer_loans"."sanctioned_amount" is null) = ("customer_loans"."sanctioned_at" is null) and ("customer_loans"."state" not in ('sanctioned', 'disbursed') or "customer_loans"."sanctioned_at" is not null) and ("customer_loans"."state" <> 'applied' or "customer_loans"."sanctioned_at" is null)`
 - `customer_loans_state_check`: `"customer_loans"."state" in ('applied', 'sanctioned', 'disbursed', 'rejected')`
+- `customer_loans_waiver_check`: `("customer_loans"."gates_waived_at" is null) = ("customer_loans"."gates_waived_by" is null) and ("customer_loans"."gates_waived_at" is null) = ("customer_loans"."gates_waived_reason" is null) and ("customer_loans"."gates_waived_at" is null or "customer_loans"."state" = 'rejected') and ("customer_loans"."gates_waived_reason" is null or length(btrim("customer_loans"."gates_waived_reason")) between 1 and 300)`
 
 **Indexes**
 
@@ -1306,7 +1311,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `customer_loans_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and state = 'applied' and sanctioned_amount is null and sanctioned_at is null and disbursed_at is null and rejected_reason is null and exists (select 1 from account_entities ae where ae.account_id = customer_loans.account_id and ae.entity_id = customer_loans.entity_id and app.scope_ok('crm.account.write', ae.owner_id, ae.team_id)) and exists (select 1 from sales_orders so where so.id = customer_loans.sales_order_id and so.entity_id = customer_loans.entity_id and so.state <> 'cancelled') and (lender_id is null or exists (select 1 from lenders l where l.id = customer_loans.lender_id and l.entity_id = customer_loans.entity_id and l.is_active)) and (lender_name is null or not exists (select 1 from lenders l where l.entity_id = customer_loans.entity_id and l.is_active))`
 - `customer_loans_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from account_entities ae where ae.account_id = customer_loans.account_id and ae.entity_id = customer_loans.entity_id)`
-- `customer_loans_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from account_entities ae where ae.account_id = customer_loans.account_id and ae.entity_id = customer_loans.entity_id and app.scope_ok('crm.account.write', ae.owner_id, ae.team_id))`; with check `entity_id = any ((select app.entity_ids())::int[]) and updated_by = (select app.user_id()) and exists (select 1 from account_entities ae where ae.account_id = customer_loans.account_id and ae.entity_id = customer_loans.entity_id and app.scope_ok('crm.account.write', ae.owner_id, ae.team_id))`
+- `customer_loans_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from account_entities ae where ae.account_id = customer_loans.account_id and ae.entity_id = customer_loans.entity_id and app.scope_ok('crm.account.write', ae.owner_id, ae.team_id))`; with check `entity_id = any ((select app.entity_ids())::int[]) and updated_by = (select app.user_id()) and exists (select 1 from account_entities ae where ae.account_id = customer_loans.account_id and ae.entity_id = customer_loans.entity_id and app.scope_ok('crm.account.write', ae.owner_id, ae.team_id)) and (state in ('applied', 'rejected') or exists (select 1 from sales_orders so where so.id = customer_loans.sales_order_id and so.entity_id = customer_loans.entity_id and so.state <> 'cancelled'))`
 
 ### customer_merges
 

@@ -867,7 +867,8 @@ const eventCatalogue = {
       .object({
         salesOrderId: IdSchema,
         state: z.enum(['sanctioned', 'disbursed', 'rejected']),
-        dispatch: z.literal(true),
+        // True: the event is raised only when the dispatch was released.
+        dispatch: z.boolean(),
       })
       .strict(),
   },

@@ -345,6 +345,9 @@ erDiagram
     text reference "null"
     text rejected_reason "null"
     jsonb gates_json
+    timestamptz gates_waived_at "null"
+    uuid gates_waived_by FK "null"
+    text gates_waived_reason "null"
     timestamptz created_at
     timestamptz updated_at
   }
@@ -721,6 +724,7 @@ erDiagram
   contact_phones }o--|| contacts : "contact_id"
   customer_loans }o--|| accounts : "account_id"
   customer_loans }o--|| entities : "entity_id"
+  customer_loans }o--o| principals : "gates_waived_by"
   customer_loans }o--o| lenders : "lender_id, entity_id"
   customer_loans }o--|| sales_orders : "sales_order_id, entity_id, account_id"
   customer_merges }o--o| duplicate_candidates : "candidate_id"

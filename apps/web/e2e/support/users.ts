@@ -107,7 +107,7 @@ export const SIGNED_IN_ROLES = [
   // through its sanction and payout (loans.spec.ts).
   {
     key: 'journeyManager',
-    name: 'Mahesh Kumawat',
+    name: 'Dinesh Gurjar',
     roleKey: 'general_manager',
     entityIds: [2],
     twoFactor: true,

@@ -78,7 +78,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`crm.loan.sanctioned`](#crmloansanctioned) | The lender sanctioned a customer's loan for an amount. | `crm.loan.sanction` | none |
 | [`crm.loan.disbursed`](#crmloandisbursed) | The lender paid out a customer's sanctioned loan. | `crm.loan.disburse` | none |
 | [`crm.loan.rejected`](#crmloanrejected) | The lender turned down a customer's loan; the owner of the order's lead, or of the customer where the order has none, is told so another route can be offered. | `crm.loan.reject` | `POST /api/v1/workers/outbox/crm.loan.rejected` (QStash URL group `evt-crm.loan.rejected`) |
-| [`crm.loan.gates_released`](#crmloangates_released) | A customer's loan reached the state its gates wait for: `dispatch` says the order's dispatch may leave, `milestones` names the payment milestones released. | `crm.loan.sanction`, `crm.loan.disburse` | none |
+| [`crm.loan.gates_released`](#crmloangates_released) | What a customer's loan held back is released: the order's dispatch may leave, as the loan reached the state it waited for or the order no longer waits on a turned-down loan. | `crm.loan.sanction`, `crm.loan.disburse`, `crm.loan.gates.waive` | none |
 
 ### Pricing
 
@@ -707,6 +707,5 @@ No fields apart from `v`.
 | Field | Type |
 |---|---|
 | `salesOrderId` | id |
-| `state` | one of `sanctioned`, `disbursed` |
+| `state` | one of `sanctioned`, `disbursed`, `rejected` |
 | `dispatch` | true or false |
-| `milestones` | list of text matching `^[a-z][a-z0-9_]{0,39}$` |
