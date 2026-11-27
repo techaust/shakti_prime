@@ -5,9 +5,9 @@
 | Branch | `feat/j1-projects` on GitHub, from `main` after the approved design (#295) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): row security with a new `own` scope, a platform-only drafting worker |
-| Usage | briefed 27-11-2026; built from 27-11-2026 on Opus 5.5 at high effort, on the seat's own account |
-| State | done |
-| Next step | the lead: review, the journeys and the Linux baselines, integration (the owner's `checks-ok` for `js-budget.json`) |
+| Usage | briefed 27-11-2026; built from 27-11-2026 on Opus 5.5 at high effort, on the seat's own account; the fix round on 27-11-2026, Opus 5.5 at high effort |
+| State | fixes done (the one fix round) |
+| Next step | the lead: read the fix round's diff, the Linux baselines (two new pictures: `project-start-dialog`, `account-projects`), integration (the owner's `checks-ok` for `js-budget.json`) |
 
 ## Brief
 Build [phase4 §5](../../03-roadmap-appendix/phase4.md#5-the-project-model) and [§6.1](../../03-roadmap-appendix/phase4.md#61-j1-projects-and-the-standard-flow) as written, with questions 1 (a) and 2 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -258,6 +258,65 @@ The lead accepted the early check, decisions 1 to 8 included (27-11, 16:25 UTC).
 5. **Tabs are links** (`?tab=`), rendered on the server. After each move the page is read again with `router.refresh()`.
 6. **The steps editor never shows requirement keys:** J3 will add a picker. A kept step keeps the requirements it had.
 7. **Start project lives on the order page** for a confirmed order without a project not cancelled, for `projects.write:entity`. It uses the lead's business line or the one chosen.
+
+### 27-11-2026, seat (cloud VM, worktree `/home/user/shakti-wt/j1-projects`, Postgres 54332): fixes
+The one fix round: all nine review findings, as the lead's triage says. Opus 5.5 at high effort. No skill is named by the triage; the `add-command` and `add-table` checklists were followed from the early check.
+
+**What changed, by finding:**
+1. **The filters' owners at `own` scope.** `listProjectFilters` now reads the owners of the caller's own projects named by id (`ownProjectIds()`), as the list does; the read is `projectOwnersQuery()`, and `ownProjectIdsQuery()` is the own-ids read, both unexecuted so the spike reads their plans. `EXPLAIN (ANALYZE, BUFFERS)` at volume (35,000 projects, 175,000 steps, 69,662 assignments; `tests/spike/projects-explain.ts`):
+
+   | Read | Execution time | Plan |
+   |---|---|---|
+   | Field Engineer, the filters' owners | 0.9 ms | `Index Scan using projects_pkey … Index Cond: (id = ANY ('{…12 ids…}'::uuid[]))`, hash join to `principals` (was about 235 ms: the policy over every project of the company) |
+   | Project Manager, the filters' owners | 7.9 ms | `Index Scan using projects_owner_idx`, merge join to `principals`, 5,000 owned rows |
+   | Field Engineer, own ids (finding 8's order) | 1.6 ms | `projects_owner_idx` and `project_assignments_person_idx` merged, then a sort of the 12 by open first and newest change |
+   | Field Engineer, first page; active at install | 1.2 ms; 1.7 ms | unchanged from the done report |
+   | Project Manager, first page; on hold; own of a segment; step install | 0.8; 1.0; 1.0; 2.4 ms | unchanged |
+   | Every project of company 1 under the policy alone (the reference) | 237.8 ms | `app.project_is_mine()` per row |
+2. **A cancelled order's project.**
+   - `sales.order.cancelled` is now subscribed. Its worker (`apps/web/src/workers/projects/order-cancelled-event.ts`) runs the new platform command `projects.project.cancel_for_order` (`packages/domain/src/commands/projects/cancel-for-order.ts`) as `system:workers` with the platform-only `projects.draft`.
+   - A standard project in progress or on hold with no step done is cancelled through the `project_standard` machine's `cancel` (now `system: true`), with the reason `order_cancelled` (`PROJECT_ORDER_CANCELLED_REASON`; the project page shows "Cancelled because its order was cancelled."). It emits `projects.project.cancelled`.
+   - Otherwise (a step done, completed, or a PM Surya Ghar project) the project is kept and the new event `projects.project.order_cancelled` (ids only, subscribed, routed to the notify route) gives a new notice kind, `project_order_cancelled`, to the project's owner, or, when it has none who may receive notices, the company's people whose role holds `projects.write` at company scope (Project Managers and General Managers, not the Executive). Once per project. The notice opens the project.
+   - Definers (custom migration `0246_j1_review_fixes.sql`): `app.order_cancelled_project()` and `app.cancel_order_project()` (`projects.draft:entity` only), `app.notice_project_people()` (`notifications.send`). Generated migration `0245_j1_order_cancelled_notice.sql` widens the notice type and subject checks (`NOT VALID`, as the migration rules ask).
+   - `app.status_summary()` is replaced in place from the branch's latest (0242, which keeps every line of 0201) with one change: the project branch joins its order and leaves out a project of a cancelled order. Diffed against 0242: only that join and its comment differ.
+3. **Guards.** `app.projects_guard()` now also refuses a change of `state`, `state_changed_at`, `hold_reason` or `cancel_reason` without `projects.write:entity` or `projects.draft:entity`. The new `app.project_milestones_guard()` lets a caller without `projects.write:entity` change a step only from open to done, marked by themselves (`done_by = app.user_id()`), on a project in progress, with no earlier step open.
+4. **The chosen business line is honoured.** `projects.project.create` takes the segment the manager chose, else the lead's; the dialog keeps its "The lead's business line" default.
+5. **Surya Ghar rows** in `/projects` and on Account 360 read "Tracked in the PM Surya Ghar steps", not "All steps done".
+6. **`projects.milestones.missing` is removed** until J3: a failure reaches the browser without its details, so the list cannot be shown today. J3 adds the sentence with the requirement names.
+7. **Step titles in the filter.** `ProjectFiltersDto.steps` is now `{ key, title }`, each key with the newest title published for it (null for a default step never published, which the screen names from the catalogue).
+8. **Own ids are ordered:** open projects (in progress or on hold) first, then the newest change, at most 1,000.
+9. **Journeys:** `projects.spec.ts` gains "as the Project Manager, an order with no project": Account 360 empty, Start project on the order page (axe, snapshot `project-start-dialog`), the new project's page, the order's link to it, and Account 360's Projects with it (axe, snapshot `account-projects`, its number masked). The seed adds per journey project a confirmed order of a customer of its own, and removes the projects a journey started with the seed's orders.
+
+**Tests added or changed:**
+- `packages/db/tests/security/projects.test.ts` (89 → 93): an engineer's direct change of state, hold or cancel reason, or `state_changed_at` refused (42501) and a manager's allowed; an engineer's step done as themselves in order allowed, and done for someone else, out of order, skipped, reopened, or on a held project refused; `app.order_cancelled_project()` and `app.cancel_order_project()` for the platform only (refused to the Project Manager, Executive, Field Engineer, an agent and the platform of another company), cancelling only a project of a cancelled order; `app.notice_project_people()` refused without `notifications.send`; STATUS leaves out project C, whose order is cancelled. The fixture gains project A's second step and, under its own prefix, a cancelled order with project C. The existing engineer write case now touches `updated_at` (its old `state_changed_at` is refused by the guard, as it should be).
+- `packages/domain/tests/commands/projects.test.ts` (21 → 27): the chosen business line over the lead's; the own ids open first; the filters' step titles and an engineer's owners; `cancel_for_order` cancels a held project with no step done once (a replay emits nothing), keeps one with a step done and tells its owner once (two notify runs), tells the company's managers and not the Executive or the engineer when it has no owner, keeps a Surya Ghar project, leaves a live order's project, and is refused to people, agents and the platform of another company.
+- `apps/web/tests/projects.test.ts` (2 → 4): the `sales.order.cancelled` worker cancels once over three deliveries; it keeps a project with a step done, and the notify worker's notice reaches the company's Project Manager.
+- `agent-refusals.test.ts` lists the new command in the platform's work; `catalogue.test.ts` the two new subscribed types; `notices.test.ts` the notice's link.
+- The generated `machines.test.ts` case "project_standard refused to the platform: cancel" is gone, since the platform may now fire `cancel` (domain unit 2811 → 2810).
+
+**Checks** (Postgres 54332, every one through `tools/integration/heavy.sh`):
+- `pnpm test:security`: db 63 files, 1890 tests passed; domain 111 files, 1546 passed; web 40 files, 465 passed. Exit 0.
+- `pnpm typecheck`: 10 of 10 tasks successful.
+- Unit tests: contracts 340, db 162, domain 2810 and web 1246 (1 skipped) passed.
+- `pnpm exec eslint --max-warnings 0` on every folder touched: clean. Whole-repository `pnpm lint`, the final check: clean, exit 0.
+- `pnpm copy-lint`: clean. `pnpm db:docs` and `machines:docs`: regenerated and committed.
+- `pnpm build`: successful (web cache miss). `pnpm --filter web js-budget`: every page within its budget (68 pages; `/projects` 239.2 of 251 kB).
+- **Journeys:** `pnpm --filter web e2e:seed && pnpm --filter web exec playwright test e2e/projects.spec.ts`: 29 passed (the sign-in setup and four journeys on desktop light, dark and phone), none flaky. There are no baselines yet, so Playwright wrote the pictures, which I looked at and removed; none is committed.
+- 0245 was edited after it ran here (`NOT VALID`); it was applied again as on disk and its recorded hash updated, so the seed's check that every migration is applied as written passed. A fresh database applies it as written.
+
+**Decisions the triage left open:**
+1. **Finding 4: honour the choice** (not hide it): the dialog already offers "The lead's business line" as its default, so a manager who picks another line means it.
+2. **A Surya Ghar project of a cancelled order is kept and its manager told**, since its flow is J4's; a completed project is kept too.
+3. **The platform's cancel reason is a code** (`order_cancelled`), shown in words on the project page; it is not written to the activity log's fields, whose action name says it.
+4. **Without an owner, the notice goes to the company's Project Managers and General Managers** (`projects.write` at company scope), not the Executives (`all`).
+5. **The fixes are two new migrations** rather than edits to 0241 and 0242, so this database needed no rebuild; the lead renumbers them after `main`'s.
+
+**For the lead:**
+- `main` now has `0240_x4_stock_reasons`; this branch's migrations move after it at the merge, 0245 and 0246 included.
+- 0246 redefines `app.projects_guard()` and `app.status_summary()` (the latter from 0242's body).
+- `sales.order.cancelled` and `projects.project.order_cancelled` are now subscribed. The publisher makes their QStash URL groups on first use; `projects.project.order_cancelled` goes to the notify route.
+- New shared lines: `notifications.ts` (a notice kind, a subject type, a notice event), `notify.ts`, `notify-event.ts`, `qstash.ts`, `notices.ts`, the worker registry and `en.json` (`notifications.types`, `pushAlerts`, `activity`).
+- The run file stays orphaned for the document link check (the index is the lead's).
 
 ## Review
 
