@@ -15,7 +15,7 @@ Tally Prime is the group's statutory ledger, one Tally company per selling entit
 - **Daily GUID snapshot → tombstones:** once a day the connector sends every voucher GUID per company (`POST /connector/tally/snapshot`). A voucher the BOS holds that is missing from the snapshot becomes a row in `tally_voucher_tombstones`, which reverses its effect on milestones, outstanding and reconciliation and appears in the review queue; nothing is deleted.
 - **Restricted purchase data:** purchase and debit-note vouchers land in `tally_purchase_vouchers`, readable only with `procurement.rate.read`.
 - **Heartbeat:** every 5 minutes with versions, reachability and queue depth (`POST /connector/tally/heartbeat`); 30 minutes of silence raises an alert, and the version and last sync time show on Integration Health.
-- **Signed self-update:** the connector polls `GET /connector/release` and installs a release only when its CI signature verifies with the release key shipped in the installer and its SHA-256 matches.
+- **Signed self-update:** the connector polls `GET /connector/tally/release` and installs a release only when its CI signature verifies with the release key shipped in the installer and its SHA-256 matches.
 - **HMAC authentication:** a per-connector key signs every request with HMAC-SHA256 over method, path, timestamp and body hash (`connectorSigningString()`), with a 5-minute clock-skew window; the key is kept in the connector's encrypted local configuration, rotated every 6 months, and revocable from the BOS.
 
 ## Consequences

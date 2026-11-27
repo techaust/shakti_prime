@@ -253,7 +253,7 @@ The owner decided all eleven on 27-11-2026, each the recommended option (a).
 - Routes `cursor`, `batches`, `snapshot`, `heartbeat` and `release` (no release until TC4) under `/api/v1/connector/tally/`; the commands `tally.batch.ingest`, `tally.snapshot.record`, `tally.snapshot.confirm`, `tally.heartbeat.record`, `tally.connector.register`, `.map`, `.unmap`, `.rotate`, `.retire_key`, `.revoke` and `.record_alert`; the `tally-voucher` machine in use (`ingest`, `alter`, `tombstone`).
 - Snapshots: a snapshot over `diffSnapshot`'s limits held for Accounts; one too large for a function (4.5 MB) sent in parts under one id, kept until the last and compared then, dropped a day later if incomplete; ledger balances stored with their date; GUIDs the BOS lacks and rows the connector refused kept for TC3's review queue.
 - Screens: Admin › Integrations › Tally (`/admin/integrations/tally`), Tally checks for Accounts (`/tally-checks`), and the Tally section of Integration health (health, lag, records waiting and set aside); the silence and held-rows alerts in the hourly jobs check through Sentry; the journeys in `apps/web/e2e/tally.spec.ts`.
-- Decisions the design left open, taken by the builder: a group company may map several Tally companies (one per financial year), a Tally company one connector; the cursor is per company and Tally name; a snapshot compares only the vouchers dated from its `fromDate`; a tombstoned voucher sent again keeps its state; the heartbeat leaves an unmapped name out; the release route sits under `connector/tally/` (the contract's endpoint names `/connector/release`, for TC4 to settle).
+- Decisions the design left open, taken by the builder: a group company may map several Tally companies (one per financial year), a Tally company one connector; the cursor is per company and Tally name; a snapshot compares only the vouchers dated from its `fromDate`; a tombstoned voucher sent again keeps its state; the heartbeat leaves an unmapped name out; the release route is `/connector/tally/release`, beside the other routes, and the endpoint catalogue names it there.
 
 ## 7. Wave 2
 
@@ -316,7 +316,7 @@ The owner decided all eleven on 27-11-2026, each the recommended option (a).
 - **Storage:** a `salary_sheets` row keeps the file.
 
 ### 9.2 TC4 Self-update, Integration health and the outage test
-- **Updates:** the connector checks `GET /connector/release` daily, verifies the Ed25519 signature, swaps and keeps the last good version (question 2). CI builds and signs each connector release on a tag (a release workflow change: the owner's `checks-ok`, and the signing key as a GitHub secret, the owner's action).
+- **Updates:** the connector checks `GET /connector/tally/release` daily, verifies the Ed25519 signature, swaps and keeps the last good version (question 2). CI builds and signs each connector release on a tag (a release workflow change: the owner's `checks-ok`, and the signing key as a GitHub secret, the owner's action).
 - **Integration health:** the version, the last sync per company, the lag and the outbox depth.
 - **The outage test:** a scripted 3-day outage against the fixture server and the local BOS. The connector catches up in order with nothing twice and nothing lost (the exit gate's second item, rehearsed now and run on the office PC in the final phase).
 

@@ -933,6 +933,7 @@ export const API_FIXTURES: Record<
       connectors: [
         {
           connectorId: IDS.connector,
+          name: 'Office computer',
           entityId: 1,
           company: 'Shakti Supreme 2026-27',
           connectorVersion: '1.3.2',
@@ -940,7 +941,12 @@ export const API_FIXTURES: Record<
           lastHeartbeatAt: '2026-09-27T05:05:00.000Z',
           lastBatchAt: '2026-09-27T05:01:12.000Z',
           queueDepth: 0,
+          heldRows: 0,
+          health: 'ok',
           silent: false,
+          reachable: true,
+          lag: 3,
+          problem: null,
         },
       ],
       whatsapp: [

@@ -44,6 +44,15 @@ export const API_ERROR_REASONS = [
   'ingest_key_refused',
   'ingest_key_other_company',
   'lead_source_missing',
+  // The Tally connector's routes (docs/06-api.md §3.5, TC2).
+  'tally_connector_refused',
+  'tally_body_too_large',
+  'tally_idempotency_key_missing',
+  'tally_company_not_mapped',
+  'tally_voucher_other_company',
+  'tally_voucher_type_changed',
+  'tally_snapshot_part_mismatch',
+  'tally_no_release',
 ] as const;
 export const ApiErrorReasonSchema = z.enum(API_ERROR_REASONS);
 export type ApiErrorReason = z.infer<typeof ApiErrorReasonSchema>;

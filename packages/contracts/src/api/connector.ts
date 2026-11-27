@@ -368,7 +368,7 @@ export const ConnectorAnswers = {
 };
 
 /**
- * `GET /connector/release`: the latest release manifest, signed by CI. The connector installs an
+ * `GET /connector/tally/release`: the latest release manifest, signed by CI. The connector installs an
  * update only when `signature` verifies over `version`, `sha256` and `url` with the release key
  * it ships with.
  */

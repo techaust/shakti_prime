@@ -452,7 +452,7 @@ export const API_ENDPOINTS = {
   },
   'connector.release': {
     method: 'GET',
-    path: '/connector/release',
+    path: '/connector/tally/release',
     auth: 'connector_hmac',
     idempotencyKey: false,
     response: ConnectorReleaseResponse,

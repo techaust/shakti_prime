@@ -36,6 +36,8 @@ export const BOS_PREFIXES = [
   '/catalogue',
   // U1 vendors and supplier quotes.
   '/procurement',
+  // TC2 Tally checks.
+  '/tally-checks',
   '/admin',
   '/settings',
   '/design',

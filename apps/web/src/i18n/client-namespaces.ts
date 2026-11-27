@@ -40,6 +40,7 @@ export const CLIENT_SCOPES = {
     'quotes',
     'roles',
     'sizing',
+    'tallyConnectors',
     'targets',
     'users',
   ],
@@ -111,6 +112,8 @@ export const CLIENT_SCOPES = {
     'whatsappTemplates',
   ],
   '/targets': ['targets'],
+  // TC2 Tally checks.
+  '/tally-checks': ['tallyChecks'],
 } as const satisfies Record<string, readonly Namespace[]>;
 
 export type ClientScope = keyof typeof CLIENT_SCOPES;
