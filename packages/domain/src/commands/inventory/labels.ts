@@ -54,30 +54,26 @@ async function assertTargets(
   }
 }
 
-/** Asks the render worker for the sheet, and answers it. */
-function requestSheet(
+/** A new sheet of the company's labels, at its kind's stock size. */
+function newSheet(
   ctx: CommandContext,
   entityId: number,
   labelKind: PrintableLabelKind,
   ids: readonly string[],
 ): LabelSheetDto {
-  const sheetId = newId();
-  const size = WORKSHOP_DEFAULTS.labels.sizeByKind[labelKind];
-  ctx.emit({
-    type: 'print.labels.requested',
-    entityId,
-    aggregateType: 'label_sheet',
-    aggregateId: sheetId,
-    payload: { sheetId, labelKind, size, ids: [...ids] },
-  });
   return {
-    sheetId,
+    sheetId: newId(),
     entityId,
     labelKind,
-    size,
+    size: WORKSHOP_DEFAULTS.labels.sizeByKind[labelKind],
     count: ids.length,
     requestedAt: ctx.now.toISOString(),
   };
+}
+
+/** What `print.labels.requested` carries for the render worker: ids, a kind and a size. */
+function sheetPayload(sheet: LabelSheetDto, ids: readonly string[]) {
+  return { sheetId: sheet.sheetId, labelKind: sheet.labelKind, size: sheet.size, ids: [...ids] };
 }
 
 /**
@@ -95,7 +91,14 @@ export const printLabels = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     await assertTargets(ctx, input.entityId, input.labelKind, input.ids);
-    const sheet = requestSheet(ctx, input.entityId, input.labelKind, input.ids);
+    const sheet = newSheet(ctx, input.entityId, input.labelKind, input.ids);
+    ctx.emit({
+      type: 'print.labels.requested',
+      entityId: input.entityId,
+      aggregateType: 'label_sheet',
+      aggregateId: sheet.sheetId,
+      payload: sheetPayload(sheet, input.ids),
+    });
     ctx.audit({
       aggregateType: 'label_sheet',
       aggregateId: sheet.sheetId,
@@ -121,7 +124,14 @@ export const reprintLabels = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     await assertTargets(ctx, input.entityId, input.labelKind, input.ids);
-    const sheet = requestSheet(ctx, input.entityId, input.labelKind, input.ids);
+    const sheet = newSheet(ctx, input.entityId, input.labelKind, input.ids);
+    ctx.emit({
+      type: 'print.labels.requested',
+      entityId: input.entityId,
+      aggregateType: 'label_sheet',
+      aggregateId: sheet.sheetId,
+      payload: sheetPayload(sheet, input.ids),
+    });
     for (const id of input.ids) {
       ctx.audit({
         aggregateType: input.labelKind,

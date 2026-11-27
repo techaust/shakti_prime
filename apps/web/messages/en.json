@@ -2651,7 +2651,12 @@
     "label": {
       "serial": "Serial number",
       "item": "Item code",
-      "scan": "Scan for warranty"
+      "hub": "Hub",
+      "dispatch": "Dispatch number",
+      "package": "Package",
+      "packageOf": "{n} of {count}",
+      "place": "Deliver to",
+      "fileName": "{count, plural, one {# label} other {# labels}}.pdf"
     },
     "company": {
       "gstin": "GSTIN",

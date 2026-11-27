@@ -119,10 +119,10 @@ describe('labels', () => {
   it('prints one label per entry with its own QR code', async () => {
     const labels = spikeLabels(3);
     const page = await renderLabelsHtml(labels, '50x25');
-    expect(page.match(/<div class="label">/g)).toHaveLength(3);
+    expect(page.match(/<div class="label serial">/g)).toHaveLength(3);
     expect(page).toContain('@page{size:50mm 25mm;margin:0;}');
     for (const label of labels) {
-      expect(page).toContain(label.serial);
+      expect(page).toContain(label.serialNo);
       expect(page).toContain(await qrSvg(label.qrPayload));
     }
     expect(page).toContain(en.print.label.serial);

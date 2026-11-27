@@ -5,6 +5,9 @@
 // command that attaches the PDF to it. A type with no entry here is refused by the worker.
 import {
   DomainError,
+  type LabelKind,
+  type LabelSize,
+  type LabelsForPrintDto,
   type PdfDocumentType,
   type PdfRenderJob,
   type Principal,
@@ -14,7 +17,9 @@ import {
   attachQuotePdf,
   executeCommand,
   executeQuery,
+  labelPayload,
   loadCompanyForPrint,
+  loadLabelsForPrint,
   loadQuoteForPrint,
   openBankDetails,
   retireRenderedFiles,
@@ -28,6 +33,7 @@ import type { CompanyPrint, PrintImage } from './company';
 import { printCopy, type PrintCopy } from './copy';
 import { istDay } from '../screens/ist';
 import { formatDate } from './format';
+import { renderLabelsHtml, type LabelPrint } from './label-template';
 import { renderLetterheadProof, type LetterheadProofPrint } from './letterhead-proof-template';
 import { renderQuote, type PrintDocument, type QuotePrint } from './quote-template';
 import { rupeesInWords } from './words';
@@ -306,4 +312,89 @@ export const DOCUMENT_TYPES: Partial<Record<PdfDocumentType, RegisteredDocument>
 /** The registered type of a job, or undefined for a type no loader prints yet. */
 export function documentType(type: PdfDocumentType): RegisteredDocument | undefined {
   return Object.hasOwn(DOCUMENT_TYPES, type) ? DOCUMENT_TYPES[type] : undefined;
+}
+
+// Q1 labels
+/** A job's sheet of labels: `kind: 'labels'` of `PdfRenderJob`. */
+export type LabelsTarget = Extract<PdfRenderJob['target'], { kind: 'labels' }>;
+
+/** A label kind the worker prints: how it reads its labels, as the worker of the sheet's company. */
+export interface LabelType {
+  load: (ids: readonly string[], ctx: LoadContext) => Promise<LabelPrint[]>;
+}
+
+/** A sheet's labels as the template prints them, each QR code naming its record by id. */
+export function labelPrintsOf(sheet: LabelsForPrintDto): LabelPrint[] {
+  if (sheet.labelKind === 'serial') {
+    return sheet.labels.map((l) => ({
+      kind: 'serial',
+      qrPayload: labelPayload('serial', l.id),
+      companyName: l.companyName,
+      itemName: l.itemName,
+      sku: l.sku,
+      serialNo: l.serialNo,
+    }));
+  }
+  return sheet.labels.map((l) => ({
+    kind: 'bin',
+    qrPayload: labelPayload('bin', l.id),
+    hubName: l.hubName,
+    hubCode: l.hubCode,
+    binCode: l.binCode,
+  }));
+}
+
+function labelType(kind: 'serial' | 'bin'): LabelType {
+  return {
+    load: async (ids, ctx) =>
+      labelPrintsOf(
+        await executeQuery(
+          ctx.principal,
+          { entityIds: [ctx.entityId], requestId: ctx.requestId },
+          (q) => loadLabelsForPrint(q, kind, ids),
+          { name: 'print.labels.load' },
+        ),
+      ),
+  };
+}
+
+/**
+ * The label kinds the worker prints (docs/03-roadmap-appendix/phase3.md §7.4): serials and bins.
+ * A package's label has its template (`PackageLabelPrint`) and is registered by dispatch (D2),
+ * whose packages it reads; until then a package sheet is refused for good.
+ */
+export const LABEL_TYPES: Partial<Record<LabelKind, LabelType>> = {
+  serial: labelType('serial'),
+  bin: labelType('bin'),
+};
+
+/**
+ * A sheet of labels as the worker prints it: its PDF is stored as a `label_sheet` file under the
+ * sheet's id, which the screen that asked for it waits for. A label the worker may no longer
+ * print (a bin archived since) is left out; a sheet left with none is refused for good.
+ */
+export async function printLabelSheet(
+  target: LabelsTarget,
+  ctx: LoadContext,
+): Promise<{ html: string; size: LabelSize; fileName: string; count: number }> {
+  const type = Object.hasOwn(LABEL_TYPES, target.labelKind)
+    ? LABEL_TYPES[target.labelKind]
+    : undefined;
+  if (type === undefined) {
+    throw new DomainError('not_found', `no loader prints ${target.labelKind} labels`, {
+      reason: 'document_type_unknown',
+    });
+  }
+  const labels = await type.load(target.ids, ctx);
+  if (labels.length === 0) {
+    throw new DomainError('not_found', 'no label of the sheet can be printed', {
+      reason: 'label_target_missing',
+    });
+  }
+  return {
+    html: await renderLabelsHtml(labels, target.size),
+    size: target.size,
+    fileName: printCopy()('label.fileName', { count: labels.length }),
+    count: labels.length,
+  };
 }
