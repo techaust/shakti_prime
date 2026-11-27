@@ -201,6 +201,22 @@
       "maxKb": 241,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the dealers' credit grid with its terms and outstanding dialogs. Measured 229.1 kB on 13-10-2026, plus 5 %."
     },
+    "/inventory/counts": {
+      "maxKb": 256,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the stock counts grid by status with its filters and the Start a count dialog with the item finder. Measured 243.2 kB on 27-11-2026, plus 5 %."
+    },
+    "/inventory/counts/[id]": {
+      "maxKb": 218,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the counting screen: each bin's items, one count form at a time with its quantity or serial field, and the item finder for stock found where none was listed. Measured 207.3 kB on 27-11-2026, plus 5 %."
+    },
+    "/inventory/counts/[id]/review": {
+      "maxKb": 256,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and a count's review: its lines and the movements during the count in two grids, Count again, the post form and the cancel dialog. Measured 243.2 kB on 27-11-2026, plus 5 %."
+    },
+    "/inventory/counts/[id]/sheet": {
+      "maxKb": 201,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the count sheet in its frame with the print button. Measured 190.8 kB on 27-11-2026, plus 5 %."
+    },
     "/inventory/hubs": {
       "maxKb": 246,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the hubs with their bins and, for an Executive, their forms. Measured 233.9 kB on 23-11-2026, plus 5 %."
