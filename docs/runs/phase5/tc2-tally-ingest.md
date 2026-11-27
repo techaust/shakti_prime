@@ -268,4 +268,16 @@ Shared registration points take one line or one block each, kept together under 
 - `apps/web/js-budget.json` changed, which is a checks change: it needs the owner's `checks-ok`.
 - Next.js on Vercel passing `request.url`'s query through unchanged, which the signature depends on, cannot be checked here.
 
+**The lead's triage (27-11-2026):** fix M1, M2, M3, M5, L1 to L5, L7 and L8 in the one fix round.
+- **M1:** a row in conflict goes to the review queue with its reason. The rest of the batch applies, and the batch answers 200, listing the rows held.
+- **M2:** Unlink removes the one mapping shown.
+- **M3:** the held snapshot lists the records it would mark removed (number, date, party, type), paged.
+- **M5:** the definer rows in DATABASE §4.1, SECURITY's line, and the Built record.
+- **L3:** keep only ledgers under Sundry Debtors; refuse others in the batch with a reason.
+- **L5:** verify the HMAC over the headers and a body digest before opening a transaction, and rate-limit per connector id and per address with the existing limiter.
+- **L1, L2, L4, L7 and L8:** as the review says.
+- **M4:** a follow-up for TC4 (the connector sends parts). It is recorded in STATUS.
+- **L6:** accepted and written in API §3.5. The silence alert comes 30 to 90 minutes after the last heartbeat, from the hourly check.
+- **No re-check:** the lead reads the diff.
+
 ## Integration
