@@ -6,7 +6,7 @@
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): print templates, an audited reprint |
 | Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder on Opus 5.5 at high, the seat's own account (started and finished 27-11-2026; fix round on Opus 5.5 at high, 27-11-2026) |
-| State | fixes done |
+| State | integrated; pull request open |
 | Next step | the lead: integration |
 
 ## Brief
@@ -222,3 +222,25 @@ Reviewed `git diff origin/main...feat/q1-labels` at `7cb4036a` (`main` at `59736
 - **No re-check:** the lead reads the diff.
 
 ## Integration
+
+### The lead, 27-11-2026, cloud session (slot 8: Postgres 54338)
+- **The fix diff, read by the lead:**
+  - M1: first prints on the serial page and the bin row.
+  - M2: the bin row's actions go into a menu on a phone.
+  - L1: a 4-module quiet zone drawn inside each code's picture (23 mm and 46 mm pictures).
+  - L2 to L4: as the review asked.
+- **Main taken in** (X4, #298) by a merge commit. The migrations move to `0241_q1_label_sheet_files` and `0242_q1_labels_rls`, after X4's `0240`, with `main`'s journal and snapshots restored by `renumber-migrations.mjs`. `pnpm db:generate` reports no changes.
+- **Redefinitions checked:**
+  - `app.file_purpose_grant()` is 0235's body plus the `label_sheet` lines; 0235 is still `main`'s latest.
+  - The `files_purpose_check` widening carries 0234's list plus `label_sheet`; nothing on `main` changed either.
+  - DATABASE gives 0242 for `app.labels_for_print`, and 0241 and 0242 for the purpose.
+- **`integrate.sh`** ran in three parts on a fresh Postgres on 54340:
+  - install, lint, format, copy lint, generated and typecheck: pass;
+  - unit: pass;
+  - security: pass (db 1,860; domain 1,535; web 466), and `db:verify` passed;
+  - audit, build with `.env` aside, js-budget and gitleaks: pass.
+- **Baselines, in the Linux image, one project at a time, each on a fresh database:** `e2e:snap -- --project=<p> e2e/labels.spec.ts e2e/print.spec.ts e2e/inventory.spec.ts --update-snapshots=changed`, then the same without updating.
+  - Desktop-light: 32 passed. Desktop-dark: 24. Phone: 24, both times.
+  - New: the labels dialogs (each project), and `print-label-serial`, `-bin` and `-package` (desktop-light).
+  - Remade: `stock-hubs` (each project), with the first prints and the phone menu. The lead looked at the phone picture (no overflow) and the serial label (quiet zone, text kept).
+- **Checks files:** `tools/copy-lint/copy-lint.config.json` (button keys), so the pull request waits for the owner's `checks-ok`.
