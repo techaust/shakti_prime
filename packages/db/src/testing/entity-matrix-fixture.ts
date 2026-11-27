@@ -121,6 +121,14 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   stock_movements: 'x.id::text',
   stock_movement_costs: 'x.movement_id::text',
   stock_balances: 'x.id::text',
+  // TC2 Tally ingest.
+  tally_connector_companies: "x.connector_id::text || '/' || x.tally_company",
+  tally_cursors: 'x.id::text',
+  tally_vouchers: 'x.id::text',
+  tally_purchase_vouchers: 'x.id::text',
+  tally_ledgers: 'x.id::text',
+  tally_snapshots: 'x.id::text',
+  tally_voucher_tombstones: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -245,6 +253,18 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from knowledge_chunks where id::text like ${like}`;
       await tx`delete from knowledge_files where id::text like ${like}`;
       await tx`delete from files where id::text like ${like}`;
+      // TC2: the Tally mirror names the fixture's connector, a principal of its own.
+      await tx`alter table tally_voucher_tombstones disable trigger tally_voucher_tombstones_append_only`;
+      await tx`delete from tally_voucher_tombstones where id::text like ${like}`;
+      await tx`alter table tally_voucher_tombstones enable trigger tally_voucher_tombstones_append_only`;
+      await tx`delete from tally_snapshots where id::text like ${like}`;
+      await tx`delete from tally_vouchers where id::text like ${like}`;
+      await tx`delete from tally_purchase_vouchers where id::text like ${like}`;
+      await tx`delete from tally_ledgers where id::text like ${like}`;
+      await tx`delete from tally_cursors where id::text like ${like}`;
+      await tx`delete from tally_connector_companies where connector_id::text like ${like}`;
+      await tx`delete from tally_connectors where id::text like ${like}`;
+      await tx`delete from principals where kind = 'system' and id::text like ${like}`;
       // U1: the quotes, links and contacts name the vendor and the matrix item.
       await tx`delete from vendor_quotes where id::text like ${like}`;
       await tx`delete from item_vendors where id::text like ${like}`;
@@ -411,6 +431,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     stock_movements: [],
     stock_movement_costs: [],
     stock_balances: [],
+    // TC2 Tally ingest.
+    tally_connector_companies: [],
+    tally_cursors: [],
+    tally_vouchers: [],
+    tally_purchase_vouchers: [],
+    tally_ledgers: [],
+    tally_snapshots: [],
+    tally_voucher_tombstones: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -969,6 +997,55 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
       rows.vendor_contacts.push({ key: vendorContact, entities: everyCompany });
       rows.item_vendors.push({ key: itemVendor, entities: everyCompany });
       rows.vendor_quotes.push({ key: groupQuote, entities: null });
+
+      // TC2: one connector serving every company, under a Tally company name of each, with a
+      // cursor, a sale, a purchase, a ledger, a snapshot and a tombstone in each company.
+      const connector = id(0x0701);
+      await tx`insert into principals (id, kind, display_name) values (${connector}, 'system', 'matrix connector')`;
+      await tx`insert into tally_connectors (id, name, key_hash, key_hint, created_by)
+        values (${connector}, 'matrix connector', ${'a'.repeat(64)}, 'mx01', ${ownerId})`;
+      for (const e of ALL_ENTITY_IDS) {
+        const company = `MX Tally ${e.toString()}`;
+        const guid = (n: number) =>
+          `5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-${(e * 16 + n).toString(16)}`;
+        const cursor = per(e, 0x90);
+        const sale = per(e, 0x91);
+        const purchase = per(e, 0x92);
+        const ledger = per(e, 0x93);
+        const snapshot = per(e, 0x94);
+        const tombstone = per(e, 0x95);
+        await tx`insert into tally_connector_companies (connector_id, tally_company, entity_id, created_by)
+          values (${connector}, ${company}, ${e}, ${ownerId})`;
+        await tx`insert into tally_cursors (id, entity_id, tally_company, last_alter_id, connector_id)
+          values (${cursor}, ${e}, ${company}, 10, ${connector})`;
+        await tx`insert into tally_vouchers (id, entity_id, tally_company, connector_id, guid, alter_id, type, type_name,
+            voucher_no, voucher_date, amount, is_cancelled, is_optional, payload_json, state, state_changed_at,
+            received_at, updated_at)
+          values (${sale}, ${e}, ${company}, ${connector}, ${guid(1)}, 5, 'sales', 'Sales', 'MX/1', '2090-01-01',
+            100.00, false, false, '{}'::jsonb, 'received', now(), now(), now())`;
+        await tx`insert into tally_purchase_vouchers (id, entity_id, tally_company, connector_id, guid, alter_id, type,
+            type_name, voucher_no, voucher_date, amount, is_cancelled, is_optional, payload_json, state,
+            state_changed_at, received_at, updated_at)
+          values (${purchase}, ${e}, ${company}, ${connector}, ${guid(2)}, 6, 'purchase', 'Purchase', 'MX/P1',
+            '2090-01-01', 90.00, false, false, '{}'::jsonb, 'received', now(), now(), now())`;
+        await tx`insert into tally_ledgers (id, entity_id, tally_company, connector_id, guid, alter_id, name, parent,
+            opening_balance, closing_balance, as_of, received_at, updated_at)
+          values (${ledger}, ${e}, ${company}, ${connector}, ${guid(3)}, 7, 'matrix ledger', 'Sundry Debtors',
+            0.00, 100.00, '2090-01-01', now(), now())`;
+        await tx`insert into tally_snapshots (id, entity_id, tally_company, connector_id, as_of, from_date, guid_count,
+            live, tombstoned, missing, reappeared, state)
+          values (${snapshot}, ${e}, ${company}, ${connector}, now(), '2090-01-01', 2, 2, 1, 0, 0, 'applied')`;
+        await tx`insert into tally_voucher_tombstones (id, entity_id, voucher_guid, voucher_type, snapshot_id, detected_at)
+          values (${tombstone}, ${e}, ${guid(4)}, 'sales', ${snapshot}, now())`;
+        const only = [e];
+        rows.tally_connector_companies.push({ key: `${connector}/${company}`, entities: only });
+        rows.tally_cursors.push({ key: cursor, entities: only });
+        rows.tally_vouchers.push({ key: sale, entities: only });
+        rows.tally_purchase_vouchers.push({ key: purchase, entities: only });
+        rows.tally_ledgers.push({ key: ledger, entities: only });
+        rows.tally_snapshots.push({ key: snapshot, entities: only });
+        rows.tally_voucher_tombstones.push({ key: tombstone, entities: only });
+      }
 
       // The shared customer: one account, contact and site, related to companies 1 and 2.
       const team1 = teamIds[1] ?? '';

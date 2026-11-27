@@ -406,6 +406,17 @@ export const ENTITY_TABLES = [
   'stock_movements',
   'stock_movement_costs',
   'stock_balances',
+  // TC2: a company's Tally mirror, read with finance.read for the company (purchase vouchers with
+  // procurement.rate.read as well) and written only by the connector's definers; the companies
+  // mapped to a connector and their cursors, read by an Executive too
+  // (docs/03-roadmap-appendix/phase5.md §6.3)
+  'tally_connector_companies',
+  'tally_cursors',
+  'tally_vouchers',
+  'tally_purchase_vouchers',
+  'tally_ledgers',
+  'tally_snapshots',
+  'tally_voucher_tombstones',
 ] as const;
 
 /**
@@ -474,6 +485,13 @@ export const CONFIG_TABLES = ['lead_score_rules', 'commission_rules'] as const;
  * inventory.stock.adjust for every company. Asserted in stock-ledger.test.ts.
  */
 export const PERMISSION_SHARED_TABLES = ['warehouses', 'bins'] as const;
+
+/**
+ * TC2: the Tally connectors, of no company (one serves several), read only by an Executive
+ * (`admin.integrations.write`) in a request with a company, column by column so their key hashes
+ * stay unread, and written only by the admin definers. Asserted in tally.test.ts.
+ */
+export const CONNECTOR_TABLES = ['tally_connectors'] as const;
 
 /** Every table under RLS. A new business table is added here and to one of the lists above. */
 export const RLS_TABLES = [...SHARED_TABLES, ...ENTITY_TABLES] as const;

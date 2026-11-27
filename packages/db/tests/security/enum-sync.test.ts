@@ -107,6 +107,12 @@ import {
   SERIAL_STATES_OUT,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // TC2 Tally ingest
+  TALLY_PURCHASE_VOUCHER_TYPES,
+  TALLY_SALES_VOUCHER_TYPES,
+  TALLY_SNAPSHOT_STATES,
+  TALLY_VOUCHER_STATES,
+  TALLY_VOUCHER_TYPES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -297,6 +303,17 @@ const PAIRS: Record<string, readonly string[]> = {
   serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
   stock_movements_reason_check: STOCK_REASONS,
   stock_movements_reversal_check: ['reversal'],
+  // TC2: a voucher's type names its table; a tombstoned or reversed voucher, and only one, is
+  // deleted; a snapshot holds GUIDs only while it is held.
+  tally_vouchers_type_check: TALLY_SALES_VOUCHER_TYPES,
+  tally_vouchers_state_check: TALLY_VOUCHER_STATES,
+  tally_vouchers_deleted_check: ['tombstoned', 'reversed'],
+  tally_purchase_vouchers_type_check: TALLY_PURCHASE_VOUCHER_TYPES,
+  tally_purchase_vouchers_state_check: TALLY_VOUCHER_STATES,
+  tally_purchase_vouchers_deleted_check: ['tombstoned', 'reversed'],
+  tally_snapshots_state_check: TALLY_SNAPSHOT_STATES,
+  tally_snapshots_held_check: ['held'],
+  tally_voucher_tombstones_type_check: TALLY_VOUCHER_TYPES,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

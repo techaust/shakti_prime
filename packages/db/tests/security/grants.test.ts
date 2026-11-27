@@ -5,6 +5,7 @@ import {
   AUTH_TABLES,
   closeDb,
   CONFIG_TABLES,
+  CONNECTOR_TABLES,
   OUTBOX_TABLES,
   PERMISSION_SHARED_TABLES,
   PLATFORM_TABLES,
@@ -42,6 +43,7 @@ describe('app_user role (docs/05-database.md §3)', () => {
         ...PRINCIPAL_TABLES,
         ...PLATFORM_TABLES,
         ...PERMISSION_SHARED_TABLES,
+        ...CONNECTOR_TABLES,
       ].sort(),
     );
     expect(rows.filter((r) => !r.enabled || !r.forced).map((r) => r.name)).toEqual([]);
@@ -55,6 +57,7 @@ describe('app_user role (docs/05-database.md §3)', () => {
     ...PRINCIPAL_TABLES,
     ...PLATFORM_TABLES,
     ...PERMISSION_SHARED_TABLES,
+    ...CONNECTOR_TABLES,
   ])('does not own %s and the table forces RLS', async (table) => {
     const [row] = await withoutContext<{ owner: string; enabled: boolean; forced: boolean }>(sql`
       select pg_get_userbyid(c.relowner) as owner, c.relrowsecurity as enabled, c.relforcerowsecurity as forced
@@ -197,6 +200,15 @@ describe('app_user role (docs/05-database.md §3)', () => {
     stock_movement_costs: { i: false, u: false },
     stock_balances: { i: false, u: false },
     item_costs: { i: false, u: false },
+    // TC2: the Tally mirror and the connectors' mappings and cursors are written only by their
+    // definers (tally.test.ts).
+    tally_connector_companies: { i: false, u: false },
+    tally_cursors: { i: false, u: false },
+    tally_vouchers: { i: false, u: false },
+    tally_purchase_vouchers: { i: false, u: false },
+    tally_ledgers: { i: false, u: false },
+    tally_snapshots: { i: false, u: false },
+    tally_voucher_tombstones: { i: false, u: false },
   };
 
   /**
@@ -538,6 +550,11 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.stale_upload_entities(integer)',
       // STATUS: the chat's customer's own quotes and orders, read by the platform (S3).
       'app.status_summary(uuid)',
+      // TC2: a Tally connector's own keys and companies, its cursor, and the stored vouchers a
+      // snapshot or a batch is compared with, which its routes read as queries.
+      'app.tally_connector_auth(uuid)',
+      'app.tally_cursor(smallint,text)',
+      'app.tally_vouchers_known(smallint,text,text[])',
       // The targets' progress: a caller's own figures, a team lead's team's (0125).
       'app.target_actuals(smallint,timestamp with time zone,timestamp with time zone,uuid[])',
       // Whether a person is in a team now and may be set a target (the targets' policies, 0125).

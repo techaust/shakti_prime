@@ -41,7 +41,8 @@ type Rule =
   | { kind: 'context' }
   | { kind: 'grant'; key: PermissionKey; scope: Scope }
   | { kind: 'never' }
-  | { kind: 'any'; rules: readonly Rule[] };
+  | { kind: 'any'; rules: readonly Rule[] }
+  | { kind: 'all'; rules: readonly Rule[] };
 
 interface TableRule {
   /** Who sees a row of their own company. */
@@ -84,6 +85,13 @@ const VENDOR_READ: Rule = {
   rules: [grant('inventory.stock.read', 'own'), grant('procurement.po.write', 'entity')],
 };
 const RATE_READ = grant('procurement.rate.read', 'entity');
+
+/** TC2: the Tally mirror's readers, and the readers of a connector's companies and cursors. */
+const FINANCE_READ = grant('finance.read', 'entity');
+const TALLY_SETUP_READ: Rule = {
+  kind: 'any',
+  rules: [FINANCE_READ, grant('admin.integrations.write', 'all')],
+};
 
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
@@ -376,6 +384,19 @@ const RULES: Record<MatrixTable, TableRule> = {
   vendor_contacts: { read: VENDOR_READ, leak: () => sql`false` },
   item_vendors: { read: VENDOR_READ, leak: () => sql`false` },
   vendor_quotes: { read: RATE_READ, group: RATE_READ, leak: otherCompany },
+  // TC2: a company's Tally mirror with finance.read for the company; purchase vouchers with
+  // procurement.rate.read as well; the mapped companies and cursors to an Executive too
+  // (docs/03-roadmap-appendix/phase5.md §6.3). No connector reads any of them.
+  tally_connector_companies: { read: TALLY_SETUP_READ, leak: otherCompany },
+  tally_cursors: { read: TALLY_SETUP_READ, leak: otherCompany },
+  tally_vouchers: { read: FINANCE_READ, leak: otherCompany },
+  tally_purchase_vouchers: {
+    read: { kind: 'all', rules: [FINANCE_READ, RATE_READ] },
+    leak: otherCompany,
+  },
+  tally_ledgers: { read: FINANCE_READ, leak: otherCompany },
+  tally_snapshots: { read: FINANCE_READ, leak: otherCompany },
+  tally_voucher_tombstones: { read: FINANCE_READ, leak: otherCompany },
 };
 
 const TABLES = Object.keys(RULES) as MatrixTable[];
@@ -384,6 +405,7 @@ const ROLES: RoleKey[] = ROLE_SEED.map((r) => r.key);
 function allows(principal: Principal, rule: Rule | undefined): boolean {
   if (rule === undefined || rule.kind === 'never') return false;
   if (rule.kind === 'any') return rule.rules.some((r) => allows(principal, r));
+  if (rule.kind === 'all') return rule.rules.every((r) => allows(principal, r));
   return rule.kind === 'context' || hasGrant(principal.permissions, rule.key, rule.scope);
 }
 

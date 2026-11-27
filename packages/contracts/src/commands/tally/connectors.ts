@@ -43,9 +43,7 @@ export const TallyConnectorDto = z
 export type TallyConnectorDto = z.infer<typeof TallyConnectorDto>;
 
 /** What the form sends; the action makes the key. */
-export const RegisterTallyConnectorRequest = z
-  .object({ name: TallyConnectorNameSchema })
-  .strict();
+export const RegisterTallyConnectorRequest = z.object({ name: TallyConnectorNameSchema }).strict();
 export type RegisterTallyConnectorRequest = z.input<typeof RegisterTallyConnectorRequest>;
 
 /** `tally.connector.register`. */

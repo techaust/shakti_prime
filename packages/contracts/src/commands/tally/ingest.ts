@@ -7,6 +7,7 @@ import {
   ConnectorSnapshotRequest,
   ConnectorSnapshotResponse,
   TallyCompanySchema,
+  type TallyVoucherType,
 } from '../../api/connector';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
@@ -14,6 +15,33 @@ import { EntityIdSchema, IdSchema } from '../../ids';
 // connector's signed calls become once the route has verified the signature and found the company
 // the Tally company name is mapped to. Each runs as the connector's own principal
 // (`connector:tally:<id>`, `tally.connector.sync`) in that one company.
+
+/** The states of a stored voucher (the `tally-voucher` machine's). */
+export const TALLY_VOUCHER_STATES = [
+  'received',
+  'linked',
+  'unlinked',
+  'tombstoned',
+  'reversed',
+] as const;
+export type TallyVoucherState = (typeof TALLY_VOUCHER_STATES)[number];
+
+/** Which table a voucher type lands in: purchases and debit notes are restricted. */
+export const TALLY_SALES_VOUCHER_TYPES = [
+  'sales',
+  'receipt',
+  'credit_note',
+] as const satisfies readonly TallyVoucherType[];
+export const TALLY_PURCHASE_VOUCHER_TYPES = [
+  'purchase',
+  'debit_note',
+] as const satisfies readonly TallyVoucherType[];
+
+/**
+ * A daily snapshot: applied at once, held for Accounts when over the limits, confirmed by them,
+ * or superseded by a newer snapshot of the company while it waited.
+ */
+export const TALLY_SNAPSHOT_STATES = ['applied', 'held', 'confirmed', 'superseded'] as const;
 
 /** `tally.batch.ingest`: one batch of a company, its body exactly as the connector signed it. */
 export const TallyBatchIngestInput = z

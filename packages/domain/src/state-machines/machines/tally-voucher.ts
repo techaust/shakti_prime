@@ -1,13 +1,7 @@
+import { TALLY_VOUCHER_STATES, type TallyVoucherState } from '@shakti/contracts';
 import { defineMachine, type Guard } from '../define-machine';
 
-export const TALLY_VOUCHER_STATES = [
-  'received',
-  'linked',
-  'unlinked',
-  'tombstoned',
-  'reversed',
-] as const;
-export type TallyVoucherState = (typeof TALLY_VOUCHER_STATES)[number];
+export { TALLY_VOUCHER_STATES, type TallyVoucherState };
 export type TallyVoucherEvent =
   'ingest' | 'match' | 'queue' | 'link' | 'alter' | 'tombstone' | 'reverse';
 

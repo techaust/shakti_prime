@@ -183,42 +183,34 @@ function voucherColumns() {
 }
 
 /** Sales, receipts and credit notes. */
-export const tallyVouchers = pgTable(
-  'tally_vouchers',
-  voucherColumns(),
-  (t) => [
-    uniqueIndex('tally_vouchers_guid_unique').on(t.guid),
-    index('tally_vouchers_entity_date_idx').on(t.entityId, t.voucherDate.desc()),
-    index('tally_vouchers_entity_state_idx').on(t.entityId, t.tallyCompany, t.state),
-    index('tally_vouchers_connector_idx').on(t.connectorId),
-    check('tally_vouchers_type_check', sql`${t.type} in ('sales', 'receipt', 'credit_note')`),
-    check('tally_vouchers_state_check', sql`${t.state} in ${VOUCHER_STATES}`),
-    check('tally_vouchers_alter_id_check', sql`${t.alterId} >= 0`),
-    check(
-      'tally_vouchers_deleted_check',
-      sql`(${t.deletedAt} is not null) = (${t.state} in ('tombstoned', 'reversed'))`,
-    ),
-  ],
-);
+export const tallyVouchers = pgTable('tally_vouchers', voucherColumns(), (t) => [
+  uniqueIndex('tally_vouchers_guid_unique').on(t.guid),
+  index('tally_vouchers_entity_date_idx').on(t.entityId, t.voucherDate.desc()),
+  index('tally_vouchers_entity_state_idx').on(t.entityId, t.tallyCompany, t.state),
+  index('tally_vouchers_connector_idx').on(t.connectorId),
+  check('tally_vouchers_type_check', sql`${t.type} in ('sales', 'receipt', 'credit_note')`),
+  check('tally_vouchers_state_check', sql`${t.state} in ${VOUCHER_STATES}`),
+  check('tally_vouchers_alter_id_check', sql`${t.alterId} >= 0`),
+  check(
+    'tally_vouchers_deleted_check',
+    sql`(${t.deletedAt} is not null) = (${t.state} in ('tombstoned', 'reversed'))`,
+  ),
+]);
 
 /** Purchases and debit notes: supplier rates, read only with `procurement.rate.read`. */
-export const tallyPurchaseVouchers = pgTable(
-  'tally_purchase_vouchers',
-  voucherColumns(),
-  (t) => [
-    uniqueIndex('tally_purchase_vouchers_guid_unique').on(t.guid),
-    index('tally_purchase_vouchers_entity_date_idx').on(t.entityId, t.voucherDate.desc()),
-    index('tally_purchase_vouchers_entity_state_idx').on(t.entityId, t.tallyCompany, t.state),
-    index('tally_purchase_vouchers_connector_idx').on(t.connectorId),
-    check('tally_purchase_vouchers_type_check', sql`${t.type} in ('purchase', 'debit_note')`),
-    check('tally_purchase_vouchers_state_check', sql`${t.state} in ${VOUCHER_STATES}`),
-    check('tally_purchase_vouchers_alter_id_check', sql`${t.alterId} >= 0`),
-    check(
-      'tally_purchase_vouchers_deleted_check',
-      sql`(${t.deletedAt} is not null) = (${t.state} in ('tombstoned', 'reversed'))`,
-    ),
-  ],
-);
+export const tallyPurchaseVouchers = pgTable('tally_purchase_vouchers', voucherColumns(), (t) => [
+  uniqueIndex('tally_purchase_vouchers_guid_unique').on(t.guid),
+  index('tally_purchase_vouchers_entity_date_idx').on(t.entityId, t.voucherDate.desc()),
+  index('tally_purchase_vouchers_entity_state_idx').on(t.entityId, t.tallyCompany, t.state),
+  index('tally_purchase_vouchers_connector_idx').on(t.connectorId),
+  check('tally_purchase_vouchers_type_check', sql`${t.type} in ('purchase', 'debit_note')`),
+  check('tally_purchase_vouchers_state_check', sql`${t.state} in ${VOUCHER_STATES}`),
+  check('tally_purchase_vouchers_alter_id_check', sql`${t.alterId} >= 0`),
+  check(
+    'tally_purchase_vouchers_deleted_check',
+    sql`(${t.deletedAt} is not null) = (${t.state} in ('tombstoned', 'reversed'))`,
+  ),
+]);
 
 /** Party ledgers and their balances, for dealer outstanding (TC3). The newest AlterID wins. */
 export const tallyLedgers = pgTable(
@@ -277,7 +269,10 @@ export const tallySnapshots = pgTable(
     reappeared: integer('reappeared').notNull(),
     state: text('state').notNull(),
     /** A held snapshot's GUIDs that would become tombstones; emptied once decided. */
-    heldGuids: text('held_guids').array().notNull().default(sql`'{}'::text[]`),
+    heldGuids: text('held_guids')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     confirmedBy: uuid('confirmed_by').references(() => principals.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

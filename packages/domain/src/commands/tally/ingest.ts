@@ -75,12 +75,11 @@ function fire(
   now: Date,
   inSnapshot = true,
 ): TallyVoucherState {
-  return transition(
-    tallyVoucherMachine,
-    { state, matchFound: false, inSnapshot },
-    event,
-    { actor, now, params: {} },
-  ).to;
+  return transition(tallyVoucherMachine, { state, matchFound: false, inSnapshot }, event, {
+    actor,
+    now,
+    params: {},
+  }).to;
 }
 
 /** A voucher as the write definer reads it, with the state its machine gave it. */
@@ -163,7 +162,12 @@ export const ingestTallyBatch = defineCommand({
       throw new DomainError(
         checked.problem === 'batch_max_below_cursor' ? 'conflict' : 'validation_failed',
         `the batch was refused: ${checked.problem}`,
-        { reason: checked.problem === 'batch_max_below_cursor' ? 'cursor_mismatch' : 'tally_batch_invalid' },
+        {
+          reason:
+            checked.problem === 'batch_max_below_cursor'
+              ? 'cursor_mismatch'
+              : 'tally_batch_invalid',
+        },
       );
     }
     const byGuid = new Map(batch.vouchers.map((v) => [v.guid, v]));
@@ -322,7 +326,8 @@ export const recordTallySnapshot = defineCommand({
     const checked = diffSnapshot(storedVouchers, list, DEFAULT_SNAPSHOT_LIMITS);
     // Over the limits, the same diff without them names the GUIDs the person would confirm.
     const unlimited = checked.ok ? checked : diffSnapshot(storedVouchers, list, NO_LIMITS);
-    if (!unlimited.ok) throw new DomainError('internal', 'the snapshot diff refused without limits');
+    if (!unlimited.ok)
+      throw new DomainError('internal', 'the snapshot diff refused without limits');
     const { tombstones, missing, reappeared } = unlimited.diff;
     const state: 'applied' | 'held' = checked.ok ? 'applied' : 'held';
     const live = storedVouchers.filter((v) => !v.tombstoned).length;
