@@ -45,9 +45,9 @@ CREATE TABLE "warranty_claims" (
           and (("warranty_claims"."state" = 'closed') = ("warranty_claims"."settlement" is not null))
           and (("warranty_claims"."state" = 'rejected') = ("warranty_claims"."rejected_reason" is not null))
           and (("warranty_claims"."settlement" = 'replacement') = ("warranty_claims"."supplier_serial_id" is not null))),
-	CONSTRAINT "warranty_claims_serials_differ_check" CHECK ("warranty_claims"."replacement_serial_id" is distinct from "warranty_claims"."serial_id"
-          and "warranty_claims"."supplier_serial_id" is distinct from "warranty_claims"."serial_id"
-          and "warranty_claims"."supplier_serial_id" is distinct from "warranty_claims"."replacement_serial_id")
+	CONSTRAINT "warranty_claims_serials_differ_check" CHECK (("warranty_claims"."replacement_serial_id" is null or "warranty_claims"."replacement_serial_id" <> "warranty_claims"."serial_id")
+          and ("warranty_claims"."supplier_serial_id" is null
+               or ("warranty_claims"."supplier_serial_id" <> "warranty_claims"."serial_id" and "warranty_claims"."supplier_serial_id" <> "warranty_claims"."replacement_serial_id")))
 );
 --> statement-breakpoint
 ALTER TABLE "document_sequences" DROP CONSTRAINT "document_sequences_doc_type_check";--> statement-breakpoint

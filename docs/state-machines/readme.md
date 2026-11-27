@@ -18,7 +18,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Project, PM Surya Ghar flow | no | 12 | 13 | 3 | [project-surya-ghar.md](project-surya-ghar.md) |
 | Subsidy gate | no | 4 | 5 | 9 | [subsidy-gate.md](subsidy-gate.md) |
 | Customer loan | no | 4 | 4 | 1 | [customer-loan.md](customer-loan.md) |
-| Warranty claim | no | 6 | 6 | 7 | [warranty-claim.md](warranty-claim.md) |
+| Warranty claim | **yes** | 6 | 6 | 7 | [warranty-claim.md](warranty-claim.md) |
 | WhatsApp document filing | no | 5 | 5 | 1 | [document-filing.md](document-filing.md) |
 | File upload | **yes** | 6 | 8 | 0 | [file-upload.md](file-upload.md) |
 | Expense claim | no | 6 | 6 | 7 | [expense-claim.md](expense-claim.md) |
@@ -46,6 +46,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `numbering.docCodes.proforma` | PI |
 | `numbering.docCodes.challan` | DC |
 | `numbering.docCodes.purchase_order` | PO |
+| `numbering.docCodes.warranty_claim` | WC |
 | `numbering.separator` | / |
 | `numbering.serialDigits` | 4 |
 | `pricing.kitPricing` | fixed |

@@ -143,6 +143,11 @@ const ACTIONS = {
   'inventory.stock.transfer': 'stockTransfer',
   'inventory.stock.adjust': 'stockAdjust',
   'inventory.stock.reverse': 'stockReverse',
+  // R3 warranty claims
+  'inventory.warranty.raise': 'warrantyRaise',
+  'inventory.warranty.identify_serial': 'warrantyIdentifySerial',
+  'inventory.warranty.reject': 'warrantyReject',
+  'inventory.warranty.settle': 'warrantySettle',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -359,6 +364,11 @@ const EVENT_NAMES = {
   'procurement.vendor.archived': 'vendorArchived',
   'procurement.quote.recorded': 'vendorQuoteRecorded',
   'procurement.quote.withdrawn': 'vendorQuoteWithdrawn',
+  // R3 warranty claims
+  'inventory.warranty.raised': 'warrantyRaised',
+  'inventory.warranty.serial_identified': 'warrantySerialIdentified',
+  'inventory.warranty.rejected': 'warrantyRejected',
+  'inventory.warranty.closed': 'warrantyClosed',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -507,6 +517,9 @@ const CODE_GROUPS = [
   'hubKind',
   'binKind',
   'stockReason',
+  // R3 warranty claims
+  'warrantyClaimState',
+  'warrantySettlement',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -891,6 +904,12 @@ const FIELD_KINDS = [
   ['quoteValidFrom', 'date'],
   ['restored', 'number'],
   ['quoteValidUntil', 'date'],
+  // R3 warranty claims (never a cost).
+  ['claimNo', 'text'],
+  ['claimState', 'warrantyClaimState'],
+  ['reportedFault', 'text'],
+  ['rejectedReason', 'text'],
+  ['settlement', 'warrantySettlement'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

@@ -133,6 +133,8 @@ import {
   EditableBinKindSchema,
   SerialStateSchema,
   StockAdjustmentSchema,
+  WarrantyClaimStateSchema,
+  WarrantySettlementSchema,
   StockReasonSchema,
   WarehouseKindSchema,
 } from '@shakti/contracts';
@@ -263,6 +265,9 @@ import {
   STOCK_ADJUSTMENTS as STOCK_ADJUSTMENTS_WEB,
   STOCK_REASONS as STOCK_REASONS_WEB,
   WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
+  // R3 warranty claims
+  WARRANTY_CLAIM_STATES as WARRANTY_CLAIM_STATES_WEB,
+  WARRANTY_SETTLEMENTS as WARRANTY_SETTLEMENTS_WEB,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -385,6 +390,9 @@ describe('the contract values copied for the browser', () => {
     expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
     expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
+    // R3 warranty claims
+    expect(WARRANTY_CLAIM_STATES_WEB).toEqual(WarrantyClaimStateSchema.options);
+    expect(WARRANTY_SETTLEMENTS_WEB).toEqual(WarrantySettlementSchema.options);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

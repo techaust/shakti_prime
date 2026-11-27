@@ -108,9 +108,9 @@ export const warrantyClaims = pgTable(
     ),
     check(
       'warranty_claims_serials_differ_check',
-      sql`${t.replacementSerialId} is distinct from ${t.serialId}
-          and ${t.supplierSerialId} is distinct from ${t.serialId}
-          and ${t.supplierSerialId} is distinct from ${t.replacementSerialId}`,
+      sql`(${t.replacementSerialId} is null or ${t.replacementSerialId} <> ${t.serialId})
+          and (${t.supplierSerialId} is null
+               or (${t.supplierSerialId} <> ${t.serialId} and ${t.supplierSerialId} <> ${t.replacementSerialId}))`,
     ),
     // One open claim per failed serial.
     uniqueIndex('warranty_claims_open_serial_unique')

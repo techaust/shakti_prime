@@ -103,6 +103,8 @@ import {
   // H1 stock ledger
   BIN_KINDS,
   SERIAL_STATES,
+  WARRANTY_CLAIM_STATES,
+  WARRANTY_SETTLEMENTS,
   SERIAL_STATES_IN_BIN,
   SERIAL_STATES_OUT,
   STOCK_REASONS,
@@ -297,6 +299,24 @@ const PAIRS: Record<string, readonly string[]> = {
   serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
   stock_movements_reason_check: STOCK_REASONS,
   stock_movements_reversal_check: ['reversal'],
+  // R3: a claim's state and settlement; each step keeps what its guard asked for (a serial from
+  // identification, the replacement from the replacement, the vendor and RMA from the RMA, the
+  // settlement only when closed, the reason only when rejected, the supplier's serial only with
+  // a replacement).
+  warranty_claims_state_check: WARRANTY_CLAIM_STATES,
+  warranty_claims_settlement_check: WARRANTY_SETTLEMENTS,
+  warranty_claims_steps_check: [
+    'raised',
+    'rejected',
+    'replacement_issued',
+    'rma_raised',
+    'closed',
+    'rma_raised',
+    'closed',
+    'closed',
+    'rejected',
+    'replacement',
+  ],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

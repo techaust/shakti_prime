@@ -205,6 +205,11 @@
     "replacement_serial_missing": "Enter the serial number of the replacement item.",
     "rma_ref_missing": "Enter the supplier's return reference.",
     "supplier_settlement_missing": "Record the supplier's credit note or replacement before closing the claim.",
+    "warranty_claim_missing": "We couldn't find this warranty claim. Refresh the page and try again.",
+    "warranty_serial_unknown": "We couldn't find that serial number in this company. Check the number and try again.",
+    "warranty_serial_not_delivered": "This serial isn't with a customer, so it can't be claimed under warranty. Check the number.",
+    "warranty_serial_other_customer": "This serial was delivered to a different customer. Check the serial number or the customer.",
+    "warranty_claim_open": "This serial already has an open warranty claim. Open that claim instead.",
     "file_not_clean": "This file failed the safety check and was not kept. Ask the customer to send it again.",
     "file_customer_mismatch": "This file came from a different customer. File it against the customer who sent it.",
     "file_needs_review": "This file needs a person to check what it is before it is filed.",
@@ -1991,7 +1996,11 @@
       "binArchive": "Bin archived",
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
-      "stockReverse": "Stock movement reversed"
+      "stockReverse": "Stock movement reversed",
+      "warrantyRaise": "Warranty claim raised",
+      "warrantyIdentifySerial": "Faulty serial identified",
+      "warrantyReject": "Warranty claim rejected",
+      "warrantySettle": "Warranty claim settled"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2056,7 +2065,11 @@
       "vendorArchived": "Vendor archived",
       "vendorQuoteRecorded": "Supplier quote recorded",
       "vendorQuoteWithdrawn": "Supplier quote withdrawn",
-      "stockMoved": "Stock moved"
+      "stockMoved": "Stock moved",
+      "warrantyRaised": "Warranty claim raised",
+      "warrantySerialIdentified": "Faulty serial identified",
+      "warrantyRejected": "Warranty claim rejected",
+      "warrantyClosed": "Warranty claim closed"
     },
     "sheet": {
       "title": "{action}",
@@ -2400,7 +2413,12 @@
       "purchaseUnit": "Unit it is bought in",
       "purchaseUnitFactor": "Stock units in one bought unit",
       "serialPattern": "Shape of its serial numbers",
-      "isStocked": "Kept in stock"
+      "isStocked": "Kept in stock",
+      "claimNo": "Claim number",
+      "claimState": "Claim status",
+      "reportedFault": "Fault reported",
+      "rejectedReason": "Why it was rejected",
+      "settlement": "How the supplier settled"
     },
     "values": {
       "percent": "{value}%",
@@ -2587,6 +2605,18 @@
         "surplus_in": "Into surplus",
         "surplus_out": "Out of surplus",
         "reversal": "Reversed"
+      },
+      "warrantyClaimState": {
+        "raised": "Raised",
+        "serial_identified": "Serial identified",
+        "replacement_issued": "Replacement given",
+        "rma_raised": "Sent to the supplier",
+        "closed": "Closed",
+        "rejected": "Rejected"
+      },
+      "warrantySettlement": {
+        "credit": "Credit from the supplier",
+        "replacement": "Replacement from the supplier"
       }
     }
   },

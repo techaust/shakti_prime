@@ -1,6 +1,6 @@
 {
-  "id": "7ae91ab7-e1c7-4348-b4e3-78844f1f920f",
-  "prevId": "40c1bbb2-7632-48f8-ab0f-8fe4bb6c0eb5",
+  "id": "d1cd1489-4ae4-4f25-ad20-f0fe2ffb1852",
+  "prevId": "9a585fdd-8b1d-42b3-b8f4-4ed648e9df48",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -20952,7 +20952,7 @@
         },
         "warranty_claims_serials_differ_check": {
           "name": "warranty_claims_serials_differ_check",
-          "value": "\"warranty_claims\".\"replacement_serial_id\" is distinct from \"warranty_claims\".\"serial_id\"\n          and \"warranty_claims\".\"supplier_serial_id\" is distinct from \"warranty_claims\".\"serial_id\"\n          and \"warranty_claims\".\"supplier_serial_id\" is distinct from \"warranty_claims\".\"replacement_serial_id\""
+          "value": "(\"warranty_claims\".\"replacement_serial_id\" is null or \"warranty_claims\".\"replacement_serial_id\" <> \"warranty_claims\".\"serial_id\")\n          and (\"warranty_claims\".\"supplier_serial_id\" is null\n               or (\"warranty_claims\".\"supplier_serial_id\" <> \"warranty_claims\".\"serial_id\" and \"warranty_claims\".\"supplier_serial_id\" <> \"warranty_claims\".\"replacement_serial_id\"))"
         }
       },
       "isRLSEnabled": false

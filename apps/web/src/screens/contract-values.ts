@@ -5,6 +5,8 @@ import type {
   SerialState,
   StockAdjustment,
   StockReason,
+  WarrantyClaimState,
+  WarrantySettlement,
   WarehouseKind,
   AccountType,
   ActivityType,
@@ -1061,3 +1063,20 @@ export const STOCK_ADJUSTMENTS = [
   'loss',
   'damage',
 ] as const satisfies readonly StockAdjustment[];
+
+// R3 warranty claims
+/** The states of a warranty claim, in the order its steps run. */
+export const WARRANTY_CLAIM_STATES = [
+  'raised',
+  'serial_identified',
+  'replacement_issued',
+  'rma_raised',
+  'closed',
+  'rejected',
+] as const satisfies readonly WarrantyClaimState[];
+
+/** How a supplier settles a claim. */
+export const WARRANTY_SETTLEMENTS = [
+  'credit',
+  'replacement',
+] as const satisfies readonly WarrantySettlement[];

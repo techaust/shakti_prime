@@ -93,7 +93,11 @@ interface SerialRow {
 }
 
 /** A serial of the company, as row security shows it (`inventory.stock.read`). */
-async function serialOf(ctx: CommandContext, entityId: number, serialId: string): Promise<SerialRow> {
+async function serialOf(
+  ctx: CommandContext,
+  entityId: number,
+  serialId: string,
+): Promise<SerialRow> {
   const s = schema.serials;
   const [row] = await ctx.tx
     .select({
@@ -109,7 +113,7 @@ async function serialOf(ctx: CommandContext, entityId: number, serialId: string)
     .where(and(eq(s.id, serialId), eq(s.entityId, entityId)))
     .limit(1);
   if (!row) {
-    throw new DomainError('not_found', 'serial not found', { reason: 'warranty_serial_missing' });
+    throw new DomainError('not_found', 'serial not found', { reason: 'warranty_serial_unknown' });
   }
   return row;
 }
@@ -326,9 +330,14 @@ export const identifyWarrantySerial = defineCommand({
   async handler(ctx, input) {
     const claim = await lockClaim(ctx, input.claimId);
     const serial = await serialOf(ctx, claim.entityId, input.serialId);
-    const to = fire(ctx, recordOf(claim, { warrantyUntil: serial.warrantyUntil }), 'serial.identify', {
-      serialId: serial.id,
-    });
+    const to = fire(
+      ctx,
+      recordOf(claim, { warrantyUntil: serial.warrantyUntil }),
+      'serial.identify',
+      {
+        serialId: serial.id,
+      },
+    );
     assertWithCustomer(serial, claim.accountId);
     await assertNoOpenClaim(ctx, serial.id, claim.id);
     await writeStep(ctx, claim, to, { serialId: serial.id, itemId: serial.itemId });
@@ -394,6 +403,8 @@ export const settleWarrantyClaim = defineCommand({
   peopleOnly: true,
   input: SettleWarrantyClaimInput,
   output: WarrantyClaimChangedDto,
+  // The audit row's input leaves the credit out: it is a cost (finance.cost.read).
+  auditInput: (input) => ({ claimId: input.claimId, settlement: input.settlement }),
   auditFields: CLAIM_AUDIT_FIELDS,
   async handler(ctx, input) {
     const claim = await lockClaim(ctx, input.claimId);

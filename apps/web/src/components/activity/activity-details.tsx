@@ -104,6 +104,9 @@ import {
   BIN_KINDS,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // R3 warranty claims
+  WARRANTY_CLAIM_STATES,
+  WARRANTY_SETTLEMENTS,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
@@ -614,6 +617,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(BIN_KINDS, value) ? t(`values.binKind.${value}`) : wordsOf(value);
       case 'stockReason':
         return oneOf(STOCK_REASONS, value) ? t(`values.stockReason.${value}`) : wordsOf(value);
+      case 'warrantyClaimState':
+        return oneOf(WARRANTY_CLAIM_STATES, value)
+          ? t(`values.warrantyClaimState.${value}`)
+          : wordsOf(value);
+      case 'warrantySettlement':
+        return oneOf(WARRANTY_SETTLEMENTS, value)
+          ? t(`values.warrantySettlement.${value}`)
+          : wordsOf(value);
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
       case 'fileStatus':
