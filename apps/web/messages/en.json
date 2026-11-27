@@ -1747,7 +1747,11 @@
       "reason": {
         "signed_out": "Signed out on the phone",
         "revoked": "Signed out from the website",
-        "refresh_reused": "Signed out for safety"
+        "refresh_reused": "Signed out for safety",
+        "password_changed": "Password changed",
+        "role_changed": "Roles changed",
+        "suspended": "Suspended",
+        "totp_reset": "Authenticator app reset"
       }
     },
     "moveLeadsDialog": {

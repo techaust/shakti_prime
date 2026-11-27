@@ -1,15 +1,30 @@
 import { z } from 'zod';
 import { SemverSchema } from '../../api/common';
+import type { SessionRevokeReason } from '../../auth/enums';
 import { IdSchema } from '../../ids';
 
 /**
  * The field app's phones (docs/03-roadmap-appendix/phase4.md §6.4): one row of `mobile_devices` per
  * person and installation, holding the refresh token's hash, its family and the push token, none
  * of which leaves the auth module. A phone is signed out by the app itself (`signed_out`), from
- * Admin › Team members (`revoked`, `field.device.revoke`), or by the server when a refresh token
- * is presented a second time (`refresh_reused`).
+ * Admin › Team members (`revoked`, `field.device.revoke`), by the server when a refresh token
+ * is presented a second time (`refresh_reused`), or with the person's website sessions when their
+ * account changes (`MOBILE_ACCOUNT_CHANGE_REASONS`, the sessions' own reasons).
  */
-export const MOBILE_DEVICE_REVOKE_REASONS = ['signed_out', 'revoked', 'refresh_reused'] as const;
+export const MOBILE_ACCOUNT_CHANGE_REASONS = [
+  'password_changed',
+  'role_changed',
+  'suspended',
+  'totp_reset',
+] as const satisfies readonly SessionRevokeReason[];
+export type MobileAccountChangeReason = (typeof MOBILE_ACCOUNT_CHANGE_REASONS)[number];
+
+export const MOBILE_DEVICE_REVOKE_REASONS = [
+  'signed_out',
+  'revoked',
+  'refresh_reused',
+  ...MOBILE_ACCOUNT_CHANGE_REASONS,
+] as const;
 export const MobileDeviceRevokeReasonSchema = z.enum(MOBILE_DEVICE_REVOKE_REASONS);
 export type MobileDeviceRevokeReason = z.infer<typeof MobileDeviceRevokeReasonSchema>;
 

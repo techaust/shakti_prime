@@ -2,7 +2,7 @@ import {
   DomainError,
   newId,
   type EntityRoleInput,
-  type SessionRevokeReason,
+  type MobileAccountChangeReason,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -114,11 +114,16 @@ export async function assertAnExecutiveRemains(
   }
 }
 
-/** Marks every live session of a user revoked; returns the ids so the caller can drop caches. */
+/**
+ * Marks every live session of a user revoked, and signs every phone of theirs out of the field app
+ * with the same reason (SECURITY §2: a change that signs a person out everywhere reaches their
+ * phones too); returns the sessions' ids so the caller can drop caches. The phones' next calls are
+ * refused with `device_revoked`.
+ */
 export async function revokeUserSessions(
   ctx: CommandContext,
   userId: string,
-  reason: SessionRevokeReason,
+  reason: MobileAccountChangeReason,
 ): Promise<string[]> {
   const s = schema.sessions;
   const rows = await ctx.tx
@@ -126,6 +131,11 @@ export async function revokeUserSessions(
     .set({ revokedAt: ctx.now, revokedReason: reason })
     .where(and(eq(s.userId, userId), isNull(s.revokedAt)))
     .returning({ id: s.id });
+  const d = schema.mobileDevices;
+  await ctx.tx
+    .update(d)
+    .set({ revokedAt: ctx.now, revokedReason: reason, revokedBy: ctx.principal.id })
+    .where(and(eq(d.userId, userId), isNull(d.revokedAt)));
   return rows.map((r) => r.id);
 }
 

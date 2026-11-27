@@ -148,6 +148,25 @@ describe('who signs a phone out', () => {
     expect(await rowsAs(principalFor('tele_caller_cc', [1]), revoke(engineerPhone))).toBe(0);
   });
 
+  it('admin.users.write, without field.device.revoke, for a person with no role outside the request (an account change)', async () => {
+    // Suspension, a role change and an authenticator reset sign the person's phones out with their
+    // website sessions, under the same rule as the sessions (0056).
+    const manager = (entityIds: number[]) =>
+      principalFor('executive', entityIds, {
+        permissions: principalFor('executive').permissions.filter(
+          (g) => g.key !== 'field.device.revoke',
+        ),
+      });
+    expect(await rowsAs(manager([1]), seen(elsewherePhone))).toBe(1);
+    expect(await rowsAs(manager([1]), revoke(engineerPhone))).toBe(1);
+    expect(await rowsAs(manager([1]), revoke(elsewherePhone))).toBe(0);
+    expect(await rowsAs(manager([1, 2, 3]), revoke(elsewherePhone))).toBe(1);
+    const entityScoped = principalFor('general_manager', [1], {
+      permissions: [{ key: 'admin.users.write', scope: 'entity' }],
+    });
+    expect(await rowsAs(entityScoped, revoke(engineerPhone))).toBe(0);
+  });
+
   it('never signs a phone back in, nor deletes one', async () => {
     const id = await phone(engineer.id);
     await asMigrator(

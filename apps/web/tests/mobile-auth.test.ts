@@ -8,7 +8,13 @@ import {
 } from '@shakti/contracts';
 import { closeAuthDb } from '@shakti/db/auth';
 import { loadUserGrants } from '@shakti/db/grants';
-import { asMigrator, closeDb, createTestPrincipal, createTestUser } from '@shakti/db/testing';
+import {
+  asMigrator,
+  closeDb,
+  createTestPrincipal,
+  createTestUser,
+  principalFor,
+} from '@shakti/db/testing';
 import {
   executeCommand,
   executeQuery,
@@ -17,9 +23,11 @@ import {
   memoryKeyValue,
   memoryLogger,
   memoryMailer,
+  resetTwoFactor,
   resolvePrincipalFromGrants,
   revokeMobileDevice,
   setFeatureFlag,
+  setUserRoles,
   suspendUser,
 } from '@shakti/domain';
 import { sql } from 'drizzle-orm';
@@ -569,16 +577,117 @@ describe('a phone signed out', () => {
     });
   });
 
-  it('a suspended person is refused at the next call', async () => {
+  it('a person no longer active is refused at the next call, even with the phone still signed in', async () => {
+    // `admin.user.suspend` signs the phones out too (below); a status changed any other way is
+    // still refused by the principal's own check.
     const { user, tokens } = await engineerOnPhone();
-    const exec = await createTestPrincipal('executive');
-    await executeCommand(exec, { entityIds: exec.entityIds }, suspendUser, { userId: user.id });
+    await asMigrator((m) => m`update users set status = 'suspended' where id = ${user.id}`);
     await invalidatePrincipal(keyValue, user.id);
     expect(await reasonOf(await me(tokens.accessToken))).toEqual({
       status: 403,
       code: 'forbidden',
       reason: 'account_suspended',
     });
+  });
+});
+
+describe('a person’s phones are signed out with their website sessions', () => {
+  const NEW_PASSWORD = 'harvest canal 2027 tractor';
+
+  /** The phone's row ended with the reason, and its next call refused. */
+  async function expectSignedOut(
+    signedIn: Awaited<ReturnType<typeof engineerOnPhone>>,
+    reason: string,
+  ) {
+    const row = await phoneRow(signedIn.user.id, signedIn.phone.deviceId);
+    expect(row).toMatchObject({ revoked_reason: reason });
+    expect(row?.revoked_at).not.toBeNull();
+    expect(await reasonOf(await me(signedIn.tokens.accessToken))).toMatchObject({
+      status: 401,
+      reason: 'device_revoked',
+    });
+    expect(
+      await reasonOf(await refresh(signedIn.tokens.refreshToken, signedIn.phone.deviceId)),
+    ).toMatchObject({ reason: 'device_revoked' });
+  }
+
+  /** An Executive who manages people but does not hold `field.device.revoke`. */
+  const executiveWithoutPhoneRevoke = () =>
+    createTestPrincipal('executive', undefined, {
+      permissions: principalFor('executive').permissions.filter(
+        (g) => g.key !== 'field.device.revoke',
+      ),
+    });
+
+  it('when they change their password and end their other sessions', async () => {
+    const signedIn = await engineerOnPhone();
+    const web = new Headers({ [TURNSTILE_HEADER]: 'ok', 'x-forwarded-for': nextAddress() });
+    const session = await auth.api.signInEmail({
+      body: { email: signedIn.user.email, password: PASSWORD },
+      headers: web,
+      returnHeaders: true,
+    });
+    web.set('cookie', cookieHeader(session.headers));
+    await auth.api.changePassword({
+      body: { currentPassword: PASSWORD, newPassword: NEW_PASSWORD, revokeOtherSessions: true },
+      headers: web,
+    });
+    await expectSignedOut(signedIn, 'password_changed');
+  });
+
+  it('when they reset a forgotten password', async () => {
+    const signedIn = await engineerOnPhone();
+    await auth.api.requestPasswordReset({
+      body: { email: signedIn.user.email, redirectTo: '/set-password' },
+    });
+    const token = /reset-password\/([^?\s]+)/.exec(mailer.sent.at(-1)?.text ?? '')?.[1];
+    if (token === undefined) throw new Error('no reset link in the mail');
+    await auth.api.resetPassword({
+      body: { newPassword: NEW_PASSWORD, token },
+      headers: new Headers({ 'x-forwarded-for': nextAddress() }),
+    });
+    await expectSignedOut(signedIn, 'password_changed');
+  });
+
+  it('when an Executive resets their authenticator app, without field.device.revoke', async () => {
+    const { user, secret } = await enrolledExecutive();
+    const phone = device();
+    const tokens = await pair(
+      await mobileTokenRoute(
+        post('/auth/mobile/token', {
+          email: user.email,
+          password: PASSWORD,
+          totpCode: totpCode(secret, new Date()),
+          device: phone,
+        }),
+        deps(),
+      ),
+    );
+    const exec = await executiveWithoutPhoneRevoke();
+    const reset = await executeCommand(exec, { entityIds: exec.entityIds }, resetTwoFactor, {
+      userId: user.id,
+    });
+    expect(reset.authenticatorRemoved).toBe(true);
+    await expectSignedOut({ user, phone, tokens }, 'totp_reset');
+  });
+
+  it('when an Executive changes their roles', async () => {
+    const signedIn = await engineerOnPhone();
+    const exec = await executiveWithoutPhoneRevoke();
+    await executeCommand(exec, { entityIds: exec.entityIds }, setUserRoles, {
+      userId: signedIn.user.id,
+      entityRoles: [{ entityId: 1, roleKey: 'store_manager' }],
+    });
+    await expectSignedOut(signedIn, 'role_changed');
+  });
+
+  it('when an Executive suspends them', async () => {
+    const signedIn = await engineerOnPhone();
+    const exec = await executiveWithoutPhoneRevoke();
+    await executeCommand(exec, { entityIds: exec.entityIds }, suspendUser, {
+      userId: signedIn.user.id,
+    });
+    await expectSignedOut(signedIn, 'suspended');
   });
 });
 

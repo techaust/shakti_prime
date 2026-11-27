@@ -23,6 +23,7 @@ import { ADDRESS_OPTIONS, clientAddress } from './client-address';
 import type { AuthDeps } from './deps';
 import { withoutPersonFields } from './library-log';
 import { mailTranslator } from './mail-copy';
+import { authDeviceStore } from './mobile-devices';
 import { addressKey, countRequest, type CapRule } from './request-cap';
 import {
   TURNSTILE_HEADER,
@@ -434,12 +435,14 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         hash: (password) => hash(password, ARGON2),
         verify: ({ hash: stored, password }) => verify(stored, password),
       },
-      // The first password set through an invite link activates the user.
+      // The first password set through an invite link activates the user. A reset ends every
+      // website session (above) and signs every phone of the person out with them.
       onPasswordReset: async ({ user }) => {
         await authDb()
           .update(authSchema.users)
           .set({ status: 'active', emailVerified: true })
           .where(and(eq(authSchema.users.id, user.id), eq(authSchema.users.status, 'invited')));
+        await authDeviceStore.signOutEverywhere(user.id, 'password_changed', deps.now());
       },
       sendResetPassword: async ({ user, url, token }) => {
         const v = authSchema.auth_verifications;
@@ -700,6 +703,15 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
           },
           headers: ctx.headers,
         });
+        // A password changed with the other sessions ended signs every phone out with them.
+        if (
+          ctx.path === CHANGE_PASSWORD_PATH &&
+          !failed &&
+          actorId !== undefined &&
+          (ctx.body as { revokeOtherSessions?: unknown } | undefined)?.revokeOtherSessions === true
+        ) {
+          await authDeviceStore.signOutEverywhere(actorId, 'password_changed', deps.now());
+        }
         if (verifying && !failed) {
           const user = ctx.context.newSession?.user;
           if (user) await completeSignIn({ id: user.id, email: user.email }, address);

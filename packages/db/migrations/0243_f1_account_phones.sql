@@ -1,0 +1,2 @@
+ALTER TABLE "mobile_devices" DROP CONSTRAINT "mobile_devices_revoked_reason_check";--> statement-breakpoint
+ALTER TABLE "mobile_devices" ADD CONSTRAINT "mobile_devices_revoked_reason_check" CHECK ("mobile_devices"."revoked_reason" in ('signed_out', 'revoked', 'refresh_reused', 'password_changed', 'role_changed', 'suspended', 'totp_reset'));

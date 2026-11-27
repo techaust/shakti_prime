@@ -1,4 +1,9 @@
-import { newId, type MobileDevice, type MobileDeviceRevokeReason } from '@shakti/contracts';
+import {
+  newId,
+  type MobileAccountChangeReason,
+  type MobileDevice,
+  type MobileDeviceRevokeReason,
+} from '@shakti/contracts';
 import { authDb, mobileDevices } from '@shakti/db/auth';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 
@@ -69,6 +74,12 @@ export interface DeviceStore {
     now: Date,
   ): Promise<boolean>;
   standing(userId: string, deviceId: string): Promise<DeviceStanding>;
+  /**
+   * Signs every phone of the person out when their password changes or is reset, as their website
+   * sessions end (SECURITY §2); answers how many were signed in. The commands that end sessions
+   * (`revokeUserSessions` in the domain) sign the phones out in their own transaction.
+   */
+  signOutEverywhere(userId: string, reason: MobileAccountChangeReason, now: Date): Promise<number>;
 }
 
 const d = mobileDevices;
@@ -196,6 +207,15 @@ export const authDeviceStore: DeviceStore = {
       .where(and(eq(d.userId, userId), eq(d.deviceId, deviceId), isNull(d.revokedAt)))
       .returning({ id: d.id });
     return rows.length > 0;
+  },
+
+  async signOutEverywhere(userId, reason, now) {
+    const rows = await authDb()
+      .update(d)
+      .set({ revokedAt: now, revokedReason: reason })
+      .where(and(eq(d.userId, userId), isNull(d.revokedAt)))
+      .returning({ id: d.id });
+    return rows.length;
   },
 
   async standing(userId, deviceId) {
