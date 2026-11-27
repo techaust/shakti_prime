@@ -1,4 +1,7 @@
 import {
+  // J2 customer loans
+  CUSTOMER_LOAN_STATES as CONTRACT_CUSTOMER_LOAN_STATES,
+  LOAN_DISPATCH_GATES as CONTRACT_LOAN_DISPATCH_GATES,
   INGEST_ASSIGNEES as CONTRACT_INGEST_ASSIGNEES,
   INGEST_FIELD_TARGETS as CONTRACT_INGEST_FIELD_TARGETS,
   INGEST_CHANNELS as CONTRACT_INGEST_CHANNELS,
@@ -263,6 +266,9 @@ import {
   STOCK_ADJUSTMENTS as STOCK_ADJUSTMENTS_WEB,
   STOCK_REASONS as STOCK_REASONS_WEB,
   WAREHOUSE_KINDS as WAREHOUSE_KINDS_WEB,
+  // J2 customer loans
+  CUSTOMER_LOAN_STATES as CUSTOMER_LOAN_STATES_WEB,
+  LOAN_DISPATCH_GATES as LOAN_DISPATCH_GATES_WEB,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -385,6 +391,9 @@ describe('the contract values copied for the browser', () => {
     expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
     expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
+    // J2 customer loans
+    expect(CUSTOMER_LOAN_STATES_WEB).toEqual(CONTRACT_CUSTOMER_LOAN_STATES);
+    expect(LOAN_DISPATCH_GATES_WEB).toEqual(CONTRACT_LOAN_DISPATCH_GATES);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

@@ -103,6 +103,9 @@ import type {
   UserSort,
   UserStatus,
   VoiceSessionMode,
+  // J2 customer loans
+  CustomerLoanState,
+  LoanDispatchGate,
 } from '@shakti/contracts';
 
 // The contract values that code running in the browser reads, copied here because every module
@@ -1061,3 +1064,19 @@ export const STOCK_ADJUSTMENTS = [
   'loss',
   'damage',
 ] as const satisfies readonly StockAdjustment[];
+
+// J2 customer loans
+/** A customer loan's states (the `customer-loan` machine). */
+export const CUSTOMER_LOAN_STATES = [
+  'applied',
+  'sanctioned',
+  'disbursed',
+  'rejected',
+] as const satisfies readonly CustomerLoanState[];
+
+/** What an order's dispatch waits for on its loan. */
+export const LOAN_DISPATCH_GATES = [
+  'disbursed',
+  'sanctioned',
+  'none',
+] as const satisfies readonly LoanDispatchGate[];

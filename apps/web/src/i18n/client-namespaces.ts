@@ -31,6 +31,8 @@ export const CLIENT_SCOPES = {
     'integrations',
     'knowledge',
     'leads',
+    // J2: a loan's status and what its dispatch waits for, in the Activity log's details.
+    'loans',
     'messaging',
     'orders',
     'pipelineSettings',

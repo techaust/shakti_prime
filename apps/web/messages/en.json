@@ -564,7 +564,14 @@
     "bin_missing": "We couldn't find that bin. Refresh the page to see the current list.",
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
-    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it."
+    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "loan_active_exists": "This order already has a loan in progress. Record the lender's answer on that loan before you add another.",
+    "loan_missing": "We couldn't find this loan. It may belong to another company or a colleague's customer.",
+    "loan_order_cancelled": "This order is cancelled, so a loan can't be added to it.",
+    "loan_lender_missing": "This lender is no longer on the company's list. Choose another lender.",
+    "loan_lender_from_list": "Choose the lender from the list. Ask an Executive to add a lender that is missing.",
+    "lender_name_taken": "This company already has a lender with this name.",
+    "lender_missing": "We couldn't find this lender. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -1991,7 +1998,13 @@
       "binArchive": "Bin archived",
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
-      "stockReverse": "Stock movement reversed"
+      "stockReverse": "Stock movement reversed",
+      "loanCreate": "Loan recorded",
+      "loanSanction": "Loan sanctioned",
+      "loanDisburse": "Loan paid out",
+      "loanReject": "Loan turned down",
+      "lenderCreate": "Lender added",
+      "lenderUpdate": "Lender changed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2056,7 +2069,12 @@
       "vendorArchived": "Vendor archived",
       "vendorQuoteRecorded": "Supplier quote recorded",
       "vendorQuoteWithdrawn": "Supplier quote withdrawn",
-      "stockMoved": "Stock moved"
+      "stockMoved": "Stock moved",
+      "loanCreated": "Loan recorded",
+      "loanSanctioned": "Loan sanctioned",
+      "loanDisbursed": "Loan paid out",
+      "loanRejected": "Loan turned down",
+      "loanGatesReleased": "Loan let the order go ahead"
     },
     "sheet": {
       "title": "{action}",
@@ -2400,7 +2418,14 @@
       "purchaseUnit": "Unit it is bought in",
       "purchaseUnitFactor": "Stock units in one bought unit",
       "serialPattern": "Shape of its serial numbers",
-      "isStocked": "Kept in stock"
+      "isStocked": "Kept in stock",
+      "loanState": "Loan status",
+      "loanAmount": "Loan amount",
+      "sanctionedAmount": "Sanctioned amount",
+      "lenderName": "Lender",
+      "loanReference": "Lender's reference",
+      "dispatchGate": "Dispatch waits for",
+      "rejectedReason": "Why the lender turned it down"
     },
     "values": {
       "percent": "{value}%",
@@ -5658,6 +5683,19 @@
     "emptySearch": "No orders have a number like this. Check the number and try again.",
     "searchTooShort": "Type at least 2 characters of the order number.",
     "searchCapped": "Only the 200 newest orders with a number like this are shown. Type more of the number to find an older one."
+  },
+  "loans": {
+    "state": {
+      "applied": "Applied",
+      "sanctioned": "Sanctioned",
+      "disbursed": "Paid out",
+      "rejected": "Turned down"
+    },
+    "dispatchGate": {
+      "disbursed": "The loan to be paid out",
+      "sanctioned": "The loan to be sanctioned",
+      "none": "Nothing, it can go any time"
+    }
   },
   "dealerCredit": {
     "title": "Dealer credit",

@@ -190,7 +190,7 @@ async function setLoan(
           sanctioned_at = ${state === 'sanctioned' || state === 'disbursed' ? new Date() : null},
           disbursed_at = ${state === 'disbursed' ? new Date() : null},
           rejected_reason = ${state === 'rejected' ? 'loans suite rejection' : null},
-          gates_json = ${tx.json(gates as never)}
+          gates_json = ${tx.json(gates)}
       where id = ${loanId}`;
     }),
   );
