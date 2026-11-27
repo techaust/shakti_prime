@@ -24,6 +24,7 @@ import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { failureOf, runCommand } from '../../src/command/run-command';
 import {
+  attachProformaPdf,
   cancelProforma,
   issueProforma,
   planConfirmedMilestones,
@@ -34,6 +35,8 @@ import {
 import { istCalendarDate } from '../../src/numbering/financial-year';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { readOrderMilestones, readOrderProformas } from '../../src/queries/finance/finance-dto';
+import { listPaymentTerms, readOrderPayments } from '../../src/queries/finance/order-payments';
+import { loadProformaForPrint } from '../../src/queries/finance/proforma-print';
 
 // FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1, §13): numbering
 // with no gaps under concurrency, snapshots never recomputed, milestone amounts summing to the
@@ -80,6 +83,8 @@ async function removeFinanceRows(): Promise<void> {
       await tx`delete from proforma_lines where proforma_id in
                  (select id from proformas where sales_order_id in (${orders}))`;
       await tx`delete from proformas where sales_order_id in (${orders})`;
+      await tx`delete from files where purpose in ('proforma_pdf', 'quote_pdf') and entity_id = ${E}
+                 and created_by = ${SYSTEM_WORKERS_PRINCIPAL_ID} and sha256 = ${'d'.repeat(64)}`;
       await tx`delete from payment_milestone_templates where entity_id = ${E}`;
       await tx`delete from sales_order_lines where sales_order_id in (${orders})`;
       await tx`delete from sales_orders where id in (${orders})`;
@@ -235,6 +240,10 @@ describe('finance.proforma.issue (FIN-01)', () => {
     expect(await proformaLines(proforma.id)).toEqual(await orderLines(orderId));
     expect(await eventsOf(proforma.id)).toEqual([
       { type: 'finance.proforma.issued', payload: { orderId, lineCount: 2, v: 1 } },
+      {
+        type: 'print.document.requested',
+        payload: { documentType: 'proforma', documentId: proforma.id, version: 1, v: 1 },
+      },
     ]);
   });
 
@@ -384,6 +393,7 @@ describe('finance.proforma.cancel', () => {
     });
     expect((await eventsOf(proforma.id)).map((e) => e.type)).toEqual([
       'finance.proforma.issued',
+      'print.document.requested',
       'finance.proforma.cancelled',
     ]);
   });
@@ -661,5 +671,119 @@ describe('finance.read (phase5 §4): who reads an order’s proformas and milest
     expect(await counts(principalFor('tele_caller_cc', [E], { id: lc.id, teamId }))).toEqual([
       0, 0,
     ]);
+  });
+});
+
+/** A rendered PDF of company 4 as the worker records one (`files.document.record`). */
+async function renderedFile(
+  purpose: 'proforma_pdf' | 'quote_pdf' = 'proforma_pdf',
+): Promise<string> {
+  const id = newId();
+  await asMigrator(
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+             values (${id}, ${E}, ${purpose}, 'local', ${`${String(E)}/${purpose}/${id}`}, 'file.pdf',
+                     'application/pdf', 10, ${'d'.repeat(64)}, 'ready', ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
+  );
+  return id;
+}
+
+describe('the proforma PDF (finance.proforma.pdf.attach and its print loader)', () => {
+  it('is attached by the render worker alone: refused to Accounts, the Executive and an agent', async () => {
+    const orderId = await order();
+    const proforma = await run<ProformaDto>(accounts, issueProforma, { entityId: E, orderId });
+    const input = { entityId: E, proformaId: proforma.id, fileId: await renderedFile() };
+    for (const who of [accounts, exec, principalFor('agent:orchestrator', [E])]) {
+      expect(await failure(who, attachProformaPdf, input)).toMatchObject({ code: 'forbidden' });
+    }
+    // The worker acting for company 1: company 4 is outside the request.
+    const workers1 = { ...workers(), entityIds: [1] };
+    expect(await failure(workers1, attachProformaPdf, input)).toMatchObject({ code: 'forbidden' });
+  });
+
+  it('attaches a ready proforma PDF once, refusing another file or another purpose, and the reader opens it', async () => {
+    const orderId = await order();
+    const proforma = await run<ProformaDto>(accounts, issueProforma, { entityId: E, orderId });
+    const file = await renderedFile();
+    expect(
+      await failure(workers(), attachProformaPdf, {
+        entityId: E,
+        proformaId: proforma.id,
+        fileId: await renderedFile('quote_pdf'),
+      }),
+    ).toMatchObject({ code: 'conflict', reason: 'proforma_pdf_mismatch' });
+    await run(workers(), attachProformaPdf, { entityId: E, proformaId: proforma.id, fileId: file });
+    // A delivery that runs again attaches the same file and nothing else.
+    await run(workers(), attachProformaPdf, { entityId: E, proformaId: proforma.id, fileId: file });
+    expect(
+      await failure(workers(), attachProformaPdf, {
+        entityId: E,
+        proformaId: proforma.id,
+        fileId: await renderedFile(),
+      }),
+    ).toMatchObject({ code: 'conflict', reason: 'proforma_pdf_mismatch' });
+    const [seen] = await asPrincipal(lc, (ctx) => readOrderProformas(ctx, E, orderId));
+    expect(seen?.pdfFileId).toBe(file);
+    // The Lead Converter reads the file with the proforma; another Lead Converter does not.
+    const fileRows = (p: Principal) =>
+      asPrincipal(p, async ({ tx }) => tx.execute(sql`select id from files where id = ${file}`));
+    expect(await fileRows(lc)).toHaveLength(1);
+    expect(await fileRows(otherLc)).toHaveLength(0);
+  });
+
+  it('loads the proforma for the worker with its lines, customer and payments, and for no one else', async () => {
+    const orderId = await order();
+    const proforma = await run<ProformaDto>(accounts, issueProforma, { entityId: E, orderId });
+    await run(workers(), planConfirmedMilestones, { entityId: E, orderId });
+    const printed = await asPrincipal(workers(), (ctx) => loadProformaForPrint(ctx, proforma.id));
+    expect(printed).toMatchObject({
+      proformaNo: proforma.proformaNo,
+      grandTotal: '68209.00',
+      customerName: 'Finance test dealer',
+      customerGstin: null,
+    });
+    expect(printed.lines.map((l) => [l.hsn, l.unitPrice, l.taxRatePct])).toEqual([
+      ['8541', '12000.00', '12.00'],
+      ['8544', '85.50', '18.00'],
+    ]);
+    expect(printed.milestones.map((m) => m.amount)).toEqual(['34105.00', '34104.00']);
+    await expect(
+      asPrincipal(accounts, (ctx) => loadProformaForPrint(ctx, proforma.id)),
+    ).rejects.toThrow();
+  });
+});
+
+describe('the Payments tab and Settings › Payment terms reads', () => {
+  it('answer the order’s payments and what each reader may do, and refuse a reader without finance.read', async () => {
+    const orderId = await order();
+    await run(accounts, issueProforma, { entityId: E, orderId });
+    const tab = (p: Principal) =>
+      asPrincipal(p, (ctx) => readOrderPayments(ctx, { entityId: E, orderId }));
+    const forAccounts = await tab(accounts);
+    expect(forAccounts).toMatchObject({
+      dispatchGate: 'clear',
+      canIssue: false,
+      canCancelProforma: true,
+      canPlan: true,
+      canWaive: false,
+    });
+    expect(forAccounts.proformas).toHaveLength(1);
+    expect(await tab(lc)).toMatchObject({ canIssue: false, canPlan: false, canWaive: false });
+    expect(await tab(exec)).toMatchObject({ canWaive: true });
+    await expect(tab(principalFor('tele_caller_cc', [E], { id: lc.id }))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(
+      asPrincipal(otherLc, (ctx) => readOrderPayments(ctx, { entityId: E, orderId })),
+    ).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('lists a company’s terms and the standard terms for the Executive alone', async () => {
+    const terms = await asPrincipal(exec, (ctx) => listPaymentTerms(ctx, { entityId: E }));
+    expect(terms.defaultSteps.map((s) => s.key)).toEqual(['advance', 'balance']);
+    await expect(
+      asPrincipal(accounts, (ctx) => listPaymentTerms(ctx, { entityId: E })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
