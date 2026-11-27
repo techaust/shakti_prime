@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 3
-updated: 2026-11-27T16:10Z
+updated: 2026-11-27T16:11Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -42,3 +42,11 @@ run_file: docs/runs/phase4/f1-field-foundation.md
 wait_for: none
 done_when: report: f1-field-foundation done
 note: continue. The lead read the early check (27-11 16:20 UTC): accepted, every decision except one. A lost answer to a refresh must not sign the phone out (an offline field app on weak networks): keep the previous hash and its rotation time on the row; the same previous token presented within 120 seconds of its rotation answers the pair that rotation issued (store it encrypted or re-issue an equivalent pair tied to the same new hash, your call, stated in the report); after 120 seconds it is reuse as now. Test it (a lost answer, then the retry; the retry after 121 s ends the family). Then apps/field, the native build CI job, the phones screen and its journey. Name the Sentry React Native package and its version in your report; do not add it.
+
+lane: 49
+role: build
+branch: feat/j1-projects
+run_file: docs/runs/phase4/j1-projects.md
+wait_for: none
+done_when: report: j1-projects done
+note: continue. The lead read the early check (27-11 16:25 UTC): accepted, decisions 1 to 8 included. Go on to status_summary, the screens, the template editor and the journeys. Take EXPLAIN of the projects list as a Field Engineer at volume (app.project_is_mine per row) and record it.
