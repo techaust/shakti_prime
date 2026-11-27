@@ -1,5 +1,5 @@
 {
-  "id": "78524871-e186-4028-8dc3-2c65274710b1",
+  "id": "4ea57445-abb0-4c84-adee-506c115bc2c1",
   "prevId": "fdc77bee-89b3-48c9-851b-f9234abe5a32",
   "version": "7",
   "dialect": "postgresql",
@@ -17757,7 +17757,7 @@
         },
         "stock_count_lines_serial_qty_check": {
           "name": "stock_count_lines_serial_qty_check",
-          "value": "\"stock_count_lines\".\"serial_id\" is null\n          or (\"stock_count_lines\".\"expected_qty\" in (0, 1) and coalesce(\"stock_count_lines\".\"counted_qty\", 0) in (0, 1)\n              and coalesce(\"stock_count_lines\".\"recount_qty\", 0) in (0, 1))"
+          "value": "\"stock_count_lines\".\"serial_id\" is null\n          or (greatest(\"stock_count_lines\".\"expected_qty\", coalesce(\"stock_count_lines\".\"counted_qty\", 0), coalesce(\"stock_count_lines\".\"recount_qty\", 0)) <= 1\n              and \"stock_count_lines\".\"expected_qty\" = trunc(\"stock_count_lines\".\"expected_qty\")\n              and coalesce(\"stock_count_lines\".\"counted_qty\", 0) = trunc(coalesce(\"stock_count_lines\".\"counted_qty\", 0))\n              and coalesce(\"stock_count_lines\".\"recount_qty\", 0) = trunc(coalesce(\"stock_count_lines\".\"recount_qty\", 0)))"
         },
         "stock_count_lines_counted_check": {
           "name": "stock_count_lines_counted_check",

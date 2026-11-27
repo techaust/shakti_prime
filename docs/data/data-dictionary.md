@@ -10,10 +10,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - **Catalogue, pricing and tax:** [`composite_supply_rules`](#composite_supply_rules), [`item_costs`](#item_costs), [`items`](#items), [`kit_components`](#kit_components), [`kits`](#kits), [`price_change_log`](#price_change_log), [`price_list_items`](#price_list_items), [`price_lists`](#price_lists), [`price_tiers`](#price_tiers), [`pump_curves`](#pump_curves), [`tax_rates`](#tax_rates)
 - **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`notification_preferences`](#notification_preferences), [`notifications`](#notifications), [`outbox_events`](#outbox_events), [`push_subscriptions`](#push_subscriptions), [`retention_runs`](#retention_runs), [`saved_views`](#saved_views), [`webhook_inbox`](#webhook_inbox)
 - **AI and voice:** [`agent_actions`](#agent_actions), [`agent_configs`](#agent_configs), [`agent_evals`](#agent_evals), [`agent_runs`](#agent_runs), [`ask_conversations`](#ask_conversations), [`ask_messages`](#ask_messages), [`copilot_notes`](#copilot_notes), [`inbox_items`](#inbox_items), [`knowledge_chunks`](#knowledge_chunks), [`knowledge_files`](#knowledge_files), [`playbook_conflict_checks`](#playbook_conflict_checks), [`playbook_directives`](#playbook_directives), [`voice_sessions`](#voice_sessions)
-- **Inventory and logistics:** [`bins`](#bins), [`item_vendors`](#item_vendors), [`serials`](#serials), [`stock_balances`](#stock_balances), [`stock_movement_costs`](#stock_movement_costs), [`stock_movements`](#stock_movements), [`vendor_contacts`](#vendor_contacts), [`vendor_quotes`](#vendor_quotes), [`vendors`](#vendors), [`warehouses`](#warehouses)
+- **Inventory and logistics:** [`bins`](#bins), [`item_vendors`](#item_vendors), [`serials`](#serials), [`stock_balances`](#stock_balances), [`stock_count_lines`](#stock_count_lines), [`stock_counts`](#stock_counts), [`stock_movement_costs`](#stock_movement_costs), [`stock_movements`](#stock_movements), [`vendor_contacts`](#vendor_contacts), [`vendor_quotes`](#vendor_quotes), [`vendors`](#vendors), [`warehouses`](#warehouses)
 - **Finance and costing:** [`dealer_outstanding`](#dealer_outstanding)
 - **Sales:** [`dealer_terms`](#dealer_terms), [`quote_lines`](#quote_lines), [`quote_versions`](#quote_versions), [`quotes`](#quotes), [`sales_order_lines`](#sales_order_lines), [`sales_orders`](#sales_orders), [`targets`](#targets)
-- **Other:** [`stock_count_lines`](#stock_count_lines), [`stock_counts`](#stock_counts)
 - [Planned tables](#planned-tables)
 
 ## Org
@@ -4751,6 +4750,134 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `stock_balances_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('inventory.stock.read:entity'))`
 
+### stock_count_lines
+
+**Catalogue entry** (05-database.md §6.5; created in 0240): `entity_id`, `count_id` (with the company, a composite foreign key to the count), `bin_id`, `item_id`, `serial_id` (a composite foreign key to the serial; one line per serial, quantities 0 or 1), `expected_qty` (frozen at the start, selected by no request role), `counted_qty`, `counted_by`, `counted_at`, `recount_requested_at`, `recount_requested_by`, `recount_qty`, `recounted_by`, `recounted_at`; one line per untracked item, or serial, in a bin of a count; read without `expected_qty` only with `inventory.stock.adjust` for the company; written only by the count's definers
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `entity_id` | smallint | no |  | → `entities.id` |
+| `count_id` | uuid | no |  |  |
+| `bin_id` | uuid | no |  | → `bins.id` |
+| `item_id` | uuid | no |  | → `items.id` |
+| `serial_id` | uuid | yes |  |  |
+| `expected_qty` | numeric(12, 3) | no |  |  |
+| `counted_qty` | numeric(12, 3) | yes |  |  |
+| `counted_by` | uuid | yes |  | → `principals.id` |
+| `counted_at` | timestamp with time zone | yes |  |  |
+| `recount_requested_at` | timestamp with time zone | yes |  |  |
+| `recount_requested_by` | uuid | yes |  | → `principals.id` |
+| `recount_qty` | numeric(12, 3) | yes |  |  |
+| `recounted_by` | uuid | yes |  | → `principals.id` |
+| `recounted_at` | timestamp with time zone | yes |  |  |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+
+**Primary key**
+
+- (`id`)
+
+**Foreign keys**
+
+- `stock_count_lines_bin_id_bins_id_fk`: (`bin_id`) → `bins` (`id`)
+- `stock_count_lines_count_fk`: (`count_id`, `entity_id`) → `stock_counts` (`id`, `entity_id`)
+- `stock_count_lines_counted_by_principals_id_fk`: (`counted_by`) → `principals` (`id`)
+- `stock_count_lines_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
+- `stock_count_lines_item_id_items_id_fk`: (`item_id`) → `items` (`id`)
+- `stock_count_lines_recount_requested_by_principals_id_fk`: (`recount_requested_by`) → `principals` (`id`)
+- `stock_count_lines_recounted_by_principals_id_fk`: (`recounted_by`) → `principals` (`id`)
+- `stock_count_lines_serial_fk`: (`serial_id`, `entity_id`, `item_id`) → `serials` (`id`, `entity_id`, `item_id`)
+
+**Check constraints**
+
+- `stock_count_lines_counted_check`: `("stock_count_lines"."counted_qty" is null) = ("stock_count_lines"."counted_at" is null) and ("stock_count_lines"."counted_qty" is null) = ("stock_count_lines"."counted_by" is null)`
+- `stock_count_lines_qty_check`: `"stock_count_lines"."expected_qty" >= 0 and coalesce("stock_count_lines"."counted_qty", 0) >= 0 and coalesce("stock_count_lines"."recount_qty", 0) >= 0`
+- `stock_count_lines_recount_check`: `("stock_count_lines"."recount_qty" is null) = ("stock_count_lines"."recounted_at" is null) and ("stock_count_lines"."recount_qty" is null) = ("stock_count_lines"."recounted_by" is null) and ("stock_count_lines"."recount_requested_at" is null) = ("stock_count_lines"."recount_requested_by" is null) and ("stock_count_lines"."recount_qty" is null or "stock_count_lines"."recount_requested_at" is not null)`
+- `stock_count_lines_serial_qty_check`: `"stock_count_lines"."serial_id" is null or (greatest("stock_count_lines"."expected_qty", coalesce("stock_count_lines"."counted_qty", 0), coalesce("stock_count_lines"."recount_qty", 0)) <= 1 and "stock_count_lines"."expected_qty" = trunc("stock_count_lines"."expected_qty") and coalesce("stock_count_lines"."counted_qty", 0) = trunc(coalesce("stock_count_lines"."counted_qty", 0)) and coalesce("stock_count_lines"."recount_qty", 0) = trunc(coalesce("stock_count_lines"."recount_qty", 0)))`
+
+**Indexes**
+
+- `stock_count_lines_group_idx` (btree): `count_id, bin_id, item_id`
+- `stock_count_lines_item_unique` (btree, unique): `count_id, bin_id, item_id` where `"stock_count_lines"."serial_id" is null`
+- `stock_count_lines_serial_idx` (btree): `count_id, serial_id` where `"stock_count_lines"."serial_id" is not null`
+- `stock_count_lines_serial_unique` (btree, unique): `count_id, bin_id, serial_id` where `"stock_count_lines"."serial_id" is not null`
+
+**Row-level security:** enabled and forced; 1 policy.
+
+- `stock_count_lines_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('inventory.stock.adjust:entity'))`
+
+### stock_counts
+
+**Catalogue entry** (05-database.md §6.5; created in 0240): `entity_id`, `warehouse_id`, `scope` (`hub`, `bins` or `items`, with `scope_bin_ids` or `scope_item_ids`, up to 200), `state` (the `stock-count` machine), `state_changed_at`, `started_at`, `started_by`, `submitted_at`, `submitted_by`, `posted_at`, `posted_by`, `post_note`, `cancelled_at`, `cancelled_by`, `cancel_reason`; one live count (open, counting or review) per company and hub (`stock_counts_live_unique`); read by company with `inventory.stock.read` or `.move`, started with `inventory.stock.adjust`, only its state and stamps change (column grants and `app.stock_counts_guard()`)
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `entity_id` | smallint | no |  | → `entities.id` |
+| `warehouse_id` | uuid | no |  | → `warehouses.id` |
+| `scope` | text | no |  |  |
+| `scope_bin_ids` | uuid[] | yes |  |  |
+| `scope_item_ids` | uuid[] | yes |  |  |
+| `state` | text | no |  |  |
+| `state_changed_at` | timestamp with time zone | no | `now()` |  |
+| `started_at` | timestamp with time zone | no | `now()` |  |
+| `started_by` | uuid | no |  | → `principals.id` |
+| `submitted_at` | timestamp with time zone | yes |  |  |
+| `submitted_by` | uuid | yes |  | → `principals.id` |
+| `posted_at` | timestamp with time zone | yes |  |  |
+| `posted_by` | uuid | yes |  | → `principals.id` |
+| `post_note` | text | yes |  |  |
+| `cancelled_at` | timestamp with time zone | yes |  |  |
+| `cancelled_by` | uuid | yes |  | → `principals.id` |
+| `cancel_reason` | text | yes |  |  |
+| `updated_by` | uuid | yes |  | → `principals.id` |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+| `updated_at` | timestamp with time zone | no | `now()` |  |
+
+**Primary key**
+
+- (`id`)
+
+**Unique constraints**
+
+- `stock_counts_id_entity_unique`: (`id`, `entity_id`)
+
+**Foreign keys**
+
+- `stock_counts_cancelled_by_principals_id_fk`: (`cancelled_by`) → `principals` (`id`)
+- `stock_counts_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
+- `stock_counts_posted_by_principals_id_fk`: (`posted_by`) → `principals` (`id`)
+- `stock_counts_started_by_principals_id_fk`: (`started_by`) → `principals` (`id`)
+- `stock_counts_submitted_by_principals_id_fk`: (`submitted_by`) → `principals` (`id`)
+- `stock_counts_updated_by_principals_id_fk`: (`updated_by`) → `principals` (`id`)
+- `stock_counts_warehouse_id_warehouses_id_fk`: (`warehouse_id`) → `warehouses` (`id`)
+
+**Check constraints**
+
+- `stock_counts_cancelled_check`: `("stock_counts"."state" = 'cancelled') = ("stock_counts"."cancelled_at" is not null and "stock_counts"."cancelled_by" is not null and "stock_counts"."cancel_reason" is not null)`
+- `stock_counts_notes_check`: `("stock_counts"."post_note" is null or char_length("stock_counts"."post_note") between 3 and 300) and ("stock_counts"."cancel_reason" is null or char_length("stock_counts"."cancel_reason") between 3 and 300)`
+- `stock_counts_posted_check`: `("stock_counts"."state" = 'posted') = ("stock_counts"."posted_at" is not null and "stock_counts"."posted_by" is not null and "stock_counts"."post_note" is not null)`
+- `stock_counts_scope_check`: `"stock_counts"."scope" in ('hub', 'bins', 'items')`
+- `stock_counts_scope_lists_check`: `("stock_counts"."scope" = 'hub' and "stock_counts"."scope_bin_ids" is null and "stock_counts"."scope_item_ids" is null) or ("stock_counts"."scope" = 'bins' and cardinality("stock_counts"."scope_bin_ids") between 1 and 200 and "stock_counts"."scope_item_ids" is null) or ("stock_counts"."scope" = 'items' and cardinality("stock_counts"."scope_item_ids") between 1 and 200 and "stock_counts"."scope_bin_ids" is null)`
+- `stock_counts_state_check`: `"stock_counts"."state" in ('open', 'counting', 'review', 'posted', 'cancelled')`
+
+**Indexes**
+
+- `stock_counts_list_idx` (btree): `entity_id, state, started_at desc, id desc`
+- `stock_counts_live_unique` (btree, unique): `entity_id, warehouse_id` where `"stock_counts"."state" in ('open', 'counting', 'review')`
+- `stock_counts_warehouse_idx` (btree): `warehouse_id`
+
+**Triggers**
+
+- `set_updated_at`: before update, runs `app.set_updated_at()`
+- `stock_counts_guard`: before update, runs `app.stock_counts_guard()`
+
+**Row-level security:** enabled and forced; 3 policies.
+
+- `stock_counts_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('inventory.stock.adjust:entity')) and started_by = (select app.user_id()) and state = 'open'`
+- `stock_counts_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('inventory.stock.read:entity')) or (select app.has_perm('inventory.stock.move:entity')))`
+- `stock_counts_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('inventory.stock.move:entity')) or (select app.has_perm('inventory.stock.adjust:entity')))`; with check `entity_id = any ((select app.entity_ids())::int[]) and updated_by = (select app.user_id())`
+
 ### stock_movement_costs
 
 **Catalogue entry** (05-database.md §6.5; created in 0230; restricted, append-only): `movement_id` (with `entity_id`, a composite foreign key to the movement), `unit_cost` (`numeric(14,4)`); read with `finance.cost.read` for the company (the `cost_gate`); written only by `app.stock_move()` beside its movement
@@ -5611,136 +5738,6 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `targets_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and set_by = (select app.user_id()) and exists (select 1 from principals p where p.id = targets.set_by and p.kind = 'user') and ((select app.has_perm('sales.targets.write:all')) or (select app.has_perm('sales.targets.write:entity')) or ((select app.has_perm('sales.targets.write:team')) and team_id = (select app.team_id()))) and ((scope = 'caller' and app.target_caller_ok(targets.subject_id, targets.entity_id, targets.team_id)) or (scope = 'team' and exists (select 1 from teams t where t.id = targets.subject_id and (t.entity_id is null or t.entity_id = targets.entity_id))))`
 - `targets_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((scope = 'caller' and subject_id = (select app.user_id())) or (scope = 'team' and subject_id = (select app.team_id())) or (select app.has_perm('sales.targets.write:entity')) or (select app.has_perm('sales.targets.write:all')) or ((select app.has_perm('sales.targets.write:team')) and scope = 'caller' and app.target_caller_in_team(subject_id, entity_id, (select app.team_id()))))`
-
-## Other
-
-### stock_count_lines
-
-**Catalogue entry:** none in 05-database.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK |
-| `entity_id` | smallint | no |  | → `entities.id` |
-| `count_id` | uuid | no |  |  |
-| `bin_id` | uuid | no |  | → `bins.id` |
-| `item_id` | uuid | no |  | → `items.id` |
-| `serial_id` | uuid | yes |  |  |
-| `expected_qty` | numeric(12, 3) | no |  |  |
-| `counted_qty` | numeric(12, 3) | yes |  |  |
-| `counted_by` | uuid | yes |  | → `principals.id` |
-| `counted_at` | timestamp with time zone | yes |  |  |
-| `recount_requested_at` | timestamp with time zone | yes |  |  |
-| `recount_requested_by` | uuid | yes |  | → `principals.id` |
-| `recount_qty` | numeric(12, 3) | yes |  |  |
-| `recounted_by` | uuid | yes |  | → `principals.id` |
-| `recounted_at` | timestamp with time zone | yes |  |  |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-
-**Primary key**
-
-- (`id`)
-
-**Foreign keys**
-
-- `stock_count_lines_bin_id_bins_id_fk`: (`bin_id`) → `bins` (`id`)
-- `stock_count_lines_count_fk`: (`count_id`, `entity_id`) → `stock_counts` (`id`, `entity_id`)
-- `stock_count_lines_counted_by_principals_id_fk`: (`counted_by`) → `principals` (`id`)
-- `stock_count_lines_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
-- `stock_count_lines_item_id_items_id_fk`: (`item_id`) → `items` (`id`)
-- `stock_count_lines_recount_requested_by_principals_id_fk`: (`recount_requested_by`) → `principals` (`id`)
-- `stock_count_lines_recounted_by_principals_id_fk`: (`recounted_by`) → `principals` (`id`)
-- `stock_count_lines_serial_fk`: (`serial_id`, `entity_id`, `item_id`) → `serials` (`id`, `entity_id`, `item_id`)
-
-**Check constraints**
-
-- `stock_count_lines_counted_check`: `("stock_count_lines"."counted_qty" is null) = ("stock_count_lines"."counted_at" is null) and ("stock_count_lines"."counted_qty" is null) = ("stock_count_lines"."counted_by" is null)`
-- `stock_count_lines_qty_check`: `"stock_count_lines"."expected_qty" >= 0 and coalesce("stock_count_lines"."counted_qty", 0) >= 0 and coalesce("stock_count_lines"."recount_qty", 0) >= 0`
-- `stock_count_lines_recount_check`: `("stock_count_lines"."recount_qty" is null) = ("stock_count_lines"."recounted_at" is null) and ("stock_count_lines"."recount_qty" is null) = ("stock_count_lines"."recounted_by" is null) and ("stock_count_lines"."recount_requested_at" is null) = ("stock_count_lines"."recount_requested_by" is null) and ("stock_count_lines"."recount_qty" is null or "stock_count_lines"."recount_requested_at" is not null)`
-- `stock_count_lines_serial_qty_check`: `"stock_count_lines"."serial_id" is null or ("stock_count_lines"."expected_qty" in (0, 1) and coalesce("stock_count_lines"."counted_qty", 0) in (0, 1) and coalesce("stock_count_lines"."recount_qty", 0) in (0, 1))`
-
-**Indexes**
-
-- `stock_count_lines_group_idx` (btree): `count_id, bin_id, item_id`
-- `stock_count_lines_item_unique` (btree, unique): `count_id, bin_id, item_id` where `"stock_count_lines"."serial_id" is null`
-- `stock_count_lines_serial_idx` (btree): `count_id, serial_id` where `"stock_count_lines"."serial_id" is not null`
-- `stock_count_lines_serial_unique` (btree, unique): `count_id, bin_id, serial_id` where `"stock_count_lines"."serial_id" is not null`
-
-**Row-level security:** enabled and forced; 1 policy.
-
-- `stock_count_lines_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('inventory.stock.adjust:entity'))`
-
-### stock_counts
-
-**Catalogue entry:** none in 05-database.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK |
-| `entity_id` | smallint | no |  | → `entities.id` |
-| `warehouse_id` | uuid | no |  | → `warehouses.id` |
-| `scope` | text | no |  |  |
-| `scope_bin_ids` | uuid[] | yes |  |  |
-| `scope_item_ids` | uuid[] | yes |  |  |
-| `state` | text | no |  |  |
-| `state_changed_at` | timestamp with time zone | no | `now()` |  |
-| `started_at` | timestamp with time zone | no | `now()` |  |
-| `started_by` | uuid | no |  | → `principals.id` |
-| `submitted_at` | timestamp with time zone | yes |  |  |
-| `submitted_by` | uuid | yes |  | → `principals.id` |
-| `posted_at` | timestamp with time zone | yes |  |  |
-| `posted_by` | uuid | yes |  | → `principals.id` |
-| `post_note` | text | yes |  |  |
-| `cancelled_at` | timestamp with time zone | yes |  |  |
-| `cancelled_by` | uuid | yes |  | → `principals.id` |
-| `cancel_reason` | text | yes |  |  |
-| `updated_by` | uuid | yes |  | → `principals.id` |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-| `updated_at` | timestamp with time zone | no | `now()` |  |
-
-**Primary key**
-
-- (`id`)
-
-**Unique constraints**
-
-- `stock_counts_id_entity_unique`: (`id`, `entity_id`)
-
-**Foreign keys**
-
-- `stock_counts_cancelled_by_principals_id_fk`: (`cancelled_by`) → `principals` (`id`)
-- `stock_counts_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
-- `stock_counts_posted_by_principals_id_fk`: (`posted_by`) → `principals` (`id`)
-- `stock_counts_started_by_principals_id_fk`: (`started_by`) → `principals` (`id`)
-- `stock_counts_submitted_by_principals_id_fk`: (`submitted_by`) → `principals` (`id`)
-- `stock_counts_updated_by_principals_id_fk`: (`updated_by`) → `principals` (`id`)
-- `stock_counts_warehouse_id_warehouses_id_fk`: (`warehouse_id`) → `warehouses` (`id`)
-
-**Check constraints**
-
-- `stock_counts_cancelled_check`: `("stock_counts"."state" = 'cancelled') = ("stock_counts"."cancelled_at" is not null and "stock_counts"."cancelled_by" is not null and "stock_counts"."cancel_reason" is not null)`
-- `stock_counts_notes_check`: `("stock_counts"."post_note" is null or char_length("stock_counts"."post_note") between 3 and 300) and ("stock_counts"."cancel_reason" is null or char_length("stock_counts"."cancel_reason") between 3 and 300)`
-- `stock_counts_posted_check`: `("stock_counts"."state" = 'posted') = ("stock_counts"."posted_at" is not null and "stock_counts"."posted_by" is not null and "stock_counts"."post_note" is not null)`
-- `stock_counts_scope_check`: `"stock_counts"."scope" in ('hub', 'bins', 'items')`
-- `stock_counts_scope_lists_check`: `("stock_counts"."scope" = 'hub' and "stock_counts"."scope_bin_ids" is null and "stock_counts"."scope_item_ids" is null) or ("stock_counts"."scope" = 'bins' and cardinality("stock_counts"."scope_bin_ids") between 1 and 200 and "stock_counts"."scope_item_ids" is null) or ("stock_counts"."scope" = 'items' and cardinality("stock_counts"."scope_item_ids") between 1 and 200 and "stock_counts"."scope_bin_ids" is null)`
-- `stock_counts_state_check`: `"stock_counts"."state" in ('open', 'counting', 'review', 'posted', 'cancelled')`
-
-**Indexes**
-
-- `stock_counts_list_idx` (btree): `entity_id, state, started_at desc, id desc`
-- `stock_counts_live_unique` (btree, unique): `entity_id, warehouse_id` where `"stock_counts"."state" in ('open', 'counting', 'review')`
-- `stock_counts_warehouse_idx` (btree): `warehouse_id`
-
-**Triggers**
-
-- `set_updated_at`: before update, runs `app.set_updated_at()`
-- `stock_counts_guard`: before update, runs `app.stock_counts_guard()`
-
-**Row-level security:** enabled and forced; 3 policies.
-
-- `stock_counts_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('inventory.stock.adjust:entity')) and started_by = (select app.user_id()) and state = 'open'`
-- `stock_counts_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('inventory.stock.read:entity')) or (select app.has_perm('inventory.stock.move:entity')))`
-- `stock_counts_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('inventory.stock.move:entity')) or (select app.has_perm('inventory.stock.adjust:entity')))`; with check `entity_id = any ((select app.entity_ids())::int[]) and updated_by = (select app.user_id())`
 
 ## Planned tables
 

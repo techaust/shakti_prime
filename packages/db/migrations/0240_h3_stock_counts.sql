@@ -17,8 +17,10 @@ CREATE TABLE "stock_count_lines" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "stock_count_lines_qty_check" CHECK ("stock_count_lines"."expected_qty" >= 0 and coalesce("stock_count_lines"."counted_qty", 0) >= 0 and coalesce("stock_count_lines"."recount_qty", 0) >= 0),
 	CONSTRAINT "stock_count_lines_serial_qty_check" CHECK ("stock_count_lines"."serial_id" is null
-          or ("stock_count_lines"."expected_qty" in (0, 1) and coalesce("stock_count_lines"."counted_qty", 0) in (0, 1)
-              and coalesce("stock_count_lines"."recount_qty", 0) in (0, 1))),
+          or (greatest("stock_count_lines"."expected_qty", coalesce("stock_count_lines"."counted_qty", 0), coalesce("stock_count_lines"."recount_qty", 0)) <= 1
+              and "stock_count_lines"."expected_qty" = trunc("stock_count_lines"."expected_qty")
+              and coalesce("stock_count_lines"."counted_qty", 0) = trunc(coalesce("stock_count_lines"."counted_qty", 0))
+              and coalesce("stock_count_lines"."recount_qty", 0) = trunc(coalesce("stock_count_lines"."recount_qty", 0)))),
 	CONSTRAINT "stock_count_lines_counted_check" CHECK (("stock_count_lines"."counted_qty" is null) = ("stock_count_lines"."counted_at" is null)
           and ("stock_count_lines"."counted_qty" is null) = ("stock_count_lines"."counted_by" is null)),
 	CONSTRAINT "stock_count_lines_recount_check" CHECK (("stock_count_lines"."recount_qty" is null) = ("stock_count_lines"."recounted_at" is null)

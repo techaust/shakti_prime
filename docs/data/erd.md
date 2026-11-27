@@ -1404,6 +1404,46 @@ erDiagram
     timestamptz created_at
     timestamptz updated_at
   }
+  stock_count_lines {
+    uuid id PK
+    smallint entity_id FK
+    uuid count_id FK
+    uuid bin_id FK
+    uuid item_id FK
+    uuid serial_id FK "null"
+    numeric expected_qty "(12,3)"
+    numeric counted_qty "(12,3), null"
+    uuid counted_by FK "null"
+    timestamptz counted_at "null"
+    timestamptz recount_requested_at "null"
+    uuid recount_requested_by FK "null"
+    numeric recount_qty "(12,3), null"
+    uuid recounted_by FK "null"
+    timestamptz recounted_at "null"
+    timestamptz created_at
+  }
+  stock_counts {
+    uuid id PK
+    smallint entity_id FK
+    uuid warehouse_id FK
+    text scope
+    uuid scope_bin_ids "array, null"
+    uuid scope_item_ids "array, null"
+    text state
+    timestamptz state_changed_at
+    timestamptz started_at
+    uuid started_by FK
+    timestamptz submitted_at "null"
+    uuid submitted_by FK "null"
+    timestamptz posted_at "null"
+    uuid posted_by FK "null"
+    text post_note "null"
+    timestamptz cancelled_at "null"
+    uuid cancelled_by FK "null"
+    text cancel_reason "null"
+    timestamptz created_at
+    timestamptz updated_at
+  }
   stock_movement_costs {
     uuid movement_id PK, FK
     smallint entity_id FK
@@ -1496,6 +1536,20 @@ erDiagram
   stock_balances }o--|| entities : "entity_id"
   stock_balances }o--|| items : "item_id"
   stock_balances }o--|| warehouses : "warehouse_id"
+  stock_count_lines }o--|| bins : "bin_id"
+  stock_count_lines }o--|| stock_counts : "count_id, entity_id"
+  stock_count_lines }o--o| principals : "counted_by"
+  stock_count_lines }o--|| entities : "entity_id"
+  stock_count_lines }o--|| items : "item_id"
+  stock_count_lines }o--o| principals : "recount_requested_by"
+  stock_count_lines }o--o| principals : "recounted_by"
+  stock_count_lines }o--o| serials : "serial_id, entity_id, item_id"
+  stock_counts }o--o| principals : "cancelled_by"
+  stock_counts }o--|| entities : "entity_id"
+  stock_counts }o--o| principals : "posted_by"
+  stock_counts }o--|| principals : "started_by"
+  stock_counts }o--o| principals : "submitted_by"
+  stock_counts }o--|| warehouses : "warehouse_id"
   stock_movement_costs }o--|| entities : "entity_id"
   stock_movement_costs }o--|| stock_movements : "movement_id, entity_id"
   stock_movements }o--|| entities : "entity_id"
@@ -1729,66 +1783,6 @@ erDiagram
   targets }o--|| entities : "entity_id"
   targets }o--|| principals : "set_by"
   targets }o--|| teams : "team_id"
-```
-
-## Other
-
-```mermaid
-erDiagram
-  stock_count_lines {
-    uuid id PK
-    smallint entity_id FK
-    uuid count_id FK
-    uuid bin_id FK
-    uuid item_id FK
-    uuid serial_id FK "null"
-    numeric expected_qty "(12,3)"
-    numeric counted_qty "(12,3), null"
-    uuid counted_by FK "null"
-    timestamptz counted_at "null"
-    timestamptz recount_requested_at "null"
-    uuid recount_requested_by FK "null"
-    numeric recount_qty "(12,3), null"
-    uuid recounted_by FK "null"
-    timestamptz recounted_at "null"
-    timestamptz created_at
-  }
-  stock_counts {
-    uuid id PK
-    smallint entity_id FK
-    uuid warehouse_id FK
-    text scope
-    uuid scope_bin_ids "array, null"
-    uuid scope_item_ids "array, null"
-    text state
-    timestamptz state_changed_at
-    timestamptz started_at
-    uuid started_by FK
-    timestamptz submitted_at "null"
-    uuid submitted_by FK "null"
-    timestamptz posted_at "null"
-    uuid posted_by FK "null"
-    text post_note "null"
-    timestamptz cancelled_at "null"
-    uuid cancelled_by FK "null"
-    text cancel_reason "null"
-    timestamptz created_at
-    timestamptz updated_at
-  }
-  stock_count_lines }o--|| bins : "bin_id"
-  stock_count_lines }o--|| stock_counts : "count_id, entity_id"
-  stock_count_lines }o--o| principals : "counted_by"
-  stock_count_lines }o--|| entities : "entity_id"
-  stock_count_lines }o--|| items : "item_id"
-  stock_count_lines }o--o| principals : "recount_requested_by"
-  stock_count_lines }o--o| principals : "recounted_by"
-  stock_count_lines }o--o| serials : "serial_id, entity_id, item_id"
-  stock_counts }o--o| principals : "cancelled_by"
-  stock_counts }o--|| entities : "entity_id"
-  stock_counts }o--o| principals : "posted_by"
-  stock_counts }o--|| principals : "started_by"
-  stock_counts }o--o| principals : "submitted_by"
-  stock_counts }o--|| warehouses : "warehouse_id"
 ```
 
 ## Planned tables

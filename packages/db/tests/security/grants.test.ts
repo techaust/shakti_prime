@@ -549,6 +549,11 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.stale_upload_entities(integer)',
       // STATUS: the chat's customer's own quotes and orders, read by the platform (S3).
       'app.status_summary(uuid)',
+      // H3: a stock count's sheet for its counter, its progress, and its review for the Inventory
+      // Manager, each checking its grant (stock-counts.test.ts).
+      'app.stock_count_progress(uuid)',
+      'app.stock_count_review(uuid)',
+      'app.stock_count_sheet(uuid)',
       // The targets' progress: a caller's own figures, a team lead's team's (0125).
       'app.target_actuals(smallint,timestamp with time zone,timestamp with time zone,uuid[])',
       // Whether a person is in a team now and may be set a target (the targets' policies, 0125).

@@ -147,8 +147,10 @@ export const stockCountLines = pgTable(
     check(
       'stock_count_lines_serial_qty_check',
       sql`${t.serialId} is null
-          or (${t.expectedQty} in (0, 1) and coalesce(${t.countedQty}, 0) in (0, 1)
-              and coalesce(${t.recountQty}, 0) in (0, 1))`,
+          or (greatest(${t.expectedQty}, coalesce(${t.countedQty}, 0), coalesce(${t.recountQty}, 0)) <= 1
+              and ${t.expectedQty} = trunc(${t.expectedQty})
+              and coalesce(${t.countedQty}, 0) = trunc(coalesce(${t.countedQty}, 0))
+              and coalesce(${t.recountQty}, 0) = trunc(coalesce(${t.recountQty}, 0)))`,
     ),
     check(
       'stock_count_lines_counted_check',
