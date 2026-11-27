@@ -49,13 +49,17 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
   // The company's own grants decide what the sheet offers in it.
   const grants =
     access.entities.find((e) => e.entityId === order.entityId)?.grants ?? principal.permissions;
-  const allowed = orderActions(order.state, {
-    canWrite: hasGrant(grants, 'procurement.po.write', 'entity'),
-    canApprove:
-      hasGrant(grants, 'procurement.po.approve', 'entity') &&
-      hasGrant(grants, 'procurement.rate.read', 'entity'),
-    canReceive: hasGrant(grants, 'procurement.grn.write', 'entity'),
-  });
+  const allowed = orderActions(
+    order.state,
+    {
+      canWrite: hasGrant(grants, 'procurement.po.write', 'entity'),
+      canApprove:
+        hasGrant(grants, 'procurement.po.approve', 'entity') &&
+        hasGrant(grants, 'procurement.rate.read', 'entity'),
+      canReceive: hasGrant(grants, 'procurement.grn.write', 'entity'),
+    },
+    order.approvedAt,
+  );
   const receipts = await listGoodsReceipts({
     entityId: order.entityId,
     purchaseOrderId: order.id,

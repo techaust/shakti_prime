@@ -104,17 +104,36 @@ export async function loadCompanyPrint(ctx: LoadContext): Promise<CompanyPrint> 
   return companyPrintOf(read, ctx);
 }
 
+/**
+ * The buying company of a purchase order as its PDF prints it (U2): the letterhead strip, logo,
+ * name, address and GSTIN, read as the worker for that one company, as the quote's are; never the
+ * bank account, which an order to a vendor does not carry. The order itself is read by whoever
+ * prints it (the person asking, or the mail worker's narrow read), never here.
+ */
+export async function loadCompanyLetterhead(
+  ctx: Pick<LoadContext, 'principal' | 'entityId' | 'requestId' | 'store'>,
+): Promise<CompanyPrint> {
+  const read: CompanyForPrint = await executeQuery(
+    ctx.principal,
+    { entityIds: [ctx.entityId], requestId: ctx.requestId },
+    (q) => loadCompanyForPrint(q, ctx.entityId),
+    { name: 'print.company.letterhead' },
+  );
+  return companyPrintOf(read, { ...ctx, cipher: undefined }, { bank: false });
+}
+
 /** `CompanyForPrint` as the templates print it (exported for the loader's tests). */
 export async function companyPrintOf(
   read: CompanyForPrint,
   ctx: Pick<LoadContext, 'store' | 'cipher' | 'entityId'>,
+  options: { bank: boolean } = { bank: true },
 ): Promise<CompanyPrint> {
   const { entity } = read;
   if (entity.id !== ctx.entityId) {
     throw new DomainError('internal', 'the print loader read another company');
   }
   let bank: CompanyPrint['bank'] = null;
-  if (read.sealedBank !== null) {
+  if (options.bank && read.sealedBank !== null) {
     if (ctx.cipher === undefined) {
       throw new DomainError('integration_unavailable', 'no field cipher to open the bank account');
     }

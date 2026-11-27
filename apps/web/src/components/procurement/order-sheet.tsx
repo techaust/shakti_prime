@@ -2,7 +2,8 @@ import type { PurchaseOrderDto, PurchaseOrderWithRatesDto } from '@shakti/contra
 import { StatusBadge } from '@shakti/ui';
 import { getTranslations } from 'next-intl/server';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
-import { formatRate, ORDER_STATE_TONE, outstanding, plainQty } from '../../screens/purchase-orders';
+import { formatRate } from '../../screens/procurement';
+import { ORDER_STATE_TONE, outstanding, plainQty } from '../../screens/purchase-orders';
 
 /** Whether the order arrived with its rates (a holder of `procurement.rate.read`). */
 export function hasRates(

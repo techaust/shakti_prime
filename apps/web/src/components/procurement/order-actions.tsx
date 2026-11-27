@@ -31,7 +31,8 @@ import { useCommand } from '../screens/use-command';
 
 /**
  * What a person may do with the order in its state (`orderActions()`): approve, mark sent, receive
- * goods, cancel or close with a reason, change a draft; and download its PDF. Each command checks
+ * goods, cancel or close with a reason, change a draft; and download its PDF once it prints (from
+ * its approval on). Each command checks
  * again; the screen reloads with what the order now is.
  */
 export function OrderActionsBar({
@@ -93,11 +94,13 @@ export function OrderActionsBar({
             <Link href={`/procurement/orders/${orderId}/edit` as Route}>{t('edit')}</Link>
           </Button>
         ) : null}
-        <Button asChild variant="secondary">
-          <a href={`/procurement/orders/${orderId}/pdf`} target="_blank" rel="noopener">
-            {t('pdf')}
-          </a>
-        </Button>
+        {allowed.pdf ? (
+          <Button asChild variant="secondary">
+            <a href={`/procurement/orders/${orderId}/pdf`} target="_blank" rel="noopener">
+              {t('pdf')}
+            </a>
+          </Button>
+        ) : null}
         {allowed.cancel ? (
           <Button
             ref={cancelButton}

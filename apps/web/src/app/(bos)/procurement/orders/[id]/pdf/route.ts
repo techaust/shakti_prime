@@ -3,9 +3,8 @@ import { executeQuery, getPurchaseOrderPrint } from '@shakti/domain';
 import { requestMeta } from '../../../../../../actions/support';
 import { currentPrincipal } from '../../../../../../auth/current-principal';
 import { purchaseOrderPdfFileName } from '../../../../../../print/purchase-order-file';
-import { renderPurchaseOrder } from '../../../../../../print/purchase-order-template';
-import { sharedPrintRenderer } from '../../../../../../print/renderer';
-import { istDay } from '../../../../../../screens/ist';
+import { purchaseOrderPdf } from '../../../../../../print/purchase-order-pdf';
+import { purchaseOrderPrints } from '../../../../../../screens/purchase-orders';
 
 export const dynamic = 'force-dynamic';
 /** Chromium's first launch on a cold function, and the page. */
@@ -16,8 +15,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 /**
  * `GET /procurement/orders/{id}/pdf`: the purchase order's PDF (docs/03-roadmap-appendix/phase3.md
  * §7.2), printed for the person who asks, from what they may read: the rates, amounts and tax
- * split only for a holder of `procurement.rate.read`, so nobody else's copy carries a value. An
- * order the person may not read answers 404, a signed-out request 401.
+ * split only for a holder of `procurement.rate.read`, so nobody else's copy carries a value; on the
+ * company's letterhead. It prints from the order's approval on (a cancelled one marked so): a
+ * draft, an order never approved, or one the person may not read answers 404, a signed-out
+ * request 401.
  */
 export async function GET(
   _request: Request,
@@ -47,10 +48,11 @@ export async function GET(
     }
     throw e;
   }
-  const document = renderPurchaseOrder(data, istDay(new Date()));
-  const renderer = await sharedPrintRenderer();
-  const pdf = await renderer.renderPdf(document.html, document.options);
-  return new Response(new Uint8Array(pdf), {
+  if (!purchaseOrderPrints(data.order.state, data.order.approvedAt)) {
+    return new Response(null, { status: 404 });
+  }
+  const pdf = await purchaseOrderPdf(data, requestId);
+  return new Response(pdf, {
     headers: {
       'content-type': 'application/pdf',
       'content-disposition': `inline; filename="${purchaseOrderPdfFileName(data.order.poNo)}"`,

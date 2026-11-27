@@ -4,7 +4,6 @@
 
 import type { StatusTone } from '@shakti/ui';
 import type { PurchaseOrderState } from '@shakti/contracts';
-import { formatRupees } from './format';
 
 /** The badge tone of each state. */
 export const ORDER_STATE_TONE: Record<PurchaseOrderState, StatusTone> = {
@@ -22,17 +21,22 @@ export function plainQty(qty: string): string {
   return qty.includes('.') ? qty.replace(/\.?0+$/, '') : qty;
 }
 
+/** The states an order's PDF prints in: from its approval on, a cancelled one marked so. */
+const PRINTED: ReadonlySet<PurchaseOrderState> = new Set([
+  'approved',
+  'sent',
+  'partially_received',
+  'received',
+  'closed',
+  'cancelled',
+]);
+
 /**
- * A rate of up to four decimals as rupees: two decimals when the paise say it all (`₹1,500.00`),
- * else all four (`₹23.4567`), grouped the Indian way.
+ * Whether an order in `state`, approved at `approvedAt` (or never), prints: never a draft, and
+ * never an order cancelled before it was approved, so no unapproved order reaches a vendor.
  */
-export function formatRate(rate: string): string {
-  const match = /^(\d+)\.(\d{2})(\d{2})$/.exec(rate);
-  if (match === null) return formatRupees(rate);
-  const [, whole = '0', paise = '00', rest = '00'] = match;
-  if (rest === '00') return formatRupees(`${whole}.${paise}`);
-  const grouped = formatRupees(`${whole}.00`).replace(/\.00$/, '');
-  return `${grouped}.${paise}${rest}`;
+export function purchaseOrderPrints(state: PurchaseOrderState, approvedAt: string | null): boolean {
+  return PRINTED.has(state) && approvedAt !== null;
 }
 
 /** What a person may do with an order in its state, given what they hold. */
@@ -49,11 +53,18 @@ export interface OrderActions {
   receive: boolean;
   cancel: boolean;
   close: boolean;
+  /** Download PDF: only where it prints (`purchaseOrderPrints`). */
+  pdf: boolean;
 }
 
 /** The actions the order sheet offers: each also checked again by its command. */
-export function orderActions(state: PurchaseOrderState, powers: OrderPowers): OrderActions {
+export function orderActions(
+  state: PurchaseOrderState,
+  powers: OrderPowers,
+  approvedAt: string | null = null,
+): OrderActions {
   return {
+    pdf: purchaseOrderPrints(state, approvedAt),
     edit: state === 'draft' && powers.canWrite,
     approve: state === 'draft' && powers.canApprove,
     send: state === 'approved' && powers.canWrite,

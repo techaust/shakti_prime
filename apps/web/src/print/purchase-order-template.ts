@@ -1,9 +1,13 @@
 // A4 purchase order (docs/03-roadmap-appendix/phase3.md §7.2): the buying company's letterhead
-// block, the vendor, the hub goods go to, the lines and, for a reader of supplier rates only, the
-// rates, amounts and the tax split; light theme, 15 mm side margins, Inter embedded. Every amount
-// arrives computed by the domain (the order's rates and the tax engine); this only places them.
+// strip, logo and block (the print loader's, as the quote's), the vendor, the hub goods go to, the
+// lines and, for a reader of supplier rates only, the rates, amounts and the tax split; light
+// theme, 15 mm side margins, Inter embedded. Every amount arrives computed by the domain (the
+// order's rates and the tax engine); this only places them. An order prints from its approval on,
+// dated the day it was approved; a cancelled one prints with "Cancelled" across it.
 import type { PurchaseOrderPrintData } from '@shakti/domain';
-import { companyBlock, companyCss, type CompanyPrint } from './company';
+import { formatRate } from '../screens/procurement';
+import { purchaseOrderPrints } from '../screens/purchase-orders';
+import { companyBlock, companyCss, letterheadStrip, type CompanyPrint } from './company';
 import { printCopy } from './copy';
 import { formatAmount, formatDate, formatRupees } from './format';
 import { html, trusted } from './html';
@@ -37,30 +41,32 @@ table.totals tr.total td{border-top:1px solid var(--border-strong);font-weight:5
 .sign{margin-top:24px;break-inside:avoid;}
 .sign p{margin:0;}
 .sign .for{font-weight:590;}
+.cancelled{position:fixed;top:45%;left:0;right:0;text-align:center;transform:rotate(-30deg);font-size:72px;line-height:80px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--danger);opacity:0.18;pointer-events:none;}
 `;
 
 /** A stored quantity as printed: `5.000` becomes `5`. */
 const plainQty = (qty: string) => (qty.includes('.') ? qty.replace(/\.?0+$/, '') : qty);
 
-/** A rate of four decimals as printed: two when the paise say it all. */
-function rateText(rate: string): string {
-  return rate.endsWith('00') ? formatAmount(rate.slice(0, -2)) : rate;
-}
+/** A rate of four decimals as the sheet shows it (`formatRate`), in a column of plain amounts. */
+const rateText = (rate: string) => formatRate(rate).replace('₹', '');
 
-/** The PDF of a purchase order, with rates and totals only when the order carries them. */
+/**
+ * The PDF of a purchase order, with rates and totals only when the order carries them; the
+ * company as the print loader read it (`loadCompanyLetterhead`). Only an order that prints
+ * (`purchaseOrderPrints`): a draft or an order never approved is refused before this.
+ */
 export function renderPurchaseOrder(
   data: PurchaseOrderPrintData,
+  company: CompanyPrint,
   printedOn: string,
 ): PrintDocument {
   const t = printCopy();
   const { order, vendor } = data;
+  const approvedAt = order.approvedAt;
+  if (approvedAt === null || !purchaseOrderPrints(order.state, approvedAt)) {
+    throw new RangeError('a purchase order prints from its approval on');
+  }
   const rated = 'totals' in order ? order : undefined;
-  const company: CompanyPrint = {
-    ...data.company,
-    logo: null,
-    letterhead: null,
-    bank: null,
-  };
   const states = (code: string) => {
     const key = `states.${code}` as 'states.08';
     return t.has(key) ? t('purchaseOrder.state', { state: t(key), code }) : code;
@@ -79,6 +85,12 @@ export function renderPurchaseOrder(
         </style>
       </head>
       <body>
+        ${
+          order.state === 'cancelled'
+            ? html`<div class="cancelled" role="note">${t('purchaseOrder.cancelled')}</div>`
+            : ''
+        }
+        ${letterheadStrip(company)}
         <header class="letterhead">
           ${companyBlock(company, t)}
           <div class="meta">
@@ -87,7 +99,7 @@ export function renderPurchaseOrder(
               <dt>${t('purchaseOrder.number')}</dt>
               <dd>${order.poNo}</dd>
               <dt>${t('purchaseOrder.date')}</dt>
-              <dd>${formatDate(order.approvedAt ?? order.createdAt)}</dd>
+              <dd>${formatDate(approvedAt)}</dd>
               ${
                 order.expectedAt === null
                   ? ''

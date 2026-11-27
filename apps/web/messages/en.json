@@ -2846,6 +2846,7 @@
       },
       "ratesWithheld": "Rates and amounts are shown only to people who may see supplier rates.",
       "totalsWaiting": "The total is shown once every line has its rate and a GST rate.",
+      "cancelled": "Cancelled",
       "printed": "Printed on {date}",
       "fileName": "Purchase order {number}.pdf"
     }
