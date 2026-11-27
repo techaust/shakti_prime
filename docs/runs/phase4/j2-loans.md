@@ -259,3 +259,25 @@ Tier A. No critical or high finding: nothing blocks the merge. One medium point 
 - **No re-check:** the lead reads the diff.
 
 ## Integration
+
+### The lead, 27-11-2026, cloud session (slot 7: Postgres 54337)
+- **The fix diff, read by the lead.**
+  - M1: a rejected loan holds dispatch until a person records a waiver (`crm.loan.gates.waive`), with a reason, once, only on a rejected loan, enforced by the guard.
+  - L6: `gates_json` holds only `dispatch`, and the answer carries `loanState` for FN1.
+  - L1, L2, L3, L5 and L7: fixed, with tests.
+- **Main taken in** (X4 #298, Q1 #299) by a merge commit.
+  - The shared lists were resolved with `merge-json.py`, `merge-copylint.py` and `merge-union.py`, each hunk read. The files differ from `main` only by J2's additions.
+  - The migrations move to 0243 to 0246 (`renumber-migrations.mjs`), and `pnpm db:generate` reports no changes.
+  - `notifications_type_check` and `notification_preferences_type_check` are 0228's lists plus `loan_rejected`.
+  - DATABASE cites 0243, 0244 and 0246 (finding L4).
+- **`integrate.sh`** ran in three parts on a fresh Postgres on 54340:
+  - install, lint, format, copy lint, generated and typecheck: pass;
+  - unit: pass;
+  - security: pass (db 1,893; domain 1,559; web 466), and `db:verify` passed;
+  - audit, build with `.env` aside, js-budget and gitleaks: pass.
+- **The whole journey set in the Linux image,** each project on its own fresh database, first with `--update-snapshots=changed`, then verifying.
+  - Desktop-light: 235 passed. Desktop-dark: 222 passed, 13 skipped. Phone: 222 passed, 13 skipped. Both runs.
+  - 23 baselines changed:
+    - The loan's own: Account 360, the order page, notification settings, the Executive's home.
+    - Every desktop baseline that shows the menu (design, admin agents, integration health, pipeline settings): Settings › Lenders lengthens the masked menu. The lead compared old and new: the same 34 rows in the menu column turn from white to the mask, and nothing else.
+- **No checks files are changed.**
