@@ -324,7 +324,7 @@ Reviewed `git diff origin/main...feat/j1-projects` at `11c3a2fc` (main at `59736
 **Suites run here** (on this slot's fresh database, 54332, after `pnpm db:migrate` and `pnpm db:seed`, through `tools/integration/heavy.sh`): 0240 to 0244 applied as committed.
 - `@shakti/db` `test:security`: 63 files and 1,886 tests passed. Among them `projects.test.ts` (85), `role-entity-matrix.test.ts` (93), `grants.test.ts` and `enum-sync.test.ts`.
 - `@shakti/domain` `test:security`: 111 files and 1,540 tests passed. Among them `commands/projects.test.ts` (21), `agent-refusals.test.ts` and `reader-parity.test.ts`.
-- The web suite's result is the line below.
+- `web` `test:security`: 40 files and 463 tests passed (exit 0). It was run on its own: the first combined run was stopped by the session's 30-minute limit for a background task, part-way through the web suite, with no test failed. That stop left this slot's heavy-command lock behind with no process holding it, and it was removed by hand.
 
 **Could not check here:**
 - **The journeys** (`apps/web/e2e/projects.spec.ts`: the Project Manager's steps, hold and resume; the Field Engineer's own list and the not-found page; the Executive's Project steps editor): not run, since this session cannot sign in.
