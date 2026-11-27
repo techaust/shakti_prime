@@ -7,6 +7,7 @@ CREATE TABLE "reservation_needs" (
 	"qty_needed" numeric(12, 3) NOT NULL,
 	"qty_backordered" numeric(12, 3) NOT NULL,
 	"queued_at" timestamp with time zone NOT NULL,
+	"requeued_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "reservation_needs_line_item_unique" UNIQUE("sales_order_line_id","item_id"),

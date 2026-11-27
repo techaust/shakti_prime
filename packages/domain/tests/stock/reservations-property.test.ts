@@ -159,7 +159,7 @@ async function violations(orders: readonly string[]): Promise<Violation[]> {
 }
 
 async function fillAll(): Promise<void> {
-  await run(workers(), fillBackorders, { entityId: E, itemIds: items });
+  for (const itemId of items) await run(workers(), fillBackorders, { entityId: E, itemId });
 }
 
 describe('reservations under random confirmations, cancellations, lapses, releases and fills', () => {

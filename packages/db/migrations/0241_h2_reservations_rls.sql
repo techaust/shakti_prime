@@ -5,8 +5,10 @@
 --
 -- The lock order of every reservation path: the sales orders it touches (by id; a person's
 -- command already holds its order `for update`, the platform's jobs take theirs `for share`), then
--- H1's order (hubs `for share` by id, bins `for share` by id, balances `for update` by company,
--- hub, bin and item), then the needs and reservations, then the order lines.
+-- H1's order (hubs `for share` by id, bins `for share` by id, the missing balance rows inserted and
+-- the balances locked `for update` by company, hub, bin and item), then the needs and
+-- reservations, then the order lines. A fill takes one item a transaction, so it never holds one
+-- item's balances while it waits for another item's orders.
 
 -- 1. Timestamps.
 create trigger set_updated_at before update on reservation_needs for each row execute function app.set_updated_at();
@@ -545,11 +547,31 @@ $$;
 revoke execute on function app.order_hubs(uuid) from public, readonly_reporter, app_user, app_reader;
 --> statement-breakpoint
 
--- 7. app.stock_lock_free(company, items, hubs): H1's lock order over the free stock of the items in
---    the hubs' storage bins: the hubs `for share` by id, their storage bins `for share` by id, then
---    the balances `for update` by (company, hub, bin, item). Called by the definers below only,
---    before they lock any need or reservation, so a later call within the transaction finds its
---    rows already held.
+-- 7. app.stock_free_rows(company, items, hubs): the balance row of each item in each storage bin
+--    in use of the hubs, inserted empty where it is missing, in (company, hub, bin, item) order as
+--    H1's definer inserts its own, so a row a concurrent first gain would make exists before the
+--    locks are taken and no reserver reads a balance it has not locked. Called after the hubs and
+--    bins are locked, before the balances; by the definers below only.
+create or replace function app.stock_free_rows(p_entity smallint, p_items uuid[], p_hubs uuid[])
+  returns void
+  language sql volatile security definer set search_path = '' as $$
+  insert into public.stock_balances (id, entity_id, warehouse_id, bin_id, item_id)
+  select app.uuid_v7(), p_entity, b.warehouse_id, b.id, i.item_id
+    from public.bins b
+    cross join (select distinct u.item_id from pg_catalog.unnest(p_items) as u(item_id)) i
+   where b.warehouse_id = any (p_hubs) and b.kind = 'storage' and b.archived_at is null
+   order by b.warehouse_id, b.id, i.item_id
+  on conflict (entity_id, warehouse_id, bin_id, item_id) do nothing
+$$;
+--> statement-breakpoint
+revoke execute on function app.stock_free_rows(smallint, uuid[], uuid[]) from public, readonly_reporter, app_user, app_reader;
+--> statement-breakpoint
+
+--    app.stock_lock_free(company, items, hubs): H1's lock order over the free stock of the items in
+--    the hubs' storage bins: the hubs `for share` by id, their storage bins `for share` by id, the
+--    missing balance rows inserted (app.stock_free_rows()), then the balances `for update` by
+--    (company, hub, bin, item). Called by the definers below only, before they lock any need or
+--    reservation, so a later call within the transaction finds its rows already held.
 create or replace function app.stock_lock_free(p_entity smallint, p_items uuid[], p_hubs uuid[])
   returns void
   language plpgsql volatile security definer set search_path = '' as $$
@@ -559,6 +581,7 @@ begin
    where b.warehouse_id = any (p_hubs) and b.kind = 'storage'
    order by b.id
    for share;
+  perform app.stock_free_rows(p_entity, p_items, p_hubs);
   perform 1 from public.stock_balances sb
    where sb.entity_id = p_entity and sb.warehouse_id = any (p_hubs) and sb.item_id = any (p_items)
      and exists (select 1 from public.bins b where b.id = sb.bin_id and b.kind = 'storage')
@@ -683,8 +706,9 @@ revoke execute on function app.stock_reserve(uuid, numeric, uuid[], boolean, tim
 --     moved, and a person's reason for the first two) or `lapsed`, and its quantity leaves its
 --     bin's `qty_reserved`. Unless the order was cancelled, the quantity is back on order: the
 --     need's backorder grows, and a reservation that lapsed or was released by hand waits behind
---     the backorders already queued; a moved one keeps its place. A reservation no longer active
---     is skipped. Answers what it freed. Locks H1's order over the reservations' bins, then the
+--     the backorders already queued, for stock that enters a storage bin after it (`requeued_at`,
+--     app.fill_backorders()), so the stock it freed goes to another order or stays free; a moved
+--     one keeps its place. A reservation no longer active is skipped. Answers what it freed. Locks H1's order over the reservations' bins, then the
 --     reservations by id, then the needs. Called by the definers below only.
 create or replace function app.stock_unreserve(p_ids uuid[], p_state text, p_kind text, p_reason text)
   returns table (reservation_id uuid, sales_order_id uuid, item_id uuid, qty numeric)
@@ -736,7 +760,8 @@ begin
     if p_kind is distinct from 'order_cancelled' then
       update public.reservation_needs n
          set qty_backordered = n.qty_backordered + v_res.qty,
-             queued_at = case when p_kind = 'moved' then n.queued_at else pg_catalog.now() end
+             queued_at = case when p_kind = 'moved' then n.queued_at else pg_catalog.now() end,
+             requeued_at = case when p_kind = 'moved' then n.requeued_at else pg_catalog.now() end
        where n.sales_order_line_id = v_res.sales_order_line_id and n.item_id = v_res.item_id;
     end if;
     v_lines := v_lines || v_res.sales_order_line_id;
@@ -879,9 +904,15 @@ grant execute on function app.release_order_reservations(uuid, text) to app_user
 --     confirmation, or when its reservation lapsed or was released by hand), each from the hubs
 --     in its order's preferred order, until the free stock or the backorders run out. Only the
 --     backorders of orders still open (confirmed or partly dispatched), at most `limit` of them.
+--     A need put back on order by a lapse or a release by hand (`requeued_at`) takes only stock
+--     that entered a storage bin after it (a receipt, a gain, a transfer in from a bin that is not
+--     a storage bin), at most that quantity less what it took since; never the stock its own
+--     lapse or release freed. One item a call, which the caller runs in a transaction of its own.
 --     Locks the orders `for share` by id, then H1's order over the item in every hub, then the
---     needs. Only with inventory.reservations.process for every company (system:workers).
---     Answers what each need took.
+--     needs by id, then their lines by id, so no fill holds one item's balances while it waits for
+--     another item's orders, nor one line while it waits for another. Only with
+--     inventory.reservations.process for every company (system:workers). Answers what each need
+--     took.
 create or replace function app.fill_backorders(p_entity smallint, p_item uuid,
                                                p_expires_at timestamptz, p_limit integer)
   returns table (need_id uuid, sales_order_id uuid, qty_reserved numeric)
@@ -891,6 +922,7 @@ declare
   v_orders uuid[];
   v_hubs uuid[];
   v_need record;
+  v_want numeric;
   v_got numeric;
   v_free numeric;
 begin
@@ -917,8 +949,17 @@ begin
   v_hubs := array(select w.id from public.warehouses w
                    where w.kind in ('godown', 'factory') and w.archived_at is null);
   perform app.stock_lock_free(p_entity, array[p_item], v_hubs);
+  perform 1 from public.reservation_needs n
+   where n.sales_order_id = any (v_orders) and n.item_id = p_item
+   order by n.id
+   for update;
+  perform 1 from public.sales_order_lines l
+   where l.id in (select n.sales_order_line_id from public.reservation_needs n
+                   where n.sales_order_id = any (v_orders) and n.item_id = p_item)
+   order by l.id
+   for update;
   for v_need in
-    select n.id, n.sales_order_id, n.qty_backordered
+    select n.id, n.sales_order_id, n.sales_order_line_id, n.qty_backordered, n.requeued_at
       from public.reservation_needs n
       join public.sales_orders so on so.id = n.sales_order_id
                                  and so.state in ('confirmed', 'partially_dispatched')
@@ -930,8 +971,28 @@ begin
       join public.bins b on b.id = sb.bin_id and b.kind = 'storage' and b.archived_at is null
      where sb.entity_id = p_entity and sb.item_id = p_item and sb.warehouse_id = any (v_hubs);
     exit when v_free <= 0;
-    v_got := app.stock_reserve(v_need.id, v_need.qty_backordered,
-                               app.order_hubs(v_need.sales_order_id), false, p_expires_at);
+    v_want := v_need.qty_backordered;
+    if v_need.requeued_at is not null then
+      -- What entered a storage bin since the need went back on order, less what it took since.
+      select least(v_want, greatest(
+               coalesce((select sum(m.qty)
+                           from public.stock_movements m
+                           join public.bins tb on tb.id = m.to_bin_id and tb.kind = 'storage'
+                           left join public.bins fb on fb.id = m.from_bin_id
+                          where m.entity_id = p_entity and m.item_id = p_item
+                            and m.moved_at > v_need.requeued_at
+                            and (fb.id is null or fb.kind <> 'storage')), 0)
+               - coalesce((select sum(r.qty)
+                             from public.reservations r
+                            where r.sales_order_line_id = v_need.sales_order_line_id
+                              and r.item_id = p_item and r.state in ('active', 'picked')
+                              and r.created_at > v_need.requeued_at), 0),
+               0))
+        into v_want;
+    end if;
+    continue when v_want <= 0;
+    v_got := app.stock_reserve(v_need.id, v_want, app.order_hubs(v_need.sales_order_id), false,
+                               p_expires_at);
     if v_got > 0 then
       need_id := v_need.id;
       sales_order_id := v_need.sales_order_id;
@@ -1156,12 +1217,13 @@ begin
     perform app.stock_refuse('reservation_hub_missing');
   end if;
   v_hubs := array(select h from pg_catalog.unnest(array[v_res.warehouse_id, p_hub]) h order by h);
-  -- Both hubs at once, in H1's order: hubs, bins, balances.
+  -- Both hubs at once, in H1's order: hubs, bins, the new hub's missing balance rows, balances.
   perform 1 from public.warehouses w where w.id = any (v_hubs) order by w.id for share;
   perform 1 from public.bins b
    where (b.warehouse_id = p_hub and b.kind = 'storage') or b.id = v_res.bin_id
    order by b.id
    for share;
+  perform app.stock_free_rows(v_res.entity_id, array[v_res.item_id], array[p_hub]);
   perform 1 from public.stock_balances sb
    where sb.entity_id = v_res.entity_id and sb.item_id = v_res.item_id
      and (sb.bin_id = v_res.bin_id
@@ -1185,32 +1247,38 @@ revoke execute on function app.reservation_move(uuid, uuid) from public, readonl
 grant execute on function app.reservation_move(uuid, uuid) to app_user;
 --> statement-breakpoint
 
--- 20. Availability per line (question 4 (a), PRD SAL-04).
+-- 20. Availability per line (question 4 (a), PRD SAL-04), as packages/domain/src/stock/atp.ts
+--     specifies it (`documentAvailability()`); atp-parity.test.ts holds the two equal on generated
+--     balances, kits and lines.
 --     app.free_availability(company, lines, counts): lines not yet holding stock (a quote's, a
 --     draft order's, or the quote builder's before it saves), each {line_id | null, position,
---     item_id | kit_id, qty}, against the company's free stock in the storage bins of every hub
---     in use: an item line is covered when the free stock meets its quantity, partly covered when
---     some is free, short when none is; a kit line counts the whole kits its components' free stock
---     makes (the floor of each component's free stock over its quantity per kit). A line with
---     nothing kept in stock answers no row. `expected_on` is the date receipts on open purchase
---     orders would cover the line, null until purchase orders exist (U2). The free quantity only
---     when `counts`. Called by the two definers below only.
+--     item_id | kit_id, qty}, against the company's free stock (on hand less reserved) in the
+--     storage bins in use of every godown and factory in use. The document is measured as a
+--     whole: each item's demand is the sum over its lines (a kit line's components at the kit's
+--     quantities), so every line of an item answers alike and neither the lines' order nor a
+--     repeated item tells a count. A line is covered when the free stock meets the demand of each
+--     item it takes; else partly covered when some of its item is free (a kit line: when the free
+--     stock makes at least one whole kit), else short. A line with nothing kept in stock answers
+--     no row. `expected_on` is the date receipts on open purchase orders would cover the line,
+--     null until purchase orders exist (U2). The free quantity (an item line's free stock, a kit
+--     line's whole kits) only when `counts`. Called by the two definers below only.
 create or replace function app.free_availability(p_entity smallint, p_lines jsonb, p_counts boolean)
   returns table (line_id uuid, line_position integer, status text, expected_on date,
                  qty_free numeric)
   language sql stable security definer set search_path = '' as $$
   with lines as (
-    select x.line_id, x.position, x.item_id, x.kit_id, x.qty
-      from pg_catalog.jsonb_to_recordset(coalesce(p_lines, '[]'::jsonb))
-             as x(line_id uuid, position integer, item_id uuid, kit_id uuid, qty numeric)
-     where x.qty > 0),
+    select (e.el ->> 'line_id')::uuid as line_id, (e.el ->> 'position')::integer as position,
+           (e.el ->> 'item_id')::uuid as item_id, (e.el ->> 'kit_id')::uuid as kit_id,
+           (e.el ->> 'qty')::numeric as qty, e.n
+      from pg_catalog.jsonb_array_elements(coalesce(p_lines, '[]'::jsonb)) with ordinality as e(el, n)
+     where (e.el ->> 'qty')::numeric > 0),
   parts as (
-    select l.line_id, l.position, l.qty, l.kit_id is not null as is_kit,
-           l.item_id as part_id, 1::numeric as per_unit
+    select l.n, l.line_id, l.position, false as is_kit, l.item_id as part_id,
+           1::numeric as per_unit, l.qty as demand
       from lines l join public.items i on i.id = l.item_id and i.is_stocked
      where l.kit_id is null
     union all
-    select l.line_id, l.position, l.qty, true, kc.item_id, kc.qty
+    select l.n, l.line_id, l.position, true, kc.item_id, kc.qty, l.qty * kc.qty
       from lines l
       join public.kit_components kc on kc.kit_id = l.kit_id
       join public.items i on i.id = kc.item_id and i.is_stocked
@@ -1225,29 +1293,36 @@ create or replace function app.free_availability(p_entity smallint, p_lines json
                          where b.id = sb.bin_id and b.kind = 'storage' and b.archived_at is null
                            and w.kind in ('godown', 'factory') and w.archived_at is null)
      group by p.part_id),
+  demand as (
+    select p.part_id, sum(p.demand) as qty from parts p group by p.part_id),
   per_line as (
-    select p.line_id, p.position, p.qty, bool_or(p.is_kit) as is_kit,
+    select p.n, p.line_id, p.position, bool_or(p.is_kit) as is_kit,
+           bool_and(d.qty <= f.qty) as met,
            min(pg_catalog.floor(f.qty / p.per_unit)) as kits,
            min(f.qty) as item_free
-      from parts p join free f on f.part_id = p.part_id
-     group by p.line_id, p.position, p.qty)
+      from parts p
+      join free f on f.part_id = p.part_id
+      join demand d on d.part_id = p.part_id
+     group by p.n, p.line_id, p.position)
   select pl.line_id, pl.position,
-         case when (case when pl.is_kit then pl.kits else pl.item_free end) >= pl.qty then 'covered'
+         case when pl.met then 'covered'
               when (case when pl.is_kit then pl.kits else pl.item_free end) > 0 then 'partly_covered'
               else 'short' end,
          null::date,
          case when p_counts then (case when pl.is_kit then pl.kits else pl.item_free end) end
     from per_line pl
-   order by pl.position
+   order by pl.position, pl.n
 $$;
 --> statement-breakpoint
 revoke execute on function app.free_availability(smallint, jsonb, boolean) from public, readonly_reporter, app_user, app_reader;
 --> statement-breakpoint
 
 --     app.line_availability(kind, id): per line of a quote or an order. A quote or a draft order
---     reads the free stock (app.free_availability()); a confirmed order reads its reservations:
---     covered when nothing is backordered, short when nothing is reserved, else partly covered,
---     with its reserved, backordered and dispatched quantities (dispatched 0 until D2). A
+--     reads the free stock (app.free_availability()); a confirmed order reads its reservations,
+--     a line with something kept in stock by what it holds (atp.ts's `lineAvailability()` of its
+--     quantity and its quantity less the backorder: an item line's units, a kit line's whole
+--     kits): covered when nothing is backordered, short when nothing whole is held, else partly
+--     covered, with its reserved, backordered and dispatched quantities (dispatched 0 until D2). A
 --     cancelled order answers no row. Answered to a caller in the document's company who holds
 --     inventory.stock.read for it, with the quantities; or who holds sales.quote.create and reads
 --     the document's lead (or a dealer's order's customer), with the status and the date and every
@@ -1303,8 +1378,8 @@ begin
   if p_kind = 'order' and v_state <> 'draft' then
     return query
       select l.id, l.position,
-             case when sum(n.qty_backordered) = 0 then 'covered'
-                  when sum(n.qty_needed - n.qty_backordered) = 0 then 'short'
+             case when l.qty_backordered = 0 then 'covered'
+                  when l.qty_backordered >= l.qty then 'short'
                   else 'partly_covered' end,
              null::date,
              null::numeric,
@@ -1312,9 +1387,8 @@ begin
              case when v_counts then l.qty_backordered end,
              case when v_counts then 0::numeric end
         from public.sales_order_lines l
-        join public.reservation_needs n on n.sales_order_line_id = l.id
        where l.sales_order_id = p_id
-       group by l.id, l.position, l.qty, l.qty_backordered
+         and exists (select 1 from public.reservation_needs n where n.sales_order_line_id = l.id)
        order by l.position;
     return;
   end if;
@@ -1435,3 +1509,32 @@ $$;
 revoke execute on function app.backordered_items(smallint, integer) from public, readonly_reporter, app_reader;
 --> statement-breakpoint
 grant execute on function app.backordered_items(smallint, integer) to app_user;
+--> statement-breakpoint
+
+-- 23. Orders confirmed before reservations existed: each gets its needs as app.reserve_order()
+--     writes them (an item line's item, a kit line's components at the kit's quantities now;
+--     nothing for what is kept out of stock), all backordered and queued at the order's
+--     confirmation, so the first fill (the next stock arriving, or the daily scan's catch-up over
+--     app.backordered_items()) reserves them in order of confirmation. Nothing is reserved here.
+insert into public.reservation_needs (id, entity_id, sales_order_id, sales_order_line_id, item_id,
+                                      qty_needed, qty_backordered, queued_at)
+select app.uuid_v7(), x.entity_id, x.sales_order_id, x.line_id, x.item_id, x.qty, x.qty, x.confirmed_at
+  from (select so.entity_id, so.id as sales_order_id, so.confirmed_at, l.id as line_id, l.position,
+               l.item_id, l.qty
+          from public.sales_orders so
+          join public.sales_order_lines l on l.sales_order_id = so.id
+          join public.items i on i.id = l.item_id and i.is_stocked
+         where so.state = 'confirmed' and l.item_id is not null
+        union all
+        select so.entity_id, so.id, so.confirmed_at, l.id, l.position, kc.item_id, l.qty * kc.qty
+          from public.sales_orders so
+          join public.sales_order_lines l on l.sales_order_id = so.id
+          join public.kit_components kc on kc.kit_id = l.kit_id
+          join public.items i on i.id = kc.item_id and i.is_stocked
+         where so.state = 'confirmed' and l.kit_id is not null) x
+ where not exists (select 1 from public.reservation_needs n where n.sales_order_id = x.sales_order_id)
+ order by x.confirmed_at, x.sales_order_id, x.position, x.item_id;
+--> statement-breakpoint
+select app.sync_line_backorders(array(
+  select distinct n.sales_order_line_id from public.reservation_needs n
+   where n.qty_backordered > 0));

@@ -27,7 +27,8 @@ const quantity = (name: string) => numeric(name, { precision: 12, scale: 3 });
  * confirmed, so a later change to the kit leaves the order as it was sold. `qty_backordered` is
  * what no reservation covers yet; backorders fill in `queued_at` order, which is the order's
  * confirmation, or the moment a reservation lapsed or was released by hand (it then waits behind
- * the backorders already queued). Written only by the reservation definers.
+ * the backorders already queued, for stock that arrives after it: `requeued_at`). Written only by
+ * the reservation definers.
  *
  * Its rows go with their order: orders are never deleted by a request, and the suites remove
  * theirs whole.
@@ -49,6 +50,13 @@ export const reservationNeeds = pgTable(
     qtyNeeded: quantity('qty_needed').notNull(),
     qtyBackordered: quantity('qty_backordered').notNull(),
     queuedAt: timestamp('queued_at', { withTimezone: true }).notNull(),
+    /**
+     * When a lapse or a release by hand put the need back on order; null for a need queued at
+     * confirmation. Such a need is filled only by stock that entered a storage bin after this
+     * moment (a receipt, a gain, a transfer in), at most that much, never by the stock its own
+     * lapse or release freed.
+     */
+    requeuedAt: timestamp('requeued_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

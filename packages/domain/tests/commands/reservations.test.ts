@@ -567,7 +567,7 @@ describe('the platform’s jobs', () => {
   it('are refused to every person, the Executive included', async () => {
     for (const who of [exec, manager, gm]) {
       await expect(
-        run(who, fillBackorders, { entityId: E, itemIds: [f.panel] }),
+        run(who, fillBackorders, { entityId: E, itemId: f.panel }),
       ).rejects.toMatchObject({ code: 'forbidden' });
       await expect(run(who, scanReservations, { entityId: E })).rejects.toMatchObject({
         code: 'forbidden',
@@ -586,7 +586,7 @@ describe('the platform’s jobs', () => {
     await gain(s.binA, pump, '3');
     const out = await run<{ filled: number }>(workers(), fillBackorders, {
       entityId: E,
-      itemIds: [pump],
+      itemId: pump,
     });
     expect(out.filled).toBe(2);
     expect(await backordersOf(first.orderId)).toEqual(['0.000']);
@@ -607,7 +607,7 @@ describe('the platform’s jobs', () => {
     const scan = await run<{ lapsed: number }>(workers(), scanReservations, { entityId: E });
     expect(scan.lapsed).toBeGreaterThanOrEqual(1);
     expect(await backordersOf(first.orderId)).toEqual(['2.000']);
-    await run(workers(), fillBackorders, { entityId: E, itemIds: [pump] });
+    await run(workers(), fillBackorders, { entityId: E, itemId: pump });
     expect(await backordersOf(second.orderId)).toEqual(['0.000']);
     // The lapsed order waits behind it, and takes what is left.
     expect(await backordersOf(first.orderId)).toEqual(['1.000']);
@@ -680,7 +680,7 @@ describe('the platform’s jobs', () => {
       code: 'forbidden',
     });
     await expect(
-      run(workers(), fillBackorders, { entityId: 3, itemIds: [f.panel] }),
+      run(workers(), fillBackorders, { entityId: 3, itemId: f.panel }),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });

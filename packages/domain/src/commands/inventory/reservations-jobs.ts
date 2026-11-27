@@ -16,9 +16,9 @@ import { requireEntity } from '../crm/opportunity-shared';
  * The platform's reservation jobs (H2, docs/03-roadmap-appendix/phase3.md §7.1), run as
  * `system:workers`, which holds the platform-only `inventory.reservations.process` and no person's
  * `inventory.*` or `sales.*` grant (ADR 0020): it reads and writes reservations only through the
- * definers that check that permission. Each run is one transaction per company; the fill runs on
- * its own, after the event that freed or brought the stock, so each takes its locks in the one
- * order.
+ * definers that check that permission. A scan is one transaction per company and batch; a fill
+ * is one transaction per item, run after the event that freed or brought the stock, so each takes
+ * its locks in the one order.
  */
 
 /** How many backorders of an item one fill serves, and how many reservations one scan takes. */
@@ -32,10 +32,13 @@ interface FilledRow {
 }
 
 /**
- * `inventory.reservation.fill`: the free stock of each item goes to its backorders in the company,
+ * `inventory.reservation.fill`: the free stock of one item goes to its backorders in the company,
  * oldest in the queue first (`app.fill_backorders()`), each from its order's hubs in their
- * preferred order. Run on `inventory.stock.moved` when stock enters a storage bin, and when a
- * reservation lapses, is released or moves. One audit row per item that filled a backorder.
+ * preferred order. Run on `inventory.stock.moved` when stock enters a storage bin, when a
+ * reservation lapses, is released or moves, and by the daily scan's catch-up. One item a
+ * transaction: the definer locks the item's waiting orders before its balances, so a fill never
+ * holds one item's balances while it waits for another item's orders (the lock order of every
+ * reservation path). One audit row when it filled a backorder.
  */
 export const fillBackorders = defineCommand({
   name: 'inventory.reservation.fill',
@@ -47,39 +50,36 @@ export const fillBackorders = defineCommand({
   auditWhen: 'changed',
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
-    let filled = 0;
-    for (const itemId of [...new Set(input.itemIds)].sort()) {
-      const rows = await reservationCall<FilledRow>(
-        ctx.tx,
-        sql`select need_id as "needId", sales_order_id as "salesOrderId"
-              from app.fill_backorders(${input.entityId}::smallint, ${itemId}::uuid,
-                                       ${holdUntil(ctx.now).toISOString()}::timestamptz,
-                                       ${RESERVATION_BATCH}::integer)`,
-      );
-      if (rows.length === 0) continue;
-      transition(reservationMachine, { state: null, extendedAt: null }, 'fill', {
-        actor: SYSTEM('reservation-fill'),
-        now: ctx.now,
-        params: {},
-      });
-      filled += rows.length;
-      const orders = [...new Set(rows.map((r) => r.salesOrderId))];
-      ctx.audit({
-        aggregateType: 'item',
-        aggregateId: itemId,
-        entityId: input.entityId,
-        before: null,
-        after: { filled: rows.length },
-      });
-      ctx.emit({
-        type: 'inventory.reservation.filled',
-        entityId: input.entityId,
-        aggregateType: 'item',
-        aggregateId: itemId,
-        payload: { itemId, count: orders.length, salesOrderIds: orders.slice(0, 200) },
-      });
-    }
-    return { entityId: input.entityId, filled };
+    const { itemId } = input;
+    const rows = await reservationCall<FilledRow>(
+      ctx.tx,
+      sql`select need_id as "needId", sales_order_id as "salesOrderId"
+            from app.fill_backorders(${input.entityId}::smallint, ${itemId}::uuid,
+                                     ${holdUntil(ctx.now).toISOString()}::timestamptz,
+                                     ${RESERVATION_BATCH}::integer)`,
+    );
+    if (rows.length === 0) return { entityId: input.entityId, filled: 0 };
+    transition(reservationMachine, { state: null, extendedAt: null }, 'fill', {
+      actor: SYSTEM('reservation-fill'),
+      now: ctx.now,
+      params: {},
+    });
+    const orders = [...new Set(rows.map((r) => r.salesOrderId))];
+    ctx.audit({
+      aggregateType: 'item',
+      aggregateId: itemId,
+      entityId: input.entityId,
+      before: null,
+      after: { filled: rows.length },
+    });
+    ctx.emit({
+      type: 'inventory.reservation.filled',
+      entityId: input.entityId,
+      aggregateType: 'item',
+      aggregateId: itemId,
+      payload: { itemId, count: orders.length, salesOrderIds: orders.slice(0, 200) },
+    });
+    return { entityId: input.entityId, filled: rows.length };
   },
 });
 

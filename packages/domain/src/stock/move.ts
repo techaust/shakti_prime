@@ -71,6 +71,16 @@ const RACES: Readonly<Record<string, StockRefusal>> = {
   stock_movements_reverses_unique: 'stock_already_reversed',
 };
 
+/**
+ * The check a concurrent reserver can meet, with the refusal it means: reserved stock would exceed
+ * what the bin holds (`stock_balances_reserved_on_hand_check`), which the definers' locks prevent
+ * and the check backs, so a race nobody foresaw answers as stock that is short, never an
+ * internal error.
+ */
+const CHECK_RACES: Readonly<Record<string, ReservationRefusal>> = {
+  stock_balances_reserved_on_hand_check: 'reservation_stock_short',
+};
+
 /** The facts a refusal may carry to a screen: ids, codes and the batch line, never a cost. */
 const FACTS = ['line', 'itemId', 'sku', 'binId', 'binCode', 'serialNo', 'entityId'] as const;
 
@@ -114,8 +124,10 @@ export function stockRefusal(e: unknown): DomainError | undefined {
     typeof failure.constraint_name === 'string' ? failure.constraint_name : undefined;
   if (constraint === undefined) return undefined;
   let reason: StockRefusal | ReservationRefusal | undefined;
-  if (failure.code === '23514' && REFUSALS.has(constraint)) {
-    reason = constraint as StockRefusal | ReservationRefusal;
+  if (failure.code === '23514') {
+    reason = REFUSALS.has(constraint)
+      ? (constraint as StockRefusal | ReservationRefusal)
+      : CHECK_RACES[constraint];
   } else if (failure.code === '23505') reason = RACES[constraint];
   if (reason === undefined) return undefined;
   return new DomainError(

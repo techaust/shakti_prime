@@ -20,9 +20,6 @@ import { systemWorkersPrincipal } from './events/system-principal';
  */
 export const RESERVATION_SCAN_RUN_BUDGET_MS = 40_000;
 
-/** Items one catch-up fill takes, as `FillBackordersInput` allows. */
-const FILL_ITEMS = 200;
-
 export interface ReservationScanOptions {
   budgetMs?: number | undefined;
   now?: () => number;
@@ -34,8 +31,8 @@ export interface ReservationScanOptions {
  * `system:workers` scoped to it, which holds the platform-only `inventory.reservations.process`
  * and nothing a person's role holds. Each batch of `inventory.reservation.scan` lapses the holds
  * past their date and reminds those ending within the reminder days, in its own transaction; then
- * `inventory.reservation.fill` runs over the items the company's open orders wait for, so a
- * backorder an event missed is filled the same day.
+ * `inventory.reservation.fill` runs over the items the company's open orders wait for, one item a
+ * transaction, so a backorder an event missed is filled the same day.
  */
 export async function runReservationScan(
   options: ReservationScanOptions = {},
@@ -75,13 +72,14 @@ export async function runReservationScan(
       items = batch.backorderedItemIds;
       if (!batch.more) break;
     }
-    for (let i = 0; i < items.length; i += FILL_ITEMS) {
+    // One item a transaction, as every fill runs (the lock order of the reservation paths).
+    for (const itemId of items) {
       if (outOfTime()) return stopped();
       const out: FillBackordersDto = await executeCommand(
         principal,
         scope(entityId),
         fillBackorders,
-        { entityId, itemIds: items.slice(i, i + FILL_ITEMS) },
+        { entityId, itemId },
       );
       filled += out.filled;
     }

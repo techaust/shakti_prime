@@ -2,9 +2,6 @@ import type { DeliveredEvent, FillBackordersDto } from '@shakti/contracts';
 import { executeCommand, fillBackorders } from '@shakti/domain';
 import type { EventHandlerContext } from '../events/registry';
 
-/** At most this many items in one fill, as `FillBackordersInput` takes them. */
-const FILL_ITEMS = 200;
-
 function idsOf(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
 }
@@ -42,9 +39,10 @@ export function freedItemsOf(event: DeliveredEvent): string[] {
 
 /**
  * The backorder fill (docs/03-roadmap-appendix/phase3.md §7.1) after stock arrived or a hold ended:
- * `inventory.reservation.fill` as `system:workers` of the event's company, in its own transaction,
- * so the freed or new stock goes to the item's backorders in order of confirmation. A repeat finds
- * nothing left to fill.
+ * `inventory.reservation.fill` as `system:workers` of the event's company, one transaction per
+ * item, so the freed or new stock goes to the item's backorders in order of confirmation and no
+ * fill holds one item's balances while it waits for another item's orders. A repeat finds nothing
+ * left to fill.
  */
 export async function handleFillEvent(
   event: DeliveredEvent,
@@ -53,12 +51,12 @@ export async function handleFillEvent(
   const items = freedItemsOf(event);
   if (items.length === 0) return undefined;
   let filled = 0;
-  for (let i = 0; i < items.length; i += FILL_ITEMS) {
+  for (const itemId of items) {
     const out = await executeCommand(
       ctx.principal,
       { entityIds: [event.entityId], requestId: ctx.requestId },
       fillBackorders,
-      { entityId: event.entityId, itemIds: items.slice(i, i + FILL_ITEMS) },
+      { entityId: event.entityId, itemId },
     );
     filled += out.filled;
   }

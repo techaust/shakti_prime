@@ -81,10 +81,12 @@ export const ReservationChangedDto = z
   .strict();
 export type ReservationChangedDto = z.infer<typeof ReservationChangedDto>;
 
-/** The backorder fill for one item of a company, run by the platform as stock arrives. */
-export const FillBackordersInput = z
-  .object({ entityId: EntityIdSchema, itemIds: z.array(IdSchema).min(1).max(200) })
-  .strict();
+/**
+ * The backorder fill for one item of a company, run by the platform as stock arrives: one item a
+ * transaction, so each fill takes its orders' locks before the item's balances and never holds one
+ * item's balances while it waits for another item's orders.
+ */
+export const FillBackordersInput = z.object({ entityId: EntityIdSchema, itemId: IdSchema }).strict();
 export type FillBackordersInput = z.input<typeof FillBackordersInput>;
 
 /** How many backorders a fill served: counts of rows, never a quantity of stock. */
