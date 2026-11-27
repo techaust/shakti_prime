@@ -1,6 +1,6 @@
 import { ConnectorBatchRequest } from '@shakti/contracts';
 import { afterEach, describe, expect, it } from 'vitest';
-import { COMPANIES, harness, KEY, type Harness } from './harness';
+import { COMPANIES, FAST, harness, KEY, type Harness } from './harness';
 
 const [SS, SMP] = COMPANIES as [(typeof COMPANIES)[number], (typeof COMPANIES)[number]];
 let h: Harness;
@@ -381,6 +381,69 @@ describe('a BOS that answers without taking a row', () => {
     expectContiguous(SMP.name, 3);
   });
 
+  it.each([
+    { first: 'refused', later: 'unreadable' },
+    { first: 'unreadable', later: 'refused' },
+  ] as const)(
+    'goes on past a $first row in the drain and sends the later $later one once the BOS takes it',
+    async ({ first }) => {
+      h = await harness();
+      h.tally.addVoucher(SS.name, { type: 'Sales' });
+      h.tally.addVoucher(SMP.name, { type: 'Receipt' });
+      // Cycle 1: both companies' first batch stays pending, one refused and one answered unreadably.
+      const refusedCompany = first === 'refused' ? SS.name : SMP.name;
+      h.bos.knobs.refuseBatchesOf.set(refusedCompany, 403);
+      h.bos.knobs.garbleBatchAnswers = 2;
+      await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+      const [firstRow, laterRow] = h.outbox.pending();
+      expect([firstRow?.company, laterRow?.company]).toEqual([SS.name, SMP.name]);
+
+      // Cycle 2: the first row still fails as it did; the later one is now taken by the BOS.
+      if (first === 'refused') {
+        h.bos.knobs.garbleBatchAnswers = 0;
+      } else {
+        h.bos.knobs.refuseBatchesOf.clear();
+        h.bos.knobs.garbleBatchAnswers = 2;
+      }
+      const from = h.bos.calls.length;
+      await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+      const calls = h.bos.calls.slice(from);
+      // The later row went from the drain, before any company was read.
+      expect(calls.slice(0, 2)).toEqual([
+        'POST /api/v1/connector/tally/batches',
+        'POST /api/v1/connector/tally/batches',
+      ]);
+      expect(h.outbox.pending()).toEqual([{ ...firstRow, attempts: 2, refusals: 2 }]);
+      expectContiguous(SMP.name, 1);
+      expect(h.bos.appliedTwice()).toEqual([]);
+    },
+  );
+
+  it('sets a row aside after its attempts when every answer to it is unreadable', async () => {
+    h = await harness({ companies: [SS] });
+    for (let i = 0; i < 2; i += 1) h.tally.addVoucher(SS.name, { type: 'Sales' });
+    // Two calls per send (one quick retry), three sends: every answer the BOS gives is unreadable.
+    h.bos.knobs.garbleBatchAnswers = 2 * FAST.outboxMaxAttempts;
+    for (let i = 0; i < FAST.outboxMaxAttempts; i += 1) {
+      await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    }
+    expect(h.outbox.depth()).toBe(0);
+    expect(h.outbox.heldCount()).toBe(1);
+    const held = h.log.lines.map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(held.find((l) => l.event === 'outbox_row_held')).toMatchObject({
+      entity: 'SS',
+      kind: 'batch',
+      code: 'bad_answer',
+    });
+    await h.syncer.heartbeat();
+    expect(h.bos.heartbeats.at(-1)?.heldRows).toBe(1);
+    // The BOS applied it the first time: the company goes on from its cursor, nothing twice.
+    h.tally.addVoucher(SS.name, { type: 'Sales' });
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SS.name, 3);
+    expect(h.bos.appliedTwice()).toEqual([]);
+  });
+
   it('syncs a BOS whose answers carry fields this build does not know', async () => {
     h = await harness({ now: new Date('2026-11-26T20:31:00Z') });
     for (let i = 0; i < 7; i += 1) h.tally.addVoucher(SS.name, { type: 'Sales' });
@@ -478,6 +541,34 @@ describe('adaptive windows', () => {
     expect(chain(SS.name).map(([from, to]) => to - from)).toEqual([
       5, 5, 10, 20, 40, 40, 40, 20, 2,
     ]);
+  });
+
+  it('reads a stretch again narrower when it holds more refused rows than a batch carries', async () => {
+    h = await harness({
+      companies: [SS],
+      settings: {
+        pageSize: 100,
+        pageSizeMax: 10_000,
+        pageGrowBelowRows: 50,
+        pageShrinkAboveRows: 400,
+      },
+    });
+    h.tally.alterOtherMasters(SS.name, 3100);
+    // A bulk import the contract refuses row by row: vouchers without ledger lines.
+    for (let i = 0; i < 2600; i += 1)
+      h.tally.addVoucher(SS.name, { type: 'Sales', noEntries: true });
+    await expect(h.syncer.cycle()).resolves.toBe('caught_up');
+    expectContiguous(SS.name, 5700);
+    // (3100, 5700] held 2,600 refused rows, over the 2,500 a batch reports: read again as (3100, 4700].
+    expect(chain(SS.name).map(([from, to]) => to - from)).toEqual([
+      100, 200, 400, 800, 1600, 1600, 800, 200,
+    ]);
+    expect(h.log.lines.filter((l) => l.includes('page_narrowed'))).toHaveLength(1);
+    expect(h.log.lines.some((l) => l.includes('batch_unreadable'))).toBe(false);
+    const reported = h.bos.bodies
+      .filter((b) => b.includes('"fromAlterId"'))
+      .flatMap((b) => (JSON.parse(b) as { refused?: unknown[] }).refused ?? []);
+    expect(reported).toHaveLength(2600);
   });
 
   it('reads a stretch again in a narrower window when it holds more than a batch carries', async () => {

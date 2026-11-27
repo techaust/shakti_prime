@@ -197,6 +197,9 @@ export type ConnectorHeartbeatResponse = z.infer<typeof ConnectorHeartbeatRespon
 /** The most vouchers and ledgers one batch carries. */
 export const CONNECTOR_BATCH_MAX_VOUCHERS = 500;
 export const CONNECTOR_BATCH_MAX_LEDGERS = 2000;
+/** The most rows of a batch's range the contract cannot carry, reported in `refused`. */
+export const CONNECTOR_BATCH_MAX_REFUSED =
+  CONNECTOR_BATCH_MAX_VOUCHERS + CONNECTOR_BATCH_MAX_LEDGERS;
 
 /**
  * A voucher or ledger Tally gave in the batch's range that the contract cannot carry (for example a
@@ -230,10 +233,7 @@ export const ConnectorBatchRequest = z
     maxAlterId: AlterIdSchema,
     vouchers: z.array(TallyVoucher).max(CONNECTOR_BATCH_MAX_VOUCHERS),
     ledgers: z.array(TallyLedger).max(CONNECTOR_BATCH_MAX_LEDGERS),
-    refused: z
-      .array(TallyRefusedRow)
-      .max(CONNECTOR_BATCH_MAX_VOUCHERS + CONNECTOR_BATCH_MAX_LEDGERS)
-      .optional(),
+    refused: z.array(TallyRefusedRow).max(CONNECTOR_BATCH_MAX_REFUSED).optional(),
   })
   .strict()
   .refine((v) => v.maxAlterId >= v.fromAlterId, {

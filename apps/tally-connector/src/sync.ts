@@ -1,5 +1,6 @@
 import {
   CONNECTOR_BATCH_MAX_LEDGERS,
+  CONNECTOR_BATCH_MAX_REFUSED,
   CONNECTOR_BATCH_MAX_VOUCHERS,
   CONNECTOR_CLOCK_SKEW_SECONDS,
   ConnectorBatchRequest,
@@ -304,11 +305,12 @@ export class Syncer {
         if (!(error instanceof TallyUnavailable)) throw error;
         return this.tallyFailed(company.name, error);
       }
+      // Over any of a batch's caps (refused rows too): never sent, read again in a narrower window.
       const tooMany =
         page.vouchers.length > CONNECTOR_BATCH_MAX_VOUCHERS ||
-        page.ledgers.length > CONNECTOR_BATCH_MAX_LEDGERS;
+        page.ledgers.length > CONNECTOR_BATCH_MAX_LEDGERS ||
+        page.refused.length > CONNECTOR_BATCH_MAX_REFUSED;
       if (tooMany && state.window > settings.pageSize) {
-        // More rows than one batch carries: the same stretch is read again in a narrower window.
         state.window = Math.max(Math.floor(state.window / 2), settings.pageSize);
         log.info('page_narrowed', { entity, from: cursor, window: state.window });
         continue;
