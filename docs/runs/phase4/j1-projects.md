@@ -261,4 +261,69 @@ The lead accepted the early check, decisions 1 to 8 included (27-11, 16:25 UTC).
 
 ## Review
 
+### 27-11-2026, slice reviewer (cloud VM, worktree `/home/user/shakti-wt/j1-projects`, Postgres 54332), Tier A
+Reviewed `git diff origin/main...feat/j1-projects` at `11c3a2fc` (main at `59736c74`; main gained only documents since the branch point, no migration). Opus 5.5 at high effort.
+
+**Verdict:** no critical or high finding; the slice may merge once the lead has weighed the mediums below (each is a small fix).
+
+| # | Severity | Where | What is wrong | Failure scenario | Fix | Status |
+|---|---|---|---|---|---|---|
+| 1 | Medium | `packages/domain/src/queries/projects/list-projects.ts:266` (`listProjectFilters`, the owners read) | The list's own-scope fix (`ownProjectIds()` named by id) was not applied to the filter choices. For a caller at `own` scope the owners read scans every project of the company and the policy calls `app.project_is_mine()` once per row. The `EXPLAIN` covers the list only. | A Field Engineer opens `/projects` in a company with 20,000 projects. The page runs the filters beside the list and pays about 235 ms for the policy-only scan (the builder's own measurement of that path) on every load and every filter change. Plan read here as the engineer: `Index Scan using projects_entity_state_updated_idx … Filter: (… OR ((InitPlan 3).col1 AND app.project_is_mine(id)))`. | For a caller without `projects.read:entity`, restrict the owners read to `ownProjectIds()` (`p.id = any(...)`), or skip the owner filter for own-only callers, who see only their own projects anyway. Add it to `tests/spike/projects-explain.ts`. | confirmed (plan read on this database) |
+| 2 | Medium | `packages/db/migrations/0242_j1_status_summary.sql:49`; no worker on `sales.order.cancelled` | A confirmed order can still be cancelled (`sales-order` machine: `cancel` from `confirmed` while nothing is dispatched, `cancel-order.ts`), but its drafted project stays `active`. STATUS filters only `p.state <> 'cancelled'`, never the order's state. | A farmer-pumps order is confirmed, its project is drafted, and the order is cancelled the next day. The customer sends STATUS and reads "Order …: cancelled" and then "Project …: in progress, next step site survey". The project also stays in the Project Manager's active list. | Have STATUS leave out a project whose order is cancelled (join `sales_orders` in the third branch: one line). As a follow-up, cancel or flag the project on `sales.order.cancelled` (a platform step or a notice to its Project Manager). | confirmed (code path read) |
+| 3 | Low | `packages/db/migrations/0241_j1_projects_rls.sql:104`, `:114`, `:161` | Row security lets an `own` writer (a Field Engineer on the project) change the project's `state`, `hold_reason` and `cancel_reason`, and any step's `state`, `done_at` and `done_by`. `app.projects_guard()` guards only `owner_id`, so hold, cancel and complete are enforced by the commands alone. SECURITY §3.2's Projects paragraph reads as if the database held that line too. | A future path that writes through the request role outside these commands (a field-app sync handler in F2, say) lets an engineer cancel a project or reopen a done step. No path does so today. | Extend `app.projects_guard()` to refuse a change of `state`, `hold_reason` or `cancel_reason` without `projects.write:entity`. Add a step guard so that, without that grant, a step moves only from `open` to `done` with `done_by = app.user_id()`. Add a test for each. | confirmed (policies and the engineer's `update` in `projects.test.ts` succeed) |
+| 4 | Low | `packages/domain/src/commands/projects/create-project.ts:232`; `apps/web/src/components/projects/start-project.tsx` | Start project offers every business line, but the command ignores the one chosen whenever the order's lead has an install segment (`installSegment(facts.segment) ?? input.segment`). | A manager picks Commercial solar projects for a farmer-pumps lead's order. They get a farmer-pumps project with the farmer-pumps steps, and nothing tells them. | Refuse a named segment that differs from the lead's (a new reason with its sentence), or offer the choice only when the order has no install segment. | confirmed (code read) |
+| 5 | Low | `apps/web/src/components/projects/projects-screen.tsx:135`, `account-projects.tsx:19` | A row with no open step shows "All steps done". A PM Surya Ghar project has no steps until J4. | Every Surya Ghar project reads "All steps done" in `/projects` and on Account 360 from the day it is drafted. | When `flow` is `surya_ghar`, show the subsidy-flow words (as the project page does). | confirmed |
+| 6 | Low | `apps/web/messages/en.json:7015` (`projects.milestones.missing`) | The key is never used. A `documents_missing` refusal shows only the generic `errors.documents_missing` sentence, without the `details.missing` list the command builds. | When J3 replaces the stub, an engineer refused Mark done is not told which documents are missing. | Show `details.missing` through this key, or remove the key until J3. | confirmed |
+| 7 | Low | `apps/web/src/components/projects/projects-screen.tsx` (step filter), `use-step-name.ts` | The step filter names a published step by its key in words (`wordsOf(key)`), not by the Executive's title, because `listProjectFilters` returns keys only. | An Executive publishes "Net meter fitted (DISCOM)". The filter shows "net meter fitted discom". | Return each key's newest title with the filter choices. | confirmed |
+| 8 | Low | `packages/domain/src/queries/projects/list-projects.ts:206` | `ownProjectIds()` takes `limit(1000)` with no order. | An engineer on more than 1,000 projects over the years (completed ones included) loses arbitrary projects from their list, active ones possibly among them. | Order by the newest change (or prefer projects not completed), or page through the ids. | plausible |
+| 9 | Low | `apps/web/e2e/projects.spec.ts` | No journey covers Account 360's Projects section or the order page's Start project dialog and link, so neither has axe checks or snapshots (design §13). The journeys' Project Manager project is seeded straight into the tables, not drafted by the worker; the web test covers the worker. | An accessibility fault in the Start project dialog goes unseen. | Add both to an existing orders or customers journey. | confirmed |
+
+**For the lead at integration (not findings in this slice):**
+- `app.status_summary()` is diffed against main's latest (0201), and every line is kept: the quote and order branches only gain `null::text, null::text`, and the revoke and grant are identical. No other branch on GitHub redefines it today.
+- Other wave branches redefine the same functions and check:
+  - `app.platform_only_permissions()`: `feat/h2-reservations`, `feat/fn1-proformas`, `feat/tc2-tally-ingest` and `feat/u2-purchase-orders`;
+  - `app.next_document_no()` and `document_sequences_doc_type_check`: `feat/r3-warranty` and `feat/u2-purchase-orders`.
+  
+  Whichever merges later must carry `projects.draft` and the `project` doc type.
+- 0240 is a generated migration with `NOT VALID` added by hand to the widened doc-type check. That is harmless, but the constraint stays unvalidated.
+- `js-budget.json` changed: the pull request needs the owner's `checks-ok`.
+
+**Checked and sound:**
+- **Isolation:**
+  - The four tables are in `ENTITY_TABLES`, with fixture rows per company and matrix rules on both pools. The `NARROWER` grants are listed, and `enum-sync` covers the new values.
+  - The policies fail closed (`app.entity_ids()` null denies). The children are read through the parent, and the reader's definers (`project_is_mine`, `project_customers`, `project_missing_documents`) are granted to `app_reader`.
+  - There is no insert path for projects or steps outside `app.create_project()`. The column grants are narrow.
+- **Definers:**
+  - Every new one sets `search_path = ''` and revokes execute from `public` and `readonly_reporter`.
+  - `app.project_is_mine()` is the documented exception (DATABASE §4.1).
+  - `app.platform_only_permissions()` holds 0222's nineteen keys plus `projects.draft`.
+  - `app.next_document_no()` is 0201's body plus `project`.
+- **Commands:**
+  - All nine are registered. Each has its denied, wrong-company and happy-path tests.
+  - The eight people's commands are `peopleOnly` and in the refusal sweep. The draft command is in the sweep of the platform's work.
+  - Every `auditFields` key is labelled. The events carry ids only and come from the catalogue.
+  - No agent drafts: `projects.draft` is platform-only in code and in the database, and `app.create_project()` asks `app.request_is_person()` on the `projects.write` path.
+  - Cost permissions are untouched.
+- **Drafting idempotency:**
+  - The order is locked `for update` inside `app.create_project()`, and the existence check runs under the lock, so concurrent deliveries serialise.
+  - The number is drawn in the same savepoint and rolled back when nothing is drafted.
+  - A hand-made project racing a draft ends in `projects_sales_order_live_unique` (`project_exists`).
+  - A replay after a cancellation drafts nothing.
+  - The workers' principal takes `projects.draft` from `SYSTEM_MATRIX` in code, so no seed step gates it on a hosted environment.
+- **Own scope on every route:**
+  - `/projects`, the project page, Account 360 and the order link all read under the row policies.
+  - The page refuses a company outside the principal, and `getProject` answers not found for a project the caller is not on.
+  - An engineer reaches no customer or order screen (no `crm.account.read`). The customer facts come only through `app.project_customers()` (no phone or address line).
+  - `listProjects` and the page decide "own only" by the same `hasGrant(…, 'entity')` rule.
+- **Templates:** they are append-only (trigger, no update or delete grant). A publish race ends in `project_template_changed`, and a running project keeps its copied steps (domain test).
+- **Web layer:**
+  - Reads go through `executeQuery()` with names, and writes through `executeCommand()` with each form's key (`useCommand`).
+  - The menu pages use `screenAccess(navRequires())`. Browser code imports only types from the contracts.
+- **Copy:** every new string is in `en.json` and the button keys are in the copy-lint config.
+
+**Could not check here:**
+- **The journeys** (`apps/web/e2e/projects.spec.ts`: the Project Manager's steps, hold and resume; the Field Engineer's own list and the not-found page; the Executive's Project steps editor): not run, since this session cannot sign in.
+- **The Linux baselines** (`project-page`, `project-hold-dialog`, `projects-engineer`, `project-page-engineer` and `project-steps`, each in light, dark and phone): they do not exist yet, so the layout check waits for them at integration.
+- **`pnpm build` and `js-budget`:** not re-run.
+
 ## Integration
