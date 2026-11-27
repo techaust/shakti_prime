@@ -283,11 +283,12 @@ grant execute on function app.tally_cursor_move(smallint, text, bigint) to app_u
 --> statement-breakpoint
 
 -- 6. The stored vouchers of a company with the given GUIDs (a batch's, a held snapshot's), or all
---    of them (p_guids null, for the daily snapshot's diff): their type, AlterID, state and when
---    they were first stored, never their amounts. Asked by the company's connector, or by a person
+--    of them (p_guids null, for the daily snapshot's diff): their type, AlterID, state, date and
+--    when they were first stored, never their amounts. Asked by the company's connector, or by a person
 --    confirming a held snapshot (finance.recon.write in the company).
 create or replace function app.tally_vouchers_known(p_entity smallint, p_company text, p_guids text[])
-  returns table (guid text, type text, alter_id bigint, state text, received_at timestamptz)
+  returns table (guid text, type text, alter_id bigint, state text, voucher_date date,
+                 received_at timestamptz)
   language plpgsql stable security definer set search_path = '' as $$
 #variable_conflict use_column
 begin
@@ -299,11 +300,13 @@ begin
     raise exception 'finance.recon.write is required' using errcode = '42501';
   end if;
   return query
-    select v.guid, v.type, v.alter_id, v.state, v.received_at from public.tally_vouchers v
+    select v.guid, v.type, v.alter_id, v.state, v.voucher_date, v.received_at
+      from public.tally_vouchers v
      where v.entity_id = p_entity and v.tally_company = p_company
        and (p_guids is null or v.guid = any (p_guids))
     union all
-    select v.guid, v.type, v.alter_id, v.state, v.received_at from public.tally_purchase_vouchers v
+    select v.guid, v.type, v.alter_id, v.state, v.voucher_date, v.received_at
+      from public.tally_purchase_vouchers v
      where v.entity_id = p_entity and v.tally_company = p_company
        and (p_guids is null or v.guid = any (p_guids));
 end

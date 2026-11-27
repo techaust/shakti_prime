@@ -928,3 +928,26 @@ export {
   recordQuality,
   tierLimit,
 } from './messaging/budget';
+// TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3).
+export {
+  confirmTallySnapshot,
+  ingestTallyBatch,
+  recordTallyHeartbeat,
+  recordTallySnapshot,
+} from './commands/tally/ingest';
+export {
+  mapTallyCompany,
+  readTallyConnector,
+  registerTallyConnector,
+  retireTallyConnectorKey,
+  revokeTallyConnector,
+  rotateTallyConnectorKey,
+  unmapTallyCompany,
+} from './commands/tally/connectors';
+export {
+  findTallyConnector,
+  readTallyCursor,
+  type TallyConnectorAuth,
+  type TallyConnectorCompany,
+} from './queries/tally/connector';
+export { connectorSigningKey, newConnectorKey } from './tally/connector-key';

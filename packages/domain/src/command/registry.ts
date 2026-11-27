@@ -203,6 +203,21 @@ import { setTaxRate } from '../commands/tax/set-tax-rate';
 import { archiveVendor, createVendor, updateVendor } from '../commands/procurement/vendors';
 import { setItemVendor, setVendorContacts } from '../commands/procurement/vendor-links';
 import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/quotes';
+// TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3).
+import {
+  confirmTallySnapshot,
+  ingestTallyBatch,
+  recordTallyHeartbeat,
+  recordTallySnapshot,
+} from '../commands/tally/ingest';
+import {
+  mapTallyCompany,
+  registerTallyConnector,
+  retireTallyConnectorKey,
+  revokeTallyConnector,
+  rotateTallyConnectorKey,
+  unmapTallyCompany,
+} from '../commands/tally/connectors';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -423,6 +438,17 @@ export const commands = Object.freeze({
   [setItemVendor.name]: setItemVendor,
   [recordVendorQuote.name]: recordVendorQuote,
   [withdrawVendorQuote.name]: withdrawVendorQuote,
+  // TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3).
+  [ingestTallyBatch.name]: ingestTallyBatch,
+  [recordTallySnapshot.name]: recordTallySnapshot,
+  [confirmTallySnapshot.name]: confirmTallySnapshot,
+  [recordTallyHeartbeat.name]: recordTallyHeartbeat,
+  [registerTallyConnector.name]: registerTallyConnector,
+  [mapTallyCompany.name]: mapTallyCompany,
+  [unmapTallyCompany.name]: unmapTallyCompany,
+  [rotateTallyConnectorKey.name]: rotateTallyConnectorKey,
+  [retireTallyConnectorKey.name]: retireTallyConnectorKey,
+  [revokeTallyConnector.name]: revokeTallyConnector,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

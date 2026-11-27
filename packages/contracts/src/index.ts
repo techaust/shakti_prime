@@ -125,3 +125,6 @@ export * from './notifications';
 export * from './commands/webhooks/inbox';
 // U1 vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3).
 export * from './procurement/index';
+// TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3).
+export * from './commands/tally/ingest';
+export * from './commands/tally/connectors';

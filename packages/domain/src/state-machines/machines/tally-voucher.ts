@@ -72,12 +72,18 @@ export const tallyVoucherMachine = defineMachine<
   name: 'tally_voucher',
   title: 'Tally voucher',
   summary:
-    'The reconciliation state of a `tally_vouchers` row (a state column is added with the Phase 5 connector); a tombstone is also written to the append-only `tally_voucher_tombstones`.',
-  sources: ['BLUEPRINT §8.8, §19 item 2', 'PRD FIN-02, FIN-03', 'DATABASE §6.7'],
+    'The reconciliation state of a `tally_vouchers` row (and of a `tally_purchase_vouchers` row, which follows the same states); a tombstone is also written to the append-only `tally_voucher_tombstones`. TC2 fires `ingest`, `alter` and `tombstone`; matching (`match`, `queue`, `link`, `reverse`) comes with TC3.',
+  sources: [
+    'BLUEPRINT §8.8, §19 item 2',
+    'PRD FIN-02, FIN-03',
+    'DATABASE §6.7',
+    'docs/03-roadmap-appendix/phase5.md §6.3',
+  ],
   states: TALLY_VOUCHER_STATES,
   initial: 'received',
   terminal: ['reversed'],
   proposedStates: ['received', 'linked', 'unlinked', 'tombstoned', 'reversed'],
+  stored: { table: 'tally_vouchers', stateColumn: 'state', changedAtColumn: 'state_changed_at' },
   stateNotes: {
     unlinked: 'In the review queue (`unlinked_vouchers`).',
     tombstoned: 'Deleted or cancelled in Tally; shown in the review queue.',
@@ -125,7 +131,7 @@ export const tallyVoucherMachine = defineMachine<
       ],
     },
     {
-      from: ['linked', 'unlinked'],
+      from: ['received', 'linked', 'unlinked'],
       event: 'alter',
       to: 'received',
       permission: null,
@@ -136,16 +142,18 @@ export const tallyVoucherMachine = defineMachine<
           description: 'reverse the previous link and its effects, then match again',
         },
       ],
-      note: 'A re-read with a higher AlterID changed the voucher.',
+      note: 'A re-read with a higher AlterID changed the voucher; a tombstoned voucher sent again keeps its state and waits for the next snapshot, which lists it as reappeared.',
       proposed: true,
     },
     {
       from: ['received', 'linked', 'unlinked'],
       event: 'tombstone',
       to: 'tombstoned',
-      permission: null,
+      permission: 'finance.recon.write',
+      scope: 'entity',
       system: true,
       guard: goneFromSnapshot,
+      note: 'The daily snapshot, or Accounts confirming a snapshot held because it would remove more than its limits allow.',
       effects: [
         {
           key: 'tombstone',
