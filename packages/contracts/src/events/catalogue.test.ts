@@ -64,6 +64,8 @@ describe('the event catalogue', () => {
         'crm.opportunity.assigned',
         'crm.opportunity.stage_moved',
         'files.file.uploaded',
+        // FN1: an order's payments the platform could not plan, told to Accounts.
+        'finance.milestones.plan_failed',
         'knowledge.file.index_requested',
         'knowledge.playbook.changed',
         'messaging.button.pressed',
@@ -74,6 +76,8 @@ describe('the event catalogue', () => {
         'print.document.requested',
         // A sheet of QR labels (Q1).
         'print.labels.requested',
+        // FN1: a cancelled order's proforma and waiting payments are cancelled with it.
+        'sales.order.cancelled',
         'sales.order.confirmed',
         'sales.order.credit_held',
         'sales.quote.accepted',
