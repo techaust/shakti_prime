@@ -3,14 +3,17 @@
 import type { SerialDto } from '@shakti/contracts';
 import { Button, type ReturnFocusTo } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { formatDate } from '../../screens/format';
 import { stockCardHref } from '../../screens/inventory';
 import { Page } from '../shell/page';
-import { LabelsDialog } from './labels-dialog';
 import { MovementsTable } from './movements-table';
 import { useSerialStateText } from './use-inventory-text';
+
+// Loaded when a label is asked for, so the page's own script stays inside its budget.
+const LabelsDialog = dynamic(() => import('./labels-dialog').then((m) => m.LabelsDialog));
 
 /**
  * A serial: where it is, its warranty dates and every movement, newest first. A stock handler

@@ -19,6 +19,7 @@ import {
   type ReturnFocusTo,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import { useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
   archiveBin,
@@ -33,8 +34,10 @@ import { EDITABLE_BIN_KINDS, WAREHOUSE_KINDS } from '../../screens/contract-valu
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
-import { LabelsDialog } from './labels-dialog';
 import { useBinKindText, useHubKindText } from './use-inventory-text';
+
+// Loaded when a label is asked for, so the page's own script stays inside its budget.
+const LabelsDialog = dynamic(() => import('./labels-dialog').then((m) => m.LabelsDialog));
 
 type Open =
   | { kind: 'hub'; hub: HubDto | undefined }
