@@ -28,6 +28,13 @@ import {
   setReorderRule,
 } from '../../src/commands/procurement/reorder';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
+import {
+  getPurchaseOrder,
+  getPurchaseOrderPrint,
+  listGoodsReceipts,
+  listPurchaseOrders,
+  purchaseOrderOverdue,
+} from '../../src/queries/procurement/order-queries';
 import { stockMove } from '../../src/stock/move';
 import {
   averageOf,
@@ -774,5 +781,72 @@ describe('reorder rules and procurement.reorder.draft', () => {
         entityId: 2,
       }),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('the order and receipt reads', () => {
+  it('give the General Manager and the Store Manager the order without a rate, and a rate reader its totals', async () => {
+    const po = await run<Ref>(
+      manager,
+      createPurchaseOrder,
+      draft({ lines: [{ itemId: f.cable, qty: '10', rate: '100' }] }),
+    );
+    for (const role of ['general_manager', 'store_manager'] as const) {
+      const order = await asPrincipal(principalFor(role, [1]), (context) =>
+        getPurchaseOrder(context, { purchaseOrderId: po.id }),
+      );
+      expect(order.poNo).toBe(po.poNo);
+      expect(JSON.stringify(order)).not.toMatch(/unitRate|amount|totals|1000|100\.0000/);
+      const print = await asPrincipal(principalFor(role, [1]), (context) =>
+        getPurchaseOrderPrint(context, { purchaseOrderId: po.id }),
+      );
+      expect('totals' in print.order).toBe(false);
+    }
+    const rated = await asPrincipal(manager, (context) =>
+      getPurchaseOrder(context, { purchaseOrderId: po.id }),
+    );
+    // 10 × ₹100 within Rajasthan at 18 %: ₹1,000 + ₹90 + ₹90.
+    expect(rated).toMatchObject({
+      lines: [{ unitRate: '100.0000', amount: '1000.00' }],
+      totals: { subtotal: '1000.00', cgst: '90.00', sgst: '90.00', grandTotal: '1180.00' },
+    });
+    await expect(
+      asPrincipal(principalFor('inventory_manager', [2]), (context) =>
+        getPurchaseOrder(context, { purchaseOrderId: po.id }),
+      ),
+    ).rejects.toMatchObject({ code: 'not_found' });
+    await expect(
+      asPrincipal(principalFor('tele_caller_cc', [1]), (context) =>
+        getPurchaseOrder(context, { purchaseOrderId: po.id }),
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('list a company’s orders by state with its reorder drafts on top, and its receipts', async () => {
+    const page = await asPrincipal(principalFor('general_manager', [3]), (context) =>
+      listPurchaseOrders(context, { entityId: 3, state: 'draft' }),
+    );
+    expect(page.reorderAlerts.length).toBeGreaterThan(0);
+    expect(page.reorderAlerts.every((o) => o.source === 'reorder')).toBe(true);
+    expect(page.counts.draft).toBeGreaterThanOrEqual(page.items.length);
+    expect(JSON.stringify(page)).not.toMatch(/rate|amount/i);
+    const receipts = await asPrincipal(principalFor('store_manager', [1]), (context) =>
+      listGoodsReceipts(context, { entityId: 1 }),
+    );
+    expect(JSON.stringify(receipts)).not.toMatch(/rate|amount/i);
+    await expect(
+      asPrincipal(principalFor('store_manager', [1]), (context) =>
+        listPurchaseOrders(context, { entityId: 2, state: 'draft' }),
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('call an open order overdue a week after its expected date, in India', () => {
+    const now = new Date('2026-11-27T20:00:00.000Z'); // 28-11-2026 01:30 in India
+    expect(purchaseOrderOverdue('sent', '2026-11-20', now)).toBe(true);
+    expect(purchaseOrderOverdue('sent', '2026-11-21', now)).toBe(false);
+    expect(purchaseOrderOverdue('received', '2026-01-01', now)).toBe(false);
+    expect(purchaseOrderOverdue('draft', '2026-01-01', now)).toBe(false);
+    expect(purchaseOrderOverdue('sent', null, now)).toBe(false);
   });
 });
