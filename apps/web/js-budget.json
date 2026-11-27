@@ -66,8 +66,8 @@
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the duplicate cards with their filter and buttons; the merge dialog loads when first opened. Measured 192.8 kB on 05-10-2026, plus 5 %; 193.7 kB on 06-10-2026 after taking main."
     },
     "/catalogue": {
-      "maxKb": 245,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the items grid with its search, category filter and saved views; the item sheet and forms load when first opened. Measured 233.2 kB on 04-10-2026, plus 5 %."
+      "maxKb": 246,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the items grid with its search, category filter and saved views; the item sheet and forms load when first opened. Measured 233.2 kB on 04-10-2026, plus 5 %. Raised by 1 kB on 27-11-2026 for the notification bell's link to a reorder draft (U2): measured 245.1 kB."
     },
     "/catalogue/kits": {
       "maxKb": 241,
@@ -256,6 +256,30 @@
     "/procurement/compare": {
       "maxKb": 208,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the quote comparison with its company and category filters and the quote document link. Measured 198.1 kB on 23-11-2026, plus 5 %."
+    },
+    "/procurement/orders": {
+      "maxKb": 241,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the purchase order grid by state with the company and state links and the reorder drafts above it. Measured 229.1 kB on 27-11-2026, plus 5 %."
+    },
+    "/procurement/orders/[id]": {
+      "maxKb": 243,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the order sheet's actions (approve, mark sent, cancel and close with their reason dialogs) and the goods receipts grid with Reverse; the sheet itself is rendered on the server. Measured 231.3 kB on 27-11-2026, plus 5 %."
+    },
+    "/procurement/orders/[id]/edit": {
+      "maxKb": 204,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the purchase order form: vendor, hub, date and the lines of the vendor's items with their rates. Measured 194.1 kB on 27-11-2026, plus 5 %."
+    },
+    "/procurement/orders/[id]/receive": {
+      "maxKb": 222,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Receive goods: each line's quantity and bin and the scan field for serials; the camera's QR reader loads only when the camera is opened. Measured 210.6 kB on 27-11-2026, plus 5 %."
+    },
+    "/procurement/orders/new": {
+      "maxKb": 204,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the purchase order form: vendor, hub, date and the lines of the vendor's items with their rates. Measured 194.1 kB on 27-11-2026, plus 5 %."
+    },
+    "/procurement/receipts": {
+      "maxKb": 242,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the goods receipts grid with Reverse and its reason dialog. Measured 229.8 kB on 27-11-2026, plus 5 %."
     },
     "/procurement/vendors": {
       "maxKb": 239,

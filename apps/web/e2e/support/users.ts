@@ -521,3 +521,18 @@ export const SNAPSHOT_VENDORS = {
   cables: 'Marudhar Cables and Wires',
   solar: 'Marudhar Solar Traders',
 } as const;
+
+/**
+ * U2's purchase order journeys (`e2e/purchase-orders.spec.ts`): the serial-tracked pump the
+ * cables vendor supplies, each project's sent order of two pumps in company 1 to receive, and the
+ * snapshot company's approved order the sheets' screenshots show.
+ */
+export const PURCHASE_ORDER_JOURNEY = {
+  pump: { sku: 'JRN-PMP-5', name: 'Journey pump 5 HP', pattern: 'JP-[0-9]{4}' },
+  receiveNo: {
+    'desktop-light': 'JRN/PO/2026-27/0101',
+    'desktop-dark': 'JRN/PO/2026-27/0102',
+    phone: 'JRN/PO/2026-27/0103',
+  },
+  snapshotNo: 'SNP/PO/2026-27/0001',
+} as const;
