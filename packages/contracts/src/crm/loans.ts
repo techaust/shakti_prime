@@ -204,3 +204,56 @@ export const UpdateLenderInput = z
     path: ['name'],
   });
 export type UpdateLenderInput = z.input<typeof UpdateLenderInput>;
+
+// --- Reads --------------------------------------------------------------------------------------
+
+/** The order's Loan tab: the order named by its company. */
+export const OrderLoansInput = z.object({ entityId: EntityIdSchema, orderId: IdSchema }).strict();
+export type OrderLoansInput = z.input<typeof OrderLoansInput>;
+
+/**
+ * The order's Loan tab: its loans newest first (one active at most), the gate answer, the
+ * company's active lenders for the form, and whether the caller may record and move a loan here
+ * (`crm.account.write` over the customer's relationship, on an order that is not cancelled).
+ */
+export const OrderLoansDto = z
+  .object({
+    entityId: EntityIdSchema,
+    orderId: IdSchema,
+    accountId: IdSchema,
+    loans: z.array(CustomerLoanDto),
+    gate: OrderLoanGateDto,
+    lenders: z.array(LenderDto),
+    canWrite: z.boolean(),
+  })
+  .strict();
+export type OrderLoansDto = z.infer<typeof OrderLoansDto>;
+
+/** Account 360's loans: the customer named in one company. */
+export const AccountLoansInput = z
+  .object({ entityId: EntityIdSchema, accountId: IdSchema })
+  .strict();
+export type AccountLoansInput = z.input<typeof AccountLoansInput>;
+
+/** The most loans Account 360 lists, newest first. */
+export const ACCOUNT_LOANS_LIMIT = 50;
+
+/** One loan in Account 360's list, with its order's number when the caller reads the order. */
+export const AccountLoanRowDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    salesOrderId: IdSchema,
+    soNo: z.string().nullable(),
+    lenderName: z.string(),
+    amount: MoneySchema,
+    sanctionedAmount: MoneySchema.nullable(),
+    state: CustomerLoanStateSchema,
+    stateChangedAt: z.iso.datetime(),
+  })
+  .strict();
+export type AccountLoanRowDto = z.infer<typeof AccountLoanRowDto>;
+
+/** Settings › Lenders: one company's list. */
+export const ListLendersInput = z.object({ entityId: EntityIdSchema }).strict();
+export type ListLendersInput = z.input<typeof ListLendersInput>;

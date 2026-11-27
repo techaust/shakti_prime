@@ -235,7 +235,13 @@ export { sanctionCustomerLoan } from './commands/crm/loans-sanction';
 export { disburseCustomerLoan } from './commands/crm/loans-disburse';
 export { rejectCustomerLoan } from './commands/crm/loans-reject';
 export { createLender, updateLender } from './commands/crm/loans-lenders';
-export { orderLoanGate, readCustomerLoan } from './queries/crm/loans';
+export {
+  getOrderLoans,
+  listAccountLoans,
+  listLenders,
+  orderLoanGate,
+  readCustomerLoan,
+} from './queries/crm/loans';
 export { serialMatchesPattern, serialsOutsidePattern } from './catalogue/serial-pattern';
 export type { ItemSerialPattern } from './catalogue/serial-pattern';
 export { setTaxRate } from './commands/tax/set-tax-rate';

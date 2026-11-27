@@ -106,7 +106,13 @@ import {
   listImportTemplates,
 } from '../../src/queries/imports/import-queries';
 import { readEntityBankDetails, readSealedBankDetails } from '../../src/queries/org/bank-details';
-import { orderLoanGate, readCustomerLoan } from '../../src/queries/crm/loans';
+import {
+  getOrderLoans,
+  listAccountLoans,
+  listLenders,
+  orderLoanGate,
+  readCustomerLoan,
+} from '../../src/queries/crm/loans';
 import { loadCompanyForPrint } from '../../src/queries/org/company-print';
 import { listEntities } from '../../src/queries/org/list-entities';
 import { listEntityChannels } from '../../src/queries/org/list-channels';
@@ -378,6 +384,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
   // J2 customer loans
   readCustomerLoan: (ctx) => readCustomerLoan(ctx, 1, newId()),
+  getOrderLoans: (ctx) => getOrderLoans(ctx, { entityId: 1, orderId: newId() }),
+  listAccountLoans: (ctx) => listAccountLoans(ctx, { entityId: 1, accountId: newId() }),
+  listLenders: (ctx) => listLenders(ctx, { entityId: 1 }),
 };
 
 /**

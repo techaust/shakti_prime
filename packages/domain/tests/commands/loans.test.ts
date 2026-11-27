@@ -18,7 +18,12 @@ import { createLender, updateLender } from '../../src/commands/crm/loans-lenders
 import { rejectCustomerLoan } from '../../src/commands/crm/loans-reject';
 import { sanctionCustomerLoan } from '../../src/commands/crm/loans-sanction';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
-import { orderLoanGate } from '../../src/queries/crm/loans';
+import {
+  getOrderLoans,
+  listAccountLoans,
+  listLenders,
+  orderLoanGate,
+} from '../../src/queries/crm/loans';
 
 // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2): crm.loan.create, .sanction,
 // .disburse and .reject with crm.account.write over the customer's relationship in the order's
@@ -417,5 +422,47 @@ describe('crm.lender.create and crm.lender.update', () => {
     await expect(
       run(exec1, updateLender, { entityId: E, lenderId: lender.id, isActive: false }),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('the loan reads', () => {
+  it("the order's Loan tab: its loans, the gate and who may record one", async () => {
+    const orderId = await newOrder();
+    const loan = await create(gm, orderId);
+    const read = (who: Principal) =>
+      asPrincipal(who, (ctx) => getOrderLoans(ctx, { entityId: E, orderId }));
+    const tab = await read(gm);
+    expect(tab).toMatchObject({
+      orderId,
+      accountId: ACCOUNT,
+      canWrite: true,
+      gate: { loanId: loan.id, dispatch: 'pending' },
+    });
+    expect(tab.loans.map((l) => l.id)).toEqual([loan.id]);
+    expect(tab.lenders.map((l) => l.id)).toContain(lender.id);
+    // Accounts reads the loan and its gate, and may not record one.
+    expect(await read(accounts)).toMatchObject({ canWrite: false, loans: [{ id: loan.id }] });
+    expect(await read(caller)).toMatchObject({ canWrite: true });
+    await expect(read(otherCaller)).rejects.toMatchObject(reason('order_missing'));
+    await expect(
+      asPrincipal(gm1, (ctx) => getOrderLoans(ctx, { entityId: E, orderId })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it("Account 360's loans, newest first, and a company's lenders", async () => {
+    const orderId = await newOrder();
+    const loan = await create(gm, orderId);
+    const rows = await asPrincipal(gm, (ctx) =>
+      listAccountLoans(ctx, { entityId: E, accountId: ACCOUNT }),
+    );
+    expect(rows[0]).toMatchObject({
+      id: loan.id,
+      salesOrderId: orderId,
+      soNo: `J2T/2098-99/${orderId.slice(-4)}`,
+      lenderName: lender.name,
+      state: 'applied',
+    });
+    const lenders = await asPrincipal(accounts, (ctx) => listLenders(ctx, { entityId: E }));
+    expect(lenders.map((l) => l.id)).toContain(lender.id);
   });
 });
