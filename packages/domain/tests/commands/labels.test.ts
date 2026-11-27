@@ -1,5 +1,6 @@
 import {
   newId,
+  ResolveScannedCodeInput,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   type LabelSheetDto,
   type Principal,
@@ -313,6 +314,16 @@ describe('resolveScannedCode', () => {
     for (const code of ['8901234567890', 'https://shaktiprime.com/s/ASH26C000001', `SP-${f.tag}`]) {
       expect(await resolve(manager, code), code).toEqual({ outcome: 'not_ours' });
     }
+  });
+
+  it('says not ours for a long foreign code, which the action takes rather than refusing', async () => {
+    // A supplier's web address with its tracking words runs past any label of ours (400).
+    const long = `https://supplier.example/track?ref=${'a1b2c3d4'.repeat(120)}`;
+    const { code } = ResolveScannedCodeInput.parse({ code: long });
+    expect(code.length).toBeGreaterThan(900);
+    expect(await resolve(manager, code)).toEqual({ outcome: 'not_ours' });
+    // The action's cap is ten times the longest code a label of ours could be read as.
+    expect(ResolveScannedCodeInput.safeParse({ code: 'x'.repeat(4097) }).success).toBe(false);
   });
 
   it('is refused to a caller who does not read stock', async () => {

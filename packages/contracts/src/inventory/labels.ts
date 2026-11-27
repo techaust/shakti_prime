@@ -98,8 +98,11 @@ export const LabelsForPrintDto = z.discriminatedUnion('labelKind', [
 ]);
 export type LabelsForPrintDto = z.infer<typeof LabelsForPrintDto>;
 
-/** A code read by a scanner or the camera: whatever it typed, as long as a label holds. */
-export const ResolveScannedCodeInput = z.object({ code: z.string().max(400) }).strict();
+/**
+ * A code read by a scanner or the camera: whatever it typed. The cap is well above any label of
+ * ours, so a long foreign code (a supplier's web address) is answered `not_ours`, not refused.
+ */
+export const ResolveScannedCodeInput = z.object({ code: z.string().max(4096) }).strict();
 export type ResolveScannedCodeInput = z.input<typeof ResolveScannedCodeInput>;
 
 /**

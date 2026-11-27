@@ -40,7 +40,7 @@ import type { PrintRenderer } from '../src/print/renderer';
 // Q1's sheets of QR labels through the render worker (docs/03-roadmap-appendix/phase3.md §7.4):
 // the route, the loader, the commands and the database are real; Chromium is a stand-in that
 // keeps the page and the stock size it was given (the security suite runs where no browser is
-// installed; `e2e/labels-batch.spec.ts` prints with the real one and times a sheet of 500).
+// installed; `e2e/labels.spec.ts` prints with the real one and times a sheet of 500).
 interface RenderState {
   store: FileStore | undefined;
   sheets: { html: string; size: LabelSize }[];
