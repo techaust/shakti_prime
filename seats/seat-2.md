@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T15:19Z
+updated: 2026-11-27T15:36Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -57,7 +57,7 @@ branch: feat/x4-stock-reasons
 run_file: docs/runs/phase3/x4-stock-reasons.md
 wait_for: report: x4-stock-reasons done
 done_when: review: x4-stock-reasons done
-note: Tier A. Confirm the redefinition of app.stock_move() differs from migration 0231 only in the reason mapping; run H1's ledger suite.
+note: Tier A. Confirm the redefinition of app.stock_move() differs from migration 0231 only in the brief's points (the grant mapping, the serial moves, the line's customer fields, and addendum 2's reversible flag; mark addendum 2 a finding if missing); run H1's ledger suite.
 
 lane: 37
 role: review
@@ -90,3 +90,11 @@ run_file: docs/runs/phase4/j2-loans.md
 wait_for: none
 done_when: report: j2-loans done
 note: continue. The lead read the early check (27-11 15:45 UTC): accepted, decisions 1 to 7 included. The journey uses a General Manager (Accounts holds no crm.account.write; who records loans is a question for the client, the lead records it). Build notify_owner on rejection in this lane (notice type, worker, sentence). Then the screens, the module documents and EXPLAIN on seeded volume.
+
+lane: 46
+role: build
+branch: feat/u2-purchase-orders
+run_file: docs/runs/phase3/u2-purchase-orders.md
+wait_for: none
+done_when: report: u2-purchase-orders done
+note: continue. The lead read the early check (27-11 15:50 UTC): accepted, the seven-table design and the decisions included. Receipt reversal: X4 gains a reversible flag per reason (its addendum 2); your opening migration also sets receipt's reversible true. Build the screens, the PDF and the scan field now; take main in and add the opening once X4 has merged; if X4 has not merged when only that remains, report done with it named, and the lead adds it at integration.
