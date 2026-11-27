@@ -57,6 +57,7 @@ import { ensureProcurementJourneys } from './procurement';
 import { ensureScreenPopJourneys } from './screen-pop';
 import { ensureShadowPackJourney } from './shadow-pack';
 import { ensureStockJourneys } from './stock';
+import { ensureReservationJourneys } from './reservations';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
@@ -911,6 +912,10 @@ const orders = await ensureOrderJourneys(ids.executive ?? '');
 progress('the stock journeys');
 await ensureStockJourneys(ids.executive ?? '');
 
+// H2 reservations, after the stock journeys' hub and bins.
+progress('the reservation journeys');
+const reservations = await ensureReservationJourneys(ids.executive ?? '', ids.converter ?? '');
+
 progress('the Lead Converter workspace');
 // One converter of company 2 per project, none of them a handover target, each with three leads
 // of their own (converting.spec.ts).
@@ -1132,6 +1137,7 @@ const seeded: SeededUsers = {
   whatsappQuotes,
   orders,
   uat,
+  reservations,
   recordings,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));

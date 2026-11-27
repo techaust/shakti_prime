@@ -160,6 +160,38 @@ export const STOCK_JOURNEY = {
 } as const;
 
 /**
+ * H2's reservation journeys (reservations.spec.ts), written by the seed (`e2e/setup/reservations.ts`):
+ * per project, an item of company 1 kept at least `freeQty` free in the stock journeys' first bin,
+ * and three orders of `orderQty` of it for a farm customer of the Lead Converter's: one left a
+ * draft for the General Manager to confirm, one confirmed by the seed so the Inventory Manager
+ * finds its hold, and one left a draft for the Lead Converter to read. Every quantity is a test
+ * value for these journeys alone.
+ */
+export const RESERVATION_JOURNEY = {
+  entityId: 1,
+  customer: 'Journey farm for held stock',
+  sitePin: '302022',
+  freeQty: 10,
+  orderQty: 2,
+  items: {
+    'desktop-light': { sku: 'JRN-RSV-DL', name: 'Journey pump set, light' },
+    'desktop-dark': { sku: 'JRN-RSV-DD', name: 'Journey pump set, dark' },
+    phone: { sku: 'JRN-RSV-PH', name: 'Journey pump set, phone' },
+  },
+} as const;
+
+/** What the reservation journeys need of the seed, per project. */
+export interface ReservationJourneySeed {
+  items: Record<ProjectName, string>;
+  /** A draft for the General Manager to confirm. */
+  confirmOrders: Record<ProjectName, string>;
+  /** Confirmed by the seed: its hold is on the item's stock card. */
+  heldOrders: Record<ProjectName, { orderId: string; soNo: string }>;
+  /** A draft the Lead Converter reads. */
+  viewOrders: Record<ProjectName, string>;
+}
+
+/**
  * The company kept for screenshots of lists: only the seed writes there, never a journey, so the
  * leads list and board, the team, the Activity log and the imports show the same rows every run
  * and only times are masked. A security suite run on the same database may add rows there; CI
@@ -466,6 +498,8 @@ export interface SeededUsers {
   orders: OrderJourneySeed;
   /** The UAT journeys' fixtures. */
   uat: UatJourneySeed;
+  /** H2: the reservation journeys' fixtures. */
+  reservations: ReservationJourneySeed;
   /**
    * The vault recordings' ids, so their pages open by address however far down the vault list
    * later files push them.

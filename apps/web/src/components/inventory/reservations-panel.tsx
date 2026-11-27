@@ -299,7 +299,8 @@ function ChangeDialog({
             <DialogDescription>
               {t(`${open.change}Intro`)}{' '}
               <span className="tabular-nums">
-                {`${row.itemName} · ${plainQuantity(row.qty)} · ${formatDateTime(row.expiresAt)}`}
+                {`${row.itemName} · ${plainQuantity(row.qty)} · `}
+                <time dateTime={row.expiresAt}>{formatDateTime(row.expiresAt)}</time>
               </span>
             </DialogDescription>
           </DialogHeader>

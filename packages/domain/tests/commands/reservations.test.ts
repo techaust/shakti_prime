@@ -24,6 +24,7 @@ import {
   releaseReservation,
 } from '../../src/commands/inventory/reservations';
 import { fillBackorders, scanReservations } from '../../src/commands/inventory/reservations-jobs';
+import { createHub, updateHub } from '../../src/commands/inventory/hubs';
 import { notifyEvent } from '../../src/commands/notifications/notify';
 import { cancelSalesOrder } from '../../src/commands/sales/cancel-order';
 import { confirmSalesOrder } from '../../src/commands/sales/confirm-order';
@@ -312,6 +313,50 @@ describe('the stock lists of reservations and backorders', () => {
     await expect(
       asPrincipal(field, (ctx) => previewLineAvailability(ctx, { entityId: E, lines })),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('a hub’s PIN codes', () => {
+  it('are kept as given, left as they are when an edit names none, and refused when not PIN codes', async () => {
+    const code = `PN${f.tag}`;
+    const hub = await run<{ id: string; pinCodes: string[] }>(exec, createHub, {
+      code,
+      name: 'PIN code hub',
+      kind: 'godown',
+      stateCode: '08',
+      pinCode: '302001',
+      pinCodes: ['302031', '302032'],
+    });
+    expect(hub.pinCodes).toEqual(['302031', '302032']);
+    const renamed = await run<{ pinCodes: string[] }>(exec, updateHub, {
+      hubId: hub.id,
+      code,
+      name: 'PIN code hub, renamed',
+      stateCode: '08',
+      pinCode: '302001',
+    });
+    expect(renamed.pinCodes).toEqual(['302031', '302032']);
+    const cleared = await run<{ pinCodes: string[] }>(exec, updateHub, {
+      hubId: hub.id,
+      code,
+      name: 'PIN code hub',
+      stateCode: '08',
+      pinCode: '302001',
+      pinCodes: [],
+    });
+    expect(cleared.pinCodes).toEqual([]);
+    for (const pinCodes of [['30203'], ['302031', '302031'], ['012345']]) {
+      await expect(
+        run(exec, updateHub, {
+          hubId: hub.id,
+          code,
+          name: 'PIN code hub',
+          stateCode: '08',
+          pinCode: '302001',
+          pinCodes,
+        }),
+      ).rejects.toMatchObject({ code: 'validation_failed' });
+    }
   });
 });
 
