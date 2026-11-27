@@ -321,6 +321,11 @@ Reviewed `git diff origin/main...feat/j1-projects` at `11c3a2fc` (main at `59736
   - The menu pages use `screenAccess(navRequires())`. Browser code imports only types from the contracts.
 - **Copy:** every new string is in `en.json` and the button keys are in the copy-lint config.
 
+**Suites run here** (on this slot's fresh database, 54332, after `pnpm db:migrate` and `pnpm db:seed`, through `tools/integration/heavy.sh`): 0240 to 0244 applied as committed.
+- `@shakti/db` `test:security`: 63 files and 1,886 tests passed. Among them `projects.test.ts` (85), `role-entity-matrix.test.ts` (93), `grants.test.ts` and `enum-sync.test.ts`.
+- `@shakti/domain` `test:security`: 111 files and 1,540 tests passed. Among them `commands/projects.test.ts` (21), `agent-refusals.test.ts` and `reader-parity.test.ts`.
+- The web suite's result is the line below.
+
 **Could not check here:**
 - **The journeys** (`apps/web/e2e/projects.spec.ts`: the Project Manager's steps, hold and resume; the Field Engineer's own list and the not-found page; the Executive's Project steps editor): not run, since this session cannot sign in.
 - **The Linux baselines** (`project-page`, `project-hold-dialog`, `projects-engineer`, `project-page-engineer` and `project-steps`, each in light, dark and phone): they do not exist yet, so the layout check waits for them at integration.
