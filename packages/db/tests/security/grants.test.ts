@@ -197,13 +197,24 @@ describe('app_user role (docs/05-database.md §3)', () => {
     stock_movement_costs: { i: false, u: false },
     stock_balances: { i: false, u: false },
     item_costs: { i: false, u: false },
+    // H3: a count changes only its state and stamps (column grants); its lines are written only
+    // by the count's definers, and no request role selects their expected quantity
+    // (stock-counts.test.ts).
+    stock_counts: { i: true, u: false },
+    stock_count_lines: { i: false, u: false },
   };
 
   /**
    * Tables selected column by column: `entities`, whose sealed bank account no request role may
    * select (the test below).
    */
-  const COLUMN_SELECT: ReadonlySet<string> = new Set(['entities', 'ingest_sources', 'ingest_keys']);
+  const COLUMN_SELECT: ReadonlySet<string> = new Set([
+    'entities',
+    'ingest_sources',
+    'ingest_keys',
+    // H3: every column of a count's line but its expected quantity.
+    'stock_count_lines',
+  ]);
 
   it.each(RLS_TABLES)('may select, insert and update %s but never delete', async (table) => {
     const [row] = await withoutContext<{ s: boolean; i: boolean; u: boolean; d: boolean }>(sql`

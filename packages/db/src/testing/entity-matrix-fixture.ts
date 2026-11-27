@@ -121,6 +121,9 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   stock_movements: 'x.id::text',
   stock_movement_costs: 'x.movement_id::text',
   stock_balances: 'x.id::text',
+  // H3 stock counts
+  stock_counts: 'x.id::text',
+  stock_count_lines: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -251,6 +254,9 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from vendor_contacts where id::text like ${like}`;
       await tx`delete from vendors where id::text like ${like}`;
       await tx`delete from item_costs where id::text like ${like}`;
+      // H3: a count's lines name its serial, bin and item.
+      await tx`delete from stock_count_lines where id::text like ${like}`;
+      await tx`delete from stock_counts where id::text like ${like}`;
       // H1's ledger is append-only: its triggers are set aside for the fixture's own rows.
       await tx`alter table stock_movement_costs disable trigger stock_movement_costs_append_only`;
       await tx`alter table stock_movements disable trigger stock_movements_append_only`;
@@ -411,6 +417,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     stock_movements: [],
     stock_movement_costs: [],
     stock_balances: [],
+    // H3 stock counts
+    stock_counts: [],
+    stock_count_lines: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -668,6 +677,16 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.stock_movements.push({ key: movement, entities: only });
         rows.stock_movement_costs.push({ key: movement, entities: only });
         rows.stock_balances.push({ key: balance, entities: only });
+        // H3: a cancelled count of the matrix hub, so it never holds the hub, with the serial's line.
+        const stockCount = per(e, 0x83);
+        const countLine = per(e, 0x84);
+        await tx`insert into stock_counts (id, entity_id, warehouse_id, scope, state, started_by,
+                                           cancelled_at, cancelled_by, cancel_reason)
+          values (${stockCount}, ${e}, ${hub}, 'hub', 'cancelled', ${ownerId}, now(), ${ownerId}, 'matrix count')`;
+        await tx`insert into stock_count_lines (id, entity_id, count_id, bin_id, item_id, serial_id, expected_qty)
+          values (${countLine}, ${e}, ${stockCount}, ${bin}, ${item}, ${serial}, 1)`;
+        rows.stock_counts.push({ key: stockCount, entities: only });
+        rows.stock_count_lines.push({ key: countLine, entities: only });
         await tx`insert into document_sequences (id, entity_id, doc_type, fy, prefix)
           values (${sequence}, ${e}, 'challan', '2098-99', ${`MX${e.toString()}/C`})`;
         await tx`insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command, outcome)

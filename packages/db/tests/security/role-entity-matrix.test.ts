@@ -216,6 +216,16 @@ const RULES: Record<MatrixTable, TableRule> = {
   stock_movements: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   stock_movement_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   stock_balances: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
+  // H3: a company's counts with inventory.stock.read or .move for the company; their lines only
+  // with inventory.stock.adjust (docs/03-roadmap-appendix/phase3.md §7.3).
+  stock_counts: {
+    read: {
+      kind: 'any',
+      rules: [grant('inventory.stock.read', 'entity'), grant('inventory.stock.move', 'entity')],
+    },
+    leak: otherCompany,
+  },
+  stock_count_lines: { read: grant('inventory.stock.adjust', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
   audit_logs: {
     read: grant('audit.read', 'entity'),

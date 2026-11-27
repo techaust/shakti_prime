@@ -107,6 +107,9 @@ import {
   SERIAL_STATES_OUT,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // H3 stock counts
+  STOCK_COUNT_SCOPES,
+  STOCK_COUNT_STATES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -297,6 +300,13 @@ const PAIRS: Record<string, readonly string[]> = {
   serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
   stock_movements_reason_check: STOCK_REASONS,
   stock_movements_reversal_check: ['reversal'],
+  // H3: a count's state and scope; the bins or items a scope names; a posted or cancelled count
+  // has its stamps and note.
+  stock_counts_state_check: STOCK_COUNT_STATES,
+  stock_counts_scope_check: STOCK_COUNT_SCOPES,
+  stock_counts_scope_lists_check: STOCK_COUNT_SCOPES,
+  stock_counts_posted_check: ['posted'],
+  stock_counts_cancelled_check: ['cancelled'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

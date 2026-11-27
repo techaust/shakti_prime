@@ -14,13 +14,7 @@ export interface StockCountRecord {
 
 type G = Guard<StockCountRecord, Record<string, never>>;
 
-const everyLineCounted: G = {
-  description: 'every item in every bin of the count is counted',
-  check: (record) =>
-    record.toCount === 0 ? undefined : { code: 'conflict', reason: 'stock_count_uncounted' },
-};
-
-const readyToPost: G = {
+const allCounted: G = {
   description: 'every item in every bin is counted and no recount is open',
   check: (record) => {
     if (record.toCount > 0) return { code: 'conflict', reason: 'stock_count_uncounted' };
@@ -87,7 +81,7 @@ export const stockCountMachine = defineMachine<
       to: 'review',
       permission: 'inventory.stock.move',
       scope: 'entity',
-      guard: everyLineCounted,
+      guard: allCounted,
     },
     {
       from: ['counting', 'review'],
@@ -106,7 +100,7 @@ export const stockCountMachine = defineMachine<
       to: 'posted',
       permission: 'inventory.stock.adjust',
       scope: 'entity',
-      guard: readyToPost,
+      guard: allCounted,
       effects: [
         {
           key: 'post_variances',

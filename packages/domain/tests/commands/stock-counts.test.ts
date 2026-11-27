@@ -1,0 +1,489 @@
+import type { PermissionGrant, Principal } from '@shakti/contracts';
+import {
+  asMigrator,
+  asOutboxPublisher,
+  asPrincipal,
+  closeDb,
+  createTestPrincipal,
+  principalFor,
+} from '@shakti/db/testing';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { databaseAuditSink as audit } from '../../src/audit/sink';
+import type { AnyCommand } from '../../src/command/define-command';
+import { runCommand } from '../../src/command/run-command';
+import {
+  cancelStockCount,
+  recordStockCount,
+  recountStockCount,
+  startStockCount,
+  submitStockCount,
+} from '../../src/commands/inventory/counts';
+import { postStockCount } from '../../src/commands/inventory/counts-post';
+import { adjustStock, transferStock } from '../../src/commands/inventory/stock';
+import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import {
+  getStockCountReview,
+  getStockCountSheet,
+  listStockCounts,
+} from '../../src/queries/inventory/counts';
+import { onHand, serialOf, stockFixture, type StockFixture } from '../stock/stock-fixture';
+
+afterAll(closeDb);
+
+/**
+ * H3's commands (docs/03-roadmap-appendix/phase3.md §7.3): a count started by the Inventory
+ * Manager, counted blind by a counter, asked again, reviewed and posted, so the ledger then equals
+ * what was counted, movements during the count included; serials found and missing; each command
+ * refused without its grant and in another company.
+ */
+
+let exec: Principal;
+let manager: Principal;
+let counter: Principal;
+
+interface CountOut {
+  id: string;
+  state: string;
+}
+
+function run<T = CountOut>(
+  principal: Principal,
+  command: AnyCommand,
+  input: unknown,
+  entityIds?: readonly number[],
+): Promise<T> {
+  const who = entityIds === undefined ? principal : { ...principal, entityIds: [...entityIds] };
+  return asPrincipal(who, (context) =>
+    runCommand(command, { context, audit, outbox }, input),
+  ) as Promise<T>;
+}
+
+function sheet(principal: Principal, countId: string) {
+  return asPrincipal(principal, (ctx) => getStockCountSheet(ctx, { countId }));
+}
+
+function review(principal: Principal, countId: string) {
+  return asPrincipal(principal, (ctx) => getStockCountReview(ctx, { countId }));
+}
+
+/** A gain of an untracked quantity, or of new serials, into a bin of company 1. */
+async function gain(binId: string, itemId: string, what: { qty?: string; serialNos?: string[] }) {
+  await run(exec, adjustStock, {
+    entityId: 1,
+    itemId,
+    binId,
+    adjustment: 'gain',
+    note: 'Stock for the count',
+    ...what,
+  });
+}
+
+const serialNos = (f: StockFixture, ...n: number[]) => n.map((i) => `CT-${f.tag}-${String(i)}`);
+
+/** Every key of a value, at any depth. */
+function keysOf(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(keysOf);
+  if (value === null || typeof value !== 'object') return [];
+  return Object.entries(value).flatMap(([k, v]) => [k, ...keysOf(v)]);
+}
+
+beforeAll(async () => {
+  exec = await createTestPrincipal('executive');
+  manager = await createTestPrincipal('inventory_manager', [1]);
+  // Someone who counts and does nothing else.
+  const permissions: PermissionGrant[] = [
+    { key: 'inventory.stock.move', scope: 'entity' },
+    { key: 'inventory.stock.read', scope: 'entity' },
+  ];
+  counter = await createTestPrincipal('store_manager', [1], { permissions });
+});
+
+describe('inventory.count.*: who may', () => {
+  it('refuses each command without its grant, to an agent, and in another company', async () => {
+    const f = await stockFixture(exec.id);
+    await gain(f.binA, f.cable, { qty: '10' });
+    const start = { entityId: 1, hubId: f.hub, scope: 'hub' };
+    for (const who of [counter, principalFor('general_manager', [1]), principalFor('accounts', [1])]) {
+      await expect(run(who, startStockCount, start), who.roleKey).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+    }
+    await expect(
+      run(principalFor('agent:chief', [1]), startStockCount, start),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    // The Inventory Manager of company 1 cannot start one for company 2.
+    await expect(
+      run(manager, startStockCount, { ...start, entityId: 2 }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+
+    const count = await run(manager, startStockCount, start);
+    const record = { countId: count.id, binId: f.binA, itemId: f.cable, qty: '10' };
+    // Counting needs inventory.stock.move; a reader of stock cannot count.
+    await expect(
+      run(principalFor('general_manager', [1]), recordStockCount, record),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    // Asking again, posting and cancelling need inventory.stock.adjust.
+    for (const [command, input] of [
+      [recountStockCount, { countId: count.id, binId: f.binA, itemId: f.cable }],
+      [postStockCount, { countId: count.id, note: 'Year-end count' }],
+      [cancelStockCount, { countId: count.id, cancelReason: 'Started by mistake' }],
+    ] as const) {
+      await expect(run(counter, command, input), command.name).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+    }
+    // Acting in company 2, the count of company 1 is not there to see.
+    const otherCounter = { ...counter, entityIds: [2] };
+    await expect(run(otherCounter, recordStockCount, record)).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    const otherManager = principalFor('inventory_manager', [2], { id: manager.id });
+    for (const [command, input] of [
+      [submitStockCount, { countId: count.id }],
+      [cancelStockCount, { countId: count.id, cancelReason: 'Not ours' }],
+    ] as const) {
+      await expect(run(otherManager, command, input), command.name).rejects.toMatchObject({
+        code: 'not_found',
+      });
+    }
+    await run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Test over' });
+  });
+
+  it('keeps one live count per company and hub, and counts no goods in transit', async () => {
+    const f = await stockFixture(exec.id);
+    const first = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
+    await expect(
+      run(manager, startStockCount, {
+        entityId: 1,
+        hubId: f.hub,
+        scope: 'bins',
+        binIds: [f.binB],
+      }),
+    ).rejects.toMatchObject({ code: 'conflict', details: { reason: 'stock_count_live' } });
+    // Another company counts the same hub at the same time.
+    const other = await run(exec, startStockCount, { entityId: 2, hubId: f.hub, scope: 'hub' }, [2]);
+    expect(other.state).toBe('open');
+    await expect(
+      run(manager, startStockCount, { entityId: 1, hubId: f.transitHub, scope: 'hub' }),
+    ).rejects.toMatchObject({ details: { reason: 'stock_count_hub_transit' } });
+    await expect(
+      run(manager, startStockCount, {
+        entityId: 1,
+        hubId: f.hub,
+        scope: 'bins',
+        binIds: [f.otherBin],
+      }),
+    ).rejects.toMatchObject({ details: { reason: 'stock_count_bin_outside' } });
+    const cancelled = await run(manager, cancelStockCount, {
+      countId: first.id,
+      cancelReason: 'Started twice',
+    });
+    expect(cancelled.state).toBe('cancelled');
+    await expect(
+      run(manager, recordStockCount, { countId: first.id, binId: f.binA, itemId: f.cable, qty: '1' }),
+    ).rejects.toMatchObject({ details: { reason: 'stock_count_not_counting' } });
+    await run(exec, cancelStockCount, { countId: other.id, cancelReason: 'Test over' }, [2]);
+  });
+});
+
+describe('a counter counts blind', () => {
+  it('never sees the expected quantity, a difference or how many serials to find', async () => {
+    const f = await stockFixture(exec.id);
+    await gain(f.binA, f.cable, { qty: '40' });
+    await gain(f.binA, f.pump, { serialNos: serialNos(f, 1, 2, 3) });
+    const count = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
+
+    const before = await sheet(counter, count.id);
+    expect(before.rows).toHaveLength(2);
+    expect(before.progress).toEqual({ itemsInBins: 2, toCount: 2, recountOpen: 0 });
+    expect(keysOf(before).filter((k) => /expected|variance|difference|value/i.test(k))).toEqual([]);
+    expect(before.rows.every((r) => r.countedQty === null && r.serialNos === null)).toBe(true);
+    // No value in the sheet is 40 or 3.
+    const values = before.rows.flatMap((r) => Object.values(r).map(String));
+    expect(values.filter((v) => /^(40|3)(\.0+)?$/.test(v))).toEqual([]);
+
+    const answer = await run<Record<string, unknown>>(counter, recordStockCount, {
+      countId: count.id,
+      binId: f.binA,
+      itemId: f.cable,
+      qty: '37',
+    });
+    expect(keysOf(answer).filter((k) => /expected|variance|value/i.test(k))).toEqual([]);
+    expect(Object.values(answer).map(String)).not.toContain('40.000');
+    await run(counter, recordStockCount, {
+      countId: count.id,
+      binId: f.binA,
+      itemId: f.pump,
+      serialNos: serialNos(f, 1),
+    });
+    const after = await sheet(counter, count.id);
+    expect(after.count.state).toBe('counting');
+    expect(after.rows.map((r) => [r.state, r.countedQty, r.serialNos])).toEqual([
+      ['counted', '37.000', null],
+      ['counted', '1.000', serialNos(f, 1)],
+    ]);
+    // A serial the company does not have is refused by its number alone.
+    await expect(
+      run(counter, recordStockCount, {
+        countId: count.id,
+        binId: f.binB,
+        itemId: f.pump,
+        serialNos: ['NOT-A-SERIAL'],
+      }),
+    ).rejects.toMatchObject({
+      details: { reason: 'stock_count_serial_unknown', serialNo: 'NOT-A-SERIAL' },
+    });
+    // A serial counted in A1 is not counted in B1 as well.
+    await expect(
+      run(counter, recordStockCount, {
+        countId: count.id,
+        binId: f.binB,
+        itemId: f.pump,
+        serialNos: serialNos(f, 1),
+      }),
+    ).rejects.toMatchObject({
+      details: { reason: 'stock_count_serial_counted_elsewhere', binCode: 'A1' },
+    });
+    // The counter reads no review, and the audit rows carry no expected quantity.
+    await expect(review(counter, count.id)).rejects.toMatchObject({ code: 'forbidden' });
+    const rows = await asMigrator(
+      (m) => m<{ after: unknown }[]>`
+        select after_json as after from audit_logs
+         where aggregate_id = ${count.id} and command = 'inventory.count.record'`,
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    expect(JSON.stringify(rows)).not.toMatch(/"40(\.0+)?"|:40[,}]/);
+    await run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Test over' });
+  });
+});
+
+describe('a posted count', () => {
+  it('leaves the ledger equal to what was counted, with movements during the count folded in', async () => {
+    const f = await stockFixture(exec.id);
+    await gain(f.binA, f.cable, { qty: '100' });
+    await gain(f.binB, f.cable, { qty: '20' });
+    const count = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
+    // Before A1 is counted: 10 metres move from A1 to B1. The counter then finds 88 in A1
+    // (the ledger held 90 when they counted: 2 metres short).
+    await run(manager, transferStock, {
+      entityId: 1,
+      itemId: f.cable,
+      fromBinId: f.binA,
+      toBinId: f.binB,
+      qty: '10',
+    });
+    await run(counter, recordStockCount, { countId: count.id, binId: f.binA, itemId: f.cable, qty: '88' });
+    // B1 counted at 30 (as the ledger holds); then, after B1's count, 5 more arrive in B1.
+    await run(counter, recordStockCount, { countId: count.id, binId: f.binB, itemId: f.cable, qty: '30' });
+    await gain(f.binB, f.cable, { qty: '5' });
+    // Stock found where none was listed: the cable in the receiving bin.
+    await run(counter, recordStockCount, {
+      countId: count.id,
+      binId: f.receiving,
+      itemId: f.cable,
+      qty: '4',
+    });
+    await run(counter, submitStockCount, { countId: count.id });
+
+    const seen = await review(manager, count.id);
+    const line = (binId: string) => seen.lines.find((l) => l.binId === binId);
+    expect(line(f.binA)).toMatchObject({
+      expectedAtStart: '100.000',
+      movedDuringCount: '-10.000',
+      expectedAtCount: '90.000',
+      counted: '88.000',
+      variance: '-2.000',
+      value: null,
+    });
+    expect(line(f.binB)).toMatchObject({ expectedAtCount: '30.000', variance: '0.000' });
+    expect(line(f.receiving)).toMatchObject({ expectedAtStart: '0.000', variance: '4.000' });
+    // The movements during the count are listed: the move and the later gain.
+    expect(seen.movements.map((m) => m.reason).sort()).toEqual(['adjust_gain', 'transfer']);
+    expect(seen.showsValues).toBe(false);
+    expect(seen.netValue).toBeNull();
+
+    const posted = await run<{ count: CountOut; movementIds: string[] }>(manager, postStockCount, {
+      countId: count.id,
+      note: 'Year-end count',
+    });
+    expect(posted.count.state).toBe('posted');
+    expect(posted.movementIds).toHaveLength(2);
+    expect(await onHand(1, f.binA, f.cable)).toBe('88.000');
+    // B1: counted 30, and 5 arrived after its count.
+    expect(await onHand(1, f.binB, f.cable)).toBe('35.000');
+    expect(await onHand(1, f.receiving, f.cable)).toBe('4.000');
+    const moves = await asMigrator(
+      (m) => m<{ reason: string; ref: string; note: string }[]>`
+        select reason, ref_type as ref, note from stock_movements where ref_id = ${count.id}`,
+    );
+    expect(moves.every((m) => m.reason === 'count' && m.ref === 'stock_count')).toBe(true);
+    expect(moves.every((m) => m.note === 'Year-end count')).toBe(true);
+    // The review after posting still shows the variances that posted.
+    const after = await review(manager, count.id);
+    expect(after.lines.find((l) => l.binId === f.binA)?.variance).toBe('-2.000');
+    // One event announces the movements.
+    const events = await asOutboxPublisher(
+      (p) => p<{ n: number }[]>`
+        select count(*)::int as n from outbox_events
+         where type = 'inventory.stock.moved' and aggregate_id = ${posted.movementIds[0] ?? ''}`,
+    );
+    expect(events[0]?.n).toBe(1);
+  });
+
+  it('writes off a serial missing and brings back a serial found', async () => {
+    const f = await stockFixture(exec.id);
+    const [s1, s2, s3, s4] = serialNos(f, 1, 2, 3, 4);
+    await gain(f.binA, f.pump, { serialNos: [s1 ?? '', s2 ?? ''] });
+    await gain(f.binB, f.pump, { serialNos: [s3 ?? ''] });
+    // s4 was written off before the count.
+    await gain(f.binB, f.pump, { serialNos: [s4 ?? ''] });
+    await run(exec, adjustStock, {
+      entityId: 1,
+      itemId: f.pump,
+      binId: f.binB,
+      adjustment: 'loss',
+      note: 'Not found last month',
+      serialNos: [s4],
+    });
+    const count = await run(manager, startStockCount, {
+      entityId: 1,
+      hubId: f.hub,
+      scope: 'items',
+      itemIds: [f.pump],
+    });
+    // A1 holds s1 and s3 (s3 is in B1 by the ledger); s2 is missing. B1 holds s4, written off.
+    await run(counter, recordStockCount, {
+      countId: count.id,
+      binId: f.binA,
+      itemId: f.pump,
+      serialNos: [s1, s3],
+    });
+    await run(counter, recordStockCount, {
+      countId: count.id,
+      binId: f.binB,
+      itemId: f.pump,
+      serialNos: [s4?.toLowerCase()],
+    });
+    // Posting is refused while anything is uncounted: nothing else here, so send it.
+    await run(counter, submitStockCount, { countId: count.id });
+    const seen = await review(manager, count.id);
+    const lines = seen.lines.filter((l) => l.serialId !== null);
+    const bySerial = (no: string | undefined, binId: string) =>
+      lines.find((l) => l.serialNo === no && l.binId === binId);
+    expect(bySerial(s2, f.binA)?.variance).toBe('-1.000');
+    expect(bySerial(s3, f.binA)?.variance).toBe('1.000');
+    expect(bySerial(s3, f.binB)?.variance).toBe('-1.000');
+    expect(bySerial(s4, f.binB)?.variance).toBe('1.000');
+    const s2Line = bySerial(s2, f.binA);
+    await run(manager, postStockCount, {
+      countId: count.id,
+      note: 'Quarterly count',
+      serialNotes: [{ lineId: s2Line?.lineId, note: 'Not on the shelf; asked the site team' }],
+    });
+    expect(await serialOf(f.pump, s1 ?? '')).toMatchObject({ state: 'in_stock', binId: f.binA });
+    expect(await serialOf(f.pump, s2 ?? '')).toMatchObject({ state: 'scrapped', binId: null });
+    expect(await serialOf(f.pump, s3 ?? '')).toMatchObject({ state: 'in_stock', binId: f.binA });
+    expect(await serialOf(f.pump, s4 ?? '')).toMatchObject({ state: 'in_stock', binId: f.binB });
+    expect(await onHand(1, f.binA, f.pump)).toBe('2.000');
+    expect(await onHand(1, f.binB, f.pump)).toBe('1.000');
+    const [note] = await asMigrator(
+      (m) => m<{ note: string }[]>`
+        select m.note from stock_movements m join serials s on s.id = m.serial_id
+         where m.ref_id = ${count.id} and s.serial_no = ${s2 ?? ''}`,
+    );
+    expect(note?.note).toBe('Not on the shelf; asked the site team');
+  });
+
+  it('waits for every item to be counted and every recount to be taken', async () => {
+    const f = await stockFixture(exec.id);
+    await gain(f.binA, f.cable, { qty: '12' });
+    await gain(f.binB, f.cable, { qty: '6' });
+    const count = await run(manager, startStockCount, {
+      entityId: 1,
+      hubId: f.hub,
+      scope: 'bins',
+      binIds: [f.binA, f.binB],
+    });
+    await run(counter, recordStockCount, { countId: count.id, binId: f.binA, itemId: f.cable, qty: '15' });
+    await expect(run(counter, submitStockCount, { countId: count.id })).rejects.toMatchObject({
+      details: { reason: 'stock_count_uncounted' },
+    });
+    await expect(
+      run(manager, postStockCount, { countId: count.id, note: 'Too early' }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    await run(counter, recordStockCount, { countId: count.id, binId: f.binB, itemId: f.cable, qty: '6' });
+    await run(counter, submitStockCount, { countId: count.id });
+    // 15 against 12 looks wrong: ask for A1 again. The count goes back to counting.
+    const asked = await run(manager, recountStockCount, {
+      countId: count.id,
+      binId: f.binA,
+      itemId: f.cable,
+    });
+    expect(asked.state).toBe('counting');
+    const blind = await sheet(counter, count.id);
+    expect(blind.rows.find((r) => r.binId === f.binA)).toMatchObject({
+      state: 'recount',
+      countedQty: null,
+    });
+    await expect(run(counter, submitStockCount, { countId: count.id })).rejects.toMatchObject({
+      details: { reason: 'stock_count_recount_open' },
+    });
+    await run(counter, recordStockCount, { countId: count.id, binId: f.binA, itemId: f.cable, qty: '12' });
+    await run(counter, submitStockCount, { countId: count.id });
+    const seen = await review(manager, count.id);
+    expect(seen.lines.find((l) => l.binId === f.binA)).toMatchObject({
+      firstCount: '15.000',
+      recount: '12.000',
+      counted: '12.000',
+      variance: '0.000',
+    });
+    const posted = await run<{ movementIds: string[] }>(manager, postStockCount, {
+      countId: count.id,
+      note: 'Cycle count',
+    });
+    expect(posted.movementIds).toEqual([]);
+    expect(await onHand(1, f.binA, f.cable)).toBe('12.000');
+    await expect(
+      run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Too late' }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+  });
+
+  it('shows each variance’s value only to a holder of finance.cost.read', async () => {
+    const f = await stockFixture(exec.id);
+    await run(exec, adjustStock, {
+      entityId: 1,
+      itemId: f.cable,
+      binId: f.binA,
+      adjustment: 'gain',
+      qty: '10',
+      note: 'Opening for the count',
+    });
+    const count = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
+    await run(counter, recordStockCount, { countId: count.id, binId: f.binA, itemId: f.cable, qty: '7' });
+    await run(counter, submitStockCount, { countId: count.id });
+    await asMigrator(
+      (m) => m`update item_costs set moving_avg_cost = 12.5000
+                where entity_id = 1 and item_id = ${f.cable}`,
+    );
+    const withCost = await review({ ...exec, entityIds: [1] }, count.id);
+    expect(withCost.showsValues).toBe(true);
+    expect(withCost.lines.find((l) => l.binId === f.binA)?.value).toBe('-37.50');
+    expect(withCost.netValue).toBe('-37.50');
+    const without = await review(manager, count.id);
+    expect(without.lines.every((l) => l.value === null)).toBe(true);
+    await run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Test over' });
+  });
+
+  it('lists a company’s counts by state for counters and readers of stock', async () => {
+    const f = await stockFixture(exec.id);
+    const count = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
+    const page = await asPrincipal(counter, (ctx) =>
+      listStockCounts(ctx, { entityId: 1, state: 'open', limit: 100 }),
+    );
+    expect(page.items.some((c) => c.id === count.id && c.hubCode === `H${f.tag}`)).toBe(true);
+    await expect(
+      asPrincipal(principalFor('tele_caller_cc', [1]), (ctx) => listStockCounts(ctx, { entityId: 1 })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Test over' });
+  });
+});

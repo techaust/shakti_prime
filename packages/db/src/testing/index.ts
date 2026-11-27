@@ -406,6 +406,11 @@ export const ENTITY_TABLES = [
   'stock_movements',
   'stock_movement_costs',
   'stock_balances',
+  // H3: a company's stock counts, read with inventory.stock.read or .move for the company; their
+  // lines only with inventory.stock.adjust, and never the expected quantity, which no request
+  // role selects (docs/03-roadmap-appendix/phase3.md §7.3)
+  'stock_counts',
+  'stock_count_lines',
 ] as const;
 
 /**
