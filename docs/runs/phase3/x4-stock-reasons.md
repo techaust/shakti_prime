@@ -38,6 +38,11 @@ R3's builder found (its report, `feat/r3-warranty`) that `app.stock_move()`'s se
 
 Report `done` when this is finished; there is still no early check.
 
+### Brief addendum 2 (the lead, 27-11-2026 15:50 UTC): which reasons may be reversed
+U2's early check found that `app.stock_move()` reverses only a fixed list of reasons (`opening`, `adjust_gain`, `adjust_loss`, `damage`, `count`, `transfer`), so a receipt's reversal is refused with `stock_reversal_not_allowed`.
+
+10. **`app.stock_reason_grants.reversible boolean not null default false`**, seeded true for exactly H1's six. The reversal path reads it instead of the fixed list. A later slice sets it in its own row: U2's `receipt` is reversible. If this reaches you after your `done` report, it is the first item of your fix round, and the reviewer checks it.
+
 ## How this slice runs
 - **Your role:** you are this slice's builder (or, in a review lane, its reviewer), not the lead. Read `.claude/agents/slice-builder.md` (or `slice-reviewer.md`) and follow it as your rules, with this file as your brief and [the Phase 3 design](../../03-roadmap-appendix/phase3.md) (§1, §4, §5, §10, §13 and your slice's section) as its source. `CLAUDE.md` calls every session the lead; that does not apply to you. Never run the `start-session` or `end-session` skills, open or merge a pull request, push to `main` or `ops/seats`, touch a hosted service or GitHub workflow, delete a branch, force-push, or install a package.
 - **Where:** a seat of the seven-day push (seats protocol v2, `seats/readme.md` on `ops/seats`). Your seat gives you a worktree of this branch with its own Postgres and app port, and its lane prompt names them. Work only there. Put every heavy command through `bash tools/integration/heavy.sh`, and also every lint, typecheck and test while another agent runs in the VM.
