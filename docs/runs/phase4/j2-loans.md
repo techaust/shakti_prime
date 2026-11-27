@@ -5,9 +5,9 @@
 | Branch | `feat/j2-loans` on GitHub, from `main` after the approved design (#295) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): money and gates on dispatch and payments |
-| Usage | briefed 27-11-2026; built on Opus 5.5 at high (early check and lane 45, 27-11-2026) |
-| State | built, report done |
-| Next step | the review, then integration (fresh database, Linux baselines, `checks-ok` for `js-budget.json`) |
+| Usage | briefed 27-11-2026; built on Opus 5.5 at high (early check and lane 45, 27-11-2026); fix round on Opus 5.5 at high (27-11-2026) |
+| State | built, reviewed, fix round done |
+| Next step | integration (fresh database, Linux baselines, `checks-ok` for `js-budget.json`) |
 
 ## Brief
 Build [phase4 §6.2](../../03-roadmap-appendix/phase4.md#62-j2-customer-loans) as written. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -138,6 +138,47 @@ Built on the early check the lead accepted (decisions 1 to 7). Commits `3cf4d1bc
 - "The Loan tab" on the order page is a titled section below the lines, as the order page has no tabs; it is the same component J1's project page takes as its tab.
 - The new journey role `journeyManager` (GM of company 2) keeps the loan journey off the snapshot company's lists; Accounts records no loan (lead's decision); who does in the client's team is a client question.
 - On Account 360 a loan shows its sanctioned amount once sanctioned, else the amount applied for.
+
+### 27-11-2026, fixes (cloud worktree `/home/user/shakti-wt/j2-loans`, Postgres on 54331, app on 3031)
+The one fix round: M1, L1, L2, L3, L5, L6 and L7 as the lead's triage says. Skill loaded: `add-command`. Commits `cb0afb07` to `b4dec24b`, and this report.
+
+**Fixed**
+- **M1 (a turn-down keeps the dispatch held):** `app.order_loan_gate()` now reads the order's loan as its active loan, else its newest turned-down one. A turned-down loan whose dispatch gate was not `none` answers `pending` with `reason: 'loan_rejected'` until a new loan replaces it or a person waives it. A waived loan answers `none` with `waived: true`. New command `crm.loan.gates.waive` (`loans-waive.ts`): `crm.account.write` at `entity` scope, people only, a reason of 1 to 300 characters, audited (`waiverReason`). It locks the loan and refuses with `loan_gates_not_held` unless the gate answer is `pending` for this very loan, so a second waiver, a replaced loan, a loan under way or one that held nothing back are refused. It raises `crm.loan.gates_released` (state `rejected`). The waiver is stored on the loan in `gates_waived_at`, `gates_waived_by` and `gates_waived_reason` (`customer_loans_waiver_check`: all three set together, only on a rejected loan). It is column-granted, and `app.guard_customer_loan()` allows it once, only on a rejected loan and only with `crm.account.write:entity`, and never changes it afterwards. Screen: while a turned-down loan holds the dispatch, the Loan tab shows "Dispatch waits: the loan was turned down" with a help line. A person with company scope (`canWaive` in `OrderLoansDto`) sees "Stop waiting for a loan", which opens a dialog with the reason (`waiveLoanGates` action, loaded with the other dialogs). The earlier loans list shows the waiver's reason. Copy: `loans.gate.turnedDownNote`, `loans.tab.stopWaiting` (button key added to copy-lint), `loans.tab.turnedDownHelp`, `loans.tab.waivedBecause`, `loans.waive.*`, `errors.loan_gates_not_held`, `errors.loan_rejected` (for J8's refusal), and the Activity log labels `loanGatesWaive` and `waiverReason`. `loans.reject.intro` and `errors.loan_order_cancelled` were reworded for the new behaviour.
+- **L6 (milestones out of the loan):** `gates_json` holds only `dispatch` (`LoanGatesSchema` strict, `{ dispatch }`). `LOAN_MILESTONE_GATES*` and `LoanMilestoneKeySchema` are removed. The answer is `{ loanId, loanState, dispatch, waived, reason }` (`OrderLoanGateDto`). `crm.loan.gates_released` carries `{ salesOrderId, state, dispatch }` with `state` in `sanctioned`, `disbursed` or `rejected`. `releasedGates()` returns whether the dispatch went from `pending` to anything else. The machine's text and the Built record say that a Phase 5 milestone keeps its own `loan_gate` and compares it with `loanState` and `waived`.
+- **L1 (fail-closed checks):** `customer_loans_gates_check` is `jsonb_typeof(gates_json) = 'object' and gates_json - 'dispatch' = '{}'`, and `customer_loans_gates_dispatch_check` uses `coalesce(gates_json ->> 'dispatch', '') in (…)`, so `{}`, an extra key and an unknown value are refused. The definer also answers `pending` (never `none`) for a gate value it does not know.
+- **L2 (the definer's reader rule):** the reader branch now repeats `account_entities_read` (0213) exactly: `crm.account.read` at company scope, at the relationship's team, or own (a person's own relationship, or an agent's bound thread); or, for a person, a live lead of the customer in the company that they read under `opportunities_read`'s scopes. This is the same pattern as `app.order_search_ids()`. The entry check also admits `crm.lead.read` holders, who may read through a lead. `getOrderLoans()` is unchanged: it can no longer meet a null answer for a loan its caller reads.
+- **L3 (the merge test):** a new security case puts a paid-out loan on a lead's order (with an order made from a quote), runs `app.merge_customers()` as the Executive (the lead, its order and the loan all move to the kept customer, and the loan stays `disbursed`), then `app.unmerge_customers()` (all back).
+- **L5:** the journeys' General Manager is now "Dinesh Gurjar".
+- **L7 (cancelled orders):** `crm.loan.sanction` and `.disburse` refuse an order that is cancelled (`loan_order_cancelled`) or that the caller cannot read (`order_missing`), using the helper `requireOpenOrder()` in `loans-shared.ts`. The `customer_loans_update` policy holds the same rule: a row moving to or staying `sanctioned` or `disbursed` needs an order the caller reads that is not cancelled. A turn-down and a waiver may still close a loan on a cancelled order. The Built record, DATABASE and SECURITY say so.
+
+**Migrations:** the changes are folded into the branch's own `0240` (columns and checks) and `0241` (guard, update policy, grants, definer). None of them is on `main`. Snapshots 0240 to 0243 carry the new `customer_loans` entry, and `pnpm db:generate` then reports "No schema changes".
+
+**Tests (counts)**
+- `packages/db/tests/security/customer-loans.test.ts`: 25 (was 19). New cases: a sanction refused on a cancelled order while a turn-down passes; the waiver only on a rejected loan, at company scope, whole, once, and nothing else changing afterwards; the gates refusing `{}`, an extra key or an unknown value; the merge and undo through the definers; pending after a turn-down until a new loan and then a waiver; and the reader through their own lead on both pools (null once the lead is archived). The gate cases were rewritten for the new answer.
+- `packages/domain/tests/commands/loans.test.ts`: 20 cases, 22 tests (was 15 and 17). New or changed: the sanction releasing a dispatch that waits for it, with the milestones input refused; sanction and payout refused on a cancelled order while a turn-down passes; the turn-down keeping the gate `pending` until a new loan; `crm.loan.gates.waive` happy path (gate, event, audit, once), its refusals (a newer loan, a loan under way, a loan holding nothing), denied (own scope, Accounts), wrong company, empty reason, and two waivers at once; and `canWaive` on the Loan tab read.
+- `agent-refusals.test.ts`: `crm.loan.gates.waive` in `J2_LOAN_INPUTS`. `enum-sync.test.ts`: `customer_loans_waiver_check: ['rejected']`. `packages/db/src/docs/data-docs.test.ts`: the "planned table points at a built one" example moved from `customer_loans` (now built) to `warranty_claims`.
+
+**Checks**
+- `pnpm test:security` on this slot's fresh database (migrated and seeded first), through the lock: db 63 files, 1818 passed; domain 111 files, 1543 passed; web 39 files, 461 passed; `Tasks: 4 successful, 4 total`.
+- Unit: contracts 25 files, 340 passed; domain `src` 110 files, 2810 passed; db `src` 12 files, 161 passed; web 167 files, 1240 passed, 1 skipped, 1 failed (`errors-catalogue`: `loan_rejected` had no sentence). After the fix, `errors-catalogue`, `src/i18n` and `src/screens` were rerun: 34 files, 281 passed.
+- `pnpm exec turbo run typecheck --force`: `Tasks: 10 successful, 10 total`. `pnpm lint` (whole repository): exit 0, no problems. `pnpm copy-lint`: clean. `pnpm db:docs` and `machines:docs`: regenerated and committed.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within its budget (66 pages): `/orders/[entityId]/[orderId]` 214.9 kB of 223, `/customers/[accountId]` 201.3 of 205, `/settings/lenders` 193.1 of 203.
+- Journeys (through the lock, native Chromium, after `e2e:seed`): `loans.spec.ts` 6 of 6 passed (22 with the setup projects). The pictures the run wrote were deleted, not committed; the Loan tab picture is unchanged in layout.
+- `EXPLAIN (ANALYZE)` of the definer's two new queries, as the migrator (the definer runs as its owner), in a rolled-back transaction with 5,000 orders and 12,500 loans (two turned down per order, an active loan on half of them) over 500 customers of company 4:
+  - the order's loan: `Index Scan using customer_loans_order_idx` (2 rows), then a sort for `limit 1`, 0.040 ms;
+  - the reader rule: `Index Scan using account_entities_account_entity_key`, with the lead probe on `opportunities_entity_owner_idx`, 0.031 ms.
+
+**Decisions the triage did not settle**
+1. The waiver is stored on the turned-down loan (three columns), not in a table of its own. It is waived by loan id, and only the loan the gate answer holds (`loan_gates_not_held` otherwise).
+2. The answer's `reason` has one value, `loan_rejected` (`LOAN_GATE_REASONS`). A loan still under way answers `pending` with no reason. A turned-down loan whose dispatch gate was `none` holds nothing and needs no waiver.
+3. A waiver raises `crm.loan.gates_released` with state `rejected`, and no event of its own. `dispatch` stays a boolean in the payload (always true), because the data-documents generator cannot show a `true` literal.
+4. A turn-down and a waiver are allowed on a cancelled order; only a sanction and a payout are refused there.
+5. **L4 brought forward:** DATABASE's two table rows say `Built (0240)`, and the two definer rows name `0241` and `0243`, because `data-docs.test.ts` fails on `Built (J2)` (it failed at `d3c644b2` too). The numbers move with the renumbering at the merge.
+
+**For the lead at integration**
+- The migration notes of the done report stand. 0240 and 0241 now hold the waiver columns, the stricter checks, the new guard, the update policy and the definer.
+- The remade Linux baselines are as before. The Loan tab shows the new turned-down state only after a turn-down, which no journey reaches.
+- `js-budget.json` is unchanged in this round. It changed in the build lane, so `checks-ok` is still needed.
 
 ## Review
 
