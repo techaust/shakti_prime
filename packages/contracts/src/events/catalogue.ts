@@ -14,6 +14,7 @@ import { INBOUND_MATCH_LIMIT } from '../commands/calls/inbound';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 import { StockReasonSchema } from '../inventory/enums';
 import { StockQtySchema } from '../inventory/stock';
+import { LOAN_MILESTONE_GATES_MAX, LoanMilestoneKeySchema } from '../crm/loans';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -808,6 +809,65 @@ const eventCatalogue = {
     emittedBy: ['procurement.quote.withdraw'],
     subscribed: false,
     payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
+  },
+  // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2): ids and the state, never an
+  // amount, a lender or a reason.
+  'crm.loan.created': {
+    meaning: "A customer's loan was applied for on an order, with what it holds back.",
+    emittedBy: ['crm.loan.create'],
+    subscribed: false,
+    payload: z
+      .object({ accountId: IdSchema, salesOrderId: IdSchema, state: z.literal('applied') })
+      .strict(),
+  },
+  'crm.loan.sanctioned': {
+    meaning: "The lender sanctioned a customer's loan for an amount.",
+    emittedBy: ['crm.loan.sanction'],
+    subscribed: false,
+    payload: z
+      .object({ accountId: IdSchema, salesOrderId: IdSchema, state: z.literal('sanctioned') })
+      .strict(),
+  },
+  'crm.loan.disbursed': {
+    meaning: "The lender paid out a customer's sanctioned loan.",
+    emittedBy: ['crm.loan.disburse'],
+    subscribed: false,
+    payload: z
+      .object({ accountId: IdSchema, salesOrderId: IdSchema, state: z.literal('disbursed') })
+      .strict(),
+  },
+  'crm.loan.rejected': {
+    meaning:
+      "The lender turned down a customer's loan; the lead's owner, if the order has a lead, is told so another route can be offered.",
+    emittedBy: ['crm.loan.reject'],
+    subscribed: false,
+    payload: z
+      .object({
+        accountId: IdSchema,
+        salesOrderId: IdSchema,
+        opportunityId: IdSchema.nullable(),
+        fromState: z.enum(['applied', 'sanctioned']),
+        state: z.literal('rejected'),
+      })
+      .strict(),
+  },
+  /**
+   * A loan's sanction or disbursal released what it held back: the order's dispatch (J8) and the
+   * payment milestones named by key (Phase 5). Raised only when something was released.
+   */
+  'crm.loan.gates_released': {
+    meaning:
+      "A customer's loan reached the state its gates wait for: `dispatch` says the order's dispatch may leave, `milestones` names the payment milestones released.",
+    emittedBy: ['crm.loan.sanction', 'crm.loan.disburse'],
+    subscribed: false,
+    payload: z
+      .object({
+        salesOrderId: IdSchema,
+        state: z.enum(['sanctioned', 'disbursed']),
+        dispatch: z.boolean(),
+        milestones: z.array(LoanMilestoneKeySchema).max(LOAN_MILESTONE_GATES_MAX),
+      })
+      .strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 

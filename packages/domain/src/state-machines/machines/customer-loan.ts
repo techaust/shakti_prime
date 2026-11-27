@@ -1,9 +1,8 @@
-import type { Money } from '@shakti/contracts';
+import { CUSTOMER_LOAN_STATES, type CustomerLoanState, type Money } from '@shakti/contracts';
 import { toPaise } from '../../money/paise';
 import { defineMachine, reasonGiven, type Guard } from '../define-machine';
 
-export const CUSTOMER_LOAN_STATES = ['applied', 'sanctioned', 'disbursed', 'rejected'] as const;
-export type CustomerLoanState = (typeof CUSTOMER_LOAN_STATES)[number];
+export { CUSTOMER_LOAN_STATES, type CustomerLoanState };
 export type CustomerLoanEvent = 'create' | 'sanction' | 'disburse' | 'reject';
 
 export interface CustomerLoanRecord {
@@ -41,13 +40,15 @@ export const customerLoanMachine = defineMachine<
   states: CUSTOMER_LOAN_STATES,
   initial: 'applied',
   terminal: ['disbursed', 'rejected'],
+  stored: { table: 'customer_loans', stateColumn: 'state', changedAtColumn: 'state_changed_at' },
   transitions: [
     {
       from: 'new',
       event: 'create',
       to: 'applied',
       permission: 'crm.account.write',
-      note: 'Against the account and, usually, the opportunity.',
+      note: "Against one order, in the order's company and for its customer; one active loan per order.",
+      emits: 'crm.loan.created',
     },
     {
       from: ['applied'],
@@ -55,11 +56,13 @@ export const customerLoanMachine = defineMachine<
       to: 'sanctioned',
       permission: 'crm.account.write',
       guard: amountGiven,
+      emits: 'crm.loan.sanctioned',
       effects: [
         { key: 'set_amount', description: 'record the sanctioned amount' },
         {
           key: 'release_gates',
-          description: 'release milestones and dispatches gated on `sanctioned`',
+          description:
+            'release the dispatch and milestones gated on `sanctioned` (`crm.loan.gates_released`)',
         },
       ],
     },
@@ -69,10 +72,12 @@ export const customerLoanMachine = defineMachine<
       to: 'disbursed',
       permission: 'crm.account.write',
       guard: amountGiven,
+      emits: 'crm.loan.disbursed',
       effects: [
         {
           key: 'release_gates',
-          description: 'release milestones and dispatches gated on `disbursed` (CRM-08)',
+          description:
+            'release the dispatch and milestones gated on `disbursed` (CRM-08, `crm.loan.gates_released`)',
         },
       ],
     },
@@ -82,6 +87,7 @@ export const customerLoanMachine = defineMachine<
       to: 'rejected',
       permission: 'crm.account.write',
       guard: reasonGiven(),
+      emits: 'crm.loan.rejected',
       effects: [
         {
           key: 'notify_owner',

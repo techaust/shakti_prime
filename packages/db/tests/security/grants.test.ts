@@ -197,6 +197,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     stock_movement_costs: { i: false, u: false },
     stock_balances: { i: false, u: false },
     item_costs: { i: false, u: false },
+    // J2: a lender changes only its name and whether it is active; a loan only its state, the
+    // sanction, the disbursal, the reference and the rejection (column grants).
+    lenders: { i: true, u: false },
+    customer_loans: { i: true, u: false },
   };
 
   /**
@@ -517,6 +521,9 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.ingest_source_token(uuid)',
       'app.ingest_source(text,text)',
       'app.lead_search_ids(text,boolean,text,integer)',
+      // J2: an order's loan gates, read by the order's Loan tab, the dispatch guard (J8) and the
+      // payment milestones (Phase 5).
+      'app.order_loan_gate(uuid)',
       // The ⌘K and /orders search's candidate orders (RPT-03).
       'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',

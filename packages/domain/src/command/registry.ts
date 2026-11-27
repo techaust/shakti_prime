@@ -203,6 +203,12 @@ import { setTaxRate } from '../commands/tax/set-tax-rate';
 import { archiveVendor, createVendor, updateVendor } from '../commands/procurement/vendors';
 import { setItemVendor, setVendorContacts } from '../commands/procurement/vendor-links';
 import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/quotes';
+// J2 customer loans.
+import { createCustomerLoan } from '../commands/crm/loans-create';
+import { sanctionCustomerLoan } from '../commands/crm/loans-sanction';
+import { disburseCustomerLoan } from '../commands/crm/loans-disburse';
+import { rejectCustomerLoan } from '../commands/crm/loans-reject';
+import { createLender, updateLender } from '../commands/crm/loans-lenders';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -423,6 +429,13 @@ export const commands = Object.freeze({
   [setItemVendor.name]: setItemVendor,
   [recordVendorQuote.name]: recordVendorQuote,
   [withdrawVendorQuote.name]: withdrawVendorQuote,
+  // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
+  [createCustomerLoan.name]: createCustomerLoan,
+  [sanctionCustomerLoan.name]: sanctionCustomerLoan,
+  [disburseCustomerLoan.name]: disburseCustomerLoan,
+  [rejectCustomerLoan.name]: rejectCustomerLoan,
+  [createLender.name]: createLender,
+  [updateLender.name]: updateLender,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

@@ -66,6 +66,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'playbook_directive',
   // H1 stock ledger
   'serial',
+  // J2 customer loans
+  'customer_loan',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */
