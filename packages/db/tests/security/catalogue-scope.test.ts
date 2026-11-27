@@ -82,54 +82,28 @@ describe('cost gate on item_costs (finance.cost.read)', () => {
     expect(rows).toEqual([]);
   });
 
-  it('a GM can neither update nor insert a cost row', async () => {
-    const gm = principalFor('general_manager', [1]);
-    expect(
-      await updated(
-        gm,
-        sql`update item_costs set moving_avg_cost = moving_avg_cost where id = ${fx.costs.e1[0] ?? ''} returning id`,
-      ),
-    ).toBe(0);
-    await expect(
-      asPrincipal(gm, ({ tx }) =>
-        tx.execute(sql`insert into item_costs (id, item_id, entity_id, moving_avg_cost)
-          values (${`${CATALOGUE_FIXTURE_PREFIX}ffff`}, ${fx.items.cable}, 1, 1.0000)`),
-      ),
-    ).rejects.toSatisfy(rlsError);
-  });
-
-  it('Accounts updates its own entity and not another', async () => {
-    const accounts = principalFor('accounts', [1]);
-    expect(
-      await updated(
-        accounts,
-        sql`update item_costs set moving_avg_cost = moving_avg_cost where id = ${fx.costs.e1[0] ?? ''} returning id`,
-      ),
-    ).toBe(1);
-    expect(
-      await updated(
-        accounts,
-        sql`update item_costs set moving_avg_cost = moving_avg_cost where id = ${fx.costs.e2[0] ?? ''} returning id`,
-      ),
-    ).toBe(0);
-  });
-
-  // The entity term of the cost write checks (AUDIT M40): a cost holder in entity 1 cannot
-  // write entity 2's costs, by insert or by moving a row there.
-  it('Accounts cannot insert a cost row for another entity or move one there', async () => {
-    const accounts = principalFor('accounts', [1]);
-    await expect(
-      asPrincipal(accounts, ({ tx }) =>
-        tx.execute(sql`insert into item_costs (id, item_id, entity_id, moving_avg_cost)
-          values (${`${CATALOGUE_FIXTURE_PREFIX}fffc`}, ${fx.items.cable}, 2, 1.0000)`),
-      ),
-    ).rejects.toSatisfy(rlsError);
-    await expect(
-      asPrincipal(accounts, ({ tx }) =>
-        tx.execute(sql`update item_costs set entity_id = 2 where id = ${fx.costs.e1[1] ?? ''}`),
-      ),
-    ).rejects.toSatisfy(rlsError);
-  });
+  // H1 (docs/03-roadmap-appendix/phase3.md §6.2): the moving average is kept only by the stock
+  // ledger's definer, app.stock_move(), so no role writes a cost row, a cost holder included, in
+  // its own company or another, by insert or by update.
+  it.each(['general_manager', 'accounts', 'executive'] as const)(
+    '%s can neither update nor insert a cost row',
+    async (roleKey) => {
+      const who = principalFor(roleKey, [1]);
+      await expect(
+        asPrincipal(who, ({ tx }) =>
+          tx.execute(
+            sql`update item_costs set moving_avg_cost = moving_avg_cost where id = ${fx.costs.e1[0] ?? ''}`,
+          ),
+        ),
+      ).rejects.toSatisfy(deniedError);
+      await expect(
+        asPrincipal(who, ({ tx }) =>
+          tx.execute(sql`insert into item_costs (id, item_id, entity_id, moving_avg_cost)
+            values (${`${CATALOGUE_FIXTURE_PREFIX}ffff`}, ${fx.items.cable}, 1, 1.0000)`),
+        ),
+      ).rejects.toSatisfy(deniedError);
+    },
+  );
 });
 
 describe('catalogue masters', () => {

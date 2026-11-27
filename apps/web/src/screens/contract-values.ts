@@ -1,4 +1,11 @@
 import type {
+  // H1 stock ledger
+  BinKind,
+  EditableBinKind,
+  SerialState,
+  StockAdjustment,
+  StockReason,
+  WarehouseKind,
   AccountType,
   ActivityType,
   AgentActionState,
@@ -87,7 +94,6 @@ import type {
   SizingAdvisory,
   SizingKind,
   SizingReason,
-  SpecField,
   StageExitField,
   SubsidyScheme,
   SystemSizeUnit,
@@ -97,6 +103,8 @@ import type {
   UserSort,
   UserStatus,
   VoiceSessionMode,
+  // Q1 labels
+  LabelKind,
 } from '@shakti/contracts';
 
 // The contract values that code running in the browser reads, copied here because every module
@@ -690,6 +698,12 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'leads',
   'accounts',
   'pin_codes',
+  // U1 vendors.
+  'vendors',
+  // H1 stock ledger
+  'opening_stock',
+  // C5: the catalogue's items.
+  'items',
 ] as const satisfies readonly ImportKind[];
 
 /** The most sites later rows of one customer add to it from one file (`MORE_SITES_MAX`). */
@@ -798,65 +812,6 @@ export const PRICE_LIST_STATES = [
 
 /** The price tiers the group sells at (docs/01-blueprint.md §8.3), in the order lists are offered. */
 export const PRICE_TIER_CODES = ['retail', 'dealer', 'commercial'] as const;
-
-const HP: SpecField = { key: 'hp', kind: 'number', min: 0.1, max: 1000, decimals: 2 };
-const KW: SpecField = { key: 'kw', kind: 'number', min: 0.01, max: 10_000, decimals: 2 };
-const PHASE: SpecField = { key: 'phase', kind: 'choice', options: ['single', 'three'] };
-
-/** How the item form asks for each category's specifications (`ITEM_SPEC_FIELDS`). */
-export const ITEM_SPEC_FIELDS: Readonly<Record<ItemCategory, readonly SpecField[]>> = {
-  pump: [
-    HP,
-    KW,
-    PHASE,
-    { key: 'pumpType', kind: 'choice', options: ['surface', 'submersible'] },
-    { key: 'outletMm', kind: 'number', min: 1, max: 1000, decimals: 0 },
-    { key: 'maxHeadM', kind: 'number', min: 1, max: 2000, decimals: 1 },
-  ],
-  motor: [HP, KW, PHASE],
-  solar_module: [{ key: 'wp', kind: 'number', min: 1, max: 2000, decimals: 0 }],
-  controller: [
-    KW,
-    { key: 'inputMinV', kind: 'number', min: 1, max: 2000, decimals: 0 },
-    { key: 'inputMaxV', kind: 'number', min: 1, max: 2000, decimals: 0 },
-  ],
-  structure: [],
-  cable: [],
-  pipe: [
-    { key: 'nominalSizeMm', kind: 'number', min: 1, max: 2000, decimals: 0 },
-    { key: 'material', kind: 'text', maxLength: 40 },
-  ],
-  inverter: [KW],
-  battery: [],
-  other: [],
-};
-
-/** Every specification key, and those measured in numbers (each has a unit on screen). */
-export const SPEC_KEYS = [
-  'hp',
-  'kw',
-  'phase',
-  'pumpType',
-  'outletMm',
-  'maxHeadM',
-  'wp',
-  'inputMinV',
-  'inputMaxV',
-  'nominalSizeMm',
-  'material',
-] as const;
-export type SpecKey = (typeof SPEC_KEYS)[number];
-export const NUMERIC_SPEC_KEYS = [
-  'hp',
-  'kw',
-  'outletMm',
-  'maxHeadM',
-  'wp',
-  'inputMinV',
-  'inputMaxV',
-  'nominalSizeMm',
-] as const satisfies readonly SpecKey[];
-export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
@@ -969,6 +924,10 @@ export const FILE_PURPOSES = [
   'call_recording',
   'whatsapp_media',
   'call_transcript',
+  // U1 vendors and supplier quotes.
+  'vendor_quote',
+  // Q1 labels.
+  'label_sheet',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */
@@ -1043,3 +1002,74 @@ export const WEBHOOK_PROVIDERS = [
   'exotel_incoming',
   'livekit',
 ] as const satisfies readonly WebhookProvider[];
+
+// H1 stock ledger
+/** A hub's kinds, in the order the hub form offers them. */
+export const WAREHOUSE_KINDS = [
+  'godown',
+  'factory',
+  'transit',
+] as const satisfies readonly WarehouseKind[];
+
+/** A bin's kinds. */
+export const BIN_KINDS = [
+  'storage',
+  'receiving',
+  'dispatch',
+  'quarantine',
+  'surplus',
+  'transit',
+] as const satisfies readonly BinKind[];
+
+/** The kinds a person gives a bin. */
+export const EDITABLE_BIN_KINDS = [
+  'storage',
+  'quarantine',
+  'surplus',
+] as const satisfies readonly EditableBinKind[];
+
+/** The states of a serial. */
+export const SERIAL_STATES = [
+  'in_stock',
+  'reserved',
+  'picked',
+  'in_transit',
+  'with_customer',
+  'faulty',
+  'with_supplier',
+  'scrapped',
+] as const satisfies readonly SerialState[];
+
+/** Why stock moved. */
+export const STOCK_REASONS = [
+  'opening',
+  'receipt',
+  'transfer',
+  'pick',
+  'issue',
+  'return_customer',
+  'return_supplier',
+  'adjust_gain',
+  'adjust_loss',
+  'damage',
+  'count',
+  'warranty_replacement',
+  'surplus_in',
+  'surplus_out',
+  'reversal',
+] as const satisfies readonly StockReason[];
+
+/** The adjustments the Adjust dialog offers. */
+export const STOCK_ADJUSTMENTS = [
+  'gain',
+  'loss',
+  'damage',
+] as const satisfies readonly StockAdjustment[];
+
+// Q1 labels
+/** What a QR label is for. */
+export const LABEL_KINDS = ['serial', 'bin', 'package'] as const satisfies readonly LabelKind[];
+
+/** At most this many labels in one sheet, and in one reprint. */
+export const LABEL_SHEET_MAX = 500;
+export const LABEL_REPRINT_MAX = 100;

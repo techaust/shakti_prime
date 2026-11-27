@@ -30,7 +30,15 @@ export_db_urls 54340
 env | grep -E '^DATABASE_URL' | grep -vc ':54340/' | sed 's/^/urls_not_on_54340=/' >>"$LOG"
 
 step install bash -c 'pnpm install --offline --frozen-lockfile || pnpm install --frozen-lockfile'
-step lint pnpm lint
+# The whole-repository lint in four parts, each with the same 6 GB heap: on the 8 GB PC the
+# repository outgrew one run's heap at Phase 3 (H1's report, 23-11-2026). The rules and files are
+# the same as `pnpm lint`'s; CI runs `pnpm lint` whole.
+lint_in_parts() {
+  local es=(node --max-old-space-size=6144 node_modules/eslint/bin/eslint.js --max-warnings 0)
+  "${es[@]}" apps && "${es[@]}" packages && "${es[@]}" tools &&
+    "${es[@]}" --ignore-pattern 'apps/**' --ignore-pattern 'packages/**' --ignore-pattern 'tools/**' .
+}
+step lint lint_in_parts
 step format pnpm format:check
 step copylint pnpm copy-lint
 step generated bash -c 'pnpm --filter @shakti/tokens build && pnpm db:generate && git diff --exit-code -- packages/tokens apps/web/src/app/icon.svg packages/db/migrations'

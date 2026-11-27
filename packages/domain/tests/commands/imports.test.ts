@@ -222,7 +222,7 @@ describe('imports: permission and entity', () => {
   });
 
   it('refuses a kind that cannot be imported yet', async () => {
-    const input = { ...(await fileInput(1, 'Name\nWidget\n')), kind: 'items' };
+    const input = { ...(await fileInput(1, 'Name\nWidget\n')), kind: 'tally_masters' };
     await expect(run(gm, createImportJob, input)).rejects.toMatchObject({
       code: 'validation_failed',
     });

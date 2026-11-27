@@ -36,6 +36,14 @@ export async function readItemDetail(tx: Tx, itemId: string): Promise<ItemDetail
   return ItemDetailDto.parse({
     ...toItemDto(item),
     specs: item.specsJson as ItemSpecs,
+    warrantyMonths: item.warrantyMonths,
+    supplierWarrantyMonths: item.supplierWarrantyMonths,
+    barcode: item.barcode,
+    purchaseUnit: item.purchaseUnit,
+    purchaseUnitFactor:
+      item.purchaseUnitFactor === null ? null : trimZeros(item.purchaseUnitFactor),
+    serialPattern: item.serialPattern,
+    isStocked: item.isStocked,
     curve: curve.map((p) => ({ flowLph: trimZeros(p.flowLph), headM: trimZeros(p.headM) })),
   });
 }

@@ -55,6 +55,14 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
   // A recorded call's transcript, masked before it is stored by the platform: read with the call,
   // so whoever reads the lead reads it (docs/03-roadmap-appendix/phase2.md §7.3).
   call_transcript: { write: null, read: 'call' },
+  // U1: a supplier's quote document shows the rate, so it is uploaded and read only with
+  // procurement.rate.read; procurement.quote.record also asks for procurement.po.write.
+  vendor_quote: {
+    write: needs('procurement.rate.read', 'entity'),
+    read: 'procurement.rate.read',
+  },
+  // Q1: a sheet of QR labels, printed by the render worker and opened by whoever handles stock.
+  label_sheet: { write: needs('files.process', 'entity'), read: 'inventory.stock.move' },
 };
 
 /** The answer `app.file_purpose_grant(purpose, access)` gives, in its own shape. */

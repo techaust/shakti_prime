@@ -1604,6 +1604,104 @@
       "when": 1795160224542,
       "tag": "0228_enquiry_attached_notice",
       "breakpoints": true
+    },
+    {
+      "idx": 229,
+      "version": "7",
+      "when": 1795456660384,
+      "tag": "0229_c5_catalogue_stock",
+      "breakpoints": true
+    },
+    {
+      "idx": 230,
+      "version": "7",
+      "when": 1795461879784,
+      "tag": "0230_h1_stock_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 231,
+      "version": "7",
+      "when": 1795461883481,
+      "tag": "0231_h1_stock_ledger_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 232,
+      "version": "7",
+      "when": 1795461884481,
+      "tag": "0232_u1_vendors",
+      "breakpoints": true
+    },
+    {
+      "idx": 233,
+      "version": "7",
+      "when": 1795461885481,
+      "tag": "0233_u1_vendors_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 234,
+      "version": "7",
+      "when": 1795461886481,
+      "tag": "0234_u1_vendor_quote_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 235,
+      "version": "7",
+      "when": 1795461887481,
+      "tag": "0235_u1_vendor_quote_files_grant",
+      "breakpoints": true
+    },
+    {
+      "idx": 236,
+      "version": "7",
+      "when": 1795461888481,
+      "tag": "0236_u1_vendors_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 237,
+      "version": "7",
+      "when": 1795462819618,
+      "tag": "0237_u1_vendor_quote_group_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 238,
+      "version": "7",
+      "when": 1795463433528,
+      "tag": "0238_u1_import_undo",
+      "breakpoints": true
+    },
+    {
+      "idx": 239,
+      "version": "7",
+      "when": 1795463436305,
+      "tag": "0239_u1_import_undo_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1795789276331,
+      "tag": "0240_x4_stock_reasons",
+      "breakpoints": true
+    },
+    {
+      "idx": 241,
+      "version": "7",
+      "when": 1795789688931,
+      "tag": "0241_q1_label_sheet_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1795789695023,
+      "tag": "0242_q1_labels_rls",
+      "breakpoints": true
     }
   ]
 }

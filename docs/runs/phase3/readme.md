@@ -4,7 +4,12 @@ One file per slice, `docs/runs/phase3/<slug>.md`, kept as [the Phase 2 run files
 
 ## Slices in flight
 Each run file is on its slice's branch until the slice merges.
-- `web-push-4`: the `web-push` 4.0.0 major of Dependabot #255, branch `chore/web-push-4`.
-- `c5-catalogue-stock`: C5 Catalogue for stock, branch `feat/c5-catalogue-stock`.
-- `h1-stock-ledger`: H1 Hubs, bins and the stock ledger, branch `feat/h1-stock-ledger`.
-- `u1-vendors`: U1 Vendors and supplier quotes, branch `feat/u1-vendors`.
+- `demo-data-ist-day`: the demo-data test that fails late in the day in India, branch `fix/demo-data-ist-day` (briefed; its seat left no work).
+
+## Merged
+- [Alert counts at every time of day](alert-counts-midnight.md) (#282).
+- [The `web-push` 4.0.0 major of Dependabot #255](web-push-4.md) (#283).
+- [Five open follow-ups](p3-fixes.md) (#285).
+- [C5 Catalogue for stock](c5-catalogue-stock.md) (#286).
+- [H1 Hubs, bins and the stock ledger](h1-stock-ledger.md) (#287).
+- [U1 Vendors and supplier quotes](u1-vendors.md) (#288).

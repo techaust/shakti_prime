@@ -38,6 +38,11 @@ export const FILE_PURPOSES = [
   // A recorded call's transcript, masked before it is stored by the Caller Co-pilot's worker and
   // read with its call's lead (docs/03-roadmap-appendix/phase2.md §7.3).
   'call_transcript',
+  // U1: a supplier's quote document, read only with procurement.rate.read
+  // (docs/03-roadmap-appendix/phase3.md §6.3).
+  'vendor_quote',
+  // Q1: a sheet of QR labels the render worker printed (docs/03-roadmap-appendix/phase3.md §7.4).
+  'label_sheet',
 ] as const;
 export const FilePurposeSchema = z.enum(FILE_PURPOSES);
 export type FilePurpose = z.infer<typeof FilePurposeSchema>;

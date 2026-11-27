@@ -74,6 +74,19 @@ function grantsOf(role: AgentRoleKey | SystemRoleKey): readonly PermissionGrant[
  * validation. A command added to the registry with a restricted permission fails the first test
  * below until it has an input here.
  */
+/** U1's supplier quote commands, restricted and for people only alike. */
+const U1_QUOTE_INPUTS: Record<string, unknown> = {
+  'procurement.quote.record': {
+    vendorId: newId(),
+    itemId: newId(),
+    entityId: 1,
+    rate: '41.5',
+    validFrom: '2031-04-01',
+    validUntil: '2031-05-01',
+  },
+  'procurement.quote.withdraw': { quoteId: newId() },
+};
+
 const INPUTS: Record<string, unknown> = {
   // A customer's price tier decides every price they are quoted (PRICE-1).
   'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
@@ -325,6 +338,8 @@ const INPUTS: Record<string, unknown> = {
     startsOn: '2031-04-01',
     value: 20,
   },
+  // U1: supplier quotes need procurement.rate.read, which no agent holds.
+  ...U1_QUOTE_INPUTS,
 };
 
 /** The commands only people may call (`peopleOnly`), read from the registry. */
@@ -334,6 +349,49 @@ const PEOPLE_ONLY: AnyCommand[] = Object.values(commands as Record<string, AnyCo
 
 /** A valid input for each command for people only, so the refusal comes from the guard. */
 const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
+  // H1 stock ledger: hubs, bins and stock moved by hand are people's work in Phase 3.
+  'inventory.hub.create': {
+    code: 'REFUSED',
+    name: 'Refused hub',
+    kind: 'godown',
+    stateCode: '08',
+    pinCode: '302022',
+  },
+  'inventory.hub.update': {
+    hubId: newId(),
+    code: 'REFUSED',
+    name: 'Refused hub',
+    stateCode: '08',
+    pinCode: '302022',
+  },
+  'inventory.hub.archive': { hubId: newId() },
+  'inventory.bin.create': { hubId: newId(), code: 'REFUSED', kind: 'storage' },
+  'inventory.bin.update': { binId: newId(), code: 'REFUSED' },
+  'inventory.bin.archive': { binId: newId() },
+  'inventory.stock.transfer': {
+    entityId: 1,
+    itemId: newId(),
+    fromBinId: newId(),
+    toBinId: newId(),
+    qty: '1',
+  },
+  'inventory.stock.adjust': {
+    entityId: 1,
+    itemId: newId(),
+    binId: newId(),
+    adjustment: 'gain',
+    qty: '1',
+    note: 'Refused gain',
+  },
+  'inventory.stock.reverse': { entityId: 1, movementId: newId() },
+  // Q1 labels: printing a sheet of labels is a person's work at the hub.
+  'inventory.label.print': { entityId: 1, labelKind: 'bin', ids: [newId()] },
+  'inventory.label.reprint': {
+    entityId: 1,
+    labelKind: 'serial',
+    ids: [newId()],
+    note: 'Refused reprint',
+  },
   // The Agent Inbox and agent settings: a person decides, never an agent (SECURITY §3.3).
   ...Object.fromEntries(
     [
@@ -477,6 +535,13 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     body: 'Thank you for writing to us.',
     draftedByAgentActionId: newId(),
   },
+  // U1: the vendor master and supplier quotes are changed by people only.
+  ...U1_QUOTE_INPUTS,
+  'procurement.vendor.create': { name: 'Rajasthan Cables' },
+  'procurement.vendor.update': { vendorId: newId(), name: 'Rajasthan Cables' },
+  'procurement.vendor.archive': { vendorId: newId() },
+  'procurement.vendor.contact.set': { vendorId: newId(), contacts: [] },
+  'procurement.item_vendor.set': { vendorId: newId(), itemId: newId() },
 };
 
 describe('commands for people only', () => {

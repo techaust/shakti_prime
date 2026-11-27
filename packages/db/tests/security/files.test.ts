@@ -39,6 +39,10 @@ const WRITE: Partial<Record<FilePurpose, { key: PermissionKey; scope: Scope }>> 
   print_proof: { key: 'files.process', scope: 'entity' },
   knowledge: { key: 'knowledge.vault.write', scope: 'all' },
   consent_evidence: { key: 'crm.account.write', scope: 'own' },
+  // U1: a supplier's quote document.
+  vendor_quote: { key: 'procurement.rate.read', scope: 'entity' },
+  // Q1: a sheet of QR labels, stored by the render worker.
+  label_sheet: { key: 'files.process', scope: 'entity' },
 };
 /**
  * A vault upload is read with its vault file by sensitivity, or by its uploader while they hold
@@ -53,6 +57,10 @@ const READ: Partial<Record<FilePurpose, PermissionKey | 'company'>> = {
   letterhead: 'company',
   print_proof: 'admin.entities.write',
   consent_evidence: 'crm.account.write',
+  // U1: a supplier's quote document.
+  vendor_quote: 'procurement.rate.read',
+  // Q1: a sheet of QR labels.
+  label_sheet: 'inventory.stock.move',
 };
 
 const WORKER_GRANTS = [{ key: 'files.process' as const, scope: 'all' as const }];

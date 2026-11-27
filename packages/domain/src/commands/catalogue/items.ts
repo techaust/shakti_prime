@@ -28,6 +28,13 @@ const ITEM_AUDIT_FIELDS = [
   'specs',
   'isActive',
   'points',
+  'warrantyMonths',
+  'supplierWarrantyMonths',
+  'barcode',
+  'purchaseUnit',
+  'purchaseUnitFactor',
+  'serialPattern',
+  'isStocked',
 ] as const;
 
 type ItemRow = typeof schema.items.$inferSelect;
@@ -45,8 +52,42 @@ function auditedItem(row: ItemRow) {
     almmRef: row.almmRef,
     specs: row.specsJson,
     isActive: row.isActive,
+    warrantyMonths: row.warrantyMonths,
+    supplierWarrantyMonths: row.supplierWarrantyMonths,
+    barcode: row.barcode,
+    purchaseUnit: row.purchaseUnit,
+    purchaseUnitFactor: row.purchaseUnitFactor,
+    serialPattern: row.serialPattern,
+    isStocked: row.isStocked,
   };
 }
+
+/** The stock and warranty columns as the input gives them (C5). */
+function stockColumns(input: {
+  warrantyMonths: number | null;
+  supplierWarrantyMonths: number | null;
+  barcode: string | null;
+  purchaseUnit: string | null;
+  purchaseUnitFactor: string | null;
+  serialPattern: string | null;
+  isStocked: boolean;
+}) {
+  return {
+    warrantyMonths: input.warrantyMonths,
+    supplierWarrantyMonths: input.supplierWarrantyMonths,
+    barcode: input.barcode,
+    purchaseUnit: input.purchaseUnit,
+    purchaseUnitFactor: input.purchaseUnitFactor,
+    serialPattern: input.serialPattern,
+    isStocked: input.isStocked,
+  };
+}
+
+/** The unique and check constraints both item commands may meet, as the catalogue's reasons. */
+const ITEM_CONSTRAINT_REASONS = {
+  items_sku_unique: 'item_sku_taken',
+  items_barcode_unique: 'item_barcode_taken',
+} as const;
 
 /** An item that is still in the catalogue, locked for the change, or `catalogue_item_missing`. */
 async function lockLiveItem(ctx: CommandContext, itemId: string): Promise<ItemRow> {
@@ -66,7 +107,8 @@ async function lockLiveItem(ctx: CommandContext, itemId: string): Promise<ItemRo
 
 /**
  * `catalogue.item.create` (INV-01): an item of the one catalogue every company sells from, with
- * the specifications of its category. A code already in use answers `item_sku_taken`.
+ * the specifications of its category and its stock and warranty terms (C5). A code already in use
+ * answers `item_sku_taken`, a barcode another item has `item_barcode_taken`.
  */
 export const createItem = defineCommand({
   name: 'catalogue.item.create',
@@ -75,9 +117,13 @@ export const createItem = defineCommand({
   input: CreateItemInput,
   output: ItemDetailDto,
   auditFields: ITEM_AUDIT_FIELDS,
-  // A stock code may be a barcode's number of twelve digits or more.
-  unmaskedFields: ['sku'],
-  constraintReasons: { items_sku_unique: 'item_sku_taken' },
+  unmaskedFields: [
+    // A stock code may be a barcode's number of twelve digits or more.
+    'sku',
+    // A supplier's barcode is a number of twelve or thirteen digits by design (UPC, EAN).
+    'barcode',
+  ],
+  constraintReasons: ITEM_CONSTRAINT_REASONS,
   async handler(ctx, input) {
     await assertCatalogueGroupScope(ctx);
     const [row] = await ctx.tx
@@ -93,6 +139,7 @@ export const createItem = defineCommand({
         isDcr: input.isDcr,
         almmRef: input.almmRef ?? null,
         specsJson: input.specs,
+        ...stockColumns(input),
         createdBy: ctx.principal.id,
       })
       .returning();
@@ -116,8 +163,10 @@ export const createItem = defineCommand({
 });
 
 /**
- * `catalogue.item.update`: every editable field of an item still in the catalogue. Quotes already
- * made keep what they recorded. A pump that becomes another category keeps no curve.
+ * `catalogue.item.update`: every editable field of an item still in the catalogue, its stock and
+ * warranty terms included. Quotes already made keep what they recorded. A pump that becomes
+ * another category keeps no curve. A serial pattern the item's own serials do not fit is refused
+ * once serials exist (`serialsOutsidePattern`, called with H1's ledger).
  */
 export const updateItem = defineCommand({
   name: 'catalogue.item.update',
@@ -126,9 +175,13 @@ export const updateItem = defineCommand({
   input: UpdateItemInput,
   output: ItemDetailDto,
   auditFields: ITEM_AUDIT_FIELDS,
-  // A stock code may be a barcode's number of twelve digits or more.
-  unmaskedFields: ['sku'],
-  constraintReasons: { items_sku_unique: 'item_sku_taken' },
+  unmaskedFields: [
+    // A stock code may be a barcode's number of twelve digits or more.
+    'sku',
+    // A supplier's barcode is a number of twelve or thirteen digits by design (UPC, EAN).
+    'barcode',
+  ],
+  constraintReasons: ITEM_CONSTRAINT_REASONS,
   async handler(ctx, input) {
     await assertCatalogueGroupScope(ctx);
     const before = await lockLiveItem(ctx, input.itemId);
@@ -144,6 +197,7 @@ export const updateItem = defineCommand({
         isDcr: input.isDcr,
         almmRef: input.almmRef ?? null,
         specsJson: input.specs,
+        ...stockColumns(input),
         updatedBy: ctx.principal.id,
       })
       .where(eq(schema.items.id, input.itemId))

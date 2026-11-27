@@ -100,6 +100,12 @@ import {
   TASK_STATES,
   THEMES,
   USER_STATUSES,
+  // H1 stock ledger
+  BIN_KINDS,
+  STOCK_REASONS,
+  WAREHOUSE_KINDS,
+  // Q1 labels
+  LABEL_KINDS,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
@@ -604,6 +610,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return catalogue.category(value);
       case 'itemUnit':
         return catalogue.unit(value);
+      case 'hubKind':
+        return oneOf(WAREHOUSE_KINDS, value) ? t(`values.hubKind.${value}`) : wordsOf(value);
+      case 'binKind':
+        return oneOf(BIN_KINDS, value) ? t(`values.binKind.${value}`) : wordsOf(value);
+      case 'stockReason':
+        return oneOf(STOCK_REASONS, value) ? t(`values.stockReason.${value}`) : wordsOf(value);
+      case 'labelKind':
+        return oneOf(LABEL_KINDS, value) ? t(`values.labelKind.${value}`) : wordsOf(value);
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
       case 'fileStatus':

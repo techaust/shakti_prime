@@ -23,6 +23,8 @@ describe('file purposes', () => {
         'print_proof',
         'quote_pdf',
         'signed_quote',
+        'vendor_quote',
+        'label_sheet',
       ].sort(),
     );
     expect(uploadPermission.of({ purpose: 'import' })).toEqual({
@@ -48,6 +50,7 @@ describe('file purposes', () => {
         'files.process',
         'imports.write',
         'knowledge.vault.write',
+        'procurement.rate.read',
         'sales.quote.send',
       ].sort(),
     );

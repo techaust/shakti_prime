@@ -14,6 +14,15 @@ export type PumpCurvePointDto = z.infer<typeof PumpCurvePointDto>;
 /** The item sheet: an item with its specifications and, for a pump, its curve by rising flow. */
 export const ItemDetailDto = ItemDto.extend({
   specs: ItemSpecsSchema,
+  // Stock and warranty (phase3 §6.1, C5), each null when not set.
+  warrantyMonths: z.number().int().nullable(),
+  supplierWarrantyMonths: z.number().int().nullable(),
+  barcode: z.string().nullable(),
+  purchaseUnit: ItemUnitSchema.nullable(),
+  /** Stock units in one purchase unit, as typed: `100`, `2.5`. */
+  purchaseUnitFactor: z.string().nullable(),
+  serialPattern: z.string().nullable(),
+  isStocked: z.boolean(),
   curve: z.array(PumpCurvePointDto),
 }).strict();
 export type ItemDetailDto = z.infer<typeof ItemDetailDto>;

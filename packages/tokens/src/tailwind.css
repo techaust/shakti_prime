@@ -25,6 +25,8 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
   --color-rose: var(--rose);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
   --color-stage-new: var(--stage-new);
   --color-stage-contacted: var(--stage-contacted);
   --color-stage-qualified: var(--stage-qualified);
@@ -75,6 +77,9 @@
   --spacing-row-compact: var(--row-compact);
   --container-form: var(--content-form);
   --container-detail: var(--content-detail);
+  --text-hero: var(--font-hero-size);
+  --text-hero--line-height: var(--font-hero-line);
+  --text-hero--font-weight: var(--font-hero-weight);
   --text-display: var(--font-display-size);
   --text-display--line-height: var(--font-display-line);
   --text-display--font-weight: var(--font-display-weight);

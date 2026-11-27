@@ -9,9 +9,12 @@ import {
   type ImplementedImportKind,
   type ImportJobState,
   type ImportMapping,
+  type ItemImportMapping,
   type LeadImportMapping,
   type PermissionGrant,
   type PinCodeImportMapping,
+  type VendorImportMapping,
+  type OpeningStockImportMapping,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, gt, inArray, ne, or, sql } from 'drizzle-orm';
@@ -130,6 +133,10 @@ export interface KindMappings {
   leads: LeadImportMapping;
   accounts: AccountImportMapping;
   pin_codes: PinCodeImportMapping;
+  vendors: VendorImportMapping;
+  // H1 stock ledger
+  opening_stock: OpeningStockImportMapping;
+  items: ItemImportMapping;
 }
 
 /** A job's mapping, read back under its own kind's rules; one that no longer fits is a fault. */
@@ -152,6 +159,19 @@ export function implementedKind(job: JobRow): ImplementedImportKind {
 }
 
 /**
+ * U1: a vendor list's rows are written through the procurement commands, so only a holder of
+ * `procurement.po.write` as well as `imports.write` (the Executive) imports one.
+ */
+export function assertVendorImport(principal: { permissions: readonly PermissionGrant[] }): void {
+  if (!hasGrant(principal.permissions, 'procurement.po.write', 'entity')) {
+    throw new DomainError('forbidden', 'a vendor list needs procurement.po.write', {
+      permission: 'procurement.po.write',
+      scope: 'entity',
+    });
+  }
+}
+
+/**
  * The PIN code master is shared by every company, so only an Executive (`imports.write` at scope
  * all) in a request for every active company imports it (docs/03-roadmap-appendix/phase1.md §6.3), as the
  * shared catalogue is changed; the write policies of `pin_codes` hold the same rule.
@@ -166,6 +186,30 @@ export async function assertGroupImport(ctx: {
   if (!hasGrant(ctx.principal.permissions, 'imports.write', 'all') || covered[0]?.ok !== true) {
     throw new DomainError('forbidden', 'the PIN code master needs every company in scope', {
       reason: 'import_needs_all_companies',
+    });
+  }
+}
+
+/**
+ * The catalogue's items are shared by every company, so an items file is imported only by a holder
+ * of `catalogue.write` in a request for every active company (phase3 §6.1), as the item commands
+ * and the write policies of `items` require: `catalogue_needs_all_companies` otherwise.
+ */
+export async function assertItemImport(ctx: {
+  tx: RequestTx;
+  principal: { permissions: readonly PermissionGrant[] };
+}): Promise<void> {
+  if (!hasGrant(ctx.principal.permissions, 'catalogue.write', 'entity')) {
+    throw new DomainError('forbidden', 'an items file needs catalogue.write', {
+      permission: 'catalogue.write',
+    });
+  }
+  const covered = (await ctx.tx.execute(
+    sql`select app.request_covers_group() as ok`,
+  )) as unknown as { ok: boolean }[];
+  if (covered[0]?.ok !== true) {
+    throw new DomainError('forbidden', 'the catalogue needs every company in scope', {
+      reason: 'catalogue_needs_all_companies',
     });
   }
 }

@@ -12,6 +12,9 @@ import { PlaybookDirectiveStateSchema } from '../playbook';
 import { MessageRequested } from '../api/messaging';
 import { INBOUND_MATCH_LIMIT } from '../commands/calls/inbound';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
+import { StockReasonSchema } from '../inventory/enums';
+import { StockQtySchema } from '../inventory/stock';
+import { LABEL_SHEET_MAX, LabelSizeSchema, PrintableLabelKindSchema } from '../inventory/labels';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -265,13 +268,14 @@ const eventCatalogue = {
   },
   'catalogue.item.created': {
     meaning: 'An item was added to the catalogue.',
-    emittedBy: ['catalogue.item.create'],
+    // An items file adds its new items through `catalogue.item.create` (C5).
+    emittedBy: ['catalogue.item.create', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },
   'catalogue.item.updated': {
     meaning: "An item's details or specifications changed.",
-    emittedBy: ['catalogue.item.update'],
+    emittedBy: ['catalogue.item.update', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },
@@ -280,6 +284,38 @@ const eventCatalogue = {
     emittedBy: ['catalogue.item.archive'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
+  },
+  // H1 stock ledger
+  'inventory.stock.moved': {
+    meaning:
+      'Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held.',
+    emittedBy: [
+      'inventory.stock.transfer',
+      'inventory.stock.adjust',
+      'inventory.stock.reverse',
+      'imports.job.commit_batch',
+    ],
+    subscribed: false,
+    payload: z
+      .object({
+        count: z.number().int().min(1),
+        movements: z
+          .array(
+            z
+              .object({
+                movementId: IdSchema,
+                itemId: IdSchema,
+                fromBinId: IdSchema.nullable(),
+                toBinId: IdSchema.nullable(),
+                qty: StockQtySchema,
+                reason: StockReasonSchema,
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(200),
+      })
+      .strict(),
   },
   'catalogue.kit.created': {
     meaning: 'A kit was added with its components.',
@@ -436,6 +472,26 @@ const eventCatalogue = {
         documentType: PdfDocumentTypeSchema,
         documentId: IdSchema,
         version: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  // Q1 labels
+  /**
+   * A sheet of QR labels to print (docs/03-roadmap-appendix/phase3.md §7.4): delivered as a
+   * `PdfRenderJob` of `kind: 'labels'` to `/api/v1/workers/pdf/render`, which stores the PDF under
+   * the sheet's id. The labels' own words are read by the worker, never carried here.
+   */
+  'print.labels.requested': {
+    meaning:
+      'A sheet of QR labels is to be printed: the render worker reads the serials or bins, prints the labels at the stock size and stores the PDF.',
+    emittedBy: ['inventory.label.print', 'inventory.label.reprint'],
+    subscribed: true,
+    payload: z
+      .object({
+        sheetId: IdSchema,
+        labelKind: PrintableLabelKindSchema,
+        size: LabelSizeSchema,
+        ids: z.array(IdSchema).min(1).max(LABEL_SHEET_MAX),
       })
       .strict(),
   },
@@ -729,6 +785,50 @@ const eventCatalogue = {
     emittedBy: ['sales.order.confirm'],
     subscribed: false,
     payload: z.object({ orderId: IdSchema, partnerId: IdSchema, ruleId: IdSchema }).strict(),
+  },
+  // U1 vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3): ids and codes only,
+  // never a rate. A vendor's events are filed under the company the request acts for.
+  'procurement.vendor.created': {
+    meaning: 'A vendor was added to the group’s vendor master.',
+    emittedBy: ['procurement.vendor.create', 'imports.job.commit_batch'],
+    subscribed: false,
+    payload: z.object({}).strict(),
+  },
+  'procurement.vendor.updated': {
+    meaning: "A vendor's details, people or items supplied changed; `part` names which.",
+    emittedBy: [
+      'procurement.vendor.update',
+      'procurement.vendor.contact.set',
+      'procurement.item_vendor.set',
+      'imports.job.commit_batch',
+      'imports.job.rollback',
+    ],
+    subscribed: false,
+    payload: z
+      .object({
+        part: z.enum(['details', 'contacts', 'items']),
+        itemId: IdSchema.optional(),
+      })
+      .strict(),
+  },
+  'procurement.vendor.archived': {
+    meaning: 'A vendor left the active vendor list; its quotes stay on record.',
+    emittedBy: ['procurement.vendor.archive'],
+    subscribed: false,
+    payload: z.object({}).strict(),
+  },
+  'procurement.quote.recorded': {
+    meaning:
+      "A supplier's quote for an item was recorded, for one company or the group; the rate stays in the quote.",
+    emittedBy: ['procurement.quote.record'],
+    subscribed: false,
+    payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
+  },
+  'procurement.quote.withdrawn': {
+    meaning: "A supplier's quote was withdrawn before it ended.",
+    emittedBy: ['procurement.quote.withdraw'],
+    subscribed: false,
+    payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 

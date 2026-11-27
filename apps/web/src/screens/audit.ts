@@ -133,6 +133,19 @@ const ACTIONS = {
   'catalogue.kit.update': 'kitUpdate',
   'catalogue.kit.archive': 'kitArchive',
   'catalogue.pump_curve.set': 'pumpCurveSet',
+  // H1 stock ledger
+  'inventory.hub.create': 'hubCreate',
+  'inventory.hub.update': 'hubUpdate',
+  'inventory.hub.archive': 'hubArchive',
+  'inventory.bin.create': 'binCreate',
+  'inventory.bin.update': 'binUpdate',
+  'inventory.bin.archive': 'binArchive',
+  'inventory.stock.transfer': 'stockTransfer',
+  'inventory.stock.adjust': 'stockAdjust',
+  'inventory.stock.reverse': 'stockReverse',
+  // Q1 labels
+  'inventory.label.print': 'labelPrint',
+  'inventory.label.reprint': 'labelReprint',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -259,6 +272,14 @@ const ACTIONS = {
   'auth.password.change': 'passwordChange',
   'auth.two_factor.enable': 'twoFactorEnable',
   'auth.backup_codes.regenerate': 'backupCodesRegenerate',
+  // U1 vendors and supplier quotes.
+  'procurement.vendor.create': 'vendorCreate',
+  'procurement.vendor.update': 'vendorUpdate',
+  'procurement.vendor.archive': 'vendorArchive',
+  'procurement.vendor.contact.set': 'vendorContactsSet',
+  'procurement.item_vendor.set': 'itemVendorSet',
+  'procurement.quote.record': 'vendorQuoteRecord',
+  'procurement.quote.withdraw': 'vendorQuoteWithdraw',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -293,6 +314,8 @@ const EVENT_NAMES = {
   'pricing.list.approved': 'priceListApproved',
   'pricing.list.archived': 'priceListArchived',
   'catalogue.item.created': 'itemCreated',
+  // H1 stock ledger
+  'inventory.stock.moved': 'stockMoved',
   'catalogue.item.updated': 'itemUpdated',
   'catalogue.item.archived': 'itemArchived',
   'catalogue.kit.created': 'kitCreated',
@@ -312,6 +335,8 @@ const EVENT_NAMES = {
   'platform.probe.requested': 'deliveryCheckRequested',
   'files.file.uploaded': 'fileUploaded',
   'print.document.requested': 'documentRequested',
+  // Q1 labels
+  'print.labels.requested': 'labelsRequested',
   'sales.quote.created': 'quoteCreated',
   'sales.quote.sent': 'quoteSent',
   'sales.quote.superseded': 'quoteSuperseded',
@@ -333,6 +358,12 @@ const EVENT_NAMES = {
   'sales.order.credit_released': 'orderCreditReleased',
   'sales.order.cancelled': 'orderCancelled',
   'sales.commission.accrued': 'commissionAccrued',
+  // U1 vendors and supplier quotes.
+  'procurement.vendor.created': 'vendorCreated',
+  'procurement.vendor.updated': 'vendorUpdated',
+  'procurement.vendor.archived': 'vendorArchived',
+  'procurement.quote.recorded': 'vendorQuoteRecorded',
+  'procurement.quote.withdrawn': 'vendorQuoteWithdrawn',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -477,6 +508,12 @@ const CODE_GROUPS = [
   'templateOccasion',
   'inboundLine',
   'voiceMode',
+  // H1 stock ledger
+  'hubKind',
+  'binKind',
+  'stockReason',
+  // Q1 labels
+  'labelKind',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -622,6 +659,13 @@ const FIELD_KINDS = [
   ['isSerialTracked', 'yesNo'],
   ['isDcr', 'yesNo'],
   ['almmRef', 'text'],
+  ['warrantyMonths', 'number'],
+  ['supplierWarrantyMonths', 'number'],
+  ['barcode', 'text'],
+  ['purchaseUnit', 'itemUnit'],
+  ['purchaseUnitFactor', 'text'],
+  ['serialPattern', 'text'],
+  ['isStocked', 'yesNo'],
   ['specs', 'specs'],
   ['isActive', 'yesNo'],
   ['components', 'listCount'],
@@ -630,6 +674,23 @@ const FIELD_KINDS = [
   ['version', 'number'],
   ['prices', 'number'],
   ['approvedAt', 'time'],
+  // Hubs, bins and stock moved by hand (H1)
+  ['hubCode', 'text'],
+  ['hubName', 'text'],
+  ['hubKind', 'hubKind'],
+  ['hubAddress', 'text'],
+  ['hubStateCode', 'text'],
+  ['hubPinCode', 'text'],
+  ['binCode', 'text'],
+  ['binKind', 'binKind'],
+  ['stockReason', 'stockReason'],
+  ['quantity', 'number'],
+  ['serialNo', 'text'],
+  ['adjustNote', 'text'],
+  // QR labels printed (Q1)
+  ['labelKind', 'labelKind'],
+  ['labelCount', 'number'],
+  ['labelNote', 'text'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],
@@ -829,6 +890,18 @@ const FIELD_KINDS = [
   // Whole paise, shown as rupees through the money formatter.
   ['costPaise', 'paise'],
   ['turns', 'number'],
+  // U1 vendors and supplier quotes (never a rate).
+  ['vendorName', 'text'],
+  ['pan', 'text'],
+  ['paymentTermsDays', 'number'],
+  ['leadTimeDays', 'number'],
+  ['vendorContacts', 'listCount'],
+  ['itemSupplied', 'yesNo'],
+  ['vendorItemCode', 'text'],
+  ['preferredVendor', 'yesNo'],
+  ['quoteValidFrom', 'date'],
+  ['restored', 'number'],
+  ['quoteValidUntil', 'date'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

@@ -19,17 +19,55 @@ import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
 import { createItem, updateItem } from '../../actions/catalogue';
 import { specNumber } from '../../screens/catalogue';
-import { ITEM_CATEGORIES, ITEM_SPEC_FIELDS, ITEM_UNITS } from '../../screens/contract-values';
+import {
+  BARCODE_MAX_LENGTH,
+  ITEM_SPEC_FIELDS,
+  NON_STOCK_CATEGORIES,
+  SERIAL_PATTERN_MAX,
+  WARRANTY_MONTHS_MAX,
+} from '../../screens/catalogue-values';
+import { ITEM_CATEGORIES, ITEM_UNITS } from '../../screens/contract-values';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand } from '../screens/use-command';
 import { useCatalogueText } from './use-spec-text';
 
-const FIELDS = ['sku', 'name', 'category', 'hsn', 'unit', 'almmRef'] as const;
+const FIELDS = [
+  'sku',
+  'name',
+  'category',
+  'hsn',
+  'unit',
+  'almmRef',
+  'warrantyMonths',
+  'supplierWarrantyMonths',
+  'barcode',
+  'purchaseUnit',
+  'purchaseUnitFactor',
+  'serialPattern',
+  'isStocked',
+] as const;
+
+/** Whole months from 0 to 360 typed into a warranty field; null when blank; undefined when wrong. */
+function typedMonths(typed: string): number | null | undefined {
+  const plain = typed.trim();
+  if (plain === '') return null;
+  if (!/^\d{1,3}$/.test(plain)) return undefined;
+  const months = Number(plain);
+  return months <= WARRANTY_MONTHS_MAX ? months : undefined;
+}
+
+/** A purchase unit's factor typed with up to three decimals, at least 1; undefined when wrong. */
+function typedFactor(typed: string): string | undefined {
+  const plain = typed.trim().replaceAll(',', '');
+  return /^\d{1,9}(\.\d{1,3})?$/.test(plain) && Number(plain) >= 1 ? plain : undefined;
+}
 
 /**
- * Adds an item, or edits one: its code, name, category, HSN code and unit, and the
- * specifications of its category. A solar module also records its DCR mark and ALMM listing.
+ * Adds an item, or edits one: its code, name, category, HSN code and unit, the specifications of
+ * its category, and its stock and warranty terms (C5): the warranties, the supplier's barcode, the
+ * unit it is bought in, the shape of its serial numbers, and whether an Other item is kept in
+ * stock. A solar module also records its DCR mark and ALMM listing.
  */
 export function ItemFormDialog({
   item,
@@ -51,6 +89,12 @@ export function ItemFormDialog({
   const { fieldError, formFailure } = useFieldFailure(failure, FIELDS);
   const [category, setCategory] = useState<ItemCategory>(item?.category ?? 'pump');
   const [specProblems, setSpecProblems] = useState<Record<string, string>>({});
+  const [stockProblems, setStockProblems] = useState<Record<string, string>>({});
+  const [unit, setUnit] = useState<ItemUnit>(item?.unit ?? 'nos');
+  const [serialTracked, setSerialTracked] = useState(item?.isSerialTracked ?? false);
+  const [purchaseUnit, setPurchaseUnit] = useState<ItemUnit | ''>(item?.purchaseUnit ?? '');
+  const mayBeService = (NON_STOCK_CATEGORIES as readonly ItemCategory[]).includes(category);
+  const needsFactor = purchaseUnit !== '' && purchaseUnit !== unit;
 
   const fields = ITEM_SPEC_FIELDS[category];
 
@@ -59,6 +103,8 @@ export function ItemFormDialog({
     const problems: Record<string, string> = {};
     for (const f of fields) {
       const typed = formText(data, `spec-${f.key}`);
+      // An optional specification left blank is simply not recorded.
+      if (f.optional === true && typed.trim() === '') continue;
       const problem = specProblem(f, typed, specs);
       if (problem !== undefined) problems[f.key] = problem;
     }
@@ -92,12 +138,42 @@ export function ItemFormDialog({
     return undefined;
   }
 
+  /** The stock and warranty terms as the commands take them, or undefined after showing why not. */
+  function readStock(data: FormData) {
+    const problems: Record<string, string> = {};
+    const warrantyMonths = typedMonths(formText(data, 'warrantyMonths'));
+    const supplierWarrantyMonths = typedMonths(formText(data, 'supplierWarrantyMonths'));
+    if (warrantyMonths === undefined) {
+      problems.warrantyMonths = t('monthsWrong', { max: WARRANTY_MONTHS_MAX });
+    }
+    if (supplierWarrantyMonths === undefined) {
+      problems.supplierWarrantyMonths = t('monthsWrong', { max: WARRANTY_MONTHS_MAX });
+    }
+    const factorTyped = formText(data, 'purchaseUnitFactor');
+    const factor = needsFactor ? typedFactor(factorTyped) : undefined;
+    if (needsFactor && factor === undefined) problems.purchaseUnitFactor = t('factorWrong');
+    const barcode = formText(data, 'barcode').trim();
+    const serialPattern = formText(data, 'serialPattern').trim();
+    setStockProblems(problems);
+    if (Object.keys(problems).length > 0) return undefined;
+    return {
+      warrantyMonths: warrantyMonths ?? null,
+      supplierWarrantyMonths: supplierWarrantyMonths ?? null,
+      barcode: barcode === '' ? null : barcode,
+      purchaseUnit: purchaseUnit === '' ? null : purchaseUnit,
+      purchaseUnitFactor: needsFactor ? (factor ?? null) : null,
+      serialPattern: serialTracked && serialPattern !== '' ? serialPattern : null,
+      isStocked: mayBeService && !serialTracked ? data.get('isStocked') === 'on' : true,
+    };
+  }
+
   function submit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pending) return;
     const data = new FormData(e.currentTarget);
     const specs = readSpecs(data);
-    if (specs === undefined) return;
+    const stock = readStock(data);
+    if (specs === undefined || stock === undefined) return;
     const solar = category === 'solar_module';
     const almmRef = formText(data, 'almmRef').trim();
     const input = {
@@ -105,11 +181,12 @@ export function ItemFormDialog({
       name: formText(data, 'name'),
       category,
       hsn: formText(data, 'hsn').trim(),
-      unit: formText(data, 'unit') as ItemUnit,
-      isSerialTracked: data.get('isSerialTracked') === 'on',
+      unit,
+      isSerialTracked: serialTracked,
       isDcr: solar && data.get('isDcr') === 'on',
       ...(solar && almmRef !== '' ? { almmRef } : {}),
       specs,
+      ...stock,
     };
     const done = (saved: ItemDetailDto) => {
       toast.success(
@@ -183,7 +260,13 @@ export function ItemFormDialog({
               </Select>
             </Field>
             <Field id="item-unit" label={t('unit')} error={fieldError('unit')}>
-              <Select name="unit" defaultValue={item?.unit ?? 'nos'}>
+              <Select
+                name="unit"
+                value={unit}
+                onChange={(e) => {
+                  setUnit(e.currentTarget.value as ItemUnit);
+                }}
+              >
                 {ITEM_UNITS.map((u) => (
                   <option key={u} value={u}>
                     {text.unit(u)}
@@ -208,7 +291,10 @@ export function ItemFormDialog({
               type="checkbox"
               name="isSerialTracked"
               className="accent-accent size-4"
-              defaultChecked={item?.isSerialTracked ?? false}
+              checked={serialTracked}
+              onChange={(e) => {
+                setSerialTracked(e.currentTarget.checked);
+              }}
             />
             {t('serial')}
           </label>
@@ -274,6 +360,122 @@ export function ItemFormDialog({
                 </Field>
               ))}
             </div>
+          </fieldset>
+          <fieldset className="flex flex-col gap-4">
+            <legend className="text-h3 mb-2">{t('stockHeading')}</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id="item-warranty"
+                label={t('warrantyMonths')}
+                helper={t('warrantyHelper')}
+                error={stockProblems.warrantyMonths ?? fieldError('warrantyMonths')}
+              >
+                <Input
+                  name="warrantyMonths"
+                  inputMode="numeric"
+                  maxLength={3}
+                  autoComplete="off"
+                  defaultValue={item?.warrantyMonths ?? ''}
+                  className="tabular-nums"
+                />
+              </Field>
+              <Field
+                id="item-supplier-warranty"
+                label={t('supplierWarrantyMonths')}
+                helper={t('supplierWarrantyHelper')}
+                error={stockProblems.supplierWarrantyMonths ?? fieldError('supplierWarrantyMonths')}
+              >
+                <Input
+                  name="supplierWarrantyMonths"
+                  inputMode="numeric"
+                  maxLength={3}
+                  autoComplete="off"
+                  defaultValue={item?.supplierWarrantyMonths ?? ''}
+                  className="tabular-nums"
+                />
+              </Field>
+            </div>
+            <Field
+              id="item-barcode"
+              label={t('barcode')}
+              helper={t('barcodeHelper')}
+              error={fieldError('barcode')}
+            >
+              <Input
+                name="barcode"
+                maxLength={BARCODE_MAX_LENGTH}
+                autoComplete="off"
+                spellCheck={false}
+                defaultValue={item?.barcode ?? ''}
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id="item-purchase-unit"
+                label={t('purchaseUnit')}
+                error={fieldError('purchaseUnit')}
+              >
+                <Select
+                  name="purchaseUnit"
+                  value={purchaseUnit}
+                  onChange={(e) => {
+                    setPurchaseUnit(e.currentTarget.value as ItemUnit | '');
+                  }}
+                >
+                  <option value="">{t('purchaseUnitSame')}</option>
+                  {ITEM_UNITS.map((u) => (
+                    <option key={u} value={u}>
+                      {text.unit(u)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              {needsFactor ? (
+                <Field
+                  id="item-purchase-factor"
+                  label={t('purchaseUnitFactor')}
+                  helper={t('purchaseUnitFactorHelper', { stocked: text.unit(unit) })}
+                  error={stockProblems.purchaseUnitFactor ?? fieldError('purchaseUnitFactor')}
+                >
+                  <Input
+                    name="purchaseUnitFactor"
+                    inputMode="decimal"
+                    maxLength={14}
+                    autoComplete="off"
+                    defaultValue={item?.purchaseUnitFactor ?? ''}
+                    className="tabular-nums"
+                  />
+                </Field>
+              ) : null}
+            </div>
+            {serialTracked ? (
+              <Field
+                id="item-serial-pattern"
+                label={t('serialPattern')}
+                helper={t('serialPatternHelper')}
+                error={fieldError('serialPattern')}
+              >
+                <Input
+                  name="serialPattern"
+                  maxLength={SERIAL_PATTERN_MAX}
+                  autoComplete="off"
+                  spellCheck={false}
+                  defaultValue={item?.serialPattern ?? ''}
+                  className="font-mono"
+                />
+              </Field>
+            ) : null}
+            {mayBeService && !serialTracked ? (
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="isStocked"
+                  className="accent-accent size-4"
+                  defaultChecked={item?.isStocked ?? true}
+                />
+                {t('isStocked')}
+              </label>
+            ) : null}
           </fieldset>
           <FailureMessage failure={formFailure} />
           <DialogFooter>

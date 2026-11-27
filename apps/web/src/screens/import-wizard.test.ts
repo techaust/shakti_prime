@@ -69,6 +69,13 @@ describe('stepOf and stepStatus', () => {
 });
 
 describe('the matching form', () => {
+  it('reads an items sheet, but never takes a Serial or Serial number column as serial tracking', () => {
+    expect(
+      guessColumns(['Serial', 'Item code', 'Item name', 'HSN', 'UOM', 'Serial number'], 'items'),
+    ).toEqual({ sku: 'Item code', itemName: 'Item name', hsn: 'HSN', unit: 'UOM' });
+    expect(guessColumns(['Serialised'], 'items')).toEqual({ isSerialTracked: 'Serialised' });
+  });
+
   it('guesses columns from common headings, each column once', () => {
     expect(guessColumns(['Customer Name', 'Mobile No.', 'Village', 'PIN code', 'Notes'])).toEqual({
       contactName: 'Customer Name',

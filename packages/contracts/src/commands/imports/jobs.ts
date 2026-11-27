@@ -10,8 +10,11 @@ import {
   ImportFormatSchema,
   ImportKindSchema,
   ImportRowStateSchema,
+  ItemImportFieldSchema,
   LeadImportFieldSchema,
   PinCodeImportFieldSchema,
+  VendorImportFieldSchema,
+  OpeningStockImportFieldSchema,
   type ImplementedImportKind,
   type LeadImportField,
 } from '../../imports/enums';
@@ -104,6 +107,65 @@ export const PinCodeImportMappingSchema = z
 export type PinCodeImportMapping = z.infer<typeof PinCodeImportMappingSchema>;
 
 /**
+ * U1: how the columns of a vendor list fill the vendor master: the vendor's name is required; a
+ * row's person is kept when it has a name.
+ */
+export const VendorImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(VendorImportFieldSchema, ImportColumnSchema),
+    defaults: z.object({}).strict().default({}),
+  })
+  .strict()
+  .refine((m) => m.columns.vendorName !== undefined, {
+    message: 'the vendor name column is required',
+    path: ['columns'],
+  })
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type VendorImportMapping = z.infer<typeof VendorImportMappingSchema>;
+
+/**
+ * H1: how the columns of an opening stock file fill a movement: the hub, bin, stock code, quantity
+ * and unit cost are required; the serial and the company when the file has them.
+ */
+export const OpeningStockImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(OpeningStockImportFieldSchema, ImportColumnSchema),
+    defaults: z.object({}).strict().default({}),
+  })
+  .strict()
+  .refine(
+    (m) =>
+      m.columns.hub !== undefined &&
+      m.columns.bin !== undefined &&
+      m.columns.sku !== undefined &&
+      m.columns.qty !== undefined &&
+      m.columns.unitCost !== undefined,
+    {
+      message: 'the hub, bin, stock code, quantity and cost columns are required',
+      path: ['columns'],
+    },
+  )
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type OpeningStockImportMapping = z.infer<typeof OpeningStockImportMappingSchema>;
+
+/**
+ * How the columns of an items file fill the catalogue (phase3 §6.1): the item code is required, to
+ * find or make each item; every other column is taken when the file has it.
+ */
+export const ItemImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(ItemImportFieldSchema, ImportColumnSchema),
+    defaults: z.object({}).strict().default({}),
+  })
+  .strict()
+  .refine((m) => m.columns.sku !== undefined, {
+    message: 'the item code column is required',
+    path: ['columns'],
+  })
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type ItemImportMapping = z.infer<typeof ItemImportMappingSchema>;
+
+/**
  * A mapping of any kind, as a job or a template stores it and the screens read it. The command
  * checks it again against the job's own kind (`importMappingSchemaFor`).
  */
@@ -134,6 +196,13 @@ export function importMappingSchemaFor(kind: ImplementedImportKind) {
       return AccountImportMappingSchema;
     case 'pin_codes':
       return PinCodeImportMappingSchema;
+    case 'vendors':
+      return VendorImportMappingSchema;
+    // H1 stock ledger
+    case 'opening_stock':
+      return OpeningStockImportMappingSchema;
+    case 'items':
+      return ItemImportMappingSchema;
   }
 }
 

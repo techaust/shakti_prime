@@ -11,8 +11,11 @@ import type {
   ImportRowErrorCode,
   ImportRowState,
   ImportTemplateDto,
+  ItemImportField,
   LeadImportField,
   PinCodeImportField,
+  VendorImportField,
+  OpeningStockImportField,
 } from '@shakti/contracts';
 import type { StatusTone } from '@shakti/ui';
 
@@ -83,16 +86,69 @@ export const PIN_CODE_IMPORT_FIELDS = [
   'state',
 ] as const satisfies readonly PinCodeImportField[];
 
+/** U1: the vendor fields of a vendor list, in the order the matching form offers them. */
+export const VENDOR_IMPORT_FIELDS = [
+  'vendorName',
+  'gstin',
+  'pan',
+  'addressLine',
+  'city',
+  'pin',
+  'paymentTermsDays',
+  'leadTimeDays',
+  'personName',
+  'personRole',
+  'personPhone',
+  'personEmail',
+] as const satisfies readonly VendorImportField[];
+/** H1: the fields of an opening stock file, in the order the form offers them. */
+export const OPENING_STOCK_IMPORT_FIELDS = [
+  'hub',
+  'bin',
+  'sku',
+  'qty',
+  'unitCost',
+  'serialNo',
+  'company',
+] as const satisfies readonly OpeningStockImportField[];
+/** The item fields of an items file (C5), in the order the form offers them. */
+export const ITEM_IMPORT_FIELDS = [
+  'sku',
+  'itemName',
+  'category',
+  'hsn',
+  'unit',
+  'purchaseUnit',
+  'purchaseUnitFactor',
+  'isSerialTracked',
+  'isDcr',
+  'almmRef',
+  'warrantyMonths',
+  'supplierWarrantyMonths',
+  'barcode',
+  'serialPattern',
+] as const satisfies readonly ItemImportField[];
+
 /** The fields each kind of file offers. */
 export const IMPORT_FIELDS_BY_KIND: Record<ImplementedImportKind, readonly ImportField[]> = {
   leads: LEAD_IMPORT_FIELDS,
   accounts: ACCOUNT_IMPORT_FIELDS,
   pin_codes: PIN_CODE_IMPORT_FIELDS,
+  vendors: VENDOR_IMPORT_FIELDS,
+  // H1 stock ledger
+  opening_stock: OPENING_STOCK_IMPORT_FIELDS,
+  items: ITEM_IMPORT_FIELDS,
 };
 
 /** A job's kind as the screens treat it; a kind not built yet reads as leads, which it cannot be. */
 export function screenKind(kind: ImportKind): ImplementedImportKind {
-  return kind === 'accounts' || kind === 'pin_codes' ? kind : 'leads';
+  return kind === 'accounts' ||
+    kind === 'pin_codes' ||
+    kind === 'opening_stock' ||
+    kind === 'items' ||
+    kind === 'vendors'
+    ? kind
+    : 'leads';
 }
 
 /** Fields a value chosen on screen can fill for every row whose cell is empty. */
@@ -110,6 +166,9 @@ const DEFAULTABLE_BY_KIND: Record<ImplementedImportKind, readonly DefaultableFie
   leads: DEFAULTABLE_FIELDS,
   accounts: ['accountType', 'preferredLanguage', 'siteType'],
   pin_codes: [],
+  vendors: [],
+  opening_stock: [],
+  items: [],
 };
 
 export function isDefaultable(
@@ -171,6 +230,46 @@ const HEADINGS: Record<ImportField, readonly string[]> = {
   taluk: ['taluk', 'taluka', 'tehsil', 'tahsil', 'subdistrict'],
   district: ['district', 'districtname'],
   state: ['state', 'statename', 'statecode'],
+  // U1 vendors.
+  vendorName: ['vendor', 'vendorname', 'supplier', 'suppliername', 'party', 'partyname'],
+  gstin: ['gstin', 'gst', 'gstno', 'gstnumber', 'gstinno'],
+  pan: ['pan', 'panno', 'pannumber'],
+  addressLine: ['address', 'addressline', 'address1', 'street'],
+  city: ['city', 'town', 'citytown'],
+  paymentTermsDays: ['paymentterms', 'paymenttermsdays', 'creditdays', 'credit'],
+  leadTimeDays: ['leadtime', 'leadtimedays', 'deliverydays', 'deliverytime'],
+  personName: ['contactperson', 'person', 'personname', 'contactname'],
+  personRole: ['designation', 'role', 'personrole'],
+  personPhone: ['mobile', 'mobileno', 'mobilenumber', 'phone', 'phoneno', 'contactno'],
+  personEmail: ['email', 'emailid', 'mail'],
+  // H1 opening stock
+  hub: ['hub', 'hubcode', 'godown', 'warehouse', 'site'],
+  bin: ['bin', 'bincode', 'rack', 'location'],
+  qty: ['qty', 'quantity', 'stock', 'balance', 'closingstock'],
+  unitCost: ['cost', 'unitcost', 'rate', 'costperunit', 'value'],
+  serialNo: ['serial', 'serialno', 'serialnumber', 'slno'],
+  sku: ['sku', 'itemcode', 'code', 'productcode', 'partno', 'partnumber', 'stockcode'],
+  itemName: ['itemname', 'item', 'name', 'productname', 'product', 'description'],
+  category: ['category', 'itemcategory', 'productcategory'],
+  hsn: ['hsn', 'hsncode', 'hsnsac'],
+  unit: ['unit', 'uom', 'stockunit', 'units'],
+  purchaseUnit: ['purchaseunit', 'buyingunit', 'purchaseuom'],
+  purchaseUnitFactor: [
+    'purchaseunitfactor',
+    'factor',
+    'conversion',
+    'conversionfactor',
+    'perpurchaseunit',
+  ],
+  // Not "Serial" or "Serial number": price sheets head their row count so, and a column of
+  // serial numbers is no yes or no.
+  isSerialTracked: ['serialtracked', 'serialised', 'serialized'],
+  isDcr: ['dcr'],
+  almmRef: ['almm', 'almmref', 'almmlisting'],
+  warrantyMonths: ['warranty', 'warrantymonths', 'customerwarranty'],
+  supplierWarrantyMonths: ['supplierwarranty', 'supplierwarrantymonths', 'vendorwarranty'],
+  barcode: ['barcode', 'ean', 'upc', 'gtin'],
+  serialPattern: ['serialpattern', 'serialformat'],
 };
 
 /**
@@ -256,6 +355,10 @@ const REQUIRED_COLUMNS: Record<ImplementedImportKind, readonly ImportField[]> = 
   leads: ['contactName', 'phone'],
   accounts: ['contactName', 'phone'],
   pin_codes: ['pin', 'officeName', 'district'],
+  vendors: ['vendorName'],
+  // H1 stock ledger
+  opening_stock: ['hub', 'bin', 'sku', 'qty', 'unitCost'],
+  items: ['sku'],
 };
 
 /**

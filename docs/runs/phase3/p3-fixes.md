@@ -6,8 +6,8 @@
 | Runs on | a seat session (a cloud session under another of the owner's accounts, taking its work from `ops/seats`); the lead on the PC reviews and integrates (owner, 23-11-2026) |
 | Tier | C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): tests and test helpers, one runtime guard |
 | Usage | 5-hour window 4 % on the lead's account at 18:30 UTC when briefed; builder on Opus 5.5 at high effort; builder started on seat 2 on Opus 5.5 at high effort (23-11-2026) and ended on the same model and effort; the fix round started on seat 4 on Opus 5.5 at high effort (24-11-2026) and ended on the same model and effort; the second fix round, on seat 4, started and ended on Opus 5.5 at high effort (24-11-2026) |
-| State | integrated on the PC; pull request open |
-| Next step | merge on green |
+| State | merged (#285) |
+| Next step | none |
 
 ## Brief
 Four open follow-ups from [STATUS](../../10-status.md#open-follow-ups), one commit each with its test. Read each item's row in STATUS before changing anything; if an item is already fixed on this branch, say so with the evidence and change nothing for it.
