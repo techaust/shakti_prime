@@ -93,11 +93,11 @@ const pause = (ms: number, signal: AbortSignal) =>
  * to pass. Each attempt carries its own idempotency keys. `onRecorded` hears the file's id as soon
  * as the server records it, for a form that names the file in its own command. `contentType`
  * names the type the upload declares when the browser's guess is not the purpose's (a CSV file
- * on a computer with Excel).
+ * on a computer with Excel); `accountId` the customer a customer document is uploaded for.
  */
 export async function sendFile(
   file: File,
-  target: { entityId: number; purpose: FilePurpose; contentType?: string },
+  target: { entityId: number; purpose: FilePurpose; contentType?: string; accountId?: string },
   controls: UploadControls,
   text: SendFileText,
   onRecorded?: (fileId: string) => void,
@@ -113,6 +113,8 @@ export async function sendFile(
         contentType: target.contentType ?? file.type,
         size: file.size,
         sha256,
+        // A customer document names the customer it is uploaded for (J3).
+        ...(target.accountId === undefined ? {} : { accountId: target.accountId }),
       },
       crypto.randomUUID(),
     ),

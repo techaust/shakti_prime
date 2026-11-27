@@ -323,3 +323,44 @@ export const WORKSHOP_DOCUMENT_REQUIREMENTS: readonly {
     position: 1,
   },
 ];
+
+/** A customer's documents in one company, for the Documents section of Account 360. */
+export const ListCustomerDocumentsInput = z
+  .object({ entityId: EntityIdSchema, accountId: IdSchema })
+  .strict();
+export type ListCustomerDocumentsInput = z.infer<typeof ListCustomerDocumentsInput>;
+
+/** One company's requirements, for Settings › Document requirements. */
+export const ListDocumentRequirementsInput = z.object({ entityId: EntityIdSchema }).strict();
+export type ListDocumentRequirementsInput = z.infer<typeof ListDocumentRequirementsInput>;
+
+/**
+ * The Documents section: the customer's documents the caller may read (filed and unfiled, newest
+ * first), the company's active requirements, and what the caller may do. Strict.
+ */
+export const CustomerDocumentsDto = z
+  .object({
+    entityId: EntityIdSchema,
+    accountId: IdSchema,
+    documents: z.array(DocumentDto),
+    requirements: z.array(DocumentRequirementDto),
+    /**
+     * Each step's mandatory requirements with no filed document yet (`app.documents_missing()`),
+     * which counts an identity paper the caller may not read as filed.
+     */
+    missing: z.array(
+      z
+        .object({
+          flow: DocumentFlowSchema,
+          stepKey: z.string(),
+          requirementKeys: z.array(DocumentRequirementKeySchema),
+        })
+        .strict(),
+    ),
+    /** Holds `documents.write`: may upload, file and unfile within its scope. */
+    canFile: z.boolean(),
+    /** Holds `documents.sensitive.read`: may file and open identity and bank papers. */
+    canFileSensitive: z.boolean(),
+  })
+  .strict();
+export type CustomerDocumentsDto = z.infer<typeof CustomerDocumentsDto>;

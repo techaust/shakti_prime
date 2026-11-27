@@ -79,6 +79,8 @@ export const CLIENT_SCOPES = {
   '/customers': [
     'common',
     'customers',
+    // J3: the Documents section.
+    'documents',
     'duplicates',
     'files',
     'leads',
@@ -105,6 +107,8 @@ export const CLIENT_SCOPES = {
     'activity',
     'common',
     'companies',
+    // J3: Settings › Document requirements.
+    'documents',
     'files',
     'leadSources',
     'pipelineSettings',

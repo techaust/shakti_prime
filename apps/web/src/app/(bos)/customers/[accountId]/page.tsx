@@ -23,6 +23,13 @@ function proofLimit() {
   return { contentTypes: [...found.contentTypes], maxBytes: found.maxBytes };
 }
 
+/** J3: the limits of a customer document, for the uploader of the Documents section. */
+function documentLimit() {
+  const found = UPLOAD_LIMITS.customer_document;
+  if (found === undefined) throw new Error('no upload limits for customer_document');
+  return { contentTypes: [...found.contentTypes], maxBytes: found.maxBytes };
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   return screenTitle(navRequires('customers'), (await getTranslations('customers'))('title'));
 }
@@ -38,7 +45,7 @@ export default async function AccountPage({
   params: Promise<{ accountId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { access } = await screenAccess(navRequires('customers'));
+  const { access, can } = await screenAccess(navRequires('customers'));
   const [{ accountId }, query] = await Promise.all([params, searchParams]);
   if (!UUID.test(accountId)) notFound();
   const entityId = companyParam(query.company);
@@ -57,6 +64,7 @@ export default async function AccountPage({
       initial={view.data}
       companies={companyNames(access)}
       {...(view.data.canEdit ? { proofLimit: proofLimit() } : {})}
+      {...(can('documents.read', 'own') ? { documentLimit: documentLimit() } : {})}
       duplicates={duplicates?.ok === true ? duplicates.data : undefined}
     />
   ) : (

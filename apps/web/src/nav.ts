@@ -9,6 +9,7 @@ import {
   Cable,
   Combine,
   Contact,
+  FileCheck,
   FileText,
   FileUp,
   Handshake,
@@ -411,6 +412,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // messaging.milestone.set (docs/03-roadmap-appendix/phase2.md §7.1)
     requires: [{ key: 'messaging.templates.write', scope: 'all' }],
+  },
+  // J3: documents.requirement.set (docs/03-roadmap-appendix/phase4.md §6.3), an Executive's.
+  {
+    id: 'settings-document-requirements',
+    href: '/settings/document-requirements',
+    label: 'settingsDocumentRequirements',
+    icon: FileCheck,
+    group: 'admin',
+    requires: [{ key: 'documents.write', scope: 'all' }],
   },
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];

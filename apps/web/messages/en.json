@@ -678,7 +678,8 @@
     "procurement": "Procurement",
     "inventoryStock": "Stock",
     "inventoryHubs": "Hubs and bins",
-    "inventoryValuation": "Stock valuation"
+    "inventoryValuation": "Stock valuation",
+    "settingsDocumentRequirements": "Document requirements"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -778,7 +779,8 @@
       "procurement": "See the vendors the group buys from, their people, items and quotes.",
       "inventoryStock": "See what each hub and bin holds, and adjust or move stock.",
       "inventoryHubs": "See the hubs and their bins, and set them up.",
-      "inventoryValuation": "See what the stock is worth at a date."
+      "inventoryValuation": "See what the stock is worth at a date.",
+      "settingsDocumentRequirements": "Choose the documents each step of a project needs, and which must be filed."
     },
     "progress": {
       "period": {
@@ -6925,6 +6927,82 @@
     "state": {
       "filed": "Filed",
       "unfiled": "Unfiled"
+    },
+    "section": {
+      "title": "Documents",
+      "uploadDocument": "Upload a document",
+      "flowLabel": "Requirements for",
+      "noRequirements": "No documents are asked for in this flow.",
+      "filed": "Filed",
+      "missing": "Missing",
+      "optional": "Not needed",
+      "upload": "Upload",
+      "uploadFor": "Upload {requirement}",
+      "documents": "Filed documents",
+      "none": "No documents yet.",
+      "sensitive": "Identity or bank paper",
+      "view": "Open",
+      "viewLabel": "Open the {kind}",
+      "unfile": "Unfile",
+      "unfileLabel": "Unfile the {kind}",
+      "filedOn": "Filed on {when}",
+      "filedFor": "Filed for {requirement} on {when}",
+      "lastFour": {
+        "aadhaar": "Aadhaar number ending {digits}",
+        "pan": "PAN ending {digits}",
+        "bank_proof": "Bank account ending {digits}"
+      },
+      "unfiledBecause": "Unfiled: {reason}"
+    },
+    "upload": {
+      "title": "Upload a document",
+      "intro": "The file is checked and any identity or bank account number is hidden before it is kept. Only the last four digits are kept.",
+      "requirement": "Requirement it meets",
+      "noRequirement": "None of these",
+      "kind": "What it is",
+      "chooseKind": "Choose what the document is",
+      "chooseFirst": "Choose what the document is, then choose the file.",
+      "file": "Document",
+      "fileHelper": "A photo or a scan of the paper.",
+      "checking": "Uploaded. Checking the file and hiding its numbers.",
+      "checkingLong": "Uploaded. The check is taking a while. Press File it in a minute.",
+      "ready": "Checked. Filing it now.",
+      "fileIt": "File it",
+      "filedToast": "Document filed."
+    },
+    "unfile": {
+      "title": "Unfile the {kind}",
+      "intro": "The document stays on the customer’s record as unfiled, with your reason. Upload the right one afterwards.",
+      "reason": "Why it is unfiled",
+      "reasonHelper": "Say what was wrong, such as a photo of another family member.",
+      "submitUnfile": "Unfile",
+      "unfiledToast": "Document unfiled."
+    },
+    "settings": {
+      "title": "Document requirements",
+      "intro": "Choose the documents each step of a project needs. A project step cannot be completed while a document that must be filed is missing.",
+      "company": "Company",
+      "flow": "Flow",
+      "addRequirement": "Add a requirement",
+      "noneInStep": "This step asks for no documents.",
+      "mandatory": "Must be filed",
+      "optional": "Optional",
+      "off": "Not in use",
+      "takes": "Takes: {kinds}",
+      "edit": "Edit",
+      "editLabel": "Edit {requirement}",
+      "addTitle": "Add a requirement to {flow}",
+      "editTitle": "Edit {requirement}",
+      "dialogIntro": "Changes apply to every project of this company from now on.",
+      "step": "Step",
+      "requirement": "Requirement",
+      "kinds": "Kinds of document it takes",
+      "position": "Order in the step",
+      "positionHelper": "1 shows first.",
+      "mandatoryCheck": "Must be filed before the step is completed",
+      "activeCheck": "In use",
+      "submitRequirement": "Save requirement",
+      "savedToast": "Requirement saved."
     }
   }
 }

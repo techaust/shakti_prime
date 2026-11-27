@@ -51,6 +51,10 @@ const QualificationCard = dynamic(() =>
 const AccountDuplicates = dynamic(() =>
   import('../duplicates/account-duplicates').then((m) => m.AccountDuplicates),
 );
+// J3: the customer's documents and requirements (docs/03-roadmap-appendix/phase4.md §6.3).
+const CustomerDocuments = dynamic(() =>
+  import('../documents/customer-documents').then((m) => m.CustomerDocuments),
+);
 // The customer's WhatsApp chats (docs/03-roadmap-appendix/phase2.md §6.1), read when shown.
 const WhatsAppChats = dynamic(() =>
   import('../../screens/messaging/whatsapp-chats').then((m) => m.WhatsAppChats),
@@ -101,12 +105,15 @@ export function AccountScreen({
   initial,
   companies,
   proofLimit,
+  documentLimit,
   duplicates,
 }: {
   initial: Account360Dto;
   companies: Record<number, string>;
   /** The limits of proof of consent, for a caller who may record consent. */
   proofLimit?: UploadLimitView;
+  /** J3: the limits of a customer document, for a caller who reads documents. */
+  documentLimit?: UploadLimitView;
   /** The customer's duplicate cards and the merges into it, when it has any. */
   duplicates?: AccountDuplicatesDto | undefined;
 }) {
@@ -240,6 +247,13 @@ export function AccountScreen({
               setDialog({ kind: 'withdraw', consentId });
             }}
           />
+          {documentLimit === undefined ? null : (
+            <CustomerDocuments
+              entityId={view.entityId}
+              accountId={view.account.id}
+              limit={documentLimit}
+            />
+          )}
         </div>
         <div className="flex min-w-0 flex-col gap-4">
           <Leads
