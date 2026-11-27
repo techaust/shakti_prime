@@ -38,7 +38,12 @@ export const FAST: Settings = {
 
 export function tempDir(): { dir: string; remove: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'tally-connector-'));
-  return { dir, remove: () => rmSync(dir, { recursive: true, force: true }) };
+  return {
+    dir,
+    remove: () => {
+      rmSync(dir, { recursive: true, force: true });
+    },
+  };
 }
 
 export interface Harness {

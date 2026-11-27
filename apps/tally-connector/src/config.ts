@@ -153,7 +153,11 @@ export async function writeConfig(
   const checked = checkConfig(config, env.dev && env.platform !== 'win32');
   let file: SealedFile | PlainFile;
   if (env.platform === 'win32') {
-    file = { format: 'dpapi', version: 1, data: await protect(JSON.stringify(checked), env.powershell) };
+    file = {
+      format: 'dpapi',
+      version: 1,
+      data: await protect(JSON.stringify(checked), env.powershell),
+    };
   } else if (env.dev) {
     file = { format: 'plain', version: 1, config: checked };
   } else {

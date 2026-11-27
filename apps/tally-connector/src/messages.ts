@@ -11,7 +11,8 @@ export const MESSAGES = {
   askBosUrl: 'BOS address (for example https://shaktiprime.com): ',
   askConnectorId: 'Connector id: ',
   askKey: 'Connector key (nothing shows as you type): ',
-  askCompany: 'Tally company name, exactly as Tally shows it (press Enter on an empty line when done): ',
+  askCompany:
+    'Tally company name, exactly as Tally shows it (press Enter on an empty line when done): ',
   askEntityCode: 'Which BOS company is it (SS, SMP, ASH or RCREF): ',
   saved: 'Settings saved. They can be opened only by this Windows account on this computer.',
   testing: 'Checking that the BOS answers...',
@@ -24,8 +25,10 @@ export const MESSAGES = {
     `Tally did not answer for ${String(count)} of the companies. Open them in Tally with its XML server on, and the connector will read them.`,
   usage: 'Use one of: setup, run, version.',
   problems: {
-    bos_url: 'The BOS address must start with https:// and name the BOS, for example https://shaktiprime.com.',
-    connector_id: 'The connector id is the long code shown in Admin, Integrations, Tally. Copy it again.',
+    bos_url:
+      'The BOS address must start with https:// and name the BOS, for example https://shaktiprime.com.',
+    connector_id:
+      'The connector id is the long code shown in Admin, Integrations, Tally. Copy it again.',
     key: 'The connector key is too short or has spaces around it. Copy it again from the BOS.',
     companies:
       'Give at least one Tally company, each name once, each with a BOS company code of capital letters.',

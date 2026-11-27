@@ -23,12 +23,7 @@ export type SyncSettings = Pick<Settings, 'pageSize' | 'outboxKeepDays' | 'snaps
 
 /** How a company's read or a cycle ended. */
 export type Outcome =
-  | 'caught_up'
-  | 'stopped'
-  | 'bos_unavailable'
-  | 'tally_unavailable'
-  | 'refused'
-  | 'superseded';
+  'caught_up' | 'stopped' | 'bos_unavailable' | 'tally_unavailable' | 'refused' | 'superseded';
 
 type Sent = 'sent' | 'bos_unavailable' | 'refused' | 'superseded';
 
@@ -66,6 +61,11 @@ export class Syncer {
   /** Ends the current cycle after the page in hand. */
   requestStop(): void {
     this.stopping = true;
+  }
+
+  /** Read through a method: `requestStop()` changes it while a cycle is awaited. */
+  private stopRequested(): boolean {
+    return this.stopping;
   }
 
   private entity(company: string): ReturnType<typeof logId> {
@@ -192,7 +192,7 @@ export class Syncer {
 
     const asOf = istClock(this.now()).date;
     while (cursor < status.lastAlterId) {
-      if (this.stopping) return 'stopped';
+      if (this.stopRequested()) return 'stopped';
       const upTo = Math.min(cursor + settings.pageSize, status.lastAlterId);
       let page;
       try {
@@ -283,7 +283,11 @@ export class Syncer {
       log.error('snapshot_unreadable', { entity, guids: snapshot.guids.length });
       return 'refused';
     }
-    const row = outbox.enqueue({ kind: 'snapshot', company: company.name, body: JSON.stringify(body) });
+    const row = outbox.enqueue({
+      kind: 'snapshot',
+      company: company.name,
+      body: JSON.stringify(body),
+    });
     outbox.setState(`${SNAPSHOT_STATE}${company.name}`, istClock(startedAt).date);
     log.info('snapshot_read', { entity, outbox: row.id, guids: snapshot.guids.length });
     const sent = await this.send(row);
@@ -302,7 +306,7 @@ export class Syncer {
       if (outcome === 'bos_unavailable' || outcome === 'stopped') return outcome;
     }
     for (const company of companies) {
-      if (this.stopping) return 'stopped';
+      if (this.stopRequested()) return 'stopped';
       if (!this.snapshotDue(company)) continue;
       const outcome = await this.snapshotCompany(company);
       if (outcome === 'bos_unavailable') return outcome;

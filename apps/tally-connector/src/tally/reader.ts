@@ -24,7 +24,12 @@ import {
 
 export type ReaderSettings = Pick<
   Settings,
-  'pageSize' | 'snapshotPageSize' | 'tallyPauseMs' | 'tallyTimeoutMs' | 'tallyRetries' | 'tallyBackoffMs'
+  | 'pageSize'
+  | 'snapshotPageSize'
+  | 'tallyPauseMs'
+  | 'tallyTimeoutMs'
+  | 'tallyRetries'
+  | 'tallyBackoffMs'
 >;
 
 /** Tally did not answer, answered an error, or does not have the company open. */

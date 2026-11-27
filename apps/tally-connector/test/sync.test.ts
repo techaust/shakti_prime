@@ -54,7 +54,11 @@ describe('a cycle', () => {
 
   it('sends what leaves the PC as the contract says, and logs ids and counts only', async () => {
     h = await harness();
-    h.tally.addVoucher(SS.name, { type: 'Sales', gstin: '08AAAAA0000A1Z5', buyerOrderNo: 'SS/SO/1' });
+    h.tally.addVoucher(SS.name, {
+      type: 'Sales',
+      gstin: '08AAAAA0000A1Z5',
+      buyerOrderNo: 'SS/SO/1',
+    });
     h.tally.addLedger(SS.name, { name: 'Kisan Agro Traders' });
     await h.syncer.cycle();
     const batch = h.bos.bodies.find((b) => b.includes('"vouchers"'));

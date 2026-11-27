@@ -40,7 +40,9 @@ describe('the requests sent to Tally', () => {
   it('asks for party ledgers, the GUID snapshot and the company state the same way', () => {
     expect(ledgersPageRequest('C', 10, 20)).toContain('$$IsBelongsTo:$$GroupSundryDebtors');
     expect(ledgersPageRequest('C', 10, 20)).toContain('$ALTERID &gt; 10 AND $ALTERID &lt;= 20');
-    expect(voucherGuidsRequest('C')).toContain('<FETCH>GUID, DATE, ALTERID, VOUCHERTYPENAME</FETCH>');
+    expect(voucherGuidsRequest('C')).toContain(
+      '<FETCH>GUID, DATE, ALTERID, VOUCHERTYPENAME</FETCH>',
+    );
     expect(voucherGuidsRequest('C', { after: 0, upTo: 5000 })).toContain('$ALTERID &lt;= 5000');
     expect(companyStatusRequest('C')).toContain('ALTVCHID, ALTMSTID');
   });
@@ -127,8 +129,10 @@ describe('reading Tally answers', () => {
     expect(voucherTypeOf(' Credit  Note ')).toBe('credit_note');
     expect(voucherTypeOf('Debit Note')).toBe('debit_note');
     expect(voucherTypeOf('Journal')).toBeUndefined();
-    const renamed = xml
-      .replace('<VOUCHERTYPENAME TYPE="String">Sales</VOUCHERTYPENAME>', '<VOUCHERTYPENAME TYPE="String">Sales GST</VOUCHERTYPENAME><BOSBASETYPE TYPE="String">Sales</BOSBASETYPE>');
+    const renamed = xml.replace(
+      '<VOUCHERTYPENAME TYPE="String">Sales</VOUCHERTYPENAME>',
+      '<VOUCHERTYPENAME TYPE="String">Sales GST</VOUCHERTYPENAME><BOSBASETYPE TYPE="String">Sales</BOSBASETYPE>',
+    );
     expect(parseVoucherExport(renamed)[0]).toMatchObject({ type: 'sales', typeName: 'Sales GST' });
   });
 
@@ -176,7 +180,11 @@ describe('reading Tally answers', () => {
       booksFrom: '20240401',
       tallyVersion: 'TallyPrime 5.1',
     });
-    expect(parseCompanyStatus('<ENVELOPE><BODY><DATA><COLLECTION></COLLECTION></DATA></BODY></ENVELOPE>')).toBeUndefined();
+    expect(
+      parseCompanyStatus(
+        '<ENVELOPE><BODY><DATA><COLLECTION></COLLECTION></DATA></BODY></ENVELOPE>',
+      ),
+    ).toBeUndefined();
   });
 
   it('reads the snapshot with each voucher type, so journals can be left out', () => {
@@ -202,7 +210,9 @@ describe('reading Tally answers', () => {
       'unknown_request',
     );
     expect(
-      tallyAnswerProblem('<ENVELOPE><BODY><DATA><LINEERROR>Could not set</LINEERROR></DATA></BODY></ENVELOPE>'),
+      tallyAnswerProblem(
+        '<ENVELOPE><BODY><DATA><LINEERROR>Could not set</LINEERROR></DATA></BODY></ENVELOPE>',
+      ),
     ).toBe('line_error');
     expect(tallyAnswerProblem(xml)).toBeUndefined();
   });

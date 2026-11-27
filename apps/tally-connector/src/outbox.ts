@@ -83,7 +83,9 @@ export class Outbox {
   ) {
     this.db = new DatabaseSync(path);
     // Write-ahead logging with a full sync: a row is on disk before the batch leaves.
-    this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA busy_timeout = 5000;');
+    this.db.exec(
+      'PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA busy_timeout = 5000;',
+    );
     this.db.exec(SCHEMA);
   }
 
@@ -135,7 +137,9 @@ export class Outbox {
   /** The BOS answered the row. */
   markSent(id: number): void {
     this.db
-      .prepare(`UPDATE outbox SET state = 'sent', settled_at = ? WHERE id = ? AND state = 'pending'`)
+      .prepare(
+        `UPDATE outbox SET state = 'sent', settled_at = ? WHERE id = ? AND state = 'pending'`,
+      )
       .run(this.now(), id);
   }
 
@@ -163,8 +167,7 @@ export class Outbox {
 
   getState(key: string): string | undefined {
     const row = this.db.prepare('SELECT value FROM connector_state WHERE key = ?').get(key) as
-      | { value: string }
-      | undefined;
+      { value: string } | undefined;
     return row?.value;
   }
 

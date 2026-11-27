@@ -12,13 +12,7 @@ import type { AddressInfo } from 'node:net';
  */
 
 export type FixtureVoucherType =
-  | 'Sales'
-  | 'Receipt'
-  | 'Credit Note'
-  | 'Purchase'
-  | 'Debit Note'
-  | 'Journal'
-  | 'Sales GST';
+  'Sales' | 'Receipt' | 'Credit Note' | 'Purchase' | 'Debit Note' | 'Journal' | 'Sales GST';
 
 export interface FixtureVoucher {
   guid: string;
@@ -213,7 +207,9 @@ export class FixtureTally {
   addCompany(name: string, options: { booksFrom?: string; companyGuid?: string } = {}): void {
     const index = this.companies.size + 1;
     this.companies.set(name, {
-      guid: options.companyGuid ?? `5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a${index.toString(16).padStart(2, '0')}`,
+      guid:
+        options.companyGuid ??
+        `5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a${index.toString(16).padStart(2, '0')}`,
       booksFrom: options.booksFrom ?? '20240401',
       alterSeq: 0,
       masterSeq: 0,
@@ -265,7 +261,12 @@ export class FixtureTally {
     const voucher = company.vouchers.get(guid);
     if (voucher === undefined) throw new Error('no such voucher');
     company.alterSeq += 1;
-    const altered = { ...voucher, amount: voucher.amount + 1, ...changes, alterId: company.alterSeq };
+    const altered = {
+      ...voucher,
+      amount: voucher.amount + 1,
+      ...changes,
+      alterId: company.alterSeq,
+    };
     company.vouchers.set(guid, altered);
     company.altVch = altered.alterId;
     return altered;
@@ -312,7 +313,15 @@ export class FixtureTally {
 
   async close(): Promise<void> {
     this.server?.closeAllConnections();
-    await new Promise<void>((resolve) => this.server?.close(() => resolve()) ?? resolve());
+    await new Promise<void>((resolve) => {
+      if (this.server === undefined) {
+        resolve();
+        return;
+      }
+      this.server.close(() => {
+        resolve();
+      });
+    });
   }
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -361,7 +370,9 @@ export class FixtureTally {
     if (company === undefined) {
       finish(
         200,
-        envelope(`<LINEERROR>Could not set 'SVCurrentCompany' to '${escape(record.company)}'</LINEERROR>`),
+        envelope(
+          `<LINEERROR>Could not set 'SVCurrentCompany' to '${escape(record.company)}'</LINEERROR>`,
+        ),
       );
       return;
     }

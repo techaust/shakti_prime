@@ -53,7 +53,7 @@ export class Scheduler {
       } catch (error) {
         this.log.error('cycle_failed', { kind: errorKind(error) });
       }
-      if (!this.running) break;
+      if (this.stopped()) break;
       await this.pause(this.settings.readEveryMs - (this.now() - startedAt));
     }
   }
@@ -62,15 +62,19 @@ export class Scheduler {
   private pause(ms: number): Promise<void> {
     if (ms <= 0) return Promise.resolve();
     return new Promise((resolve) => {
-      let timer: ReturnType<typeof setTimeout> | undefined;
       const done = () => {
         clearTimeout(timer);
         this.wake = undefined;
         resolve();
       };
-      timer = setTimeout(done, ms);
+      const timer = setTimeout(done, ms);
       this.wake = done;
     });
+  }
+
+  /** Read through a method: `stop()` changes it while a cycle is awaited. */
+  private stopped(): boolean {
+    return !this.running;
   }
 
   /** Stops after the page in hand; the outbox keeps whatever was not answered. */

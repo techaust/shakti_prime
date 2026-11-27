@@ -82,7 +82,8 @@ describe('paging by AlterID', () => {
   });
 
   it('reads the snapshot in windows, and on to the new last AlterID when a voucher is edited meanwhile', async () => {
-    for (let i = 0; i < 15; i += 1) tally.addVoucher(COMPANY, { type: i === 3 ? 'Journal' : 'Sales' });
+    for (let i = 0; i < 15; i += 1)
+      tally.addVoucher(COMPANY, { type: i === 3 ? 'Journal' : 'Sales' });
     const vouchers = tally.vouchersOf(COMPANY);
     const r = reader({ snapshotPageSize: 7 });
     // The first window's answer is on its way when Accounts edits voucher 2 (AlterID 2 -> 16).
@@ -123,7 +124,10 @@ describe('throttling', () => {
     }
     tally.knobs.delayMs = 20;
     const r = reader({ tallyPauseMs: 40 });
-    const [a, b] = await Promise.all([r.companyStatus(COMPANY), r.companyStatus('Shakti Motor Pumps')]);
+    const [a, b] = await Promise.all([
+      r.companyStatus(COMPANY),
+      r.companyStatus('Shakti Motor Pumps'),
+    ]);
     await Promise.all([
       r.readPage(COMPANY, a, 0, 3, '2026-11-27'),
       r.readPage('Shakti Motor Pumps', b, 0, 3, '2026-11-27'),

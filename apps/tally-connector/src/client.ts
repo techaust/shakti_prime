@@ -81,15 +81,19 @@ export class BosClient {
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly now: () => Date;
 
-  constructor(private readonly options: Omit<BosClientOptions, 'key'> & { key: string }) {
-    this.#key = options.key;
+  private readonly options: Omit<BosClientOptions, 'key'>;
+
+  constructor({ key, ...options }: BosClientOptions) {
+    // The key lives only in a private field, which no printout or serialisation shows.
+    this.#key = key;
+    this.options = options;
     this.origin = new URL(options.baseUrl).origin;
     this.fetch = options.fetch ?? fetch;
     this.sleep = options.sleep ?? wait;
     this.now = options.now ?? (() => new Date());
   }
 
-  /** Keeps the key out of `console.log`, `util.inspect` and `JSON.stringify`. */
+  /** What `JSON.stringify` shows of the client: never the key. */
   toJSON(): Record<string, string> {
     return { origin: this.origin, connectorId: this.options.connectorId };
   }

@@ -64,7 +64,10 @@ export const runPowerShell: PowerShell = (text, input) =>
   });
 
 /** Seals text to the current Windows account; answers the sealed bytes as Base64. */
-export async function protect(plain: string, powershell: PowerShell = runPowerShell): Promise<string> {
+export async function protect(
+  plain: string,
+  powershell: PowerShell = runPowerShell,
+): Promise<string> {
   const sealed = await powershell(script('Protect'), Buffer.from(plain, 'utf8').toString('base64'));
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(sealed)) throw new DpapiFailed('unexpected_output');
   return sealed;

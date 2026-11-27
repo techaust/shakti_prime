@@ -1,12 +1,7 @@
 import { checkBatch, diffSnapshot } from '@shakti/domain';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import {
-  isRestrictedVoucher,
-  parseBatch,
-  parseHeartbeat,
-  parseSnapshot,
-} from './payloads';
+import { isRestrictedVoucher, parseBatch, parseHeartbeat, parseSnapshot } from './payloads';
 import {
   canonicalRequest,
   CONNECTOR_HEADERS,
@@ -234,7 +229,6 @@ describe('payloads (the published connector contract)', () => {
       problems: ['asOf', 'voucherGuids[0]', 'voucherGuids[1]'],
     });
   });
-
 });
 
 describe('the fixture through the sync rules', () => {

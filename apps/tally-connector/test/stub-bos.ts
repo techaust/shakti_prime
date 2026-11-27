@@ -77,7 +77,15 @@ export class StubBos {
   async close(): Promise<void> {
     this.release();
     this.server?.closeAllConnections();
-    await new Promise<void>((resolve) => this.server?.close(() => resolve()) ?? resolve());
+    await new Promise<void>((resolve) => {
+      if (this.server === undefined) {
+        resolve();
+        return;
+      }
+      this.server.close(() => {
+        resolve();
+      });
+    });
   }
 
   /** Resolves when a batch is being held. */
@@ -134,7 +142,9 @@ export class StubBos {
     this.bodies.push(body);
     const pathWithQuery = request.url ?? '';
     const send = (status: number, answer: unknown) => {
-      response.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(answer));
+      response
+        .writeHead(status, { 'content-type': 'application/json' })
+        .end(JSON.stringify(answer));
     };
     const refuse = (status: number, code: string, reason?: string) => {
       send(status, {
@@ -164,7 +174,10 @@ export class StubBos {
       }
       case 'POST /api/v1/connector/tally/heartbeat': {
         const parsed = ConnectorHeartbeatRequest.safeParse(JSON.parse(body));
-        if (!parsed.success) return refuse(400, 'validation_failed');
+        if (!parsed.success) {
+          refuse(400, 'validation_failed');
+          return;
+        }
         this.heartbeats.push(parsed.data);
         send(200, {
           serverTime: new Date().toISOString(),
@@ -175,18 +188,25 @@ export class StubBos {
       }
       case 'POST /api/v1/connector/tally/batches': {
         const hold = this.knobs.holdBatches;
-        if (hold === 'before') {
-          await this.hold();
-          if (request.socket.destroyed) return;
-        }
+        if (hold === 'before' && (await this.hold(request)) === 'closed') return;
         const key = String(request.headers['idempotency-key'] ?? '');
-        await this.idempotent(request, response, body, () => this.applyBatch(body, key), hold === 'after');
+        await this.idempotent(
+          request,
+          response,
+          body,
+          () => this.applyBatch(body, key),
+          hold === 'after',
+        );
         return;
       }
       case 'POST /api/v1/connector/tally/snapshot':
         await this.idempotent(request, response, body, () => {
           const parsed = ConnectorSnapshotRequest.safeParse(JSON.parse(body));
-          if (!parsed.success) return { status: 400, answer: { error: { code: 'validation_failed', message: 'x', requestId: 'stub' } } };
+          if (!parsed.success)
+            return {
+              status: 400,
+              answer: { error: { code: 'validation_failed', message: 'x', requestId: 'stub' } },
+            };
           this.snapshots.push(parsed.data);
           return {
             status: 200,
@@ -204,11 +224,26 @@ export class StubBos {
     }
   }
 
-  private hold(): Promise<void> {
-    return new Promise<void>((resolve) => {
-      this.held.push(resolve);
+  /** Holds a call until `release()`, or until its caller goes away (`closed`). */
+  private hold(request: IncomingMessage): Promise<'released' | 'closed'> {
+    return new Promise((resolve) => {
+      const go = () => {
+        request.socket.off('close', gone);
+        resolve('released');
+      };
+      const gone = () => {
+        this.held.splice(this.held.indexOf(go), 1);
+        resolve('closed');
+      };
+      request.socket.once('close', gone);
+      this.held.push(go);
       for (const waiter of this.heldWaiters.splice(0)) waiter();
     });
+  }
+
+  /** Calls held now. */
+  heldCount(): number {
+    return this.held.length;
   }
 
   private async idempotent(
@@ -242,10 +277,7 @@ export class StubBos {
       // A call that failed stores no key, so its retry runs again (docs/06-api.md §1).
       if (outcome.status === 200) this.keys.set(key, { bodyHash, ...outcome });
     }
-    if (holdAnswer) {
-      await this.hold();
-      if (request.socket.destroyed) return;
-    }
+    if (holdAnswer && (await this.hold(request)) === 'closed') return;
     if (outcome.status === 200 && this.knobs.loseAnswers > 0) {
       this.knobs.loseAnswers -= 1;
       request.socket.destroy();
@@ -296,7 +328,12 @@ export class StubBos {
     });
     const answer: ConnectorBatchResponse = {
       company: batch.company,
-      accepted: { vouchersNew, vouchersChanged, vouchersUnchanged: 0, ledgers: batch.ledgers.length },
+      accepted: {
+        vouchersNew,
+        vouchersChanged,
+        vouchersUnchanged: 0,
+        ledgers: batch.ledgers.length,
+      },
       lastAlterId: batch.maxAlterId,
     };
     return { status: 200, answer };
