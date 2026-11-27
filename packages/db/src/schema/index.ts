@@ -79,3 +79,5 @@ export {
   stockMovementCosts,
   stockBalances,
 } from './stock';
+// H2 reservations and availability (docs/03-roadmap-appendix/phase3.md §7.1).
+export { reservationNeeds, reservations } from './reservations';

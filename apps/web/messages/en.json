@@ -4121,7 +4121,8 @@
       "agents_note_write": "Write call briefs and call summaries",
       "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
       "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
-      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept"
+      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept",
+      "inventory_reservations_process": "Set stock aside for waiting orders as it arrives, and end holds that have run out"
     },
     "empty": "There are no roles to show.",
     "locked": {

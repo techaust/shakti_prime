@@ -237,6 +237,11 @@ export const salesOrderLines = pgTable(
     sgst: money('sgst').notNull(),
     igst: money('igst').notNull(),
     lineTotal: money('line_total').notNull(),
+    /**
+     * What confirmation could not reserve and still waits for stock (H2), in the line's unit: for
+     * a kit line, the kits not yet wholly reserved. Kept by the reservation definers only.
+     */
+    qtyBackordered: numeric('qty_backordered', { precision: 12, scale: 3 }).notNull().default('0'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -255,6 +260,10 @@ export const salesOrderLines = pgTable(
     check('sales_order_lines_target_check', sql`(${t.itemId} is null) <> (${t.kitId} is null)`),
     check('sales_order_lines_position_check', sql`${t.position} >= 1`),
     check('sales_order_lines_qty_check', sql`${t.qty} > 0`),
+    check(
+      'sales_order_lines_backordered_check',
+      sql`${t.qtyBackordered} >= 0 and ${t.qtyBackordered} <= ${t.qty}`,
+    ),
     check(
       'sales_order_lines_unit_check',
       sql`${t.unit} in ('nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour')`,

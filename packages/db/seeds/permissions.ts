@@ -98,6 +98,9 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'voice.session.record': 'Record how long a Talk to Shakti session lasted and what it cost',
   // W2 media retention.
   'messaging.media.expire': 'Remove WhatsApp photos and files after the time they are kept',
+  // H2 reservations.
+  'inventory.reservations.process':
+    'Set stock aside for waiting orders as it arrives, and end holds that have run out',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

@@ -38,6 +38,15 @@ export const warehouses = pgTable(
     address: text('address'),
     stateCode: text('state_code'),
     pinCode: text('pin_code'),
+    /**
+     * The PIN codes this hub serves first (H2): an order whose site's PIN code is listed here
+     * reserves from this hub before any other. Empty until the client names which hub serves which
+     * districts.
+     */
+    pinCodes: text('pin_codes')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
@@ -53,6 +62,10 @@ export const warehouses = pgTable(
     check(
       'warehouses_pin_code_check',
       sql`${t.pinCode} is null or ${t.pinCode} ~ '^[1-9][0-9]{5}$'`,
+    ),
+    check(
+      'warehouses_pin_codes_check',
+      sql`array_to_string(${t.pinCodes}, ',') ~ '^([1-9][0-9]{5}(,[1-9][0-9]{5})*)?$' and cardinality(${t.pinCodes}) <= 2000`,
     ),
     check(
       'warehouses_site_check',
@@ -306,6 +319,9 @@ export const stockBalances = pgTable(
     }),
     check('stock_balances_on_hand_check', sql`${t.qtyOnHand} >= 0`),
     check('stock_balances_reserved_check', sql`${t.qtyReserved} >= 0`),
+    // Reserved never exceeds what the bin holds (H2): `app.stock_move()` refuses an outbound line
+    // that would take it there, and the reservation definers reserve only free stock.
+    check('stock_balances_reserved_on_hand_check', sql`${t.qtyReserved} <= ${t.qtyOnHand}`),
     index('stock_balances_entity_item_idx').on(t.entityId, t.itemId),
     index('stock_balances_bin_idx').on(t.binId),
   ],

@@ -128,10 +128,11 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'pricing.write': { ...EXEC },
   'catalogue.write': { ...EXEC, general_manager: 'entity', inventory_manager: 'entity' },
   'tax.rates.write': { ...EXEC, accounts: 'entity' },
+  // H2 (the owner, 27-11-2026, Q14): the Lead Converter sees a line's availability as a status on
+  // quotes and orders (question 4 (a)), never the stock itself.
   'inventory.stock.read': {
     ...EXEC,
     general_manager: 'entity',
-    tele_caller_lc: 'entity',
     store_manager: 'entity',
     inventory_manager: 'entity',
     project_manager: 'entity',
@@ -346,6 +347,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // W2: the platform's removal of WhatsApp files past the retention period; no person's role holds
   // it (SECURITY §3.3).
   'messaging.media.expire': {},
+  // H2: the platform's backorder fill and reservation scan; no person's role holds it (SECURITY
+  // §3.3).
+  'inventory.reservations.process': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

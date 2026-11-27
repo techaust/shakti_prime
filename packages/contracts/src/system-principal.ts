@@ -82,5 +82,10 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // (`messaging.media.expire`): it reads what is due, records what it removed and asks which
     // stored keys still belong to a file through definers, and reads no message by a person's rule.
     { key: 'messaging.media.expire', scope: 'all' },
+    // H2: the backorder fill as stock arrives and the daily reservation scan
+    // (`inventory.reservation.fill`, `inventory.reservation.scan`): it reserves for backorders,
+    // lapses reservations past their hold and finds those due a reminder through definers, and
+    // reads no stock, order or reservation by a person's rule.
+    { key: 'inventory.reservations.process', scope: 'all' },
   ],
 };

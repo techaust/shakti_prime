@@ -117,6 +117,8 @@ export const STOCK_REFUSALS = [
   'stock_serial_unknown',
   'stock_serial_not_in_bin',
   'stock_insufficient',
+  // H2: an outbound line would take a bin below what it holds for orders.
+  'stock_reserved_insufficient',
   'opening_stock_posted',
 ] as const;
 export type StockRefusal = (typeof STOCK_REFUSALS)[number];
