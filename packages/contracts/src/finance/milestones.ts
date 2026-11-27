@@ -199,3 +199,26 @@ export type PlanConfirmedOutcome = z.infer<typeof PlanConfirmedOutcome>;
 export const DISPATCH_PAYMENT_GATES = ['clear', 'open'] as const;
 export const DispatchPaymentGateSchema = z.enum(DISPATCH_PAYMENT_GATES);
 export type DispatchPaymentGate = z.infer<typeof DispatchPaymentGateSchema>;
+
+/** The order page's Payments tab: one order of a company. */
+export const OrderPaymentsInput = z
+  .object({ entityId: EntityIdSchema, orderId: IdSchema })
+  .strict();
+export type OrderPaymentsInput = z.input<typeof OrderPaymentsInput>;
+
+/** Settings › Payment terms: one company's published terms. */
+export const PaymentTermsInput = z.object({ entityId: EntityIdSchema }).strict();
+export type PaymentTermsInput = z.input<typeof PaymentTermsInput>;
+
+/**
+ * One company's published terms, newest version first per segment, and the standard terms an
+ * order follows where the company has published none for its segment.
+ */
+export const PaymentTermsDto = z
+  .object({
+    entityId: EntityIdSchema,
+    templates: z.array(MilestoneTemplateDto),
+    defaultSteps: z.array(MilestoneStepSchema),
+  })
+  .strict();
+export type PaymentTermsDto = z.infer<typeof PaymentTermsDto>;

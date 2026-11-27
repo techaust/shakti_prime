@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { QuoteLineDto, QuoteTotalsDto } from '../dto/quote';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { DispatchPaymentGateSchema, PaymentMilestoneDto } from './milestones';
 import { StateCodeSchema, SupplyKindSchema } from '../tax/engine';
 
 /**
@@ -56,3 +57,24 @@ export const ProformaDto = z
   })
   .strict();
 export type ProformaDto = z.infer<typeof ProformaDto>;
+
+/**
+ * The order page's Payments tab (docs/03-roadmap-appendix/phase5.md §6.1): the order's milestones
+ * with their state, its proformas newest first, whether a dispatch waits for a payment, and what
+ * the caller may do now (the commands check again).
+ */
+export const OrderPaymentsDto = z
+  .object({
+    entityId: EntityIdSchema,
+    orderId: IdSchema,
+    milestones: z.array(PaymentMilestoneDto),
+    proformas: z.array(ProformaDto),
+    /** `open` while a before-dispatch payment is neither paid nor waived. */
+    dispatchGate: DispatchPaymentGateSchema,
+    canIssue: z.boolean(),
+    canCancelProforma: z.boolean(),
+    canPlan: z.boolean(),
+    canWaive: z.boolean(),
+  })
+  .strict();
+export type OrderPaymentsDto = z.infer<typeof OrderPaymentsDto>;

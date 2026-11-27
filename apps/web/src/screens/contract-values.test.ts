@@ -1,4 +1,14 @@
 import {
+  // FN1 proformas and payment milestones
+  MILESTONE_DUE_DAYS_MAX,
+  MILESTONE_LABEL_MAX,
+  MILESTONE_STEPS_MAX,
+  MILESTONE_WAIVE_REASON_MAX,
+  MilestoneDueRuleSchema,
+  MilestoneLoanGateSchema,
+  OPEN_MILESTONE_STATES,
+  PaymentMilestoneStateSchema,
+  PROFORMA_CANCEL_REASON_MAX,
   INGEST_ASSIGNEES as CONTRACT_INGEST_ASSIGNEES,
   INGEST_FIELD_TARGETS as CONTRACT_INGEST_FIELD_TARGETS,
   INGEST_CHANNELS as CONTRACT_INGEST_CHANNELS,
@@ -256,6 +266,15 @@ import {
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
+  // FN1 proformas and payment milestones
+  MILESTONE_DUE_DAYS_MAX as MILESTONE_DUE_DAYS_MAX_WEB,
+  MILESTONE_DUE_RULES as MILESTONE_DUE_RULES_WEB,
+  MILESTONE_LABEL_MAX as MILESTONE_LABEL_MAX_WEB,
+  MILESTONE_LOAN_GATES as MILESTONE_LOAN_GATES_WEB,
+  MILESTONE_REASON_MAX,
+  MILESTONE_STEPS_MAX as MILESTONE_STEPS_MAX_WEB,
+  OPEN_MILESTONE_STATES as OPEN_MILESTONE_STATES_WEB,
+  PAYMENT_MILESTONE_STATES as PAYMENT_MILESTONE_STATES_WEB,
   // H1 stock ledger
   BIN_KINDS as BIN_KINDS_WEB,
   EDITABLE_BIN_KINDS as EDITABLE_BIN_KINDS_WEB,
@@ -385,6 +404,16 @@ describe('the contract values copied for the browser', () => {
     expect(SERIAL_STATES_WEB).toEqual(SerialStateSchema.options);
     expect(STOCK_REASONS_WEB).toEqual(StockReasonSchema.options);
     expect(STOCK_ADJUSTMENTS_WEB).toEqual(StockAdjustmentSchema.options);
+    // FN1 proformas and payment milestones
+    expect(MILESTONE_DUE_RULES_WEB).toEqual(MilestoneDueRuleSchema.options);
+    expect(MILESTONE_LOAN_GATES_WEB).toEqual(MilestoneLoanGateSchema.options);
+    expect(PAYMENT_MILESTONE_STATES_WEB).toEqual(PaymentMilestoneStateSchema.options);
+    expect(OPEN_MILESTONE_STATES_WEB).toEqual(OPEN_MILESTONE_STATES);
+    expect(MILESTONE_STEPS_MAX_WEB).toBe(MILESTONE_STEPS_MAX);
+    expect(MILESTONE_DUE_DAYS_MAX_WEB).toBe(MILESTONE_DUE_DAYS_MAX);
+    expect(MILESTONE_LABEL_MAX_WEB).toBe(MILESTONE_LABEL_MAX);
+    expect(MILESTONE_REASON_MAX).toBe(MILESTONE_WAIVE_REASON_MAX);
+    expect(MILESTONE_REASON_MAX).toBe(PROFORMA_CANCEL_REASON_MAX);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

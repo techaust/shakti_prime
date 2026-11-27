@@ -96,7 +96,7 @@ export const CLIENT_SCOPES = {
   '/knowledge': ['common', 'files', 'knowledge', 'playbook'],
   '/leads': ['common', 'leads', 'pinLookup', 'qualification'],
   '/messages': ['messaging'],
-  '/orders': ['common', 'orders', 'quotes'],
+  '/orders': ['common', 'finance', 'orders', 'quotes'],
   '/price-master': ['catalogue', 'common', 'priceMaster'],
   '/quotes': ['common', 'files', 'orders', 'quotes'],
   '/settings': [
@@ -104,6 +104,7 @@ export const CLIENT_SCOPES = {
     'common',
     'companies',
     'files',
+    'finance',
     'leadSources',
     'pipelineSettings',
     'profile',

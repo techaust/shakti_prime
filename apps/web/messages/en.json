@@ -660,6 +660,7 @@
     "adminIntegrations": "Integration health",
     "catalogue": "Catalogue",
     "settingsTax": "Tax rates",
+    "settingsPaymentTerms": "Payment terms",
     "adminRoles": "Roles",
     "settingsPipelines": "Pipelines",
     "walkIn": "Walk-in customer",
@@ -759,6 +760,7 @@
       "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery.",
       "catalogue": "See every item and kit the group sells, with their specifications.",
       "settingsTax": "Keep the GST rates and composite supply splits up to date.",
+      "settingsPaymentTerms": "Set how each company's orders are paid: the advance, the balance and when each is due.",
       "adminRoles": "Choose what each role can see and do.",
       "walkIn": "Add a customer who comes to the counter as a new lead.",
       "settingsPipelines": "Set the stages, call outcomes and lead scores for each pipeline.",
@@ -6422,6 +6424,132 @@
     "recording": {
       "fileName": "Teach session {date}.wav",
       "title": "Teach session of {date}"
+    }
+  },
+  "finance": {
+    "tab": {
+      "title": "Payments",
+      "dispatchOpen": "Dispatch waits for a payment",
+      "dispatchClear": "No payment holds the dispatch",
+      "milestonesCaption": "Payments of this order",
+      "notPlanned": "This order's payments are planned when it is confirmed.",
+      "notPlannedConfirmed": "This order has no payments planned yet.",
+      "plan": "Plan payments",
+      "planned": "Payments planned",
+      "proformasHeading": "Proformas",
+      "proformasCaption": "Proformas of this order",
+      "noProformas": "No proforma has been issued for this order.",
+      "issue": "Issue proforma",
+      "issued": "Proforma issued",
+      "open": "Open PDF",
+      "pdfWaiting": "The PDF is being prepared.",
+      "cancelProforma": "Cancel proforma",
+      "waive": "Waive",
+      "waiveNamed": "Waive {payment}",
+      "fixed": "Fixed amount",
+      "percent": "{percent} %",
+      "waitsForLoan": "{rule}, once the loan is {state, select, sanctioned {sanctioned} other {paid out}}",
+      "waivedBy": "Waived by {name}: {reason}",
+      "cancelledBy": "Cancelled by {name}: {reason}",
+      "columns": {
+        "payment": "Payment",
+        "share": "Share",
+        "amount": "Amount",
+        "paid": "Paid",
+        "due": "When it is due",
+        "status": "Status",
+        "dueOn": "Due on",
+        "number": "Proforma number",
+        "issuedOn": "Issued on",
+        "issuedBy": "Issued by",
+        "total": "Total",
+        "actions": "Actions"
+      }
+    },
+    "state": {
+      "pending": "Waiting",
+      "due": "Due",
+      "part_paid": "Part paid",
+      "paid": "Paid",
+      "waived": "Waived"
+    },
+    "proformaState": {
+      "issued": "Issued",
+      "cancelled": "Cancelled"
+    },
+    "dueRule": {
+      "on_confirmation": "On confirmation",
+      "before_dispatch": "Before dispatch",
+      "on_installation": "On installation",
+      "days_after_invoice": "{days, plural, one {# day} other {# days}} after the invoice"
+    },
+    "loanGate": {
+      "none": "Not tied to a loan",
+      "sanctioned": "Waits for the loan to be sanctioned",
+      "disbursed": "Waits for the loan to be paid out"
+    },
+    "waive": {
+      "title": "Waive this payment",
+      "intro": "The customer will not be asked for this payment, and a dispatch no longer waits for it. Say why.",
+      "reason": "Why it is waived",
+      "submit": "Waive payment",
+      "done": "Payment waived"
+    },
+    "cancel": {
+      "title": "Cancel this proforma",
+      "intro": "Its number stays used, and you can issue a new proforma afterwards. Say why.",
+      "reason": "Why it is cancelled",
+      "submit": "Cancel proforma",
+      "done": "Proforma cancelled"
+    },
+    "terms": {
+      "title": "Payment terms",
+      "description": "How each company's orders are paid. A change is published as a new version: orders confirmed from then on follow it, and orders already planned keep theirs.",
+      "company": "Company",
+      "segment": "Kind of order",
+      "current": "Current terms",
+      "version": "Version {version}, published {date} by {name}",
+      "defaultTerms": "This company has published no terms for this kind of order, so orders follow the standard terms: half on confirmation and half before dispatch.",
+      "history": "Earlier versions",
+      "noHistory": "There are no earlier versions.",
+      "edit": "Change terms",
+      "editTitle": "New version of the payment terms",
+      "editIntro": "List the payments in the order the customer makes them. Percentages share what is left after any fixed amounts, and must add up to 100. The last payment is a percentage, and takes what is left after rounding.",
+      "stepsCaption": "Payments of these terms",
+      "label": "Payment name",
+      "kind": "Kind",
+      "kindPercent": "Percentage",
+      "kindAmount": "Fixed amount",
+      "value": "Percentage or amount",
+      "dueRule": "When it is due",
+      "dueDays": "Days after the invoice",
+      "loanGate": "Customer loan",
+      "addStep": "Add payment",
+      "remove": "Remove",
+      "removeNamed": "Remove payment {number}",
+      "segments": {
+        "farmer_pumps": "Farmer pumps",
+        "residential_rooftop": "Residential rooftop",
+        "commercial_epc": "Commercial EPC",
+        "dealer_wholesale": "Dealers and wholesale"
+      },
+      "dueRules": {
+        "on_confirmation": "On confirmation",
+        "before_dispatch": "Before dispatch",
+        "on_installation": "On installation",
+        "days_after_invoice": "Days after the invoice"
+      },
+      "percentTotal": "The percentages add up to {total} %.",
+      "percentTotalWrong": "The percentages add up to {total} %. They must add up to 100 %.",
+      "submit": "Publish version",
+      "published": "Payment terms published",
+      "stepsInvalid": "Check the payments: each needs a name, a percentage or an amount above zero, and the percentages must add up to 100 with the last payment a percentage.",
+      "columns": {
+        "payment": "Payment",
+        "share": "Share",
+        "due": "When it is due",
+        "loan": "Customer loan"
+      }
     }
   },
   "procurement": {

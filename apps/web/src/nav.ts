@@ -17,6 +17,7 @@ import {
   Layers,
   IndianRupee,
   Library,
+  HandCoins,
   MessageCircle,
   ListTodo,
   MessageCircleQuestion,
@@ -411,6 +412,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // messaging.milestone.set (docs/03-roadmap-appendix/phase2.md §7.1)
     requires: [{ key: 'messaging.templates.write', scope: 'all' }],
+  },
+  // FN1: each company's payment terms per kind of order (finance.terms.publish).
+  {
+    id: 'settings-payment-terms',
+    href: '/settings/payment-terms',
+    label: 'settingsPaymentTerms',
+    icon: HandCoins,
+    group: 'admin',
+    requires: [{ key: 'finance.payment.write', scope: 'all' }],
   },
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];

@@ -1,4 +1,8 @@
 import type {
+  // FN1 proformas and payment milestones
+  MilestoneDueRule,
+  MilestoneLoanGate,
+  PaymentMilestoneState,
   // H1 stock ledger
   BinKind,
   EditableBinKind,
@@ -1061,3 +1065,37 @@ export const STOCK_ADJUSTMENTS = [
   'loss',
   'damage',
 ] as const satisfies readonly StockAdjustment[];
+
+// FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1).
+/** When a payment falls due, in the order Settings › Payment terms offers them. */
+export const MILESTONE_DUE_RULES = [
+  'on_confirmation',
+  'before_dispatch',
+  'on_installation',
+  'days_after_invoice',
+] as const satisfies readonly MilestoneDueRule[];
+/** What a customer loan must reach before a payment falls due. */
+export const MILESTONE_LOAN_GATES = [
+  'none',
+  'sanctioned',
+  'disbursed',
+] as const satisfies readonly MilestoneLoanGate[];
+/** Where a payment stands. */
+export const PAYMENT_MILESTONE_STATES = [
+  'pending',
+  'due',
+  'part_paid',
+  'paid',
+  'waived',
+] as const satisfies readonly PaymentMilestoneState[];
+/** The states of a payment still waiting for money, which the Executive may waive. */
+export const OPEN_MILESTONE_STATES = [
+  'pending',
+  'due',
+  'part_paid',
+] as const satisfies readonly PaymentMilestoneState[];
+/** The most payments one version of the terms holds, and the longest wait after the invoice. */
+export const MILESTONE_STEPS_MAX = 10;
+export const MILESTONE_DUE_DAYS_MAX = 365;
+export const MILESTONE_LABEL_MAX = 60;
+export const MILESTONE_REASON_MAX = 300;
