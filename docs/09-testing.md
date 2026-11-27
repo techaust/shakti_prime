@@ -168,6 +168,7 @@ CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when eith
 | Security suite | `pnpm test:security` on a fresh `supabase/postgres` service, with the OCR model as for the unit tests, then `pnpm db:verify` |
 | End-to-end journeys, accessibility and screenshots | One job per project (desktop light, desktop dark, phone) in `mcr.microsoft.com/playwright:v1.64.1-noble`, each with its own fresh `supabase/postgres` service and 25 minutes (the steps are below) |
 | Lighthouse | The production build with a seeded `supabase/postgres` service, `next start`, then Lighthouse on the public pages against `apps/web/lighthouserc.json` |
+| Field app native build | Only when `apps/field/` or `pnpm-lock.yaml` changed (*What changed* compares the branch with `main`, or what a push to `main` brought), and not a required check: `expo prebuild --platform android --no-install`, then `./gradlew assembleDebug` on the runner's Android SDK with Java 17; the unsigned debug APK is kept 7 days as the artifact `shakti-field-debug-apk`. The app's jest-expo tests and typecheck run in the unit-test and typecheck jobs with the other workspaces |
 
 The end-to-end job's steps, each with its own time limit and output as it happens:
 - the build;
