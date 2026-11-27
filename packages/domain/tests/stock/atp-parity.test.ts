@@ -66,8 +66,8 @@ beforeAll(async () => {
       await tx`update warehouses set archived_at = now() where id = ${archivedHub}`;
       for (const [i, id] of [...stocked, service].entries()) {
         await tx`insert into items (id, sku, name, category, hsn, unit, is_serial_tracked, is_active, is_stocked)
-          values (${id}, ${`AP-${f.tag}-${String(i)}`}, ${`Parity item ${f.tag} ${String(i)}`}, 'pump', '8413',
-                  'nos', false, true, ${id !== service})`;
+          values (${id}, ${`AP-${f.tag}-${String(i)}`}, ${`Parity item ${f.tag} ${String(i)}`},
+                  ${id === service ? 'other' : 'pump'}, '8413', 'nos', false, true, ${id !== service})`;
       }
     }),
   );
@@ -213,7 +213,7 @@ describe('app.free_availability() and atp.ts', () => {
         const rows = await asMigrator(
           (m) => m<{ line_id: string; status: string; qty_free: string | null }[]>`
             select line_id, status, qty_free::text as qty_free
-              from app.free_availability(${E}::smallint, ${JSON.stringify(json)}::jsonb, true)`,
+              from app.free_availability(${E}::smallint, ${m.json(json)}, true)`,
         );
         const got = new Map(rows.map((row) => [row.line_id, row]));
         const label = `case ${String(n)}`;
@@ -234,7 +234,7 @@ describe('app.free_availability() and atp.ts', () => {
         const bare = await asMigrator(
           (m) => m<{ status: string; qty_free: string | null }[]>`
             select status, qty_free::text as qty_free
-              from app.free_availability(${E}::smallint, ${JSON.stringify(json)}::jsonb, false)`,
+              from app.free_availability(${E}::smallint, ${m.json(json)}, false)`,
         );
         expect(bare.map((b) => b.status)).toEqual(rows.map((row) => row.status));
         expect(bare.every((b) => b.qty_free === null)).toBe(true);
