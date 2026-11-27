@@ -176,11 +176,10 @@ export const LABEL_JOURNEY = {
 /**
  * R3's warranty journeys (warranty.spec.ts), written by the seed (`e2e/setup/warranty.ts`): per
  * project, in company 1, a customer with a site and two delivered serials of a pump, one in
- * warranty and one whose warranty ended, on which the Inventory Manager raises, identifies and
- * rejects a claim from Account 360; a claim already with the supplier, made again by each seed,
- * which the Inventory Manager settles with a credit; and a closed claim with its costs, made once,
- * which the General Manager opens without its costs and Accounts with them. Every date, amount
- * and number is a test value for these journeys alone.
+ * warranty (made again once a run has used it) and one whose warranty ended, on which the
+ * Inventory Manager takes a claim from Account 360 through the replacement, the supplier return
+ * and the credit; and a closed claim with its costs, made once, which the General Manager opens
+ * without its costs and Accounts with them. Every date, amount and number is a test value.
  */
 export const WARRANTY_JOURNEY = {
   entityId: 1,
@@ -188,6 +187,10 @@ export const WARRANTY_JOURNEY = {
   expiredOn: '2025-01-31',
   /** The in-warranty serial's end, far ahead so a run never reaches it. */
   validUntil: '2099-12-31',
+  /** The quarantine bin the seed adds to the stock journeys' godown. */
+  quarantineBin: 'JQ-01',
+  /** The pump's cost in stock, so a replacement leaves at it. */
+  replacementCost: '15000.0000',
   /** The closed claim's costs, which only a holder of finance.cost.read sees. */
   closedCosts: { replacement: '18500.00', credit: '16250.50' },
   projects: {
@@ -205,7 +208,8 @@ export function warrantyJourneyOf(project: ProjectName) {
     village,
     sku: `JRN-WTY-${tag}`,
     pump: `Journey pump ${tag}`,
-    validSerial: `JWS-${tag}-OK`,
+    /** The in-warranty serials start with this; the seed adds one with a suffix of its own. */
+    validSerial: `JWS-${tag}-V`,
     expiredSerial: `JWS-${tag}-OLD`,
     closedClaimNo: `JRN/WC/${tag}/CLOSED`,
   };

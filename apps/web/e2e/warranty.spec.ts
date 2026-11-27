@@ -10,16 +10,16 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { WARRANTY_JOURNEY, warrantyJourneyOf } from './support/users';
+import { STOCK_JOURNEY, WARRANTY_JOURNEY, warrantyJourneyOf } from './support/users';
 
 // R3's warranty claims (docs/03-roadmap-appendix/phase3.md §7.5). The seed gives each project a
-// customer of company 1 with two delivered serials of a pump, a claim already with the supplier
-// and a closed claim with its costs (`e2e/setup/warranty.ts`). The Inventory Manager raises a
-// claim from Account 360, is refused the serial whose warranty ended, identifies the one in
-// warranty and rejects the claim, which frees the serial for the next run; and closes the claim
-// with the supplier by its credit. The General Manager opens the closed claim and sees no cost;
-// Accounts sees both. The replacement from stock and the supplier return wait for the ledger's
-// reason registry (X4) and are added to these journeys with them.
+// customer of company 1 with two delivered serials of a pump (one in warranty, one whose warranty
+// ended), the pump's cost in stock, a quarantine bin, and a closed claim with its costs
+// (`e2e/setup/warranty.ts`). The Inventory Manager adds the replacement to stock, raises a claim
+// from Account 360, is refused the serial whose warranty ended, identifies the one in warranty,
+// gives the replacement and takes the faulty one into quarantine, sends it to the supplier and
+// closes the claim by the credit, never seeing a cost; and rejects a claim that is not a fault.
+// The General Manager opens the closed claim and sees no cost; Accounts sees both.
 
 async function openCustomer(page: Page, name: string): Promise<void> {
   await page.goto('/customers');
@@ -43,13 +43,35 @@ async function openClaim(page: Page, claimNo: string | RegExp): Promise<void> {
 test.describe('as the Inventory Manager, warranty claims', () => {
   test.use(signedInAs('inventoryManager'));
 
-  test('raises a claim from Account 360, is refused a serial out of warranty with its date, identifies one in warranty and rejects the claim', async ({
+  test('takes a claim from Account 360 through the replacement, the supplier return and the credit, refused a serial out of warranty with its date, and never sees a cost', async ({
     page,
   }) => {
     const j = warrantyJourneyOf(projectName());
     const run = `R${String(Date.now()).slice(-8)}`;
-    await openCustomer(page, j.farm);
+    const replacementNo = `JWR-${run}-${projectName().slice(-2).toUpperCase()}`;
+    const [storageBin] = STOCK_JOURNEY.bins;
 
+    // The replacement comes into stock first, as the store finds it.
+    await page.goto('/inventory/stock');
+    await (await hydrated(page.getByLabel('Item', { exact: true }))).fill(j.sku);
+    await page.getByRole('button', { name: 'Show stock' }).click();
+    await rowOf(dataGrid(page, 'Stock by hub, bin and item'), j.sku)
+      .first()
+      .getByRole('link', { name: j.pump })
+      .click();
+    await (await hydrated(page.getByRole('button', { name: 'Adjust stock' }))).click();
+    const adjust = page.getByRole('dialog', { name: `Adjust stock of ${j.pump}` });
+    await adjust.getByLabel('Hub').selectOption({ label: STOCK_JOURNEY.hub.name });
+    await adjust
+      .getByLabel('Bin', { exact: true })
+      .selectOption({ label: `${storageBin} (Storage)` });
+    await adjust.getByLabel('Change').selectOption({ label: 'Found (add stock)' });
+    await adjust.getByLabel('Serial numbers').fill(replacementNo);
+    await adjust.getByLabel('Reason').fill(`Replacement stock, walk ${run}`);
+    await adjust.getByRole('button', { name: 'Save adjustment' }).click();
+    await expect(page.getByText('Stock adjusted.')).toBeVisible();
+
+    await openCustomer(page, j.farm);
     await (await hydrated(page.getByRole('button', { name: 'Raise a warranty claim' }))).click();
     const raise = page.getByRole('dialog', { name: 'Raise a warranty claim' });
     await expect(raise.getByLabel('Site')).toHaveValue(/.+/);
@@ -58,14 +80,14 @@ test.describe('as the Inventory Manager, warranty claims', () => {
     await expectNoAxeViolations(page);
     await raise.getByRole('button', { name: 'Raise the claim' }).click();
     await expect(page.getByRole('heading', { name: /^Warranty claim /, level: 1 })).toBeVisible();
-    await expect(page.getByText('Raised', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(`No water since Monday, walk ${run}`)).toBeVisible();
     await expectNoAxeViolations(page);
 
     // The serial whose warranty ended is refused, naming the day it ended.
     await (await hydrated(page.getByRole('button', { name: 'Identify the serial' }))).click();
     const identify = page.getByRole('dialog', { name: 'Identify the faulty serial' });
-    await identify.getByLabel('Serial').selectOption({ label: `${j.expiredSerial}, ${j.pump}` });
+    const serial = identify.getByLabel('Serial');
+    await serial.selectOption({ label: `${j.expiredSerial}, ${j.pump}` });
     await expect(identify.getByText('Warranty until 31-01-2025')).toBeVisible();
     await identify.getByRole('button', { name: 'Identify' }).click();
     await expect(
@@ -74,37 +96,39 @@ test.describe('as the Inventory Manager, warranty claims', () => {
       ),
     ).toBeVisible();
     await expectNoAxeViolations(page);
-
-    // The one in warranty is identified.
-    await identify.getByLabel('Serial').selectOption({ label: `${j.validSerial}, ${j.pump}` });
-    await snap(page, 'warranty-identify-dialog', { element: identify });
+    // The one in warranty the seed left for this run.
+    const valid = serial.locator('option', { hasText: `${j.validSerial}-` }).first();
+    await serial.selectOption((await valid.getAttribute('value')) ?? '');
     await identify.getByRole('button', { name: 'Identify' }).click();
     await expect(page.getByText('Serial identified.')).toBeVisible();
-    await expect(page.getByRole('link', { name: j.validSerial })).toBeVisible();
 
-    // Not a fault after all: rejected with why, which frees the serial for the next claim.
-    await page.getByRole('button', { name: 'Reject the claim' }).click();
-    const reject = page.getByRole('dialog', { name: 'Reject the claim' });
-    await reject.getByLabel('Why it is rejected').fill(`Dry run of the borewell, walk ${run}`);
+    // The replacement from stock; the faulty pump came back with the engineer.
+    await (await hydrated(page.getByRole('button', { name: 'Give a replacement' }))).click();
+    const replace = page.getByRole('dialog', { name: 'Give a replacement from stock' });
+    await replace
+      .getByLabel('From bin')
+      .selectOption({ label: `${storageBin}, ${STOCK_JOURNEY.hub.name}` });
+    await replace.getByLabel('Serial number of the replacement').fill(replacementNo);
+    await replace.getByLabel('The faulty item').selectOption({ label: 'Back with us now' });
+    await replace
+      .getByLabel('Quarantine bin')
+      .selectOption({ label: `${WARRANTY_JOURNEY.quarantineBin}, ${STOCK_JOURNEY.hub.name}` });
+    await snap(page, 'warranty-replace-dialog', { element: replace });
     await expectNoAxeViolations(page);
-    await reject.getByRole('button', { name: 'Reject' }).click();
-    await expect(page.getByText('Claim rejected.')).toBeVisible();
-    await expect(page.getByText(`Dry run of the borewell, walk ${run}`)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Reject the claim' })).toHaveCount(0);
-  });
+    await replace.getByRole('button', { name: 'Give the replacement' }).click();
+    await expect(page.getByText('Replacement given.')).toBeVisible();
+    await expect(page.getByRole('link', { name: replacementNo })).toBeVisible();
 
-  test('closes the claim with the supplier by its credit, and never sees the amount again', async ({
-    page,
-  }) => {
-    await page.goto(
-      `/inventory/warranty?company=${String(WARRANTY_JOURNEY.entityId)}&state=rma_raised`,
-    );
-    const list = dataGrid(page, 'Warranty claims, newest first');
-    const j = warrantyJourneyOf(projectName());
-    await rowOf(list, j.farm).first().getByRole('link').first().click();
-    await expect(page.getByText('With the supplier', { exact: true }).first()).toBeVisible();
+    // To the supplier with their reference.
+    await (await hydrated(page.getByRole('button', { name: 'Send to the supplier' }))).click();
+    const rma = page.getByRole('dialog', { name: 'Send the faulty item to the supplier' });
+    await rma.getByLabel('Supplier').selectOption({ label: 'Journey pump supplier' });
+    await rma.getByLabel('Supplier’s return reference').fill(`RMA-${run}`);
     await expectNoAxeViolations(page);
+    await rma.getByRole('button', { name: 'Send to the supplier' }).click();
+    await expect(page.getByText('Sent to the supplier.')).toBeVisible();
 
+    // The supplier's credit closes it; the Inventory Manager never sees a cost.
     await (await hydrated(page.getByRole('button', { name: 'Record the credit' }))).click();
     const settle = page.getByRole('dialog', { name: 'Record the supplier’s credit' });
     await snap(page, 'warranty-settle-dialog', { element: settle });
@@ -112,10 +136,27 @@ test.describe('as the Inventory Manager, warranty claims', () => {
     await expectNoAxeViolations(page);
     await settle.getByRole('button', { name: 'Close the claim' }).click();
     await expect(page.getByText('Claim closed with the credit.')).toBeVisible();
-    await expect(page.getByText('Closed', { exact: true }).first()).toBeVisible();
-    // The Inventory Manager holds no finance.cost.read: no cost on the sheet.
     await expect(page.getByRole('heading', { name: 'Costs' })).toHaveCount(0);
-    await expect(page.getByText('₹12,400.00')).toHaveCount(0);
+    await expect(page.getByText(/₹/)).toHaveCount(0);
+  });
+
+  test('rejects a claim that is not a fault', async ({ page }) => {
+    const j = warrantyJourneyOf(projectName());
+    const run = `R${String(Date.now()).slice(-8)}`;
+    await openCustomer(page, j.farm);
+    await (await hydrated(page.getByRole('button', { name: 'Raise a warranty claim' }))).click();
+    const raise = page.getByRole('dialog', { name: 'Raise a warranty claim' });
+    await raise.getByLabel('Fault reported').fill(`Pipe cut by a plough, walk ${run}`);
+    await raise.getByRole('button', { name: 'Raise the claim' }).click();
+    await expect(page.getByRole('heading', { name: /^Warranty claim /, level: 1 })).toBeVisible();
+    await (await hydrated(page.getByRole('button', { name: 'Reject the claim' }))).click();
+    const reject = page.getByRole('dialog', { name: 'Reject the claim' });
+    await reject.getByLabel('Why it is rejected').fill(`Damage, not a fault, walk ${run}`);
+    await expectNoAxeViolations(page);
+    await reject.getByRole('button', { name: 'Reject' }).click();
+    await expect(page.getByText('Claim rejected.')).toBeVisible();
+    await expect(page.getByText(`Damage, not a fault, walk ${run}`)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reject the claim' })).toHaveCount(0);
   });
 
   test('lists the claims by state', async ({ page }) => {

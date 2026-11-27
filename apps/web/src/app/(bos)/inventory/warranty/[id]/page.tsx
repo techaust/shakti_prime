@@ -7,6 +7,8 @@ import {
   listClaimSerials,
   readWarrantyClaimCosts,
 } from '../../../../../actions/warranty';
+import { listHubs } from '../../../../../actions/inventory';
+import { listVendors } from '../../../../../actions/procurement';
 import { WarrantyClaimScreen } from '../../../../../components/inventory/warranty-claim-screen';
 import { FailureMessage } from '../../../../../components/screens/failure';
 import { Page } from '../../../../../components/shell/page';
@@ -59,15 +61,21 @@ export default async function WarrantyClaimPage({
   }
   const can = {
     write: hasGrant(principal.permissions, 'inventory.warranty.write', 'entity'),
+    rma: hasGrant(principal.permissions, 'procurement.po.write', 'entity'),
     settle: hasGrant(principal.permissions, 'procurement.grn.write', 'entity'),
   };
-  const [costs, serials] = await Promise.all([
+  const state = claim.data.state;
+  const movesStock =
+    (can.write && state === 'serial_identified') || (can.rma && state === 'replacement_issued');
+  const [costs, serials, hubs, vendors] = await Promise.all([
     hasGrant(principal.permissions, 'finance.cost.read', 'entity')
       ? readWarrantyClaimCosts({ entityId, claimId: id })
       : undefined,
     can.write && claim.data.state === 'raised'
       ? listClaimSerials({ entityId, accountId: claim.data.account.id })
       : undefined,
+    movesStock ? listHubs({}) : undefined,
+    can.rma && state === 'replacement_issued' ? listVendors({ limit: 200 }) : undefined,
   ]);
   return (
     <WarrantyClaimScreen
@@ -75,6 +83,8 @@ export default async function WarrantyClaimPage({
       company={companyNames(access)[entityId] ?? ''}
       serials={serials?.ok === true ? serials.data.serials : undefined}
       costs={costs?.ok === true ? costs.data : undefined}
+      hubs={hubs?.ok === true ? hubs.data.hubs : []}
+      vendors={vendors?.ok === true ? vendors.data.items.filter((v) => v.isActive) : []}
       can={can}
     />
   );

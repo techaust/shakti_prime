@@ -1,6 +1,12 @@
 'use client';
 
-import type { ClaimSerialDto, WarrantyClaimCostsDto, WarrantyClaimDto } from '@shakti/contracts';
+import type {
+  ClaimSerialDto,
+  HubDto,
+  VendorListRowDto,
+  WarrantyClaimCostsDto,
+  WarrantyClaimDto,
+} from '@shakti/contracts';
 import { Button, StatusBadge, type ReturnFocusTo } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
@@ -23,8 +29,15 @@ import { useClaimStateText, useSerialStateText } from './use-inventory-text';
 const IdentifyDialog = dynamic(() => import('./warranty-dialogs').then((m) => m.IdentifyDialog));
 const RejectDialog = dynamic(() => import('./warranty-dialogs').then((m) => m.RejectDialog));
 const SettleDialog = dynamic(() => import('./warranty-dialogs').then((m) => m.SettleDialog));
+const ReplaceDialog = dynamic(() => import('./warranty-dialogs').then((m) => m.ReplaceDialog));
+const RmaDialog = dynamic(() => import('./warranty-dialogs').then((m) => m.RmaDialog));
 
-type Open = { kind: 'identify' | 'reject' | 'settle'; returnFocusTo: ReturnFocusTo } | undefined;
+type Open =
+  | {
+      kind: 'identify' | 'reject' | 'settle' | 'replace' | 'rma';
+      returnFocusTo: ReturnFocusTo;
+    }
+  | undefined;
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -46,6 +59,8 @@ export function WarrantyClaimScreen({
   company,
   serials,
   costs,
+  hubs = [],
+  vendors = [],
   can,
 }: {
   claim: WarrantyClaimDto;
@@ -54,7 +69,11 @@ export function WarrantyClaimScreen({
   serials: readonly ClaimSerialDto[] | undefined;
   /** Only for a holder of `finance.cost.read`. */
   costs: WarrantyClaimCostsDto | undefined;
-  can: { write: boolean; settle: boolean };
+  /** The hubs and their bins, for a step that moves stock. */
+  hubs?: readonly HubDto[];
+  /** The active vendors, for the supplier return. */
+  vendors?: readonly VendorListRowDto[];
+  can: { write: boolean; rma: boolean; settle: boolean };
 }) {
   const t = useTranslations('warranty');
   const stateText = useClaimStateText();
@@ -64,6 +83,8 @@ export function WarrantyClaimScreen({
   const identifyButton = useRef<HTMLButtonElement>(null);
   const rejectButton = useRef<HTMLButtonElement>(null);
   const settleButton = useRef<HTMLButtonElement>(null);
+  const replaceButton = useRef<HTMLButtonElement>(null);
+  const rmaButton = useRef<HTMLButtonElement>(null);
 
   function saved() {
     setOpen(undefined);
@@ -101,6 +122,26 @@ export function WarrantyClaimScreen({
           }}
         >
           {t('identify')}
+        </Button>
+      ) : null}
+      {can.write && claim.state === 'serial_identified' ? (
+        <Button
+          ref={replaceButton}
+          onClick={() => {
+            setOpen({ kind: 'replace', returnFocusTo: () => [replaceButton.current] });
+          }}
+        >
+          {t('replace')}
+        </Button>
+      ) : null}
+      {can.rma && claim.state === 'replacement_issued' ? (
+        <Button
+          ref={rmaButton}
+          onClick={() => {
+            setOpen({ kind: 'rma', returnFocusTo: () => [rmaButton.current] });
+          }}
+        >
+          {t('rma')}
         </Button>
       ) : null}
       {can.write && (claim.state === 'raised' || claim.state === 'serial_identified') ? (
@@ -234,6 +275,33 @@ export function WarrantyClaimScreen({
         <RejectDialog
           entityId={claim.entityId}
           claimId={claim.id}
+          returnFocusTo={open.returnFocusTo}
+          onClose={() => {
+            setOpen(undefined);
+          }}
+          onSaved={saved}
+        />
+      ) : null}
+      {open?.kind === 'replace' ? (
+        <ReplaceDialog
+          entityId={claim.entityId}
+          claimId={claim.id}
+          product={claim.item === null ? '' : claim.item.name}
+          hubs={hubs}
+          returnFocusTo={open.returnFocusTo}
+          onClose={() => {
+            setOpen(undefined);
+          }}
+          onSaved={saved}
+        />
+      ) : null}
+      {open?.kind === 'rma' ? (
+        <RmaDialog
+          entityId={claim.entityId}
+          claimId={claim.id}
+          vendors={vendors}
+          hubs={hubs}
+          faultyBack={claim.serial?.state === 'faulty'}
           returnFocusTo={open.returnFocusTo}
           onClose={() => {
             setOpen(undefined);

@@ -6,7 +6,9 @@ import {
   ListClaimSerialsInput,
   ListWarrantyClaimsInput,
   RaiseWarrantyClaimInput,
+  RaiseWarrantyRmaInput,
   RejectWarrantyClaimInput,
+  ReplaceWarrantyInput,
   SettleWarrantyClaimInput,
   type ClaimSerialListDto,
   type WarrantyClaimChangedDto,
@@ -22,6 +24,8 @@ import {
   listClaimSerials as listClaimSerialsQuery,
   listWarrantyClaims as listWarrantyClaimsQuery,
   raiseWarrantyClaim as raiseWarrantyClaimCommand,
+  raiseWarrantyRma as raiseWarrantyRmaCommand,
+  replaceWarranty as replaceWarrantyCommand,
   readWarrantyClaimCosts as readWarrantyClaimCostsQuery,
   rejectWarrantyClaim as rejectWarrantyClaimCommand,
   settleWarrantyClaim as settleWarrantyClaimCommand,
@@ -92,6 +96,34 @@ export async function rejectWarrantyClaim(
     'rejectWarrantyClaim',
     RejectWarrantyClaimInput,
     rejectWarrantyClaimCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Give a replacement from stock, and take the failed serial back when it has come. */
+export async function replaceWarranty(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<WarrantyClaimChangedDto>> {
+  return claimCommand(
+    'replaceWarranty',
+    ReplaceWarrantyInput,
+    replaceWarrantyCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Send the failed serial to its supplier with their return reference. */
+export async function raiseWarrantyRma(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<WarrantyClaimChangedDto>> {
+  return claimCommand(
+    'raiseWarrantyRma',
+    RaiseWarrantyRmaInput,
+    raiseWarrantyRmaCommand,
     rawInput,
     idempotencyKey,
   );

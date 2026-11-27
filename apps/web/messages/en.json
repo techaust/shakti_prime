@@ -7058,7 +7058,31 @@
       "creditHelper": "As on the credit note, in rupees and paise.",
       "creditInvalid": "Enter an amount above zero, in rupees and paise.",
       "settleSubmit": "Close the claim",
-      "settled": "Claim closed with the credit."
-    }
+      "settled": "Claim closed with the credit.",
+      "replaceTitle": "Give a replacement from stock",
+      "replaceIntro": "A {product} from stock goes to the customer in place of the faulty one, with the same warranty.",
+      "fromBin": "From bin",
+      "binOption": "{bin}, {hub}",
+      "replacementSerial": "Serial number of the replacement",
+      "replacementSerialHelper": "Scan it or type it as printed on the item.",
+      "replacementSerialInvalid": "Enter the serial number, up to 100 characters.",
+      "faultyBack": "The faulty item",
+      "faultyNotBack": "Still with the customer",
+      "faultyIsBack": "Back with us now",
+      "quarantineBin": "Quarantine bin",
+      "quarantineBinHelper": "The faulty item comes back into this bin before it goes to the supplier.",
+      "replaceSubmit": "Give the replacement",
+      "replaced": "Replacement given.",
+      "rmaTitle": "Send the faulty item to the supplier",
+      "rmaIntro": "The faulty item goes back to its supplier under their warranty. Record the return reference they gave.",
+      "supplier": "Supplier",
+      "rmaRef": "Supplier's return reference",
+      "rmaRefHelper": "As the supplier wrote it on their return note or email.",
+      "rmaRefInvalid": "Enter the reference, up to 100 characters.",
+      "rmaSubmit": "Send to the supplier",
+      "rmaRaised": "Sent to the supplier."
+    },
+    "replace": "Give a replacement",
+    "rma": "Send to the supplier"
   }
 }

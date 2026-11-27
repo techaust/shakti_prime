@@ -1,6 +1,12 @@
 'use client';
 
-import type { ClaimSerialDto, CustomerSiteDto, WarrantyClaimChangedDto } from '@shakti/contracts';
+import type {
+  ClaimSerialDto,
+  CustomerSiteDto,
+  HubDto,
+  VendorListRowDto,
+  WarrantyClaimChangedDto,
+} from '@shakti/contracts';
 import {
   Button,
   Dialog,
@@ -21,7 +27,9 @@ import { useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
   identifyWarrantySerial,
   raiseWarrantyClaim,
+  raiseWarrantyRma,
   rejectWarrantyClaim,
+  replaceWarranty,
   settleWarrantyClaim,
 } from '../../actions/warranty';
 import { formatDate, moneyFromTyped } from '../../screens/format';
@@ -335,6 +343,225 @@ export function SettleDialog({
         </Field>
         <FailureMessage failure={formFailure} />
         <Footer pending={pending} submit={t('settleSubmit')} onClose={onClose} />
+      </form>
+    </Frame>
+  );
+}
+
+/** The bins of godowns and factories in use, of one kind, each with its hub's name. */
+function binsOf(hubs: readonly HubDto[], kind: 'storage' | 'quarantine') {
+  return hubs
+    .filter((h) => h.kind !== 'transit' && h.archivedAt === null)
+    .flatMap((h) =>
+      h.bins
+        .filter((b) => b.kind === kind && b.archivedAt === null)
+        .map((b) => ({ id: b.id, code: b.code, hub: h.name })),
+    );
+}
+
+/**
+ * Give a replacement of the same product from stock: a serial in a storage bin, by its number
+ * (scanned or typed). When the faulty item has come back already, it goes into a quarantine bin
+ * in the same step.
+ */
+export function ReplaceDialog({
+  entityId,
+  claimId,
+  product,
+  hubs,
+  returnFocusTo,
+  onClose,
+  onSaved,
+}: DialogProps & { entityId: number; claimId: string; product: string; hubs: readonly HubDto[] }) {
+  const t = useTranslations('warranty.dialogs');
+  const { run, pending, failure } = useCommand(replaceWarranty);
+  const { fieldError, formFailure } = useFieldFailure(failure, [
+    'replacementSerialNo',
+    'fromBinId',
+    'faultyBinId',
+  ]);
+  const storage = binsOf(hubs, 'storage');
+  const quarantine = binsOf(hubs, 'quarantine');
+  const [back, setBack] = useState(false);
+  const [problem, setProblem] = useState(false);
+
+  function submit(e: SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
+    const data = new FormData(e.currentTarget);
+    const replacementSerialNo = formText(data, 'replacementSerialNo');
+    if (replacementSerialNo === '' || replacementSerialNo.length > 100) {
+      setProblem(true);
+      return;
+    }
+    setProblem(false);
+    const faultyBinId = formText(data, 'faultyBinId');
+    run(
+      {
+        entityId,
+        claimId,
+        fromBinId: formText(data, 'fromBinId'),
+        replacementSerialNo,
+        ...(back && faultyBinId !== '' ? { faultyBinId } : {}),
+      },
+      (claim) => {
+        toast.success(t('replaced'));
+        onSaved(claim);
+      },
+    );
+  }
+
+  return (
+    <Frame returnFocusTo={returnFocusTo} onClose={onClose}>
+      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+        <DialogHeader>
+          <DialogTitle>{t('replaceTitle')}</DialogTitle>
+          <DialogDescription>{t('replaceIntro', { product })}</DialogDescription>
+        </DialogHeader>
+        <Field id="claim-from-bin" label={t('fromBin')} error={fieldError('fromBinId')}>
+          <Select name="fromBinId">
+            {storage.map((b) => (
+              <option key={b.id} value={b.id}>
+                {t('binOption', { bin: b.code, hub: b.hub })}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field
+          id="claim-replacement-serial"
+          label={t('replacementSerial')}
+          helper={t('replacementSerialHelper')}
+          error={problem ? t('replacementSerialInvalid') : fieldError('replacementSerialNo')}
+        >
+          <Input name="replacementSerialNo" autoComplete="off" spellCheck={false} maxLength={100} />
+        </Field>
+        <Field id="claim-faulty-back" label={t('faultyBack')}>
+          <Select
+            value={back ? 'yes' : 'no'}
+            onChange={(e) => {
+              setBack(e.currentTarget.value === 'yes');
+            }}
+          >
+            <option value="no">{t('faultyNotBack')}</option>
+            <option value="yes">{t('faultyIsBack')}</option>
+          </Select>
+        </Field>
+        {back ? (
+          <Field id="claim-faulty-bin" label={t('quarantineBin')} error={fieldError('faultyBinId')}>
+            <Select name="faultyBinId">
+              {quarantine.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {t('binOption', { bin: b.code, hub: b.hub })}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : null}
+        <FailureMessage failure={formFailure} />
+        <Footer pending={pending} submit={t('replaceSubmit')} onClose={onClose} />
+      </form>
+    </Frame>
+  );
+}
+
+/**
+ * Send the faulty item to its supplier under their warranty, with their return reference. A
+ * faulty item still with the customer comes back into a quarantine bin first.
+ */
+export function RmaDialog({
+  entityId,
+  claimId,
+  vendors,
+  hubs,
+  faultyBack,
+  returnFocusTo,
+  onClose,
+  onSaved,
+}: DialogProps & {
+  entityId: number;
+  claimId: string;
+  vendors: readonly VendorListRowDto[];
+  hubs: readonly HubDto[];
+  /** The faulty item is in quarantine already. */
+  faultyBack: boolean;
+}) {
+  const t = useTranslations('warranty.dialogs');
+  const { run, pending, failure } = useCommand(raiseWarrantyRma);
+  const { fieldError, formFailure } = useFieldFailure(failure, [
+    'vendorId',
+    'supplierRmaRef',
+    'faultyBinId',
+  ]);
+  const quarantine = binsOf(hubs, 'quarantine');
+  const [problem, setProblem] = useState(false);
+
+  function submit(e: SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
+    const data = new FormData(e.currentTarget);
+    const supplierRmaRef = formText(data, 'supplierRmaRef');
+    if (supplierRmaRef === '' || supplierRmaRef.length > 100) {
+      setProblem(true);
+      return;
+    }
+    setProblem(false);
+    run(
+      {
+        entityId,
+        claimId,
+        vendorId: formText(data, 'vendorId'),
+        supplierRmaRef,
+        ...(faultyBack ? {} : { faultyBinId: formText(data, 'faultyBinId') }),
+      },
+      (claim) => {
+        toast.success(t('rmaRaised'));
+        onSaved(claim);
+      },
+    );
+  }
+
+  return (
+    <Frame returnFocusTo={returnFocusTo} onClose={onClose}>
+      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+        <DialogHeader>
+          <DialogTitle>{t('rmaTitle')}</DialogTitle>
+          <DialogDescription>{t('rmaIntro')}</DialogDescription>
+        </DialogHeader>
+        <Field id="claim-vendor" label={t('supplier')} error={fieldError('vendorId')}>
+          <Select name="vendorId">
+            {vendors.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field
+          id="claim-rma-ref"
+          label={t('rmaRef')}
+          helper={t('rmaRefHelper')}
+          error={problem ? t('rmaRefInvalid') : fieldError('supplierRmaRef')}
+        >
+          <Input name="supplierRmaRef" autoComplete="off" maxLength={100} />
+        </Field>
+        {faultyBack ? null : (
+          <Field
+            id="claim-rma-bin"
+            label={t('quarantineBin')}
+            helper={t('quarantineBinHelper')}
+            error={fieldError('faultyBinId')}
+          >
+            <Select name="faultyBinId">
+              {quarantine.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {t('binOption', { bin: b.code, hub: b.hub })}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+        <FailureMessage failure={formFailure} />
+        <Footer pending={pending} submit={t('rmaSubmit')} onClose={onClose} />
       </form>
     </Frame>
   );
