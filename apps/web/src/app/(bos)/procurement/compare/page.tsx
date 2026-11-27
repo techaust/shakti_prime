@@ -8,7 +8,7 @@ import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
 import { navRequires } from '../../../../nav';
 import { screenAccess, screenTitle } from '../../../../screens/access';
-import { rateCompanies } from '../companies';
+import { rateCompanies, orderTabs } from '../companies';
 import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * grants do not open, and the query refuses them as well.
  */
 export default async function ComparePage() {
-  const { principal, access } = await screenAccess(COMPARE_REQUIRES);
+  const { principal, access, can } = await screenAccess(COMPARE_REQUIRES);
   const t = await getTranslations('procurement');
   const companies = rateCompanies(principal, access.entities);
   const first = companies[0];
@@ -38,6 +38,7 @@ export default async function ComparePage() {
     <Page title={t('compare.title')} description={t('compare.intro')}>
       <ProcurementTabs
         current="compare"
+        {...orderTabs(can, t)}
         label={t('sections')}
         vendors={t('vendorsTab')}
         compare={t('compareTab')}

@@ -331,3 +331,106 @@ export const PurchaseOrderWithRatesDto = z
   })
   .strict();
 export type PurchaseOrderWithRatesDto = z.infer<typeof PurchaseOrderWithRatesDto>;
+
+/** Procurement › Orders: a page of a company's purchase orders in one state, newest first. */
+export const ListPurchaseOrdersInput = z
+  .object({
+    entityId: EntityIdSchema,
+    state: PurchaseOrderStateSchema,
+    cursor: z.string().max(1024).optional(),
+    limit: z.number().int().min(1).max(200).default(50),
+  })
+  .strict();
+export type ListPurchaseOrdersInput = z.input<typeof ListPurchaseOrdersInput>;
+
+export const PurchaseOrderRowDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    poNo: z.string(),
+    vendorName: z.string(),
+    hubName: z.string(),
+    state: PurchaseOrderStateSchema,
+    source: PurchaseOrderSourceSchema,
+    expectedAt: CalendarDateSchema.nullable(),
+    overdue: z.boolean(),
+    lineCount: z.number().int().min(0),
+    createdAt: z.string(),
+  })
+  .strict();
+export type PurchaseOrderRowDto = z.infer<typeof PurchaseOrderRowDto>;
+
+export const PurchaseOrderPageDto = z
+  .object({
+    items: z.array(PurchaseOrderRowDto),
+    nextCursor: z.string().nullable(),
+    /** The company's reorder drafts no person has opened yet: the alerts on top of the list. */
+    reorderAlerts: z.array(PurchaseOrderRowDto),
+    /** How many orders the company has in each state. */
+    counts: z.record(z.string(), z.number().int().min(0)),
+  })
+  .strict();
+export type PurchaseOrderPageDto = z.infer<typeof PurchaseOrderPageDto>;
+
+export const GetPurchaseOrderInput = z.object({ purchaseOrderId: IdSchema }).strict();
+export type GetPurchaseOrderInput = z.infer<typeof GetPurchaseOrderInput>;
+
+/** Procurement › Receipts: a page of a company's goods receipts, newest first. */
+export const ListGoodsReceiptsInput = z
+  .object({
+    entityId: EntityIdSchema,
+    purchaseOrderId: IdSchema.optional(),
+    cursor: z.string().max(1024).optional(),
+    limit: z.number().int().min(1).max(200).default(50),
+  })
+  .strict();
+export type ListGoodsReceiptsInput = z.input<typeof ListGoodsReceiptsInput>;
+
+export const GoodsReceiptRowDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    grnNo: z.string(),
+    purchaseOrderId: IdSchema,
+    poNo: z.string(),
+    vendorName: z.string(),
+    hubName: z.string(),
+    state: GoodsReceiptStateSchema,
+    receivedAt: z.string(),
+    receivedByName: z.string().nullable(),
+    vendorInvoiceNo: z.string().nullable(),
+    lineCount: z.number().int().min(0),
+    serialCount: z.number().int().min(0),
+  })
+  .strict();
+export type GoodsReceiptRowDto = z.infer<typeof GoodsReceiptRowDto>;
+
+export const GoodsReceiptPageDto = z
+  .object({ items: z.array(GoodsReceiptRowDto), nextCursor: z.string().nullable() })
+  .strict();
+export type GoodsReceiptPageDto = z.infer<typeof GoodsReceiptPageDto>;
+
+/** A bin goods may be received into at the order's hub. */
+export const ReceivingBinDto = z
+  .object({
+    id: IdSchema,
+    code: z.string(),
+    kind: z.enum(['receiving', 'storage', 'quarantine']),
+  })
+  .strict();
+export type ReceivingBinDto = z.infer<typeof ReceivingBinDto>;
+
+/** Receive goods: the order as every reader sees it, and the bins of its hub. */
+export const ReceiveGoodsDto = z
+  .object({ order: PurchaseOrderDto, bins: z.array(ReceivingBinDto) })
+  .strict();
+export type ReceiveGoodsDto = z.infer<typeof ReceiveGoodsDto>;
+
+/** The reorder rules of an item in a company, for its stock card. */
+export const ListReorderRulesInput = z
+  .object({ entityId: EntityIdSchema, itemId: IdSchema })
+  .strict();
+export type ListReorderRulesInput = z.infer<typeof ListReorderRulesInput>;
+
+export const ReorderRuleRowDto = ReorderRuleDto.extend({ hubName: z.string() }).strict();
+export type ReorderRuleRowDto = z.infer<typeof ReorderRuleRowDto>;

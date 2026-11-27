@@ -239,6 +239,17 @@ export {
 export { postGoodsReceipt, reverseGoodsReceipt } from './commands/procurement/receipts';
 export { draftReorders, removeReorderRule, setReorderRule } from './commands/procurement/reorder';
 export { poLineAmount, purchaseOrderTotals, stockUnitCost } from './procurement/po-totals';
+export {
+  getPurchaseOrder,
+  getPurchaseOrderPrint,
+  getReceiveGoods,
+  listGoodsReceipts,
+  listPurchaseOrders,
+  listReorderRules,
+  purchaseOrderOverdue,
+  readsOrders,
+} from './queries/procurement/order-queries';
+export type { PurchaseOrderPrintData } from './queries/procurement/order-queries';
 export { readQuoteComparison, getVendor, listVendors } from './queries/procurement/vendor-queries';
 export { readsRates, readsVendors } from './queries/procurement/vendor-read';
 export { serialMatchesPattern, serialsOutsidePattern } from './catalogue/serial-pattern';

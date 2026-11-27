@@ -6,6 +6,9 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getStockCard, listHubs } from '../../../../../../actions/inventory';
+// U2 reorder rules on the stock card.
+import { listReorderRules } from '../../../../../../actions/purchase-orders';
+import { ReorderRules } from '../../../../../../components/procurement/reorder-rules';
 import { StockCardScreen } from '../../../../../../components/inventory/stock-card-screen';
 import { FailureMessage } from '../../../../../../components/screens/failure';
 import { Page } from '../../../../../../components/shell/page';
@@ -46,12 +49,15 @@ export default async function StockCardPage({ params }: { params: Promise<Params
   ) {
     notFound();
   }
-  const [card, hubs] = await Promise.all([
+  const [card, hubs, rules] = await Promise.all([
     getStockCard({ entityId, itemId, limit: 50 }),
     listHubs({}),
+    // U2: the item's reorder rules in the company.
+    listReorderRules({ entityId, itemId }),
   ]);
   if (!card.ok && card.error === 'stock_item_missing') notFound();
   const t = await getTranslations('inventory.card');
+  const units = await getTranslations('catalogue.units');
   const company = companyNames(access)[entityId] ?? '';
   return (
     <Page
@@ -74,6 +80,19 @@ export default async function StockCardPage({ params }: { params: Promise<Params
       ) : (
         <FailureMessage failure={firstFailure(card, hubs)} />
       )}
+      {/* U2: reorder rules, per hub, on the item's stock card. */}
+      {card.ok && hubs.ok && rules.ok ? (
+        <ReorderRules
+          entityId={entityId}
+          itemId={itemId}
+          unit={units(card.data.item.unit)}
+          hubs={hubs.data.hubs
+            .filter((h) => h.kind !== 'transit' && h.archivedAt === null)
+            .map((h) => ({ id: h.id, name: h.name }))}
+          initial={rules.data}
+          canWrite={hasGrant(principal.permissions, 'procurement.po.write', 'entity')}
+        />
+      ) : null}
     </Page>
   );
 }

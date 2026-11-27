@@ -44,3 +44,33 @@ export function quoteCompanies(
   const group = coversGroup && both(principal.permissions);
   return [...(group ? [{ entityId: null, name: groupName }] : []), ...companies];
 }
+
+/**
+ * U2: the order and receipt tabs' words for whoever reads a company's purchase orders (its stock
+ * readers and order writers), else none.
+ */
+export function orderTabs(
+  can: (key: 'inventory.stock.read' | 'procurement.po.write', scope: 'entity') => boolean,
+  t: (key: 'ordersTab' | 'receiptsTab') => string,
+): { orders?: string; receipts?: string } {
+  return can('inventory.stock.read', 'entity') || can('procurement.po.write', 'entity')
+    ? { orders: t('ordersTab'), receipts: t('receiptsTab') }
+    : {};
+}
+
+/** The companies whose purchase orders the person reads, by id, from what the shell knows. */
+export function orderCompanies(
+  principal: Pick<Principal, 'entityIds'>,
+  entities: readonly CompanyAccess[],
+): Record<number, string> {
+  return Object.fromEntries(
+    entities
+      .filter(
+        (e) =>
+          principal.entityIds.includes(e.entityId) &&
+          (hasGrant(e.grants, 'inventory.stock.read', 'entity') ||
+            hasGrant(e.grants, 'procurement.po.write', 'entity')),
+      )
+      .map((e) => [e.entityId, e.entityName]),
+  );
+}

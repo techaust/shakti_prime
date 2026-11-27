@@ -8,7 +8,7 @@ import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
 import { navRequires } from '../../../../nav';
 import { screenAccess, screenTitle } from '../../../../screens/access';
-import { quoteCompanies } from '../companies';
+import { quoteCompanies, orderTabs } from '../companies';
 import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
@@ -49,6 +49,7 @@ export default async function VendorsPage() {
     <Page title={t('title')} description={t('intro')}>
       <ProcurementTabs
         current="vendors"
+        {...orderTabs(can, t)}
         label={t('sections')}
         vendors={t('vendorsTab')}
         compare={readsRates ? t('compareTab') : undefined}

@@ -10,14 +10,25 @@ export function ProcurementTabs({
   label,
   vendors,
   compare,
+  orders,
+  receipts,
 }: {
-  current: 'vendors' | 'compare';
+  current: 'vendors' | 'compare' | 'orders' | 'receipts';
   label: string;
   vendors: string;
   /** The comparison tab's words; left out for a person who reads no rates. */
   compare?: string | undefined;
+  /** U2: purchase orders and goods receipts, for whoever reads a company's orders. */
+  orders?: string | undefined;
+  receipts?: string | undefined;
 }) {
   const tabs = [
+    ...(orders === undefined
+      ? []
+      : [{ key: 'orders', href: '/procurement/orders', text: orders }]),
+    ...(receipts === undefined
+      ? []
+      : [{ key: 'receipts', href: '/procurement/receipts', text: receipts }]),
     { key: 'vendors', href: '/procurement/vendors', text: vendors },
     ...(compare === undefined
       ? []
