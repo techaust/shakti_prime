@@ -5,7 +5,16 @@ import { uploadKey, uploadLimitProblem } from '../../files/limits';
 import { maskIdentityText } from '../../imports/identity-columns';
 import { uploadPermission } from '../../files/purposes';
 import { assertEntityInScope } from '../imports/shared';
+import { findPersonalNumbers, lastFourOnly, replaceNumbers } from '../../privacy/number-shapes';
 import { fireUpload } from './shared';
+
+/**
+ * A customer document's name as kept (SECURITY §5): every Aadhaar- or phone-shaped number in it,
+ * whether or not its check digit holds, keeps only its last four digits.
+ */
+export function customerDocumentName(name: string): string {
+  return replaceNumbers(name, findPersonalNumbers(name), (_, written) => lastFourOnly(written));
+}
 
 /**
  * `files.upload.begin` (docs/04-architecture.md §9): checks the type and size against the purpose's
@@ -54,8 +63,17 @@ export const beginUpload = defineCommand({
       bucket: input.bucket,
       key,
       // An import file's name is shown on its job and kept after its bytes go, so an Aadhaar
-      // number in it keeps only its last four digits (audit SEC-1).
-      name: input.purpose === 'import' ? maskIdentityText(input.name) : input.name,
+      // number in it keeps only its last four digits (audit SEC-1); a customer document's name is
+      // often the number it carries, so every such number in it keeps only its last four.
+      name:
+        input.purpose === 'import'
+          ? maskIdentityText(input.name)
+          : input.purpose === 'customer_document'
+            ? customerDocumentName(input.name)
+            : input.name,
+      // J3: the customer a customer document is for; the restrictive insert policy holds it to a
+      // customer of the company within the uploader's documents.write scope.
+      accountId: input.accountId ?? null,
       contentType: input.contentType,
       size: input.size,
       sha256: input.sha256,

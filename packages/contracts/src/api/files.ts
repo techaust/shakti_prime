@@ -105,6 +105,11 @@ export const UPLOAD_FIELDS = {
   // The largest upload of any kind; each purpose and type has its own limit (`UPLOAD_LIMITS`).
   size: z.number().int().min(1).max(MAX_AUDIO_UPLOAD_BYTES),
   sha256: FileSha256Schema,
+  /**
+   * J3: the customer a customer document is uploaded for (`files.account_id`), which the document
+   * may be filed against and no other; given for that purpose alone.
+   */
+  accountId: IdSchema.optional(),
 };
 
 /** The most bytes an upload of a type may have: a recording more than any other file. */
@@ -114,9 +119,18 @@ export function maxUploadBytes(contentType: string): number {
 
 /** The rules every upload keeps, whichever door it comes through. */
 export function withUploadRules<
-  T extends z.ZodType<{ purpose: FilePurpose; contentType: string; size: number }>,
+  T extends z.ZodType<{
+    purpose: FilePurpose;
+    contentType: string;
+    size: number;
+    accountId?: string | undefined;
+  }>,
 >(schema: T): T {
   return schema
+    .refine((v) => (v.purpose === 'customer_document') === (v.accountId !== undefined), {
+      message: 'a customer document names its customer, and no other file does',
+      path: ['accountId'],
+    })
     .refine((v) => v.size <= maxUploadBytes(v.contentType), {
       message: 'the file is larger than its type may be',
       path: ['size'],

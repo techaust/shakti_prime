@@ -2,6 +2,7 @@ import {
   ContinueFileCheckInput,
   DomainError,
   FileDto,
+  FilePurposeSchema,
   type FileRejectReason,
   type KnowledgeErrorReason,
   KnowledgeSensitivitySchema,
@@ -124,6 +125,10 @@ export const markFileReady = defineCommand({
         sanitising: input.sanitising,
         regionsMasked: input.regionsMasked,
         ...(input.stored.key === row.key ? {} : { originalKey: row.key }),
+        // Only a customer document keeps what its filing needs of the numbers it hid.
+        ...(row.purpose === 'customer_document' && input.lastFour !== undefined
+          ? { lastFour: input.lastFour }
+          : {}),
       },
     });
     // A vault upload's vault files are sent to be read now that the upload is usable.
@@ -157,6 +162,12 @@ export const markFileReady = defineCommand({
 });
 
 /**
+ * The purposes whose PDFs are masked one page per delivery: vault files, and customer documents
+ * (J3). A WhatsApp file's PDF is W1's and J7's.
+ */
+const PAGED_PURPOSES: ReadonlySet<string> = new Set(['knowledge', 'customer_document']);
+
+/**
  * `files.file.continue_check`: a vault PDF is masked one page per delivery (a page takes about half
  * a minute, and a delivery lives for a minute), so after each page the worker sends the file's
  * checks on with this command, which emits `files.file.uploaded` again carrying the pages kept so
@@ -171,7 +182,10 @@ export const continueFileCheck = defineCommand({
   auditFields: ['fileStatus'],
   async handler(ctx, input) {
     const row = await lockInCompany(ctx, input);
-    if (row.purpose !== 'knowledge' || (row.status !== 'scanned' && row.status !== 'not_scanned')) {
+    if (
+      !PAGED_PURPOSES.has(row.purpose) ||
+      (row.status !== 'scanned' && row.status !== 'not_scanned')
+    ) {
       return toFileDto(row);
     }
     // Recorded with the file, in the same transaction as the event: a delivery that finds more
@@ -185,7 +199,7 @@ export const continueFileCheck = defineCommand({
       entityId: row.entityId,
       aggregateType: 'file',
       aggregateId: row.id,
-      payload: { purpose: 'knowledge', maskedPages: input.maskedPages },
+      payload: { purpose: FilePurposeSchema.parse(row.purpose), maskedPages: input.maskedPages },
     });
     ctx.audit({
       aggregateType: 'file',

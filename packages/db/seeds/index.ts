@@ -10,6 +10,7 @@ import { connectionOptions } from '../src/connection';
 import { requireEnv } from '../src/env';
 import {
   callDispositions,
+  documentRequirements,
   entities,
   leadSources,
   permissions,
@@ -20,6 +21,7 @@ import {
   roles,
 } from '../src/schema/index';
 import { DISPOSITION_SEED } from './dispositions';
+import { DOCUMENT_REQUIREMENT_SEED } from './document-requirements';
 import { ENTITY_SEED } from './entities';
 import { LEAD_SOURCE_SEED } from './lead-sources';
 import { PERMISSION_SEED } from './permissions';
@@ -160,6 +162,20 @@ export async function runSeeds(): Promise<void> {
         .where(and(isNull(callDispositions.entityId), isNull(callDispositions.segment)))
         .limit(1);
       if (!groupOutcome) await tx.insert(callDispositions).values(DISPOSITION_SEED);
+
+      // J3: a company's document requirements are the Executive's once written; a missing one is
+      // added, and none is changed or brought back once turned off.
+      await tx
+        .insert(documentRequirements)
+        .values(DOCUMENT_REQUIREMENT_SEED)
+        .onConflictDoNothing({
+          target: [
+            documentRequirements.entityId,
+            documentRequirements.flow,
+            documentRequirements.stepKey,
+            documentRequirements.requirementKey,
+          ],
+        });
 
       await tx
         .insert(leadSources)

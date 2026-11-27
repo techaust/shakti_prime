@@ -93,6 +93,18 @@ export const MarkFileReadyInput = z
       .strict(),
     /** Numbers and codes covered by the masking step; 0 when nothing was masked. */
     regionsMasked: z.number().int().min(0).max(1000).default(0),
+    /**
+     * J3: the last four digits of each Aadhaar and bank account number the masking step hid on a
+     * customer document, in reading order, which its filing keeps as the identity document's
+     * (SECURITY §5). Never more than four digits of any number.
+     */
+    lastFour: z
+      .object({
+        aadhaar: z.array(z.string().regex(/^[0-9]{4}$/)).max(12),
+        bankAccount: z.array(z.string().regex(/^[0-9]{4}$/)).max(12),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type MarkFileReadyInput = z.infer<typeof MarkFileReadyInput>;

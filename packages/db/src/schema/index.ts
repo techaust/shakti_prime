@@ -79,3 +79,5 @@ export {
   stockMovementCosts,
   stockBalances,
 } from './stock';
+// J3 customer documents and requirements (docs/03-roadmap-appendix/phase4.md §6.3).
+export { documentRequirements, documents, identityDocuments } from './documents';

@@ -57,22 +57,62 @@ export async function deleteMaskedPages(store: FileStore, uploadKey: string): Pr
   }
 }
 
+/** The last four digits of the numbers a page's masking hid (SECURITY §5); never more of them. */
+export interface LastFour {
+  aadhaar: string[];
+  bankAccount: string[];
+}
+
 interface PageRecord {
   widthPt: number;
   heightPt: number;
   regions: number;
+  /** Absent on a page kept before J3, which read as no numbers. */
+  lastFour?: LastFour;
+}
+
+const FOUR_DIGITS = /^[0-9]{4}$/;
+
+/** Four-digit strings only: anything longer in a stored record is dropped, never passed on. */
+function fours(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === 'string' && FOUR_DIGITS.test(v))
+    : [];
+}
+
+/** The last four digits of a masking outcome, which a stand-in masking step may leave out. */
+export function lastFourOf(outcome: {
+  aadhaarLastFour?: readonly string[];
+  bankAccountLastFour?: readonly string[];
+}): LastFour {
+  return {
+    aadhaar: fours(outcome.aadhaarLastFour),
+    bankAccount: fours(outcome.bankAccountLastFour),
+  };
 }
 
 function parseRecord(bytes: Uint8Array): PageRecord | undefined {
   try {
     const value: unknown = JSON.parse(Buffer.from(bytes).toString('utf8'));
     if (typeof value !== 'object' || value === null) return undefined;
-    const { widthPt, heightPt, regions } = value as Record<string, unknown>;
-    return typeof widthPt === 'number' &&
-      typeof heightPt === 'number' &&
-      typeof regions === 'number'
-      ? { widthPt, heightPt, regions }
-      : undefined;
+    const { widthPt, heightPt, regions, lastFour } = value as Record<string, unknown>;
+    if (
+      typeof widthPt !== 'number' ||
+      typeof heightPt !== 'number' ||
+      typeof regions !== 'number'
+    ) {
+      return undefined;
+    }
+    const kept =
+      typeof lastFour === 'object' && lastFour !== null
+        ? (lastFour as Record<string, unknown>)
+        : {};
+    return {
+      widthPt,
+      heightPt,
+      regions,
+      lastFour: { aadhaar: fours(kept.aadhaar), bankAccount: fours(kept.bankAccount) },
+    };
   } catch {
     return undefined;
   }
@@ -84,7 +124,14 @@ export type MaskStep =
   | { kind: 'more'; done: number; pages: number; undo: () => Promise<void> }
   /** The delivery is for a page already kept; nothing was done. */
   | { kind: 'stale'; done: number; pages: number }
-  | { kind: 'complete'; bytes: Uint8Array; pages: number; regionsMasked: number };
+  | {
+      kind: 'complete';
+      bytes: Uint8Array;
+      pages: number;
+      regionsMasked: number;
+      /** The last four digits of the numbers hidden on every page, in page order. */
+      lastFour: LastFour;
+    };
 
 export interface MaskStepInput {
   /** The upload's PDF, as it was uploaded. */
@@ -208,7 +255,12 @@ async function maskPage(
   if (outcome.status === 'needs_review') return { kind: 'refused', reason: 'file_mask_failed' };
 
   const picture = new Uint8Array(outcome.image);
-  const record: PageRecord = { widthPt, heightPt, regions: outcome.rects };
+  const record: PageRecord = {
+    widthPt,
+    heightPt,
+    regions: outcome.rects,
+    lastFour: lastFourOf(outcome),
+  };
   // The picture first, the record second: a page counts as kept only once its record is there. A
   // picture left by a delivery that died before the record is replaced rather than trusted.
   await deps.store.delete(pictureKey(prefix, index));
@@ -224,6 +276,7 @@ async function maskPage(
 async function assemble(store: FileStore, prefix: string, pages: number): Promise<MaskStep> {
   const kept: { jpeg: Uint8Array; widthPt: number; heightPt: number }[] = [];
   let regionsMasked = 0;
+  const lastFour: LastFour = { aadhaar: [], bankAccount: [] };
   for (let index = 0; index < pages; index += 1) {
     const [jpeg, recordBytes] = await Promise.all([
       store.get(pictureKey(prefix, index)),
@@ -236,6 +289,8 @@ async function assemble(store: FileStore, prefix: string, pages: number): Promis
     }
     kept.push({ jpeg, widthPt: record.widthPt, heightPt: record.heightPt });
     regionsMasked += record.regions;
+    lastFour.aadhaar.push(...(record.lastFour?.aadhaar ?? []));
+    lastFour.bankAccount.push(...(record.lastFour?.bankAccount ?? []));
   }
-  return { kind: 'complete', bytes: await jpegsToPdf(kept), pages, regionsMasked };
+  return { kind: 'complete', bytes: await jpegsToPdf(kept), pages, regionsMasked, lastFour };
 }

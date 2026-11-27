@@ -1,5 +1,6 @@
 import {
   WORKSHOP_DISPOSITIONS,
+  WORKSHOP_DOCUMENT_REQUIREMENTS,
   WORKSHOP_LOCK_HOURS,
   type AccountType,
   type DispositionNextAction,
@@ -61,6 +62,15 @@ export interface WorkshopDefaults {
   readonly calling: CallingDefaults;
   readonly whatsapp: WhatsAppDefaults;
   readonly sizing: SizingDefaults;
+  // J3 customer documents and requirements
+  readonly documents: {
+    /**
+     * The requirements per flow and step (PROJ-1, docs/03-roadmap-appendix/phase4.md §10): the seed
+     * writes them for every company once, and an Executive changes them in Settings › Document
+     * requirements.
+     */
+    readonly requirements: typeof WORKSHOP_DOCUMENT_REQUIREMENTS;
+  };
   readonly retention: {
     /**
      * Months after its last activity when an unqualified lead with no transaction is anonymised
@@ -530,6 +540,8 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     /** Schemes whose subsidy requires DCR modules: PM Surya Ghar and PM-KUSUM. */
     dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
   },
+  // J3 customer documents and requirements: the workshop's lists until the client answers PROJ-1.
+  documents: { requirements: WORKSHOP_DOCUMENT_REQUIREMENTS },
   /**
    * BLUEPRINT §7.9: unqualified leads with no transaction are anonymised 24 months after their
    * last activity. Retention periods are confirmed with the CA (docs/13-client-packs/workshop-pack.md).

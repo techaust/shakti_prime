@@ -15,11 +15,13 @@ import type { PermissionByInput, Requirement } from '../command/define-command';
  * general rule of `app.file_purpose_grant()` names nothing for it; `thread` reads it with the
  * WhatsApp message it came on, under its thread's rule (`files_whatsapp_read`); `call` reads it with
  * the provider call it is the transcript of, under its lead's rule (`files_call_transcript_read`);
- * null hides it from every request.
+ * `document` reads it with the customer document that names it, under the documents' rule (a
+ * sensitive one only with `documents.sensitive.read`), and its uploader until it is filed
+ * (`files_customer_document_read`); null hides it from every request.
  */
 export interface FilePurposeRule {
   write: Requirement | null;
-  read: PermissionKey | 'company' | 'vault' | 'thread' | 'call' | null;
+  read: PermissionKey | 'company' | 'vault' | 'thread' | 'call' | 'document' | null;
 }
 
 const needs = (permission: PermissionKey, minScope: Scope): Requirement => ({
@@ -34,7 +36,9 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
   receipt: { write: null, read: null },
   signature: { write: null, read: null },
   selfie: { write: null, read: null },
-  customer_document: { write: null, read: null },
+  // J3: a customer's document, uploaded for a customer the uploader may file documents for, masked
+  // before it is kept, and read with its document (docs/03-roadmap-appendix/phase4.md §6.3).
+  customer_document: { write: needs('documents.write', 'own'), read: 'document' },
   import: { write: needs('imports.write', 'entity'), read: 'imports.write' },
   // Only the render worker stores a quote's PDF; a signed copy comes from whoever accepts quotes.
   quote_pdf: { write: needs('files.process', 'entity'), read: 'crm.lead.read' },
@@ -67,7 +71,10 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
 export function filePurposeGrant(purpose: FilePurpose, access: 'write' | 'read'): string | null {
   const rule = FILE_PURPOSE_RULES[purpose];
   if (access === 'read') {
-    return rule.read === 'vault' || rule.read === 'thread' || rule.read === 'call'
+    return rule.read === 'vault' ||
+      rule.read === 'thread' ||
+      rule.read === 'call' ||
+      rule.read === 'document'
       ? null
       : rule.read;
   }

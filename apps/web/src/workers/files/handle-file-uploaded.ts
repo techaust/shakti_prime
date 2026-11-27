@@ -30,10 +30,12 @@ import { checkOfficeFile, isOfficeType } from './office-check';
 import { checkPdf } from './pdf-check';
 import {
   deleteMaskedPages,
+  lastFourOf,
   maskNextPdfPage,
   PAGE_DELIVERY_LIMIT_MS,
   PAGE_MASK_LIMIT_MS,
   PAGE_TURN_LIMIT_MS,
+  type LastFour,
   type PageLimits,
 } from './mask-pdf-pages';
 import { isImageType, reencodeImage } from './reencode-image';
@@ -47,9 +49,17 @@ const CLAIM_SECONDS = 90;
 
 /**
  * The purposes whose photos and PDF pages are masked before they are kept: vault files may reach a
- * model, and a customer's WhatsApp files are often identity documents (BLUEPRINT §7.5).
+ * model, and a customer's WhatsApp files and documents are often identity documents (BLUEPRINT
+ * §7.5, docs/03-roadmap-appendix/phase4.md §6.3).
  */
-const MASKED_PURPOSES: ReadonlySet<string> = new Set(['knowledge', 'whatsapp_media']);
+const MASKED_PURPOSES: ReadonlySet<string> = new Set([
+  'knowledge',
+  'whatsapp_media',
+  'customer_document',
+]);
+
+/** At most this many last-four entries of each kind ride on a file (`MarkFileReadyInput`). */
+const LAST_FOUR_KEPT = 12;
 
 /** A PDF masked page by page, whose masked pages are kept beside it until it is done. */
 const pagedPdf = (file: Pick<StoredFile, 'purpose' | 'contentType'>): boolean =>
@@ -94,6 +104,8 @@ type Checked =
       bytes: Uint8Array;
       contentType: UploadContentType;
       regionsMasked: number;
+      /** The last four digits of the numbers the masking step hid; set only on a masked file. */
+      lastFour?: LastFour;
     }
   | { ok: false; reason: FileRejectReason }
   | { ok: 'more'; maskedPages: number; pages: number };
@@ -221,6 +233,15 @@ export async function handleFileUploaded(
     sanitising: checked.sanitising,
     stored: { key, contentType: checked.contentType, size: checked.bytes.length, sha256 },
     regionsMasked: checked.regionsMasked,
+    // A customer document's filing keeps these as its identity document's (J3).
+    ...(file.purpose === 'customer_document' && checked.lastFour !== undefined
+      ? {
+          lastFour: {
+            aadhaar: checked.lastFour.aadhaar.slice(0, LAST_FOUR_KEPT),
+            bankAccount: checked.lastFour.bankAccount.slice(0, LAST_FOUR_KEPT),
+          },
+        }
+      : {}),
   });
   if (replaced) await deps.store.delete(file.key);
   if (pagedPdf(file)) {
@@ -329,6 +350,7 @@ async function maskVaultPdf(
       bytes: step.bytes,
       contentType: 'application/pdf',
       regionsMasked: step.regionsMasked,
+      lastFour: step.lastFour,
     };
   } finally {
     await deps.keyValue?.del(claim).catch(() => undefined);
@@ -428,6 +450,7 @@ async function check(
       bytes: new Uint8Array(outcome.image),
       contentType: 'image/jpeg',
       regionsMasked: outcome.rects,
+      lastFour: lastFourOf(outcome),
     };
   }
   const image = await reencodeImage(bytes, file.contentType);

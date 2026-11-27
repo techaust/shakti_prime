@@ -29,6 +29,11 @@ export interface ScanResult {
   originalKey?: string;
   /** How many pages of a vault PDF the worker has sent the next delivery on from (`files.file.continue_check`). */
   maskedPagesSent?: number;
+  /**
+   * J3: the last four digits of each Aadhaar and bank account number the masking step hid on a
+   * customer document, which its filing keeps as the identity document's (SECURITY §5).
+   */
+  lastFour?: { aadhaar: string[]; bankAccount: string[] };
 }
 
 export function scanResultOf(row: Pick<FileRow, 'scanResult'>): ScanResult {

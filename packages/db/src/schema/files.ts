@@ -11,6 +11,7 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { accounts } from './accounts';
 import { actorsRequired, timestamps } from './columns';
 import { entities } from './entities';
 
@@ -43,6 +44,11 @@ export const files = pgTable(
      * once its job no longer needs it (audit SEC-1). A deleted file is never opened or read.
      */
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    /**
+     * J3: the customer a `customer_document` was uploaded for, set when the upload begins and never
+     * changed; the document is filed against this customer alone (`file_customer_mismatch`).
+     */
+    accountId: uuid('account_id').references(() => accounts.id),
     ...timestamps,
     ...actorsRequired,
   },
@@ -56,6 +62,11 @@ export const files = pgTable(
       sql`${t.status} in ('pending', 'scanning', 'scanned', 'not_scanned', 'masked', 'ready', 'rejected')`,
     ),
     check('files_size_check', sql`${t.size} > 0`),
+    // J3: a customer document names its customer; no other file names one.
+    check(
+      'files_account_check',
+      sql`(${t.purpose} = 'customer_document') = (${t.accountId} is not null)`,
+    ),
     check('files_sha256_check', sql`${t.sha256} ~ '^[0-9a-f]{64}$'`),
     check('files_name_length_check', sql`char_length(${t.name}) between 1 and 200`),
     unique('files_bucket_key_unique').on(t.bucket, t.key),
@@ -72,6 +83,10 @@ export const files = pgTable(
     index('files_import_kept_idx')
       .on(t.entityId, t.createdAt)
       .where(sql`${t.purpose} = 'import' and ${t.deletedAt} is null`),
+    // J3: the customer's foreign key, and the uploads of a customer's documents.
+    index('files_account_idx')
+      .on(t.accountId)
+      .where(sql`${t.accountId} is not null`),
     // The recordings' sweep: call recordings still stored, oldest first, across the companies.
     index('files_call_recording_kept_idx')
       .on(t.createdAt)

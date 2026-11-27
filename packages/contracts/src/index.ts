@@ -125,3 +125,5 @@ export * from './notifications';
 export * from './commands/webhooks/inbox';
 // U1 vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3).
 export * from './procurement/index';
+// J3 customer documents and requirements (docs/03-roadmap-appendix/phase4.md §6.3).
+export * from './documents/index';

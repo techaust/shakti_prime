@@ -203,6 +203,13 @@ import { setTaxRate } from '../commands/tax/set-tax-rate';
 import { archiveVendor, createVendor, updateVendor } from '../commands/procurement/vendors';
 import { setItemVendor, setVendorContacts } from '../commands/procurement/vendor-links';
 import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/quotes';
+// J3 customer documents and requirements.
+import {
+  fileDocument,
+  setDocumentRequirement,
+  unfileDocument,
+  viewDocument,
+} from '../commands/documents/documents';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -423,6 +430,11 @@ export const commands = Object.freeze({
   [setItemVendor.name]: setItemVendor,
   [recordVendorQuote.name]: recordVendorQuote,
   [withdrawVendorQuote.name]: withdrawVendorQuote,
+  // J3 customer documents and requirements (docs/03-roadmap-appendix/phase4.md §6.3).
+  [fileDocument.name]: fileDocument,
+  [unfileDocument.name]: unfileDocument,
+  [viewDocument.name]: viewDocument,
+  [setDocumentRequirement.name]: setDocumentRequirement,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

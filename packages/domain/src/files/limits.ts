@@ -55,6 +55,8 @@ export const UPLOAD_LIMITS: Readonly<Partial<Record<FilePurpose, UploadLimit>>> 
   import: { contentTypes: SHEETS, maxBytes: IMPORT_LIMITS.maxFileBytes },
   // U1: a supplier's quote, as a PDF or a photo of the paper.
   vendor_quote: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
+  // J3: a customer's document, as a photo or a scan; masked before it is kept.
+  customer_document: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
 };
 
 /** Why an upload is refused before it starts; each has a sentence in the message catalogue. */

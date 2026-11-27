@@ -229,6 +229,20 @@ export { setItemVendor, setVendorContacts } from './commands/procurement/vendor-
 export { recordVendorQuote, withdrawVendorQuote } from './commands/procurement/quotes';
 export { readQuoteComparison, getVendor, listVendors } from './queries/procurement/vendor-queries';
 export { readsRates, readsVendors } from './queries/procurement/vendor-read';
+// J3 customer documents and requirements (docs/03-roadmap-appendix/phase4.md §6.3).
+export {
+  fileDocument,
+  setDocumentRequirement,
+  unfileDocument,
+  viewDocument,
+} from './commands/documents/documents';
+export {
+  CUSTOMER_DOCUMENTS_LIMIT,
+  listCustomerDocuments,
+  listDocumentRequirements,
+  missingDocuments,
+  readDocument,
+} from './queries/documents/documents';
 export { serialMatchesPattern, serialsOutsidePattern } from './catalogue/serial-pattern';
 export type { ItemSerialPattern } from './catalogue/serial-pattern';
 export { setTaxRate } from './commands/tax/set-tax-rate';
