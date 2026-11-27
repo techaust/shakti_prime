@@ -167,6 +167,6 @@ lane: 76
 role: prep
 branch: feat/j1-projects
 run_file: docs/runs/phase4/j1-projects.md
-wait_for: report: tc1-tally-connector prepped
+wait_for: none
 done_when: report: j1-projects prepped
 note: prep for the lead's integration: readme's prep prompt (one prep at a time on this seat: it starts after TC1's). Diff against main's latest: app.platform_only_permissions(), app.next_document_no(), notifications_type_check and notification_preferences_type_check, app.status_summary(), document_sequences_doc_type_check.
