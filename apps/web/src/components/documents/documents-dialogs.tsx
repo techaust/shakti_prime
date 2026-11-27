@@ -144,7 +144,7 @@ function UploadForm({
   }
 
   async function upload(chosen: File, controls: UploadControls): Promise<UploadResult> {
-    recorded.current = undefined;
+    // A failed attempt leaves an earlier attempt's id here; the status check below passes it by.
     setFileId(undefined);
     const result = await sendFile(
       chosen,

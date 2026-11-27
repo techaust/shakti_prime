@@ -48,6 +48,7 @@ import { writePrintPages } from './print-pages';
 import { ensureConvertingJourneys } from './converting';
 import { ensureConciergeJourneys } from './concierge';
 import { ensureCopilotJourneys } from './copilot';
+import { ensureDocumentJourneys } from './documents';
 import { deliverWaitingEvents } from './deliver-waiting';
 import { ensureOrderJourneys } from './orders';
 import { archiveAddedPartners, resetPipelineStages } from './pipelines';
@@ -910,6 +911,10 @@ const orders = await ensureOrderJourneys(ids.executive ?? '');
 // H1 stock ledger
 progress('the stock journeys');
 await ensureStockJourneys(ids.executive ?? '');
+
+// J3: the customers and documents of the document journeys.
+progress('the customer documents');
+await ensureDocumentJourneys(ids.fieldEngineer ?? '', ids.projectManager ?? '');
 
 progress('the Lead Converter workspace');
 // One converter of company 2 per project, none of them a handover target, each with three leads

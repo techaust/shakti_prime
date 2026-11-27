@@ -112,6 +112,22 @@ export const SIGNED_IN_ROLES = [
     entityIds: [1],
     twoFactor: false,
   },
+  // J3: the Project Manager of company 1, who files a customer's bill and identity paper, and the
+  // Field Engineer who looks after the customer and sees no identity paper (documents.spec.ts).
+  {
+    key: 'projectManager',
+    name: 'Vikram Shekhawat',
+    roleKey: 'project_manager',
+    entityIds: [1],
+    twoFactor: false,
+  },
+  {
+    key: 'fieldEngineer',
+    name: 'Ramesh Jangid',
+    roleKey: 'field_engineer',
+    entityIds: [1],
+    twoFactor: false,
+  },
 ] as const;
 export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
 
@@ -520,4 +536,30 @@ export const SNAPSHOT_VENDORS = {
   search: 'Marudhar',
   cables: 'Marudhar Cables and Wires',
   solar: 'Marudhar Solar Traders',
+} as const;
+
+/**
+ * J3's document journeys (documents.spec.ts), written by the seed (`e2e/setup/documents.ts`): in
+ * company 1, customers the Field Engineer looks after. The first has a bill and an identity paper
+ * already filed, masked copies of test pictures, for the screenshots; each project has a customer
+ * of its own the Project Manager uploads to. The last four digits are a test value.
+ */
+export const DOCUMENTS_JOURNEY = {
+  entityId: 1,
+  filed: {
+    accountId: '0199e2e0-0000-7000-8000-0000000d0001',
+    name: 'Journey documents customer',
+    lastFour: '4821',
+  },
+  uploads: {
+    'desktop-light': {
+      accountId: '0199e2e0-0000-7000-8000-0000000d0011',
+      name: 'Journey uploads, light',
+    },
+    'desktop-dark': {
+      accountId: '0199e2e0-0000-7000-8000-0000000d0012',
+      name: 'Journey uploads, dark',
+    },
+    phone: { accountId: '0199e2e0-0000-7000-8000-0000000d0013', name: 'Journey uploads, phone' },
+  },
 } as const;
