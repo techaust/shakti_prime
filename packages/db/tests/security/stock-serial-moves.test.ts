@@ -617,6 +617,42 @@ describe('a line whose reason and direction have no row', () => {
   });
 });
 
+describe('which reasons a reversal reverses (addendum 2)', () => {
+  it('a reason its grant row marks reversible, and no other', async () => {
+    await rolledBack(async (tx) => {
+      const f = await fixture(tx);
+      // A reason a later slice opens as reversible (U2's receipt), and one it opens as not.
+      await tx`insert into app.stock_reason_grants (reason, permission, reversible, opened_by) values
+        ('receipt', 'inventory.stock.adjust:entity', true, 'x4-stock-reasons'),
+        ('surplus_in', 'inventory.stock.adjust:entity', false, 'x4-stock-reasons')`;
+      const into = (reason: string): Line => ({
+        reason,
+        entity_id: 1,
+        item_id: f.cable,
+        to_bin_id: f.binA,
+        qty: '2',
+      });
+      const [receipt, surplus, gained] = await posted(tx, [
+        into('receipt'),
+        into('surplus_in'),
+        into('adjust_gain'),
+      ]);
+      const [reversal] = await posted(tx, [{ reason: 'reversal', reverses_id: receipt }]);
+      const [{ q } = { q: '' }] = await tx<{ q: string }[]>`
+        select qty_on_hand::text as q from stock_balances
+         where entity_id = 1 and bin_id = ${f.binA} and item_id = ${f.cable}`;
+      expect(q).toBe('4.000');
+      const notAllowed = refused('stock_reversal_not_allowed');
+      expect(await post(tx, [{ reason: 'reversal', reverses_id: surplus }])).toEqual(notAllowed);
+      // A reversal is never reversed, as in H1.
+      expect(await post(tx, [{ reason: 'reversal', reverses_id: reversal }])).toEqual(notAllowed);
+      // One of H1's rows marked not reversible: its movements are no longer reversed.
+      await tx`update app.stock_reason_grants set reversible = false where reason = 'adjust_gain'`;
+      expect(await post(tx, [{ reason: 'reversal', reverses_id: gained }])).toEqual(notAllowed);
+    });
+  });
+});
+
 describe('the rows the wave 2 slices name, and a delivery’s customer on a line', () => {
   async function openWave2(tx: Tx): Promise<void> {
     for (const [reason, permission] of WAVE2_GRANTS) {

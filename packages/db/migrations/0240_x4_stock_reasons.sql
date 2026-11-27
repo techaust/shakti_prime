@@ -6,8 +6,8 @@
 -- HOW A LATER SLICE OPENS A REASON. In that slice's own custom migration, write these inserts and
 -- nothing else about app.stock_move():
 --
---   insert into app.stock_reason_grants (reason, permission, opened_by)
---     values ('<reason>', '<permission key>:<scope>', '<your slice>')
+--   insert into app.stock_reason_grants (reason, permission, reversible, opened_by)
+--     values ('<reason>', '<permission key>:<scope>', <reversible>, '<your slice>')
 --     on conflict (reason) do nothing;
 --
 -- and, when the reason moves a serial-tracked item, one row per direction it moves one in:
@@ -20,7 +20,9 @@
 -- <reason> is one of the ledger's fifteen (stock_movements_reason_check). <permission key>:<scope>
 -- is a key of the permission catalogue with one of its scopes, written as app.has_perm() reads the
 -- request's settings (H1's are 'inventory.stock.adjust:entity' and 'inventory.stock.move:entity').
--- <your slice> is the run file's slug. A line's direction follows its bins: `in` has only a target
+-- <reversible> is true when a movement of the reason may be reversed by a `reversal` line
+-- (U2's receipt is; H1's opening, gains, losses, damage, counts and transfers are), false when its
+-- own document undoes it. <your slice> is the run file's slug. A line's direction follows its bins: `in` has only a target
 -- bin, `out` only a source bin, `transfer` both. <from_states> are the serial states a serial
 -- already known may move from; <creates> is true when a serial number not yet known makes a new
 -- serial (`in` only; from_states may then be empty, so only a new serial is accepted); <to_state>
@@ -29,7 +31,7 @@
 -- takes a line's account_id, site_id, delivered_at and warranty_until. The table's checks refuse a
 -- row the ledger could never post.
 --
--- The wave 2 rows, each written by its own slice, not here:
+-- The wave 2 rows, each written by its own slice, not here (U2's grant row is reversible):
 --   r3-warranty         ('warranty_replacement', 'out', '{in_stock}', false, 'with_customer')
 --                       ('return_customer', 'in', '{with_customer}', false, 'faulty')
 --                       ('return_supplier', 'out', '{faulty}', false, 'with_supplier')
@@ -47,9 +49,11 @@
 
 -- 1. The grants: one row per open reason, read only by app.stock_move() as its owner. It holds no
 --    company and no personal data, and no request role, reporting or agent reads or writes it.
+--    `reversible` says whether a reversal line may reverse a movement of the reason.
 create table app.stock_reason_grants (
   reason text primary key,
   permission text not null,
+  reversible boolean not null default false,
   opened_by text not null,
   constraint stock_reason_grants_reason_check check (reason in ('opening', 'receipt', 'transfer',
     'pick', 'issue', 'return_customer', 'return_supplier', 'adjust_gain', 'adjust_loss', 'damage',
@@ -63,15 +67,17 @@ create table app.stock_reason_grants (
 revoke all on app.stock_reason_grants from public, app_user, app_reader, readonly_reporter;
 --> statement-breakpoint
 
--- 2. H1's mapping, exactly as its case had it.
-insert into app.stock_reason_grants (reason, permission, opened_by) values
-  ('opening', 'inventory.stock.adjust:entity', 'h1-stock-ledger'),
-  ('adjust_gain', 'inventory.stock.adjust:entity', 'h1-stock-ledger'),
-  ('adjust_loss', 'inventory.stock.adjust:entity', 'h1-stock-ledger'),
-  ('damage', 'inventory.stock.adjust:entity', 'h1-stock-ledger'),
-  ('count', 'inventory.stock.adjust:entity', 'h1-stock-ledger'),
-  ('reversal', 'inventory.stock.adjust:entity', 'h1-stock-ledger'),
-  ('transfer', 'inventory.stock.move:entity', 'h1-stock-ledger');
+-- 2. H1's mapping, exactly as its case had it, and the reasons its reversal path allowed
+--    (0231's `v_orig.reason not in ('opening', 'adjust_gain', 'adjust_loss', 'damage', 'count',
+--    'transfer')`): every one but the reversal itself.
+insert into app.stock_reason_grants (reason, permission, reversible, opened_by) values
+  ('opening', 'inventory.stock.adjust:entity', true, 'h1-stock-ledger'),
+  ('adjust_gain', 'inventory.stock.adjust:entity', true, 'h1-stock-ledger'),
+  ('adjust_loss', 'inventory.stock.adjust:entity', true, 'h1-stock-ledger'),
+  ('damage', 'inventory.stock.adjust:entity', true, 'h1-stock-ledger'),
+  ('count', 'inventory.stock.adjust:entity', true, 'h1-stock-ledger'),
+  ('reversal', 'inventory.stock.adjust:entity', false, 'h1-stock-ledger'),
+  ('transfer', 'inventory.stock.move:entity', true, 'h1-stock-ledger');
 --> statement-breakpoint
 
 -- 3. The serial moves: per open reason and direction, the states a serial may come from, whether a
@@ -147,11 +153,14 @@ alter type app.stock_line
   add attribute warranty_until date;
 --> statement-breakpoint
 
--- 6. app.stock_move(), as H1 wrote it, with three changes and nothing else (the lock order and
+-- 6. app.stock_move(), as H1 wrote it, with four changes and nothing else (the lock order and
 --    every other refusal are H1's):
 --    a. the case that named each reason's permission is a read of app.stock_reason_grants; a reason
 --       with no row leaves v_perm null and is refused with stock_reason_not_open, as before;
---    b. the serial block reads app.stock_reason_serial_moves: a tracked line whose reason and
+--    b. the reversal path's fixed list of reasons it may reverse is a read of the same row's
+--       `reversible`: a reason with no row or not reversible is refused with
+--       stock_reversal_not_allowed, as before;
+--    c. the serial block reads app.stock_reason_serial_moves: a tracked line whose reason and
 --       direction have no row is refused with stock_serial_state; a row that creates is what lets
 --       a new serial number in (stock_serial_exists or stock_serial_unknown as before otherwise);
 --       a serial comes only from the row's states and goes to its state, its bin following
@@ -161,7 +170,7 @@ alter type app.stock_line
 --       every bin, with stock_serial_state; out of a bin, a serial not in the line's source bin is
 --       refused with stock_serial_not_in_bin as before, and one there in another state with
 --       stock_serial_state;
---    c. a line's optional account_id, site_id, delivered_at and warranty_until are taken only on a
+--    d. a line's optional account_id, site_id, delivered_at and warranty_until are taken only on a
 --       line whose move row goes to with_customer (stock_movement_shape on any other, and for a
 --       site without its customer), checked against the request's companies (the customer linked
 --       to one of them, the site the customer's: stock_customer_missing), and written to the
@@ -263,7 +272,8 @@ begin
       if not found or not (v_orig.entity_id = any (v_entities)) then
         perform app.stock_refuse('stock_movement_missing', pg_catalog.jsonb_build_object('line', v_ord));
       end if;
-      if v_orig.reason not in ('opening', 'adjust_gain', 'adjust_loss', 'damage', 'count', 'transfer') then
+      if not exists (select 1 from app.stock_reason_grants g
+                      where g.reason = v_orig.reason and g.reversible) then
         perform app.stock_refuse('stock_reversal_not_allowed', pg_catalog.jsonb_build_object('line', v_ord));
       end if;
       if v_orig.reversed then

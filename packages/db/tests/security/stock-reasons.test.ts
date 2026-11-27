@@ -36,8 +36,12 @@ afterAll(closeDb);
 interface ReasonGrant {
   reason: string;
   permission: string;
+  reversible: boolean;
   opened_by: string;
 }
+
+/** The reasons H1's reversal path reversed: every one of its own but the reversal. */
+const H1_REVERSIBLE = ['adjust_gain', 'adjust_loss', 'count', 'damage', 'opening', 'transfer'];
 
 /** H1's mapping, as its `case` had it before the registry. */
 const H1_GRANTS: Record<string, string> = {
@@ -105,7 +109,7 @@ function splitPermission(permission: string): { key: PermissionKey; scope: Scope
 beforeAll(async () => {
   grants = await asMigrator(
     (m) => m<ReasonGrant[]>`
-      select reason, permission, opened_by from app.stock_reason_grants order by reason`,
+      select reason, permission, reversible, opened_by from app.stock_reason_grants order by reason`,
   );
 });
 
@@ -115,6 +119,9 @@ describe('app.stock_reason_grants, the registry', () => {
       grants.filter((g) => g.opened_by === 'h1-stock-ledger').map((g) => [g.reason, g.permission]),
     );
     expect(h1).toEqual(H1_GRANTS);
+    expect(
+      grants.filter((g) => g.opened_by === 'h1-stock-ledger' && g.reversible).map((g) => g.reason),
+    ).toEqual(H1_REVERSIBLE);
   });
 
   it('opens exactly the reasons the contracts open, each with a catalogue key and one of its scopes', () => {
