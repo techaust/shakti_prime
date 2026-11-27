@@ -120,3 +120,16 @@ Reviewer, 27-11-2026, in the lead's cloud VM (worktree `demo-data-ist-day`, Post
 ### Not run
 - The whole `pnpm test:security`, the db and domain suites, and the journeys. No journey reads this test or its helper, and none was run.
 - **This slot's database is now aged and should not be reused for the suites.** It holds 250 items `REVIEW-AGED-*` that I added. It holds two demo sets left live by two runs that failed on my own first rows (ids that were not UUIDv7; the rows are corrected). It holds shared Retail lists versions 1 to 6, all archived, so a db suite run on 54332 would stop on `catalogueFixture()`'s version 1, as the builder's "also seen" 1 says.
+
+## Integration prep
+### 27-11-2026, prep agent in the lead's cloud VM (worktree `demo-data-ist-day`, the integration database on 54340)
+- **`main`:** `fc42a09f` (Merge pull request #299 from techaust/feat/q1-labels). It was already in the branch through the merge commit `d1d31962`, and `main` had not moved since, so no new merge commit was needed. The branch differs from `main` in three files only: `apps/web/tests/demo-data.test.ts`, `packages/domain/tests/queries/catalogue-queries.test.ts` and this file.
+- **Migrations:** none. `renumber-migrations.mjs origin/main HEAD` printed "no branch-only migrations"; `pnpm install --offline --frozen-lockfile` reported the lockfile up to date; `pnpm db:generate` printed "No schema changes, nothing to migrate"; `pnpm db:docs` left the tree clean.
+- **Redefinitions checked:** none to check. The slice's migrations redefine no function, check constraint or foreign key, since it has none. It changes no shared list (testing lists, fixtures, registries, `en.json`, the copy-lint config), so no list can hold a key twice.
+- **Typecheck right after the merge check:** `pnpm --filter @shakti/domain typecheck` and `pnpm --filter web typecheck` were both clean, run through the lock.
+- **`integrate.sh`, in parts, through the lock, without e2e:**
+  - `install lint format copylint generated typecheck`: `=== INTEGRATION PARTIAL (install lint format copylint generated typecheck)`, every step rc=0.
+  - `unit`: `=== INTEGRATION PARTIAL (unit)`, rc=0. copy-lint 17, tokens 146, ui 107, voice 49, voice-agent 23, contracts 340, db 161, domain 2811 tests passed; web 1261 passed and 1 skipped (168 files).
+  - `security dbverify`: `=== INTEGRATION PARTIAL (security dbverify)`, both rc=0. db 1860 tests passed (64 files), domain 1535 (111 files), web 466 (40 files); `db:verify`: "every migration is applied as it is on disk".
+  - `audit build jsbudget gitleaks`: `=== INTEGRATION PARTIAL (audit build jsbudget gitleaks)`, every step rc=0. The audit has 3 moderate findings, all already reviewed and ignored. The build ran its 2 tasks with 0 cached. Every page is within its budget (65 pages). gitleaks scanned 9 commits and found no leaks.
+- **Fixed:** nothing; the merge broke nothing. **Not run:** the e2e step, as instructed.
