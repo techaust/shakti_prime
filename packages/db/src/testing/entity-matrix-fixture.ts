@@ -741,7 +741,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         await tx`insert into identity_documents (id, entity_id, account_id, document_id, kind, last4, masked_file_id, created_by)
           values (${idFile}, ${e}, ${account}, ${idFile}, 'aadhaar', '0000', ${idFile}, ${ownerId})`;
         await tx`insert into document_requirements (id, entity_id, flow, step_key, requirement_key, mandatory, accepted_kinds, position)
-          values (${billFile}, ${e}, 'standard', 'handover', 'agreement', false, array['agreement'], 9)`;
+          values (${billFile}, ${e}, 'surya_ghar', 'dbt_tracking', 'bank_proof', false, array['bank_proof'], 9)`;
         rows.files.push(
           { key: billFile, entities: only, purpose: 'customer_document' },
           { key: idFile, entities: only, purpose: 'customer_document', sensitive: true },

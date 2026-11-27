@@ -2,7 +2,13 @@
 // §11 items 7 and 8): documents.file, .unfile, .view and .requirement.set on real Postgres. Every
 // number here is made up, and every customer is this file's own.
 import { newId, type DocumentDto, type Principal } from '@shakti/contracts';
-import { asMigrator, asPrincipal, closeDb, createTestPrincipal } from '@shakti/db/testing';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  createTestPrincipal,
+  principalFor,
+} from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -251,7 +257,9 @@ describe('documents.document.file', () => {
       requirementKey: 'electricity_bill',
     };
     expect(await refusal(run(inventory, fileDocument, input))).toMatchObject({ code: 'forbidden' });
-    const concierge = await createTestPrincipal('agent:concierge', [1]);
+    // Refused at the guard, so no row of its own is needed (a stored agent would count in the
+    // seeded agents other suites read).
+    const concierge = principalFor('agent:concierge', [1]);
     expect(await refusal(run(concierge, fileDocument, input))).toMatchObject({ code: 'forbidden' });
     // Acting in company 2, a file of company 1 is outside the request.
     expect(
