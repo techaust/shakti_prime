@@ -127,13 +127,13 @@ export function OrdersScreen({
           <h2 id="reorder-alerts" className="text-h3">
             {t('alertsTitle', { count: initial.reorderAlerts.length })}
           </h2>
-          <p className="text-text-muted text-sm">{t('alertsIntro')}</p>
+          <p className="text-text text-sm">{t('alertsIntro')}</p>
           <ul className="flex flex-col gap-1">
             {initial.reorderAlerts.map((o) => (
               <li key={o.id}>
                 <Link
                   href={`/procurement/orders/${o.id}` as Route}
-                  className="text-accent-text underline-offset-4 hover:underline"
+                  className="text-text font-medium underline underline-offset-4"
                 >
                   {t('alertLine', {
                     number: o.poNo,

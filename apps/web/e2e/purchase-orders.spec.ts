@@ -154,6 +154,8 @@ test.describe('as the General Manager of the snapshot company', () => {
     await expectNoAxeViolations(page);
     await snap(page, 'purchase-order-sheet-no-rates');
 
+    // The order sheet has no procurement tabs: the receipts list is opened from the orders list.
+    await page.goto('/procurement/orders?state=approved');
     await page.getByRole('link', { name: 'Goods received' }).click();
     await expect(page.getByRole('heading', { name: 'Goods received', level: 1 })).toBeVisible();
     await expect(page.getByText('₹')).toHaveCount(0);

@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { formatRate } from '../../screens/procurement';
 import { ORDER_STATE_TONE, outstanding, plainQty } from '../../screens/purchase-orders';
+import { ScrollTable } from '../home/scroll-table';
 
 /** Whether the order arrived with its rates (a holder of `procurement.rate.read`). */
 export function hasRates(
@@ -67,7 +68,8 @@ export async function OrderSheet({
           </div>
         ))}
       </dl>
-      <div className="border-border overflow-x-auto rounded-lg border">
+      {/* A labelled region the keyboard can scroll while the lines are wider than a phone. */}
+      <ScrollTable label={t('linesCaption')}>
         <table className="w-full text-sm">
           <caption className="sr-only">{t('linesCaption')}</caption>
           <thead className="bg-surface-2 text-text-muted text-left">
@@ -136,7 +138,7 @@ export async function OrderSheet({
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollTable>
       {withRates && order.totals !== null ? (
         <dl className="ml-auto grid w-full max-w-sm grid-cols-2 gap-y-1 text-sm">
           <dt className="text-text-muted">{t('subtotal')}</dt>
