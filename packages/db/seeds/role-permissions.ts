@@ -151,6 +151,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'procurement.po.write': { ...EXEC, inventory_manager: 'entity' },
   'procurement.grn.write': { ...EXEC, inventory_manager: 'entity' },
   'procurement.rate.read': { ...EXEC, inventory_manager: 'entity', accounts: 'entity' },
+  // U2: the Inventory Manager approves below the limit for their company (question 5 (a)).
+  'procurement.po.approve': { ...EXEC, inventory_manager: 'entity' },
   'projects.read': {
     ...EXEC,
     general_manager: 'entity',
@@ -346,6 +348,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // W2: the platform's removal of WhatsApp files past the retention period; no person's role holds
   // it (SECURITY §3.3).
   'messaging.media.expire': {},
+  // U2: the platform's reorder drafts; no person's role holds it (SECURITY §3.3).
+  'procurement.reorder.draft': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

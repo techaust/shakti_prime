@@ -37,6 +37,8 @@ export const PERMISSION_KEYS = [
   'procurement.po.write',
   'procurement.grn.write',
   'procurement.rate.read',
+  // U2: approving a purchase order (docs/03-roadmap-appendix/phase3.md §4, question 5 (a)).
+  'procurement.po.approve',
   'projects.read',
   'projects.write',
   'projects.gate.approve',
@@ -157,6 +159,10 @@ export const PERMISSION_KEYS = [
   // removed and asks which stored keys still belong to a file through narrow definers, nothing
   // more.
   'messaging.media.expire',
+  // U2: the reorder job (docs/03-roadmap-appendix/phase3.md §4, §7.2): held only by the platform's
+  // worker principal, which compares each reorder rule with free stock and open purchase orders and
+  // drafts purchase orders with no rate through two narrow definers, nothing more.
+  'procurement.reorder.draft',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -243,6 +249,8 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'voice.session.record',
   // W2 media retention.
   'messaging.media.expire',
+  // U2 reorder drafts.
+  'procurement.reorder.draft',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -348,6 +356,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'procurement.po.write': ['entity', 'all'],
   'procurement.grn.write': ['entity', 'all'],
   'procurement.rate.read': ['entity', 'all'],
+  'procurement.po.approve': ['entity', 'all'],
   'projects.read': ['own', 'entity', 'all'],
   'projects.write': ['own', 'entity', 'all'],
   'projects.gate.approve': ['entity', 'all'],
@@ -413,6 +422,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'voice.session.record': ['all'],
   // W2 media retention.
   'messaging.media.expire': ['all'],
+  // U2 reorder drafts.
+  'procurement.reorder.draft': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

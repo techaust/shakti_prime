@@ -203,6 +203,17 @@ import { setTaxRate } from '../commands/tax/set-tax-rate';
 import { archiveVendor, createVendor, updateVendor } from '../commands/procurement/vendors';
 import { setItemVendor, setVendorContacts } from '../commands/procurement/vendor-links';
 import { recordVendorQuote, withdrawVendorQuote } from '../commands/procurement/quotes';
+// U2 purchase orders and goods receipt.
+import {
+  approvePurchaseOrder,
+  cancelPurchaseOrder,
+  closePurchaseOrder,
+  createPurchaseOrder,
+  sendPurchaseOrder,
+  updatePurchaseOrder,
+} from '../commands/procurement/orders';
+import { postGoodsReceipt, reverseGoodsReceipt } from '../commands/procurement/receipts';
+import { draftReorders, removeReorderRule, setReorderRule } from '../commands/procurement/reorder';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -423,6 +434,18 @@ export const commands = Object.freeze({
   [setItemVendor.name]: setItemVendor,
   [recordVendorQuote.name]: recordVendorQuote,
   [withdrawVendorQuote.name]: withdrawVendorQuote,
+  // U2 purchase orders and goods receipt (docs/03-roadmap-appendix/phase3.md §7.2).
+  [createPurchaseOrder.name]: createPurchaseOrder,
+  [updatePurchaseOrder.name]: updatePurchaseOrder,
+  [approvePurchaseOrder.name]: approvePurchaseOrder,
+  [sendPurchaseOrder.name]: sendPurchaseOrder,
+  [cancelPurchaseOrder.name]: cancelPurchaseOrder,
+  [closePurchaseOrder.name]: closePurchaseOrder,
+  [postGoodsReceipt.name]: postGoodsReceipt,
+  [reverseGoodsReceipt.name]: reverseGoodsReceipt,
+  [setReorderRule.name]: setReorderRule,
+  [removeReorderRule.name]: removeReorderRule,
+  [draftReorders.name]: draftReorders,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

@@ -293,6 +293,9 @@ const eventCatalogue = {
       'inventory.stock.adjust',
       'inventory.stock.reverse',
       'imports.job.commit_batch',
+      // U2 goods receipts.
+      'procurement.grn.post',
+      'procurement.grn.reverse',
     ],
     subscribed: false,
     payload: z
@@ -808,6 +811,71 @@ const eventCatalogue = {
     emittedBy: ['procurement.quote.withdraw'],
     subscribed: false,
     payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
+  },
+  // U2 purchase orders and goods receipt (docs/03-roadmap-appendix/phase3.md §7.2): ids, codes and
+  // counts only, never a rate or an amount.
+  'procurement.po.drafted': {
+    meaning:
+      'A purchase order was drafted, by a person or by the reorder job (`source`), with its number of lines.',
+    emittedBy: ['procurement.po.create', 'procurement.reorder.draft'],
+    subscribed: false,
+    payload: z
+      .object({
+        source: z.enum(['manual', 'reorder']),
+        vendorId: IdSchema,
+        lineCount: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  'procurement.po.approved': {
+    meaning: 'A purchase order was approved and may be sent to the vendor.',
+    emittedBy: ['procurement.po.approve'],
+    subscribed: false,
+    payload: z.object({ vendorId: IdSchema }).strict(),
+  },
+  'procurement.po.sent': {
+    meaning:
+      'A purchase order went to its vendor: by email with its PDF (`email`, to the person named), or marked sent by hand.',
+    emittedBy: ['procurement.po.send'],
+    subscribed: false,
+    payload: z
+      .object({
+        vendorId: IdSchema,
+        via: z.enum(['email', 'by_hand']),
+        vendorContactId: IdSchema.nullable(),
+      })
+      .strict(),
+  },
+  'procurement.po.cancelled': {
+    meaning: 'A purchase order was cancelled before any goods came in.',
+    emittedBy: ['procurement.po.cancel'],
+    subscribed: false,
+    payload: z.object({ vendorId: IdSchema }).strict(),
+  },
+  'procurement.po.closed': {
+    meaning: 'A purchase order was closed, with what was still to come short-closed.',
+    emittedBy: ['procurement.po.close'],
+    subscribed: false,
+    payload: z.object({ vendorId: IdSchema, shortClosed: z.boolean() }).strict(),
+  },
+  'procurement.receipt.posted': {
+    meaning:
+      'Goods came in against a purchase order: the receipt, its number of lines and whether the order is now fully received.',
+    emittedBy: ['procurement.grn.post'],
+    subscribed: false,
+    payload: z
+      .object({
+        purchaseOrderId: IdSchema,
+        lineCount: z.number().int().min(1),
+        fullyReceived: z.boolean(),
+      })
+      .strict(),
+  },
+  'procurement.receipt.reversed': {
+    meaning: 'A goods receipt was reversed whole and its goods taken back out of stock.',
+    emittedBy: ['procurement.grn.reverse'],
+    subscribed: false,
+    payload: z.object({ purchaseOrderId: IdSchema }).strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 

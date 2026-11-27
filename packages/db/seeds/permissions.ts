@@ -34,6 +34,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'procurement.po.write': 'Create purchase orders',
   'procurement.grn.write': 'Record goods received',
   'procurement.rate.read': 'See supplier rates',
+  // U2 purchase orders.
+  'procurement.po.approve': 'Approve purchase orders',
   'projects.read': 'See projects',
   'projects.write': 'Update projects',
   'projects.gate.approve': 'Approve subsidy and project gates',
@@ -98,6 +100,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'voice.session.record': 'Record how long a Talk to Shakti session lasted and what it cost',
   // W2 media retention.
   'messaging.media.expire': 'Remove WhatsApp photos and files after the time they are kept',
+  // U2 reorder drafts.
+  'procurement.reorder.draft': 'Draft purchase orders when stock falls below its reorder level',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

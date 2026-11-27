@@ -82,5 +82,9 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // (`messaging.media.expire`): it reads what is due, records what it removed and asks which
     // stored keys still belong to a file through definers, and reads no message by a person's rule.
     { key: 'messaging.media.expire', scope: 'all' },
+    // U2: the reorder job (`procurement.reorder.draft`): it compares each reorder rule with free
+    // stock and open purchase orders and drafts purchase orders with no rate through two definers,
+    // and reads no rate, cost or stock row by a person's rule.
+    { key: 'procurement.reorder.draft', scope: 'all' },
   ],
 };

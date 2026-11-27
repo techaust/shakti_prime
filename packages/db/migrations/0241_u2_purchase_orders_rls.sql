@@ -468,12 +468,11 @@ grant select on reorder_rules, purchase_orders, po_lines, po_line_rates, goods_r
 --     rate (restricted), keeps it as the receipt line's rate, and posts one `receipt` movement per
 --     line (per serial for a tracked item) through app.stock_move() at that rate per stock unit,
 --     which revalues the moving average (question 2 (a)). `p_serials` maps each tracked line's id
---     to its serial numbers: exactly the line's quantity of them, each once. A serial comes in
---     new, recorded against its vendor, receipt line and supplier warranty; a number the item
---     already has is refused (goods_receipt_serial_taken), unless it is this company's and the
---     receipt it last came in on was reversed, when it comes in again. A new serial is written
---     outside stock and brought in by its movement in the same call, since app.stock_move()
---     makes a serial only for an opening or a gain. Answers the movement ids, never a rate.
+--     to its serial numbers: exactly the line's quantity of them, each once. A number the item
+--     already has, in any company, is refused (goods_receipt_serial_taken); the ledger makes each
+--     new serial in stock (the `receipt` move row), and this then records its vendor, its receipt
+--     line and its supplier warranty from the date received in India. Answers the movement ids,
+--     never a rate.
 create or replace function app.goods_receipt_post(p_receipt_id uuid, p_serials jsonb)
   returns uuid[]
   language plpgsql volatile security definer set search_path = '' as $$
@@ -486,9 +485,7 @@ declare
   v_batch jsonb := '[]'::jsonb;
   v_nos jsonb;
   v_no text;
-  v_serial record;
-  v_serial_id uuid;
-  v_until date;
+  v_ids uuid[];
 begin
   if v_actor is null or not app.has_perm('procurement.grn.write:entity') then
     raise exception 'procurement.grn.write is required to post a goods receipt' using errcode = '42501';
@@ -516,7 +513,7 @@ begin
 
   for v_line in
     select l.id, l.item_id, l.bin_id, l.stock_qty, l.is_serial_tracked, l.po_line_id,
-           pl.unit_factor, i.is_serial_tracked as item_tracked, i.supplier_warranty_months
+           pl.unit_factor, i.is_serial_tracked as item_tracked
       from public.goods_receipt_lines l
       join public.po_lines pl on pl.id = l.po_line_id and pl.entity_id = l.entity_id
       join public.items i on i.id = l.item_id
@@ -553,40 +550,17 @@ begin
         using errcode = 'check_violation', constraint = 'goods_receipt_serials_count',
               detail = pg_catalog.jsonb_build_object('itemId', v_line.item_id)::text;
     end if;
-    v_until := case when v_line.supplier_warranty_months is null then null
-                    else ((v_receipt.received_at at time zone 'Asia/Kolkata')::date
-                          + pg_catalog.make_interval(months => v_line.supplier_warranty_months))::date end;
     for v_no in select pg_catalog.btrim(e) from pg_catalog.jsonb_array_elements_text(v_nos) e loop
-      select s.id, s.entity_id, s.state,
-             (select r.state from public.goods_receipt_lines gl
-                join public.goods_receipts r on r.id = gl.receipt_id
-               where gl.id = s.receipt_line_id) as receipt_state
-        into v_serial
-        from public.serials s
-       where s.item_id = v_line.item_id and pg_catalog.lower(s.serial_no) = pg_catalog.lower(v_no)
-         for update of s;
-      if found then
-        if v_serial.entity_id <> v_receipt.entity_id or v_serial.state <> 'scrapped'
-           or v_serial.receipt_state is distinct from 'reversed' then
-          raise exception 'the serial is already recorded for the item'
-            using errcode = 'check_violation', constraint = 'goods_receipt_serial_taken',
-                  detail = pg_catalog.jsonb_build_object('serialNo', v_no)::text;
-        end if;
-        v_serial_id := v_serial.id;
-        update public.serials
-           set vendor_id = v_receipt.vendor_id, receipt_line_id = v_line.id,
-               supplier_warranty_until = v_until, updated_by = v_actor
-         where id = v_serial_id;
-      else
-        v_serial_id := app.uuid_v7();
-        insert into public.serials (id, entity_id, item_id, serial_no, state, bin_id, vendor_id,
-                                    receipt_line_id, supplier_warranty_until, created_by)
-        values (v_serial_id, v_receipt.entity_id, v_line.item_id, v_no, 'scrapped', null,
-                v_receipt.vendor_id, v_line.id, v_until, v_actor);
+      if exists (select 1 from public.serials s
+                  where s.item_id = v_line.item_id
+                    and pg_catalog.lower(s.serial_no) = pg_catalog.lower(v_no)) then
+        raise exception 'the serial is already recorded for the item'
+          using errcode = 'check_violation', constraint = 'goods_receipt_serial_taken',
+                detail = pg_catalog.jsonb_build_object('serialNo', v_no)::text;
       end if;
       v_batch := v_batch || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
         'reason', 'receipt', 'entity_id', v_receipt.entity_id, 'item_id', v_line.item_id,
-        'serial_id', v_serial_id, 'to_bin_id', v_line.bin_id, 'qty', 1, 'unit_cost', v_cost,
+        'serial_no', v_no, 'to_bin_id', v_line.bin_id, 'qty', 1, 'unit_cost', v_cost,
         'ref_type', 'goods_receipt', 'ref_id', p_receipt_id));
     end loop;
   end loop;
@@ -595,7 +569,22 @@ begin
     raise exception 'a goods receipt has a line'
       using errcode = 'check_violation', constraint = 'goods_receipt_serials_count';
   end if;
-  return app.stock_move(v_batch);
+  v_ids := app.stock_move(v_batch);
+
+  -- The serials the ledger made: their vendor, receipt line and supplier warranty.
+  update public.serials s
+     set vendor_id = v_receipt.vendor_id,
+         receipt_line_id = l.id,
+         supplier_warranty_until = case when i.supplier_warranty_months is null then null
+           else ((v_receipt.received_at at time zone 'Asia/Kolkata')::date
+                 + pg_catalog.make_interval(months => i.supplier_warranty_months::int))::date end,
+         updated_by = v_actor
+    from public.stock_movements m
+    join public.goods_receipt_lines l
+      on l.receipt_id = p_receipt_id and l.item_id = m.item_id and l.bin_id = m.to_bin_id
+    join public.items i on i.id = m.item_id
+   where m.id = any (v_ids) and m.serial_id is not null and s.id = m.serial_id;
+  return v_ids;
 end
 $$;
 --> statement-breakpoint
