@@ -13,12 +13,14 @@ import {
   signConnectorRequest,
   verifyConnectorRequest,
 } from '../../src/integrations/tally/signature';
+// The one reader of Tally's XML is the connector's (apps/tally-connector); this local script reads
+// it by path, since the web app takes nothing else from another app.
 import {
   parseGuidExport,
   parseVoucherExport,
   voucherGuidsRequest,
-  vouchersSinceRequest,
-} from '../../src/integrations/tally/tally-xml';
+  vouchersPageRequest,
+} from '../../../tally-connector/src/tally/xml';
 
 const REQUIRED = [
   'TALLY_URL',
@@ -57,7 +59,7 @@ async function ask(xml: string): Promise<{ body: string; ms: number }> {
 }
 
 // 1. Read.
-const read = await ask(vouchersSinceRequest(company, since));
+const read = await ask(vouchersPageRequest(company, since));
 const vouchers = parseVoucherExport(read.body);
 console.error(`read ${String(vouchers.length)} vouchers in ${read.ms.toFixed(0)} ms`);
 

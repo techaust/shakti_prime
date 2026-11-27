@@ -6,7 +6,6 @@ import {
   parseBatch,
   parseHeartbeat,
   parseSnapshot,
-  voucherTypeOf,
 } from './payloads';
 import {
   canonicalRequest,
@@ -14,12 +13,6 @@ import {
   signConnectorRequest,
   verifyConnectorRequest,
 } from './signature';
-import {
-  parseGuidExport,
-  parseVoucherExport,
-  voucherGuidsRequest,
-  vouchersSinceRequest,
-} from './tally-xml';
 
 // Low-entropy phrases, so the secret scan never mistakes them for keys (CLAUDE.md).
 const KEY = 'tally-connector-test-key-one';
@@ -104,6 +97,36 @@ describe('connector request signing', () => {
       expect(verifyConnectorRequest(request, keysFor, NOW)).toEqual({
         ok: false,
         problem: 'stale_timestamp',
+      });
+    }
+  });
+
+  // The same vectors are signed by the connector in apps/tally-connector/test/signing.test.ts, so a
+  // change on either side fails one of the two.
+  it('verifies what the connector signs, a batch and a cursor read with its query', () => {
+    const vectors = [
+      {
+        method: 'POST',
+        pathWithQuery: PATH,
+        body: '{"company":"Shakti Supreme","fromAlterId":0}',
+        signature: '08ba73cb388ad3c2d0689a1ebdf6556a21f464ad4a3c0f0cfb356c46160be804',
+      },
+      {
+        method: 'GET',
+        pathWithQuery: '/api/v1/connector/tally/cursor?company=Shakti+Supreme',
+        body: '',
+        signature: 'acb3706f74c2962b35ab2f1ea230ea46566c2c6a4ce0100e8ceac686290e63c6',
+      },
+    ];
+    for (const { signature, ...request } of vectors) {
+      const headers = new Headers({
+        [CONNECTOR_HEADERS.id]: CONNECTOR,
+        [CONNECTOR_HEADERS.timestamp]: NOW_SECONDS,
+        [CONNECTOR_HEADERS.signature]: signature,
+      });
+      expect(verifyConnectorRequest({ ...request, headers }, keysFor, NOW)).toEqual({
+        ok: true,
+        connectorId: CONNECTOR,
       });
     }
   });
@@ -212,87 +235,6 @@ describe('payloads (the published connector contract)', () => {
     });
   });
 
-  it('maps Tally type names to the types the BOS reads', () => {
-    expect(voucherTypeOf('Sales')).toBe('sales');
-    expect(voucherTypeOf(' Credit  Note ')).toBe('credit_note');
-    expect(voucherTypeOf('Debit Note')).toBe('debit_note');
-    expect(voucherTypeOf('Journal')).toBeUndefined();
-  });
-});
-
-describe('the Tally XML export (spike reader)', () => {
-  const xml = readFileSync(new URL('./fixtures/vouchers-export.xml', import.meta.url), 'utf8');
-
-  it('asks for vouchers after the cursor, escaping the company name', () => {
-    const request = vouchersSinceRequest('Shakti <Supreme> & Co', 4170);
-    expect(request).toContain(
-      '<SVCURRENTCOMPANY>Shakti &lt;Supreme&gt; &amp; Co</SVCURRENTCOMPANY>',
-    );
-    expect(request).toContain('$ALTERID &gt; 4170');
-    expect(() => vouchersSinceRequest('C', -1)).toThrow();
-    expect(voucherGuidsRequest('C')).toContain('<FETCH>GUID</FETCH>');
-  });
-
-  it('reads vouchers into the contract shape, skipping a journal and one without a GUID', () => {
-    const vouchers = parseVoucherExport(xml);
-    expect(vouchers).toEqual([
-      {
-        guid: GUID_A,
-        alterId: 4180,
-        type: 'sales',
-        typeName: 'Sales',
-        voucherNo: 'SS/2026-27/0418',
-        date: '2026-09-27',
-        partyName: 'Kisan Agro Traders & Sons',
-        partyGstin: '08AAAAA0000A1Z5',
-        buyerOrderNo: 'SS/SO/2026-27/0042',
-        amount: '126500.00',
-        isCancelled: false,
-        isOptional: false,
-        ledgerEntries: [
-          { ledgerName: 'Kisan Agro Traders & Sons', amount: '-126500.00' },
-          { ledgerName: 'Sales GST 18%', amount: '107203.39' },
-        ],
-        inventoryEntries: [
-          {
-            stockItemName: 'Submersible pump 5 HP',
-            quantity: '2',
-            unit: 'Nos',
-            rate: '53601.69',
-            amount: '107203.39',
-          },
-        ],
-      },
-      {
-        guid: GUID_B,
-        alterId: 4175,
-        type: 'receipt',
-        typeName: 'Receipt',
-        voucherNo: 'RC/0311',
-        date: '2026-09-27',
-        partyName: 'Kisan Agro Traders & Sons',
-        partyGstin: null,
-        buyerOrderNo: null,
-        amount: '50000.00',
-        isCancelled: true,
-        isOptional: false,
-        ledgerEntries: [{ ledgerName: 'Kisan Agro Traders & Sons', amount: '50000.00' }],
-        inventoryEntries: [],
-      },
-    ]);
-    const ordered = [...vouchers].sort((a, b) => Number(a.alterId) - Number(b.alterId));
-    expect(
-      parseBatch({
-        company: 'C',
-        entityCode: 'SS',
-        fromAlterId: 4170,
-        maxAlterId: 4180,
-        vouchers: ordered,
-        ledgers: [],
-      }).ok,
-    ).toBe(true);
-    expect(parseGuidExport(xml)).toHaveLength(3);
-  });
 });
 
 describe('the fixture through the sync rules', () => {
