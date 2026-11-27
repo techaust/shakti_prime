@@ -153,7 +153,7 @@ describe('Admin › Integrations › Tally', () => {
     }
   });
 
-  it('maps a company only of the request, and a Tally company only once', async () => {
+  it('refuses a company outside the request, and maps a Tally company only once', async () => {
     expect(
       await failure(
         executeCommand(exec, { entityIds: [1] }, mapTallyCompany, {
@@ -487,6 +487,27 @@ describe('tally.heartbeat.record', () => {
             companies: [{ name: COMPANY, lastAlterId: 1, reachable: true }],
             queueDepth: 0,
           },
+        }),
+      ),
+    ).toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('tally.connector.unmap', () => {
+  it('is refused to Accounts, and for a company outside the request', async () => {
+    expect(
+      await failure(
+        executeCommand(accounts, { entityIds: [1] }, unmapTallyCompany, {
+          connectorId: connector.id,
+          entityId: 1,
+        }),
+      ),
+    ).toMatchObject({ code: 'forbidden' });
+    expect(
+      await failure(
+        executeCommand(exec, { entityIds: [1] }, unmapTallyCompany, {
+          connectorId: connector.id,
+          entityId: 2,
         }),
       ),
     ).toMatchObject({ code: 'forbidden' });

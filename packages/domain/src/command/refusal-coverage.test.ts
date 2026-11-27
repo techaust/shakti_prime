@@ -88,6 +88,17 @@ const REVIEWED: Record<string, string> = {
     'The vendor master is one list for the group with no company (design phase3 question 6, ADR 0008 for customers): the input names no company, and any holder of procurement.po.write acting in any company changes it; the denied cases are in procurement.test.ts and the row security in packages/db vendors.test.ts.',
   'webhooks.event.mark':
     'A webhook delivery belongs to no company until its handler names one: the company case is a company the group does not have, refused in webhooks.test.ts "refuses a company the group does not have, and a failure with no code".',
+  // TC2 Tally ingest.
+  'tally.connector.register':
+    'A Tally connector belongs to no company (one serves several): an Executive acting for the group registers it (`admin.integrations.write:all`); the input names no company, and the denied cases refuse Accounts and an agent in tally.test.ts "refuses anyone without admin.integrations.write, and an agent".',
+  'tally.connector.rotate':
+    'A connector\'s key belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) rotates it; the input names no company, and the refusal sweep refuses every agent and system principal.',
+  'tally.connector.retire_key':
+    'A connector\'s key belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) retires it; the input names no company, and the refusal sweep refuses every agent and system principal.',
+  'tally.connector.revoke':
+    'A connector belongs to no company: an Executive acting for the group (`admin.integrations.write:all`) revokes it; the input names no company, and the refusal sweep refuses every agent and system principal.',
+  'tally.heartbeat.record':
+    'A heartbeat names no company: it reports for every company mapped to the connector, and a name not mapped is left out by `app.tally_heartbeat_write()`; the denied cases refuse a person and a revoked connector in tally.test.ts "records the connector\'s report for its mapped companies only" and "unmaps a company, then revokes the connector".',
 };
 
 const DENIED = "'forbidden'";
