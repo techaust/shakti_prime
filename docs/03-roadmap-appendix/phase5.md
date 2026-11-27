@@ -246,6 +246,15 @@ The owner decided all eleven on 27-11-2026, each the recommended option (a).
   - Integration health's connector row: last heartbeat, version, lag.
 - **The silence alert** at 30 minutes, once, through the jobs check and Sentry.
 
+**Built (TC2):**
+- Tables `tally_connectors`, `tally_connector_companies`, `tally_cursors`, `tally_vouchers`, `tally_purchase_vouchers`, `tally_ledgers`, `tally_snapshots`, `tally_voucher_tombstones` and `tally_refused_rows` (DATABASE §6.7), row security forced: request roles only read, a company's mirror with `finance.read`, purchase vouchers with `procurement.rate.read` as well, the connectors by an Executive (`admin.integrations.write`), never their sealed keys; every write through the definers of the TC2 migration; tombstones append-only.
+- The connector principal: a `principals` row per connector in the role `system:tally_connector`, holding only the platform-only `tally.connector.sync`, built by the routes after the HMAC verified, scoped to its mapped companies; it reads no table.
+- Keys made on the server and shown once, kept only sealed by the field cipher (KMS on a hosted environment, as a company's bank account is); the connector signs with the key as shown; a rotation keeps both sealed keys until the old is retired.
+- Routes `cursor`, `batches`, `snapshot`, `heartbeat` and `release` (no release until TC4) under `/api/v1/connector/tally/`; the commands `tally.batch.ingest`, `tally.snapshot.record`, `tally.snapshot.confirm`, `tally.heartbeat.record`, `tally.connector.register`, `.map`, `.unmap`, `.rotate`, `.retire_key`, `.revoke` and `.record_alert`; the `tally-voucher` machine in use (`ingest`, `alter`, `tombstone`).
+- Snapshots: a snapshot over `diffSnapshot`'s limits held for Accounts; one too large for a function (4.5 MB) sent in parts under one id, kept until the last and compared then, dropped a day later if incomplete; ledger balances stored with their date; GUIDs the BOS lacks and rows the connector refused kept for TC3's review queue.
+- Screens: Admin › Integrations › Tally (`/admin/integrations/tally`), Tally checks for Accounts (`/tally-checks`), and the Tally section of Integration health (health, lag, records waiting and set aside); the silence and held-rows alerts in the hourly jobs check through Sentry; the journeys in `apps/web/e2e/tally.spec.ts`.
+- Decisions the design left open, taken by the builder: a group company may map several Tally companies (one per financial year), a Tally company one connector; the cursor is per company and Tally name; a snapshot compares only the vouchers dated from its `fromDate`; a tombstoned voucher sent again keeps its state; the heartbeat leaves an unmapped name out; the release route sits under `connector/tally/` (the contract's endpoint names `/connector/release`, for TC4 to settle).
+
 ## 7. Wave 2
 
 ### 7.1 TC3 Reconciliation

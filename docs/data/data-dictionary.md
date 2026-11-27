@@ -11,7 +11,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`notification_preferences`](#notification_preferences), [`notifications`](#notifications), [`outbox_events`](#outbox_events), [`push_subscriptions`](#push_subscriptions), [`retention_runs`](#retention_runs), [`saved_views`](#saved_views), [`webhook_inbox`](#webhook_inbox)
 - **AI and voice:** [`agent_actions`](#agent_actions), [`agent_configs`](#agent_configs), [`agent_evals`](#agent_evals), [`agent_runs`](#agent_runs), [`ask_conversations`](#ask_conversations), [`ask_messages`](#ask_messages), [`copilot_notes`](#copilot_notes), [`inbox_items`](#inbox_items), [`knowledge_chunks`](#knowledge_chunks), [`knowledge_files`](#knowledge_files), [`playbook_conflict_checks`](#playbook_conflict_checks), [`playbook_directives`](#playbook_directives), [`voice_sessions`](#voice_sessions)
 - **Inventory and logistics:** [`bins`](#bins), [`item_vendors`](#item_vendors), [`serials`](#serials), [`stock_balances`](#stock_balances), [`stock_movement_costs`](#stock_movement_costs), [`stock_movements`](#stock_movements), [`vendor_contacts`](#vendor_contacts), [`vendor_quotes`](#vendor_quotes), [`vendors`](#vendors), [`warehouses`](#warehouses)
-- **Finance and costing:** [`dealer_outstanding`](#dealer_outstanding), [`tally_connector_companies`](#tally_connector_companies), [`tally_connectors`](#tally_connectors), [`tally_cursors`](#tally_cursors), [`tally_ledgers`](#tally_ledgers), [`tally_purchase_vouchers`](#tally_purchase_vouchers), [`tally_snapshots`](#tally_snapshots), [`tally_voucher_tombstones`](#tally_voucher_tombstones), [`tally_vouchers`](#tally_vouchers)
+- **Finance and costing:** [`dealer_outstanding`](#dealer_outstanding), [`tally_connector_companies`](#tally_connector_companies), [`tally_connectors`](#tally_connectors), [`tally_cursors`](#tally_cursors), [`tally_ledgers`](#tally_ledgers), [`tally_purchase_vouchers`](#tally_purchase_vouchers), [`tally_refused_rows`](#tally_refused_rows), [`tally_snapshots`](#tally_snapshots), [`tally_voucher_tombstones`](#tally_voucher_tombstones), [`tally_vouchers`](#tally_vouchers)
 - **Sales:** [`dealer_terms`](#dealer_terms), [`quote_lines`](#quote_lines), [`quote_versions`](#quote_versions), [`quotes`](#quotes), [`sales_order_lines`](#sales_order_lines), [`sales_orders`](#sales_orders), [`targets`](#targets)
 - [Planned tables](#planned-tables)
 
@@ -5119,7 +5119,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tally_connector_companies
 
-**Catalogue entry** (05-database.md §6.7; created in 0240): `connector_id`, `tally_company` (Tally's own name, key with the connector), `entity_id` (unique with `tally_company`, so a Tally company is read by one connector and a company may have several, one per financial year), `reachable`, `reported_alter_id`, `reported_at` (the heartbeat's); read with `finance.read:entity` or by an Executive; written only by the admin definers
+**Catalogue entry** (05-database.md §6.7; created in 0240): `connector_id`, `tally_company` (Tally's own name, key with the connector), `entity_id` (unique with `tally_company`, so a Tally company is read by one connector and a company may have several, one per financial year), `reachable`, `reported_alter_id`, `tally_last_alter_id` (Tally's own last AlterID: the lag is this less the cursor), `problem` (`no_books_from`, `tally_behind_bos`, `waiting_on_bos`), `reported_at` (the heartbeat's); read with `finance.read:entity` or by an Executive; written only by the admin definers and the heartbeat's
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5128,6 +5128,8 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `entity_id` | smallint | no |  | → `entities.id` |
 | `reachable` | boolean | yes |  |  |
 | `reported_alter_id` | bigint | yes |  |  |
+| `tally_last_alter_id` | bigint | yes |  |  |
+| `problem` | text | yes |  |  |
 | `reported_at` | timestamp with time zone | yes |  |  |
 | `created_at` | timestamp with time zone | no | `now()` |  |
 | `created_by` | uuid | no |  | → `principals.id` |
@@ -5149,6 +5151,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Check constraints**
 
 - `tally_connector_companies_name_check`: `char_length("tally_connector_companies"."tally_company") between 1 and 120 and "tally_connector_companies"."tally_company" = btrim("tally_connector_companies"."tally_company")`
+- `tally_connector_companies_problem_check`: `"tally_connector_companies"."problem" is null or "tally_connector_companies"."problem" in ('no_books_from', 'tally_behind_bos', 'waiting_on_bos')`
 
 **Row-level security:** enabled and forced; 1 policy.
 
@@ -5156,20 +5159,23 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tally_connectors
 
-**Catalogue entry** (05-database.md §6.7; created in 0240): `id` (the connector's own `principals` row, kind `system`, role `system:tally_connector`), `name`, `key_hash` and `next_key_hash` (the SHA-256 of the current key and, during a rotation, of the next; unique; no request role selects either, the routes read them through `app.tally_connector_auth()`), `key_hint`, `next_key_hint`, `key_rotated_at`, `connector_version`, `tally_version`, `queue_depth`, `last_heartbeat_at`, `silence_alerted_at`, `revoked_at` and `revoked_by`; no company; read by an Executive (`admin.integrations.write:all`) in a request with a company; written only by the Admin › Integrations › Tally definers and the heartbeat's (TC2, 0241)
+**Catalogue entry** (05-database.md §6.7; created in 0240): `id` (the connector's own `principals` row, kind `system`, role `system:tally_connector`), `name`, `key_sealed` and `next_key_sealed` (the current key and, during a rotation, the next, sealed by the field cipher as `entities.bank_json` is, bound to the connector's row; no request role selects either, the routes read them through `app.tally_connector_auth()` and open them to check a signature), `key_hint`, `next_key_hint`, `key_rotated_at`, `connector_version`, `tally_version`, `queue_depth`, `held_rows` and `held_since` (rows the connector set aside, and since when it has held any), `last_heartbeat_at`, `silence_alerted_at` and `held_alerted_at` (the jobs check's alerts, once per silence and per stretch, `app.tally_connector_alerts()` and `app.tally_connector_alerted()`), `revoked_at` and `revoked_by`; no company; read by an Executive (`admin.integrations.write:all`) in a request with a company; written only by the Admin › Integrations › Tally definers and the heartbeat's (TC2, 0241)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
 | `id` | uuid | no |  | PK → `principals.id` |
 | `name` | text | no |  |  |
-| `key_hash` | text | no |  |  |
+| `key_sealed` | jsonb | no |  |  |
 | `key_hint` | text | no |  |  |
-| `next_key_hash` | text | yes |  |  |
+| `next_key_sealed` | jsonb | yes |  |  |
 | `next_key_hint` | text | yes |  |  |
 | `key_rotated_at` | timestamp with time zone | yes |  |  |
 | `connector_version` | text | yes |  |  |
 | `tally_version` | text | yes |  |  |
 | `queue_depth` | integer | yes |  |  |
+| `held_rows` | integer | yes |  |  |
+| `held_since` | timestamp with time zone | yes |  |  |
+| `held_alerted_at` | timestamp with time zone | yes |  |  |
 | `last_heartbeat_at` | timestamp with time zone | yes |  |  |
 | `silence_alerted_at` | timestamp with time zone | yes |  |  |
 | `revoked_at` | timestamp with time zone | yes |  |  |
@@ -5192,15 +5198,11 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Check constraints**
 
-- `tally_connectors_key_hash_check`: `"tally_connectors"."key_hash" ~ '^[0-9a-f]{64}$'`
+- `tally_connectors_held_check`: `("tally_connectors"."held_rows" is null or "tally_connectors"."held_rows" >= 0) and ("tally_connectors"."held_since" is null) = (coalesce("tally_connectors"."held_rows", 0) = 0)`
 - `tally_connectors_name_check`: `char_length("tally_connectors"."name") between 1 and 80`
-- `tally_connectors_next_key_check`: `("tally_connectors"."next_key_hash" is null) = ("tally_connectors"."next_key_hint" is null) and ("tally_connectors"."next_key_hash" is null or "tally_connectors"."next_key_hash" ~ '^[0-9a-f]{64}$') and "tally_connectors"."next_key_hash" is distinct from "tally_connectors"."key_hash"`
+- `tally_connectors_next_key_check`: `("tally_connectors"."next_key_sealed" is null) = ("tally_connectors"."next_key_hint" is null)`
 - `tally_connectors_queue_depth_check`: `"tally_connectors"."queue_depth" is null or "tally_connectors"."queue_depth" >= 0`
 - `tally_connectors_revoked_check`: `("tally_connectors"."revoked_at" is null) = ("tally_connectors"."revoked_by" is null)`
-
-**Indexes**
-
-- `tally_connectors_key_hash_unique` (btree, unique): `key_hash`
 
 **Triggers**
 
@@ -5321,6 +5323,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `received_at` | timestamp with time zone | no |  |  |
 | `updated_at` | timestamp with time zone | no |  |  |
 | `deleted_at` | timestamp with time zone | yes |  |  |
+| `refused_at` | timestamp with time zone | yes |  |  |
 
 **Primary key**
 
@@ -5349,9 +5352,53 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `tally_purchase_vouchers_read` (select, to app_user, app_reader): using `(select app.has_perm('finance.read:entity')) and (select app.has_perm('procurement.rate.read:entity')) and entity_id = any ((select app.entity_ids())::int[])`
 
+### tally_refused_rows
+
+**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `kind` (`voucher`, `ledger`), `guid` (unique with the company and kind: the latest refusal), `alter_id`, `field` (the first the contract refused), `refused_at`, `resolved_at` (a later version arrived); Accounts' review queue as "refused by the connector" (TC3 reads it); read with `finance.read:entity`; written only by the connector's definers
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `entity_id` | smallint | no |  | → `entities.id` |
+| `tally_company` | text | no |  |  |
+| `connector_id` | uuid | no |  | → `tally_connectors.id` |
+| `kind` | text | no |  |  |
+| `guid` | text | no |  |  |
+| `alter_id` | bigint | no |  |  |
+| `field` | text | no |  |  |
+| `refused_at` | timestamp with time zone | no |  |  |
+| `resolved_at` | timestamp with time zone | yes |  |  |
+
+**Primary key**
+
+- (`id`)
+
+**Unique constraints**
+
+- `tally_refused_rows_guid_unique`: (`entity_id`, `tally_company`, `kind`, `guid`)
+
+**Foreign keys**
+
+- `tally_refused_rows_connector_id_tally_connectors_id_fk`: (`connector_id`) → `tally_connectors` (`id`)
+- `tally_refused_rows_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
+
+**Check constraints**
+
+- `tally_refused_rows_alter_id_check`: `"tally_refused_rows"."alter_id" >= 0`
+- `tally_refused_rows_kind_check`: `"tally_refused_rows"."kind" in ('voucher', 'ledger')`
+
+**Indexes**
+
+- `tally_refused_rows_connector_idx` (btree): `connector_id`
+- `tally_refused_rows_open_idx` (btree): `entity_id, refused_at desc` where `"tally_refused_rows"."resolved_at" is null`
+
+**Row-level security:** enabled and forced; 1 policy.
+
+- `tally_refused_rows_read` (select, to app_user, app_reader): using `(select app.has_perm('finance.read:entity')) and entity_id = any ((select app.entity_ids())::int[])`
+
 ### tally_snapshots
 
-**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `as_of`, `from_date`, `guid_count`, `live`, `tombstoned`, `missing`, `reappeared`, `state` (`applied`, `held` over `diffSnapshot`'s limits until Accounts confirm it with `finance.recon.write`, `confirmed`, `superseded` by a newer snapshot), `held_guids` (only while held), `missing_guids` (the first thousand GUIDs Tally holds and the BOS lacks, for the review queue), `confirmed_at` and `confirmed_by`; read with `finance.read:entity`
+**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `as_of`, `from_date`, `guid_count`, `live`, `tombstoned`, `missing`, `reappeared`, `state` (`receiving` while it comes in parts, `applied`, `held` over `diffSnapshot`'s limits until Accounts confirm it with `finance.recon.write`, `confirmed`, `superseded` by a newer snapshot), `parts_of` (the connector's id of a snapshot in parts, unique per connector), `parts`, `parts_received` and `received_guids` (only while receiving; one still receiving a day after it began is dropped, `app.tally_snapshot_part()`), `held_guids` (only while held), `missing_guids` (the first thousand GUIDs Tally holds and the BOS lacks, for the review queue), `confirmed_at` and `confirmed_by`; read with `finance.read:entity`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5367,6 +5414,10 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `missing` | integer | no |  |  |
 | `reappeared` | integer | no |  |  |
 | `state` | text | no |  |  |
+| `parts_of` | uuid | yes |  |  |
+| `parts` | smallint | no | `1` |  |
+| `parts_received` | smallint[] | no | `'{}'::smallint[]` |  |
+| `received_guids` | text[] | no | `'{}'::text[]` |  |
 | `held_guids` | text[] | no | `'{}'::text[]` |  |
 | `missing_guids` | text[] | no | `'{}'::text[]` |  |
 | `confirmed_at` | timestamp with time zone | yes |  |  |
@@ -5393,13 +5444,16 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `tally_snapshots_counts_check`: `"tally_snapshots"."guid_count" >= 0 and "tally_snapshots"."live" >= 0 and "tally_snapshots"."tombstoned" >= 0 and "tally_snapshots"."missing" >= 0 and "tally_snapshots"."reappeared" >= 0`
 - `tally_snapshots_held_check`: `"tally_snapshots"."state" = 'held' or cardinality("tally_snapshots"."held_guids") = 0`
 - `tally_snapshots_missing_guids_check`: `cardinality("tally_snapshots"."missing_guids") <= 1000`
-- `tally_snapshots_state_check`: `"tally_snapshots"."state" in ('applied', 'held', 'confirmed', 'superseded')`
+- `tally_snapshots_parts_check`: `"tally_snapshots"."parts" between 1 and 20`
+- `tally_snapshots_receiving_check`: `"tally_snapshots"."state" = 'receiving' or cardinality("tally_snapshots"."received_guids") = 0`
+- `tally_snapshots_state_check`: `"tally_snapshots"."state" in ('receiving', 'applied', 'held', 'confirmed', 'superseded')`
 
 **Indexes**
 
 - `tally_snapshots_connector_idx` (btree): `connector_id`
 - `tally_snapshots_entity_created_idx` (btree): `entity_id, created_at desc`
 - `tally_snapshots_held_idx` (btree): `entity_id, tally_company` where `"tally_snapshots"."state" = 'held'`
+- `tally_snapshots_parts_of_unique` (btree, unique): `connector_id, parts_of`
 
 **Row-level security:** enabled and forced; 1 policy.
 
@@ -5448,7 +5502,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tally_vouchers
 
-**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `guid` (unique), `alter_id` (the newest wins), `type` (`sales`, `receipt`, `credit_note`), `type_name`, `voucher_no`, `voucher_date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `is_cancelled`, `is_optional`, `payload_json` (the ledger and inventory entries), `state` and `state_changed_at` (the `tally-voucher` machine), `received_at`, `deleted_at` (set exactly when tombstoned or reversed); read with `finance.read:entity`; written only by the connector's definers and the snapshot's tombstones
+**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `guid` (unique), `alter_id` (the newest wins), `type` (`sales`, `receipt`, `credit_note`), `type_name`, `voucher_no`, `voucher_date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `is_cancelled`, `is_optional`, `payload_json` (the ledger and inventory entries), `state` and `state_changed_at` (the `tally-voucher` machine), `received_at`, `deleted_at` (set exactly when tombstoned or reversed), `refused_at` (the connector refused a later version: not current, kept out of matching until a later version arrives); read with `finance.read:entity`; written only by the connector's definers and the snapshot's tombstones
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5474,6 +5528,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `received_at` | timestamp with time zone | no |  |  |
 | `updated_at` | timestamp with time zone | no |  |  |
 | `deleted_at` | timestamp with time zone | yes |  |  |
+| `refused_at` | timestamp with time zone | yes |  |  |
 
 **Primary key**
 

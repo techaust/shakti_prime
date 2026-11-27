@@ -6186,7 +6186,7 @@
     "newHeading": "Set up a connector",
     "newIntro": "Give the connector a name, then type its number and key into its setup on the office computer. The key is shown only once.",
     "name": "Connector name",
-    "nameHelper": "For example, the computer it runs on.",
+    "nameHelper": "Name it after the computer it runs on, so it is easy to tell apart.",
     "register": "Set up connector",
     "listHeading": "Connectors",
     "none": "No connector is set up yet.",
@@ -6214,7 +6214,7 @@
     "otherCompany": "a company you are not working in",
     "company": "Our company",
     "tallyCompany": "Tally company name",
-    "tallyCompanyHelper": "Exactly as Tally shows it, for example with the financial year.",
+    "tallyCompanyHelper": "Exactly as Tally shows it, with the financial year if Tally includes it.",
     "link": "Link",
     "linked": "The Tally company is linked.",
     "unlink": "Unlink",
@@ -6234,7 +6234,7 @@
       "live": "Records now",
       "actions": "Actions"
     },
-    "confirm": "Confirm",
+    "confirmCheck": "Confirm",
     "confirmLabel": "Confirm the check of {company}",
     "confirmed": "{count, plural, =0 {Confirmed. No record needed marking.} one {Confirmed. # record is marked removed.} other {Confirmed. # records are marked removed.}}"
   },

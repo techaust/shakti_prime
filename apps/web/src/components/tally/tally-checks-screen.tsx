@@ -71,7 +71,7 @@ export function TallyChecksScreen({ companies }: { companies: Record<number, str
             });
           }}
         >
-          {t('confirm')}
+          {t('confirmCheck')}
         </Button>
       ),
     },

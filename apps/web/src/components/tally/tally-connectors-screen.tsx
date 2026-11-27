@@ -18,7 +18,10 @@ import { FailureMessage } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
 
-type Company = { id: number; name: string };
+interface Company {
+  id: number;
+  name: string;
+}
 
 /** A key made just now, shown once: whose it is and the key itself. */
 interface ShownKey {

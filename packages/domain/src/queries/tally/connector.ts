@@ -233,7 +233,7 @@ export async function listHeldTallySnapshots(ctx: Ctx): Promise<HeldTallySnapsho
       entityId: r.entity_id,
       tallyCompany: r.tally_company,
       asOf: new Date(r.as_of).toISOString(),
-      wouldRemove: Number(r.would_remove),
+      wouldRemove: r.would_remove,
       live: r.live,
       receivedAt: new Date(r.created_at).toISOString(),
     }),
