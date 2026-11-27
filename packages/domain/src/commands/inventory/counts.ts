@@ -52,13 +52,13 @@ export const startStockCount = defineCommand({
       .where(eq(w.id, input.hubId))
       .limit(1);
     if (!hub) throw new DomainError('not_found', 'hub not found', { reason: 'hub_missing' });
-    if (hub.archivedAt !== null) {
-      throw new DomainError('conflict', 'hub archived', { reason: 'hub_archived' });
-    }
     if (hub.kind === 'transit') {
       throw new DomainError('validation_failed', 'goods in transit are not counted', {
         reason: 'stock_count_hub_transit',
       });
+    }
+    if (hub.archivedAt !== null) {
+      throw new DomainError('conflict', 'hub archived', { reason: 'hub_archived' });
     }
     if (input.binIds !== undefined) {
       const b = schema.bins;

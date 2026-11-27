@@ -1,4 +1,4 @@
-import type { PermissionGrant, Principal } from '@shakti/contracts';
+import { newId, type PermissionGrant, type Principal } from '@shakti/contracts';
 import {
   asMigrator,
   asOutboxPublisher,
@@ -26,9 +26,7 @@ import {
   getStockCountSheet,
   listStockCounts,
 } from '../../src/queries/inventory/counts';
-import { onHand, serialOf, stockFixture, type StockFixture } from '../stock/stock-fixture';
-
-afterAll(closeDb);
+import { onHand, serialOf } from '../stock/stock-fixture';
 
 /**
  * H3's commands (docs/03-roadmap-appendix/phase3.md §7.3): a count started by the Inventory
@@ -36,6 +34,64 @@ afterAll(closeDb);
  * what was counted, movements during the count included; serials found and missing; each command
  * refused without its grant and in another company.
  */
+
+/** One godown of this file's own, with a receiving bin and two storage bins, and two items. */
+interface CountFixture {
+  tag: string;
+  hub: string;
+  receiving: string;
+  binA: string;
+  binB: string;
+  /** Counted in metres, and tracked by serial. */
+  cable: string;
+  pump: string;
+}
+
+/** The hubs this file made, archived once it ends so no later hub is paired with them. */
+const hubsMade: string[] = [];
+
+/**
+ * A fresh godown per test, written by the table owner. No transit hub, so H1's hub commands, which
+ * pair every new hub with each one in use, are not slowed by this file's hubs.
+ */
+async function countFixture(): Promise<CountFixture> {
+  const tag = newId().slice(-8).toUpperCase();
+  const f: CountFixture = {
+    tag,
+    hub: newId(),
+    receiving: newId(),
+    binA: newId(),
+    binB: newId(),
+    cable: newId(),
+    pump: newId(),
+  };
+  hubsMade.push(f.hub);
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      await tx`insert into warehouses (id, code, name, kind, state_code, pin_code, created_by)
+        values (${f.hub}, ${`H${tag}`}, ${`Count hub ${tag}`}, 'godown', '08', '302001', ${exec.id})`;
+      await tx`insert into bins (id, warehouse_id, code, kind, created_by) values
+        (${f.receiving}, ${f.hub}, 'RECEIVING', 'receiving', ${exec.id}),
+        (${f.binA}, ${f.hub}, 'A1', 'storage', ${exec.id}),
+        (${f.binB}, ${f.hub}, 'B1', 'storage', ${exec.id})`;
+      await tx`insert into items (id, sku, name, category, hsn, unit, is_serial_tracked) values
+        (${f.cable}, ${`CC-${tag}`}, ${`Count cable ${tag}`}, 'cable', '8544', 'metre', false),
+        (${f.pump}, ${`CP-${tag}`}, ${`Count pump ${tag}`}, 'pump', '8413', 'nos', true)`;
+    }),
+  );
+  return f;
+}
+
+afterAll(async () => {
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      await tx`alter table warehouses disable trigger warehouses_guard`;
+      await tx`update warehouses set archived_at = now() where id = any(${hubsMade}::uuid[])`;
+      await tx`alter table warehouses enable trigger warehouses_guard`;
+    }),
+  );
+  await closeDb();
+});
 
 let exec: Principal;
 let manager: Principal;
@@ -78,7 +134,7 @@ async function gain(binId: string, itemId: string, what: { qty?: string; serialN
   });
 }
 
-const serialNos = (f: StockFixture, ...n: number[]) => n.map((i) => `CT-${f.tag}-${String(i)}`);
+const serialNos = (f: CountFixture, ...n: number[]) => n.map((i) => `CT-${f.tag}-${String(i)}`);
 
 /** Every key of a value, at any depth. */
 function keysOf(value: unknown): string[] {
@@ -100,7 +156,7 @@ beforeAll(async () => {
 
 describe('inventory.count.*: who may', () => {
   it('refuses each command without its grant, to an agent, and in another company', async () => {
-    const f = await stockFixture(exec.id);
+    const f = await countFixture();
     await gain(f.binA, f.cable, { qty: '10' });
     const start = { entityId: 1, hubId: f.hub, scope: 'hub' };
     for (const who of [
@@ -154,7 +210,7 @@ describe('inventory.count.*: who may', () => {
   });
 
   it('keeps one live count per company and hub, and counts no goods in transit', async () => {
-    const f = await stockFixture(exec.id);
+    const f = await countFixture();
     const first = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
     await expect(
       run(manager, startStockCount, {
@@ -172,15 +228,21 @@ describe('inventory.count.*: who may', () => {
       [2],
     );
     expect(other.state).toBe('open');
+    // A transit hub, out of use at once so no hub made later is paired with it.
+    const transit = newId();
+    await asMigrator(
+      (m) => m`insert into warehouses (id, code, name, kind, created_by, archived_at)
+        values (${transit}, ${`T${f.tag}`}, ${`Transit ${f.tag}`}, 'transit', ${exec.id}, now())`,
+    );
     await expect(
-      run(manager, startStockCount, { entityId: 1, hubId: f.transitHub, scope: 'hub' }),
+      run(manager, startStockCount, { entityId: 1, hubId: transit, scope: 'hub' }),
     ).rejects.toMatchObject({ details: { reason: 'stock_count_hub_transit' } });
     await expect(
       run(manager, startStockCount, {
         entityId: 1,
         hubId: f.hub,
         scope: 'bins',
-        binIds: [f.otherBin],
+        binIds: [newId()],
       }),
     ).rejects.toMatchObject({ details: { reason: 'stock_count_bin_outside' } });
     const cancelled = await run(manager, cancelStockCount, {
@@ -202,7 +264,7 @@ describe('inventory.count.*: who may', () => {
 
 describe('a counter counts blind', () => {
   it('never sees the expected quantity, a difference or how many serials to find', async () => {
-    const f = await stockFixture(exec.id);
+    const f = await countFixture();
     await gain(f.binA, f.cable, { qty: '40' });
     await gain(f.binA, f.pump, { serialNos: serialNos(f, 1, 2, 3) });
     const count = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
@@ -273,7 +335,7 @@ describe('a counter counts blind', () => {
 
 describe('a posted count', () => {
   it('leaves the ledger equal to what was counted, with movements during the count folded in', async () => {
-    const f = await stockFixture(exec.id);
+    const f = await countFixture();
     await gain(f.binA, f.cable, { qty: '100' });
     await gain(f.binB, f.cable, { qty: '20' });
     const count = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
@@ -355,7 +417,7 @@ describe('a posted count', () => {
   });
 
   it('stays right over a busy bin, with movements committing while it posts', async () => {
-    const f = await stockFixture(exec.id);
+    const f = await countFixture();
     await gain(f.binA, f.cable, { qty: '50' });
     await gain(f.binB, f.cable, { qty: '50' });
     const count = await run(manager, startStockCount, {
@@ -425,7 +487,7 @@ describe('a posted count', () => {
   });
 
   it('writes off a serial missing and brings back a serial found', async () => {
-    const f = await stockFixture(exec.id);
+    const f = await countFixture();
     const [s1, s2, s3, s4] = serialNos(f, 1, 2, 3, 4);
     await gain(f.binA, f.pump, { serialNos: [s1 ?? '', s2 ?? ''] });
     await gain(f.binB, f.pump, { serialNos: [s3 ?? ''] });
@@ -489,7 +551,7 @@ describe('a posted count', () => {
   });
 
   it('waits for every item to be counted and every recount to be taken', async () => {
-    const f = await stockFixture(exec.id);
+    const f = await countFixture();
     await gain(f.binA, f.cable, { qty: '12' });
     await gain(f.binB, f.cable, { qty: '6' });
     const count = await run(manager, startStockCount, {
@@ -558,7 +620,7 @@ describe('a posted count', () => {
   });
 
   it('shows each variance’s value only to a holder of finance.cost.read', async () => {
-    const f = await stockFixture(exec.id);
+    const f = await countFixture();
     await run(exec, adjustStock, {
       entityId: 1,
       itemId: f.cable,
@@ -589,7 +651,7 @@ describe('a posted count', () => {
   });
 
   it('lists a company’s counts by state for counters and readers of stock', async () => {
-    const f = await stockFixture(exec.id);
+    const f = await countFixture();
     const count = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
     const page = await asPrincipal(counter, (ctx) =>
       listStockCounts(ctx, { entityId: 1, state: 'open', limit: 100 }),

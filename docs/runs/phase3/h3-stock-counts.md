@@ -5,9 +5,9 @@
 | Branch | `feat/h3-stock-counts` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the ledger, values behind `finance.cost.read`, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC |
-| State | briefed |
-| Next step | the builder |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account from 27-11-2026 14:35 UTC |
+| State | early check |
+| Next step | the lead reads the early check and answers questions A and B below |
 
 ## Brief
 Build [phase3 §7.3](../../03-roadmap-appendix/phase3.md#73-h3-stock-counts) as written. The exit gate's physical audit runs on this tool (§11). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -66,6 +66,80 @@ Review checklist: the expected quantity never reaches a counter by any path; pos
 Shared registration points take one line or one block each, kept together under a comment naming your slice; the lead merges them. They are `en.json`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event catalogue and worker registry, the state machine registry, the import kinds' registry, the print document registry, the testing lists, `nav.ts`, `turbo.json` and `.env.example`.
 
 ## Report
+
+### 27-11-2026, seat (early check)
+**Built** (tables, definers, machine, commands, queries and their tests; no screen yet):
+- Schema `packages/db/src/schema/stock-counts.ts`; migrations `0240_h3_stock_counts` (generated) and `0241_h3_stock_counts_rls` (custom).
+- `stock_counts`: company, hub, scope (`hub`, `bins`, `items` with the chosen ids), state (the `stock-count` machine), start, submit, post (with `post_note`) and cancel stamps. One live count (open, counting or review) per company and hub (`stock_counts_live_unique` → `stock_count_live`), so two counts never post the same variance.
+- `stock_count_lines`: one line per untracked item in a bin, or per serial in a bin; `expected_qty` frozen at the start; first count, recount request and recount, each with who and when.
+- Row security:
+  - `stock_counts_read`: company and (`inventory.stock.read:entity` or `inventory.stock.move:entity`).
+  - `stock_counts_insert`: company, `inventory.stock.adjust:entity`, `started_by` the caller, state `open`.
+  - `stock_counts_update`: company and move or adjust, `updated_by` the caller. Column grants: only the state and its stamps.
+  - `app.stock_counts_guard()`: the machine's moves only, each with its grant (submit and the first count with move; recount from review, post and cancel with adjust); nothing changes once posted or cancelled.
+  - `stock_count_lines_read`: company and `inventory.stock.adjust:entity`. **Column grants: `expected_qty` is selected by no request role on either pool** (`app_user`, `app_reader`; `readonly_reporter` has nothing). No request role inserts, updates or deletes a line.
+- Definers (`search_path = ''`, each checking its grant and the count's company):
+  - `app.stock_count_start` (adjust) freezes the expected quantities: untracked balances above zero and every serial in a bin of the scope.
+  - `app.stock_count_record` (move) records one item in one bin: a quantity, or the serials found (none is a count too). It adds a line for stock found where none was listed, with what the bin held at the start. It is the recount while one is asked. A serial must be the company's (else `stock_count_serial_unknown`) and is counted in one bin of the count at a time (`stock_count_serial_counted_elsewhere`).
+  - `app.stock_count_recount` (adjust).
+  - `app.stock_count_sheet` (move): the counter's view per item in a bin (to count, counted, recount) and what they entered. It has no column for an expected quantity or a difference, and a recount hides the first count.
+  - `app.stock_count_progress` (move or adjust): counted per item in a bin, never per serial, so it never tells a counter how many serials to find.
+  - `app.stock_count_review` (adjust): each line's expected quantity at the start and when it was counted, the count that stands, and, for a serial, whether it moved since its count.
+  - Helpers no role may execute: `app.stock_count_of`, `app.stock_count_moved`, `app.stock_count_refuse`.
+- **Movements during a count:** the expected quantity a variance is taken from is the ledger's when the line was counted: the balance now less the net movements into or out of the bin since. For a serial, it is where its first movement since took it from, or else where it is now. So a movement before the count is folded in, one after it is left alone, and a movement committing while the count posts changes the balance and the movements since by the same amount: what posts does not change. The count never freezes the hub.
+- Machine `packages/domain/src/state-machines/machines/stock-count.ts` (`open` → `counting` → `review` → `posted`, `cancelled` from the three live states; `recount` from counting or review back to counting); registered, in use, documented (`docs/state-machines/stock-count.md`).
+- Contracts `packages/contracts/src/inventory/counts.ts`.
+- Commands, all people only, each audited with no value and no expected quantity:
+  - `packages/domain/src/commands/inventory/counts.ts`: `inventory.count.start`, `.record`, `.recount`, `.submit`, `.cancel`.
+  - `counts-post.ts`: `inventory.count.post`.
+  - `counts-plan.ts` (pure): variance to movements, outs before ins.
+  - `counts-shared.ts`: header lock, machine, progress, refusals.
+- Posting: one `app.stock_move()` batch of `count` movements (ref `stock_count`), the poster's note on each, a missing serial's own reason where given. It emits `inventory.stock.moved` (the event catalogue now names `inventory.count.post` as an emitter). Serials:
+  - a serial missing is written off (`scrap`);
+  - a serial written off and found is brought back (`reinstate`);
+  - a serial the ledger has in another bin is written off there and brought back here;
+  - a serial that moved since its count refuses the post (`stock_count_serial_moved`: ask for a recount);
+  - one recorded as having left the stock (with a customer or a supplier) refuses the post (`stock_count_serial_elsewhere`).
+- Queries `packages/domain/src/queries/inventory/counts.ts`:
+  - `listStockCounts` (move or read; keyset on start and id);
+  - `getStockCountSheet` (move);
+  - `getStockCountReview` (adjust): variances, the movements during the count, and each value at the moving average only with `finance.cost.read`, read under the viewer's own grant.
+- Registration blocks: command registry, domain index, machine registry, event catalogue emitter line, testing lists (`ENTITY_TABLES`), matrix fixture rows and rules, `NARROWER` and `COLUMN_SELECT`, the reader definer list, `enum-sync` pairs, agent refusal inputs, Activity log labels (`audit.ts`, `en.json` `activity.*`), `errors.*` sentences. DATABASE §4.1 and §6.5 rows; `pnpm db:docs` and `machines:docs` rerun.
+
+**Tests added:**
+- `packages/db/tests/security/stock-counts.test.ts`: 11. Every role on both pools is refused `expected_qty` and `select *` on the lines (42501). The review answers only holders of `inventory.stock.adjust`, on both pools; a counter, every other role and another company's Inventory Manager are refused. The sheet and progress have no expected or difference column and count per item in a bin. Lines are read only with adjust and written by no request role. The definers' execute grants. The state guard refuses a counter's post or cancel by hand. Insert only as `open` in the caller's company.
+- `packages/domain/tests/commands/stock-counts.test.ts`: 9. Each command is denied without its grant, to an agent and in another company; one live count per company and hub; no count of a transit hub. A counter is blind (sheet, answer, audit rows). **A posted count leaves the ledger equal to what was counted, with movements during the count folded in.** It stays right over a busy bin: the post runs at once with 12 transfers and gains in and out of the counted bin, and the bin ends at the count plus what moved after it. **A serial missing is written off; a serial found is brought back, including one the ledger had in another bin.** Submit and post wait for every count and every recount; a blind recount stands. Values only with `finance.cost.read`. The list for counters.
+- `packages/domain/src/commands/inventory/counts-plan.test.ts`: 7 unit tests. `machines.test.ts`: the `stock_count` fixture (every legal and illegal move, grant and platform refusal) and 3 guard cases. `reader-parity.test.ts` covers the three queries.
+
+**Checks:**
+- `pnpm --filter @shakti/contracts --filter @shakti/domain --filter @shakti/db --filter web typecheck`: no errors.
+- `pnpm exec eslint --max-warnings 0` on every folder touched: clean.
+- `pnpm --filter @shakti/domain exec vitest run src`: 2866 passed.
+- `pnpm --filter web exec vitest run src/screens/audit.test.ts src/errors-catalogue.test.ts`: 25 passed.
+- `pnpm test:security`: SECURITY_RESULT
+
+**Decisions the brief left to me:**
+1. **No series kind.** A count is not a statutory document. A new series would redefine `app.next_document_no()`, which U2 redefines in this wave. The sheet will name the count by its company, hub and start time.
+2. The expected quantity is hidden by column grants from every request role, not only by a view, so no query, report or future screen can select it by mistake. The Inventory Manager reads it only through `app.stock_count_review()`.
+3. A serial-tracked item has one line per serial. The counter's unit is the item in a bin, and progress counts those units, so nothing tells a counter how many serials the ledger holds.
+4. An unknown serial is refused when counted. The Inventory Manager adds it by Adjust stock, and it then counts as found or matching.
+5. Each recount is blind and stands once taken. A recount asked during review returns the count to counting. Submit and post are both refused while a recount is open.
+6. Posting takes a required note (3 to 300 characters) for every movement, and an optional reason per missing serial.
+7. The transit hub is not counted. A count of chosen bins or items takes up to 200 of them.
+8. Serial numbers are masked like any other text (not in `unmaskedFields`), as H1's adjust and transfer do.
+
+**Questions for the lead (needed before the screens and journeys):**
+- **A. The Store Manager holds no `inventory.stock.move`** (SECURITY §3.2 and the seed: only the Executive, the Inventory Manager and the Field Engineer at `own`). The brief's counter journey is the Store Manager, and the design names the counter by `inventory.stock.move`. Options:
+  - (a) the owner grants the Store Manager `inventory.stock.move` at `entity`, which also lets them move stock between bins;
+  - (b) a new permission for counting alone;
+  - (c) the counter journey uses the Inventory Manager or a customised role.
+
+  The tests use a principal holding only `inventory.stock.move` and `inventory.stock.read`.
+- **B. Blindness against `inventory.stock.read`.** No count path carries the expected quantity. But a counter who also holds `inventory.stock.read` still sees the balances on `/inventory/stock` and the stock card (H1's screens and policies). Options:
+  - (a) hide the balances and movements of bins under a live count from holders without `inventory.stock.adjust`, a restrictive policy on H1's tables;
+  - (b) accept it and say so in SECURITY.
+
+**Not done yet:** the screens (`/inventory/counts`, the one-handed counting screen with a plain input in the scan field's `resolve` shape until U2 merges, the review), the count sheet print template, the journeys, `EXPLAIN (ANALYZE)` evidence, the design's Built record, `pnpm build` and `js-budget`, and copy-lint (to run with the screens' copy).
 
 ## Review
 
