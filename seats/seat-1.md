@@ -1,6 +1,6 @@
 seat: 1
-max_agents: 3
-updated: 2026-11-27T16:48Z
+max_agents: 5
+updated: 2026-11-27T17:45Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -10,6 +10,30 @@ run_file: docs/runs/phase3/x4-stock-reasons.md
 wait_for: none
 done_when: report: x4-stock-reasons fixes
 note: the one fix round: findings 1, 2 and 3 as the lead's triage under the Review table says. First priority on this seat: U2 and R3 wait on X4.
+
+lane: 55
+role: review
+branch: feat/u2-purchase-orders
+run_file: docs/runs/phase3/u2-purchase-orders.md
+wait_for: report: u2-purchase-orders done
+done_when: review: u2-purchase-orders done
+note: Tier A. Attack rate isolation on every table, DTO, PDF, event and audit value; approval limits and self-approval; serial completeness at receipt; the moving average. (moved from seat 3)
+
+lane: 56
+role: review
+branch: feat/j2-loans
+run_file: docs/runs/phase4/j2-loans.md
+wait_for: report: j2-loans done
+done_when: review: j2-loans done
+note: Tier A (moved from seat 3)
+
+lane: 57
+role: review
+branch: feat/tc1-tally-connector
+run_file: docs/runs/phase5/tc1-tally-connector.md
+wait_for: report: tc1-tally-connector done
+done_when: review: tc1-tally-connector done
+note: Tier A. Attack key handling, read-only requests to Tally, idempotent resend, the outbox across a kill. (moved from seat 3)
 
 lane: 25
 role: build
