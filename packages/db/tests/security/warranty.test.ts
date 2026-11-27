@@ -304,3 +304,83 @@ describe('the warranty_claim series', () => {
     expect(rows).toHaveLength(1);
   });
 });
+
+describe('the claim’s reasons in the ledger’s registry', () => {
+  it('opens warranty_replacement, return_customer and return_supplier, each one way, none reversible', async () => {
+    const grants = await asMigrator(
+      (m) => m<{ reason: string; permission: string; reversible: boolean }[]>`
+        select reason, permission, reversible from app.stock_reason_grants
+         where opened_by = 'r3-warranty' order by reason`,
+    );
+    expect(grants).toEqual([
+      {
+        reason: 'return_customer',
+        permission: 'inventory.warranty.write:entity',
+        reversible: false,
+      },
+      { reason: 'return_supplier', permission: 'procurement.po.write:entity', reversible: false },
+      {
+        reason: 'warranty_replacement',
+        permission: 'inventory.warranty.write:entity',
+        reversible: false,
+      },
+    ]);
+    const moves = await asMigrator(
+      (m) => m<
+        { reason: string; direction: string; from: string[]; creates: boolean; to: string }[]
+      >`
+        select reason, direction, from_states as from, creates, to_state as to
+          from app.stock_reason_moves where opened_by = 'r3-warranty' order by reason`,
+    );
+    expect(moves).toEqual([
+      {
+        reason: 'return_customer',
+        direction: 'in',
+        from: ['with_customer'],
+        creates: false,
+        to: 'faulty',
+      },
+      {
+        reason: 'return_supplier',
+        direction: 'out',
+        from: ['faulty'],
+        creates: false,
+        to: 'with_supplier',
+      },
+      {
+        reason: 'warranty_replacement',
+        direction: 'out',
+        from: ['in_stock'],
+        creates: false,
+        to: 'with_customer',
+      },
+    ]);
+  });
+});
+
+describe('app.warranty_claim_record_cost()', () => {
+  it('is run by app_user only, with inventory.warranty.write for the claim’s company', async () => {
+    const [row] = await withoutContext<Record<string, boolean>>(sql`
+      select has_function_privilege('app_user', 'app.warranty_claim_record_cost(uuid,uuid)', 'execute') as app,
+             has_function_privilege('app_reader', 'app.warranty_claim_record_cost(uuid,uuid)', 'execute') as reader,
+             has_function_privilege('readonly_reporter', 'app.warranty_claim_record_cost(uuid,uuid)', 'execute') as reporter,
+             has_function_privilege('public', 'app.warranty_claim_record_cost(uuid,uuid)', 'execute') as pub`);
+    expect(row).toEqual({ app: true, reader: false, reporter: false, pub: false });
+    const record = (who: Principal, claim: string) =>
+      asPrincipal(who, ({ tx }) =>
+        tx.execute(sql`select app.warranty_claim_record_cost(${claim}::uuid, ${newId()}::uuid)`),
+      );
+    for (const roleKey of ['general_manager', 'accounts', 'store_manager'] as const) {
+      expect((await failure(record(principalFor(roleKey, [1]), identified))).code, roleKey).toBe(
+        '42501',
+      );
+    }
+    expect((await failure(record(principalFor('inventory_manager', [2]), identified))).code).toBe(
+      '42501',
+    );
+    // A movement that is not this claim's replacement.
+    expect((await failure(record(principalFor('inventory_manager', [1]), identified))).code).toBe(
+      '23514',
+    );
+  });
+});

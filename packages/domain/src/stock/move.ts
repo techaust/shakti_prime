@@ -25,6 +25,14 @@ export interface StockMovementLine {
   unitCost?: string | null;
   /** Why a person moved it, up to 300 characters. */
   note?: string | null;
+  /**
+   * X4: a serial going to a customer (a reason whose move row ends `with_customer`) takes the
+   * customer, the site, the delivery time and the warranty's end; refused on any other line.
+   */
+  accountId?: string | null;
+  siteId?: string | null;
+  deliveredAt?: Date | null;
+  warrantyUntil?: string | null;
 }
 
 /** The ledger's reasons the helpers name (constants, so no error catalogue reads them as one). */
@@ -141,6 +149,15 @@ function lineJson(line: StockMoveLine): Record<string, unknown> {
     ref_id: line.refId ?? null,
     unit_cost: line.unitCost ?? null,
     note: line.note ?? null,
+    // Only a line to a customer names one; the ledger refuses the fields on any other.
+    ...(line.accountId === undefined || line.accountId === null
+      ? {}
+      : {
+          account_id: line.accountId,
+          site_id: line.siteId ?? null,
+          delivered_at: line.deliveredAt?.toISOString() ?? null,
+          warranty_until: line.warrantyUntil ?? null,
+        }),
   };
 }
 

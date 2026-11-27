@@ -295,6 +295,9 @@ const eventCatalogue = {
       'inventory.stock.adjust',
       'inventory.stock.reverse',
       'imports.job.commit_batch',
+      // R3 warranty claims
+      'inventory.warranty.replace',
+      'inventory.warranty.rma_raise',
     ],
     subscribed: false,
     payload: z
@@ -844,6 +847,20 @@ const eventCatalogue = {
     subscribed: false,
     payload: z.object({ serialId: IdSchema }).strict(),
   },
+  'inventory.warranty.replaced': {
+    meaning:
+      'A replacement was given from stock on a warranty claim; its cost stays on the claim, restricted.',
+    emittedBy: ['inventory.warranty.replace'],
+    subscribed: false,
+    payload: z.object({ replacementSerialId: IdSchema, faultyReturned: z.boolean() }).strict(),
+  },
+  'inventory.warranty.rma_raised': {
+    meaning:
+      "A warranty claim's failed serial was sent to its supplier with their return reference.",
+    emittedBy: ['inventory.warranty.rma_raise'],
+    subscribed: false,
+    payload: z.object({ vendorId: IdSchema }).strict(),
+  },
   'inventory.warranty.rejected': {
     meaning: 'A warranty claim was rejected: out of warranty, or not a fault.',
     emittedBy: ['inventory.warranty.reject'],
@@ -851,7 +868,8 @@ const eventCatalogue = {
     payload: z.object({}).strict(),
   },
   'inventory.warranty.closed': {
-    meaning: "A warranty claim was closed by the supplier's settlement; the amount stays restricted.",
+    meaning:
+      "A warranty claim was closed by the supplier's settlement; the amount stays restricted.",
     emittedBy: ['inventory.warranty.settle'],
     subscribed: false,
     payload: z.object({ settlement: WarrantySettlementSchema }).strict(),

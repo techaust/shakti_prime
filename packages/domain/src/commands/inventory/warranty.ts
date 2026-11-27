@@ -3,7 +3,9 @@ import {
   IdentifyWarrantySerialInput,
   newId,
   RaiseWarrantyClaimInput,
+  RaiseWarrantyRmaInput,
   RejectWarrantyClaimInput,
+  ReplaceWarrantyInput,
   SettleWarrantyClaimInput,
   WarrantyClaimChangedDto,
   type CalendarDate,
@@ -22,6 +24,13 @@ import {
   type WarrantyClaimParams,
   type WarrantyClaimRecord,
 } from '../../state-machines/machines/warranty-claim';
+import {
+  serialMachine,
+  type SerialEvent,
+  type SerialRecord,
+} from '../../state-machines/machines/serial';
+import type { StockMoveLine } from '../../stock/move';
+import { postStockMoves, type AuditedMove } from '../../stock/post';
 import { assertEntityInScope } from '../imports/shared';
 
 /**
@@ -39,6 +48,11 @@ const CLAIM_AUDIT_FIELDS = [
   'reportedFault',
   'rejectedReason',
   'settlement',
+  // The stock a step moves, as the stock commands record it (never a cost).
+  'stockReason',
+  'quantity',
+  'serialNo',
+  'adjustNote',
 ] as const;
 
 /** The one open claim a serial may have, which two people raising at once can race for. */
@@ -49,6 +63,8 @@ interface ClaimRow {
   entityId: number;
   claimNo: string;
   accountId: string;
+  siteId: string | null;
+  itemId: string | null;
   serialId: string | null;
   replacementSerialId: string | null;
   supplierRmaRef: string | null;
@@ -69,6 +85,8 @@ async function lockClaim(
       entityId: c.entityId,
       claimNo: c.claimNo,
       accountId: c.accountId,
+      siteId: c.siteId,
+      itemId: c.itemId,
       serialId: c.serialId,
       replacementSerialId: c.replacementSerialId,
       supplierRmaRef: c.supplierRmaRef,
@@ -389,6 +407,283 @@ export const rejectWarrantyClaim = defineCommand({
       aggregateType: 'warranty_claim',
       aggregateId: claim.id,
       payload: {},
+    });
+    return changed(claim, to);
+  },
+});
+
+/** The stock reasons of a claim's steps (constants, so no error catalogue reads them as one). */
+const WARRANTY_REPLACEMENT = 'warranty_replacement' as const;
+const RETURN_CUSTOMER = 'return_customer' as const;
+const RETURN_SUPPLIER = 'return_supplier' as const;
+
+/** A movement's reference to the claim it serves. */
+const CLAIM_REF = 'warranty_claim';
+
+interface StepSerial extends SerialRecord {
+  id: string;
+  serialNo: string;
+  accountId: string | null;
+  siteId: string | null;
+  warrantyUntil: CalendarDate | null;
+}
+
+async function stepSerial(
+  ctx: CommandContext,
+  where: { entityId: number; itemId: string } & ({ id: string } | { serialNo: string }),
+): Promise<StepSerial | undefined> {
+  const s = schema.serials;
+  const [row] = await ctx.tx
+    .select({
+      id: s.id,
+      serialNo: s.serialNo,
+      state: s.state,
+      binId: s.binId,
+      accountId: s.accountId,
+      siteId: s.siteId,
+      warrantyUntil: s.warrantyUntil,
+    })
+    .from(s)
+    .where(
+      and(
+        eq(s.entityId, where.entityId),
+        eq(s.itemId, where.itemId),
+        'id' in where ? eq(s.id, where.id) : sql`lower(${s.serialNo}) = lower(${where.serialNo})`,
+      ),
+    )
+    .limit(1);
+  return row === undefined ? undefined : { ...row, state: row.state as SerialRecord['state'] };
+}
+
+function fireSerial(
+  ctx: CommandContext,
+  record: SerialRecord,
+  event: SerialEvent,
+  fromBinId: string | null,
+): void {
+  transition(serialMachine, record, event, {
+    actor: { kind: 'principal', principal: ctx.principal },
+    now: ctx.now,
+    params: { fromBinId },
+  });
+}
+
+/** A bin of a hub for faulty and returned goods, named for a failed serial coming back. */
+async function assertQuarantine(ctx: CommandContext, binId: string): Promise<void> {
+  const b = schema.bins;
+  const [bin] = await ctx.tx.select({ kind: b.kind }).from(b).where(eq(b.id, binId)).limit(1);
+  if (bin?.kind !== 'quarantine') {
+    throw new DomainError('validation_failed', 'not a quarantine bin', {
+      reason: 'warranty_quarantine_bin',
+    });
+  }
+}
+
+/** The claim's failed serial, which every step after identification has. */
+async function failedSerialOf(ctx: CommandContext, claim: ClaimRow): Promise<StepSerial> {
+  const failed =
+    claim.serialId === null || claim.itemId === null
+      ? undefined
+      : await stepSerial(ctx, {
+          entityId: claim.entityId,
+          itemId: claim.itemId,
+          id: claim.serialId,
+        });
+  if (!failed) {
+    throw new DomainError('not_found', 'serial not found', { reason: 'warranty_serial_unknown' });
+  }
+  return failed;
+}
+
+/** The failed serial back from its customer into a quarantine bin, as a movement line. */
+function returnLine(
+  claim: ClaimRow,
+  itemId: string,
+  failed: StepSerial,
+  binId: string,
+): StockMoveLine {
+  return {
+    reason: RETURN_CUSTOMER,
+    entityId: claim.entityId,
+    itemId,
+    serialId: failed.id,
+    toBinId: binId,
+    qty: '1',
+    refType: CLAIM_REF,
+    refId: claim.id,
+  };
+}
+
+/**
+ * `inventory.warranty.replace`: a replacement of the same product leaves stock to the claim's
+ * customer through `app.stock_move()` (`warranty_replacement`, at the moving average), with the
+ * claim's site, today's delivery and the failed serial's warranty end (the customer keeps the term
+ * they had). When the failed serial is back already, it goes into the quarantine bin named as
+ * `faulty` (`return_customer`) in the same batch. The replacement's cost is kept only on the
+ * claim's restricted costs (`app.warranty_claim_record_cost()`).
+ */
+export const replaceWarranty = defineCommand({
+  name: 'inventory.warranty.replace',
+  permission: 'inventory.warranty.write',
+  minScope: 'entity',
+  peopleOnly: true,
+  input: ReplaceWarrantyInput,
+  output: WarrantyClaimChangedDto,
+  auditFields: CLAIM_AUDIT_FIELDS,
+  unmaskedFields: [
+    // A serial number as the maker prints it, which may be a long run of digits.
+    'replacementSerialNo',
+  ],
+  constraintReasons: CLAIM_RACES,
+  async handler(ctx, input) {
+    const claim = await lockClaim(ctx, input.entityId, input.claimId);
+    const failed = await failedSerialOf(ctx, claim);
+    const itemId = claim.itemId ?? '';
+    const replacement = await stepSerial(ctx, {
+      entityId: claim.entityId,
+      itemId,
+      serialNo: input.replacementSerialNo,
+    });
+    if (!replacement) {
+      throw new DomainError('validation_failed', 'replacement not found', {
+        reason: 'stock_serial_unknown',
+        serialNo: input.replacementSerialNo,
+      });
+    }
+    const to = fire(ctx, recordOf(claim, { replacementSerialId: replacement.id }), 'replace');
+    fireSerial(ctx, replacement, 'replace', input.fromBinId);
+    const lines: StockMoveLine[] = [
+      {
+        reason: WARRANTY_REPLACEMENT,
+        entityId: claim.entityId,
+        itemId,
+        serialId: replacement.id,
+        fromBinId: input.fromBinId,
+        qty: '1',
+        refType: CLAIM_REF,
+        refId: claim.id,
+        accountId: claim.accountId,
+        siteId: claim.siteId,
+        deliveredAt: ctx.now,
+        warrantyUntil: failed.warrantyUntil,
+      },
+    ];
+    const audited: AuditedMove[] = [
+      { stockReason: WARRANTY_REPLACEMENT, quantity: '1', serialNo: replacement.serialNo },
+    ];
+    if (input.faultyBinId !== undefined) {
+      await assertQuarantine(ctx, input.faultyBinId);
+      fireSerial(ctx, failed, 'return_faulty', null);
+      lines.push(returnLine(claim, itemId, failed, input.faultyBinId));
+      audited.push({ stockReason: RETURN_CUSTOMER, quantity: '1', serialNo: failed.serialNo });
+    }
+    const { movementIds } = await postStockMoves(ctx, claim.entityId, lines, audited, null);
+    await ctx.tx.execute(
+      sql`select app.warranty_claim_record_cost(${claim.id}::uuid, ${movementIds[0] ?? ''}::uuid)`,
+    );
+    await writeStep(ctx, claim, to, { replacementSerialId: replacement.id });
+    ctx.audit({
+      aggregateType: 'warranty_claim',
+      aggregateId: claim.id,
+      entityId: claim.entityId,
+      before: { claimState: claim.state },
+      after: { claimState: to, replacementSerialId: replacement.id },
+    });
+    ctx.emit({
+      type: 'inventory.warranty.replaced',
+      entityId: claim.entityId,
+      aggregateType: 'warranty_claim',
+      aggregateId: claim.id,
+      payload: {
+        replacementSerialId: replacement.id,
+        faultyReturned: input.faultyBinId !== undefined,
+      },
+    });
+    return changed(claim, to);
+  },
+});
+
+/**
+ * `inventory.warranty.rma_raise` (`procurement.po.write`, phase3 §14): the failed serial goes to
+ * its supplier (`return_supplier`, out of its quarantine bin, `faulty` → `with_supplier`), with the
+ * supplier's return reference. A failed serial still with the customer comes back first, into the
+ * quarantine bin named (`return_customer`), in the same batch.
+ */
+export const raiseWarrantyRma = defineCommand({
+  name: 'inventory.warranty.rma_raise',
+  permission: 'procurement.po.write',
+  minScope: 'entity',
+  peopleOnly: true,
+  input: RaiseWarrantyRmaInput,
+  output: WarrantyClaimChangedDto,
+  auditFields: [...CLAIM_AUDIT_FIELDS, 'supplierRmaRef'],
+  unmaskedFields: [
+    // The supplier's own return reference, which may be a long run of digits.
+    'supplierRmaRef',
+  ],
+  async handler(ctx, input) {
+    const claim = await lockClaim(ctx, input.entityId, input.claimId);
+    const to = fire(ctx, recordOf(claim, { supplierRmaRef: input.supplierRmaRef }), 'rma.raise');
+    const failed = await failedSerialOf(ctx, claim);
+    const itemId = claim.itemId ?? '';
+    const v = schema.vendors;
+    const [vendor] = await ctx.tx
+      .select({ id: v.id, active: v.isActive })
+      .from(v)
+      .where(eq(v.id, input.vendorId))
+      .limit(1);
+    if (!vendor?.active) {
+      throw new DomainError('validation_failed', 'vendor not found', {
+        reason: 'warranty_vendor_missing',
+      });
+    }
+    const lines: StockMoveLine[] = [];
+    const audited: AuditedMove[] = [];
+    let binId = failed.binId;
+    if (failed.state === 'with_customer') {
+      if (input.faultyBinId === undefined) {
+        throw new DomainError('validation_failed', 'the failed serial is not back', {
+          reason: 'warranty_faulty_not_back',
+        });
+      }
+      await assertQuarantine(ctx, input.faultyBinId);
+      fireSerial(ctx, failed, 'return_faulty', null);
+      lines.push(returnLine(claim, itemId, failed, input.faultyBinId));
+      audited.push({ stockReason: RETURN_CUSTOMER, quantity: '1', serialNo: failed.serialNo });
+      binId = input.faultyBinId;
+      fireSerial(ctx, { state: 'faulty', binId }, 'rma_raise', binId);
+    } else {
+      fireSerial(ctx, failed, 'rma_raise', failed.binId);
+    }
+    lines.push({
+      reason: RETURN_SUPPLIER,
+      entityId: claim.entityId,
+      itemId,
+      serialId: failed.id,
+      fromBinId: binId,
+      qty: '1',
+      refType: CLAIM_REF,
+      refId: claim.id,
+    });
+    audited.push({ stockReason: RETURN_SUPPLIER, quantity: '1', serialNo: failed.serialNo });
+    await postStockMoves(ctx, claim.entityId, lines, audited, null);
+    await writeStep(ctx, claim, to, {
+      vendorId: vendor.id,
+      supplierRmaRef: input.supplierRmaRef,
+    });
+    ctx.audit({
+      aggregateType: 'warranty_claim',
+      aggregateId: claim.id,
+      entityId: claim.entityId,
+      before: { claimState: claim.state },
+      after: { claimState: to, vendorId: vendor.id, supplierRmaRef: input.supplierRmaRef },
+    });
+    ctx.emit({
+      type: 'inventory.warranty.rma_raised',
+      entityId: claim.entityId,
+      aggregateType: 'warranty_claim',
+      aggregateId: claim.id,
+      payload: { vendorId: vendor.id },
     });
     return changed(claim, to);
   },

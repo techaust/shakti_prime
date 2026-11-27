@@ -572,7 +572,10 @@
     "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
     "stock_serial_state": "That serial number can't be moved this way from where it is now. Check where it is and try again.",
     "stock_customer_missing": "We couldn't find that customer or site. Choose the customer again, then try again.",
-    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again."
+    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again.",
+    "warranty_quarantine_bin": "Choose a quarantine bin for the faulty item. Faulty and returned goods are kept there.",
+    "warranty_vendor_missing": "We couldn't find this supplier in the vendor list. Choose the supplier again.",
+    "warranty_faulty_not_back": "The faulty item is still with the customer. Choose the quarantine bin it comes back into."
   },
   "auth": {
     "signIn": {
@@ -2007,7 +2010,9 @@
       "warrantyReject": "Warranty claim rejected",
       "warrantySettle": "Warranty claim settled",
       "labelPrint": "Labels printed",
-      "labelReprint": "Label printed again"
+      "labelReprint": "Label printed again",
+      "warrantyReplace": "Warranty replacement given",
+      "warrantyRmaRaise": "Faulty item sent to the supplier"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2077,7 +2082,9 @@
       "warrantySerialIdentified": "Faulty serial identified",
       "warrantyRejected": "Warranty claim rejected",
       "warrantyClosed": "Warranty claim closed",
-      "labelsRequested": "Labels sent for printing"
+      "labelsRequested": "Labels sent for printing",
+      "warrantyReplaced": "Warranty replacement given",
+      "warrantyRmaRaised": "Faulty item sent to the supplier"
     },
     "sheet": {
       "title": "{action}",
@@ -2429,7 +2436,8 @@
       "settlement": "How the supplier settled",
       "labelKind": "Kind of label",
       "labelCount": "Labels on the sheet",
-      "labelNote": "Why it was printed again"
+      "labelNote": "Why it was printed again",
+      "supplierRmaRef": "Supplier's return reference"
     },
     "values": {
       "percent": "{value}%",

@@ -163,7 +163,9 @@ import { adjustStock, reverseStock, transferStock } from '../commands/inventory/
 import {
   identifyWarrantySerial,
   raiseWarrantyClaim,
+  raiseWarrantyRma,
   rejectWarrantyClaim,
+  replaceWarranty,
   settleWarrantyClaim,
 } from '../commands/inventory/warranty';
 // Q1 labels
@@ -325,6 +327,8 @@ export const commands = Object.freeze({
   [raiseWarrantyClaim.name]: raiseWarrantyClaim,
   [identifyWarrantySerial.name]: identifyWarrantySerial,
   [rejectWarrantyClaim.name]: rejectWarrantyClaim,
+  [replaceWarranty.name]: replaceWarranty,
+  [raiseWarrantyRma.name]: raiseWarrantyRma,
   [settleWarrantyClaim.name]: settleWarrantyClaim,
   // Q1 labels
   [printLabels.name]: printLabels,

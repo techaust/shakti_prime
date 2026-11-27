@@ -51,7 +51,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-64 types, 22 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+70 types, 22 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -100,7 +100,13 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch` | none |
+| [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch`, `inventory.warranty.replace`, `inventory.warranty.rma_raise` | none |
+| [`inventory.warranty.raised`](#inventorywarrantyraised) | A warranty claim was raised on a customer, or on the serial they reported. | `inventory.warranty.raise` | none |
+| [`inventory.warranty.serial_identified`](#inventorywarrantyserial_identified) | A warranty claim's failed serial was identified, in warranty. | `inventory.warranty.identify_serial` | none |
+| [`inventory.warranty.replaced`](#inventorywarrantyreplaced) | A replacement was given from stock on a warranty claim; its cost stays on the claim, restricted. | `inventory.warranty.replace` | none |
+| [`inventory.warranty.rma_raised`](#inventorywarrantyrma_raised) | A warranty claim's failed serial was sent to its supplier with their return reference. | `inventory.warranty.rma_raise` | none |
+| [`inventory.warranty.rejected`](#inventorywarrantyrejected) | A warranty claim was rejected: out of warranty, or not a fault. | `inventory.warranty.reject` | none |
+| [`inventory.warranty.closed`](#inventorywarrantyclosed) | A warranty claim was closed by the supplier's settlement; the amount stays restricted. | `inventory.warranty.settle` | none |
 
 ### Sign-in
 
@@ -427,7 +433,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock`, `installed_base` |
 | `committedRows` | whole number from 0 |
 | `batches` | whole number from 1 |
 
@@ -435,7 +441,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock`, `installed_base` |
 | `committedRows` | whole number from 0 |
 | `failedBatch` | whole number from 1 |
 
@@ -449,7 +455,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock`, `installed_base` |
 | `rolledBackRows` | whole number from 0 |
 
 ### files.file.uploaded
@@ -671,3 +677,39 @@ No fields apart from `v`.
 | `vendorId` | id |
 | `itemId` | id |
 | `forGroup` | true or false |
+
+### inventory.warranty.raised
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `serialId` | id or null |
+
+### inventory.warranty.serial_identified
+
+| Field | Type |
+|---|---|
+| `serialId` | id |
+
+### inventory.warranty.replaced
+
+| Field | Type |
+|---|---|
+| `replacementSerialId` | id |
+| `faultyReturned` | true or false |
+
+### inventory.warranty.rma_raised
+
+| Field | Type |
+|---|---|
+| `vendorId` | id |
+
+### inventory.warranty.rejected
+
+No fields apart from `v`.
+
+### inventory.warranty.closed
+
+| Field | Type |
+|---|---|
+| `settlement` | one of `credit`, `replacement` |

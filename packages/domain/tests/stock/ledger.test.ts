@@ -107,16 +107,7 @@ describe('grants, per reason, from the request', () => {
   });
 
   it('refuses every reason a later slice opens', async () => {
-    for (const reason of [
-      'receipt',
-      'pick',
-      'issue',
-      'return_customer',
-      'return_supplier',
-      'warranty_replacement',
-      'surplus_in',
-      'surplus_out',
-    ] as const) {
+    for (const reason of ['receipt', 'pick', 'issue', 'surplus_in', 'surplus_out'] as const) {
       await expect(move(exec, [{ ...gain(f.binA, '1'), reason }]), reason).rejects.toMatchObject({
         code: 'validation_failed',
         details: { reason: 'stock_reason_not_open' },

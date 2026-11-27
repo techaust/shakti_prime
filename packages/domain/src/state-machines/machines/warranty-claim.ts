@@ -133,6 +133,8 @@ export const warrantyClaimMachine = defineMachine<
       permission: 'inventory.warranty.write',
       scope: 'entity',
       guard: replacementGiven,
+      emits: 'inventory.warranty.replaced',
+      note: 'The failed serial comes back into a quarantine bin as faulty in the same step, or with the RMA.',
       effects: [
         {
           key: 'issue_stock',
@@ -153,6 +155,14 @@ export const warrantyClaimMachine = defineMachine<
       permission: 'procurement.po.write',
       scope: 'entity',
       guard: rmaGiven,
+      emits: 'inventory.warranty.rma_raised',
+      effects: [
+        {
+          key: 'return_supplier',
+          description:
+            'the failed serial leaves its quarantine bin for its supplier (`return_supplier`), back from the customer first if it is not yet',
+        },
+      ],
     },
     {
       from: ['rma_raised'],

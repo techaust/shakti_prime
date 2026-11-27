@@ -7,6 +7,7 @@ import {
   createTestPrincipal,
   principalFor,
 } from '@shakti/db/testing';
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
@@ -14,10 +15,14 @@ import { runCommand } from '../../src/command/run-command';
 import {
   identifyWarrantySerial,
   raiseWarrantyClaim,
+  raiseWarrantyRma,
   rejectWarrantyClaim,
+  replaceWarranty,
   settleWarrantyClaim,
 } from '../../src/commands/inventory/warranty';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
+import { stockMove } from '../../src/stock/move';
+import { serialOf, stockFixture, type StockFixture } from '../stock/stock-fixture';
 
 afterAll(closeDb);
 
@@ -409,5 +414,239 @@ describe('inventory.warranty.settle', () => {
     await expect(
       run(manager, settleWarrantyClaim, credit(claimId, '16250.50', 2)),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('the ledger steps: replace, the failed serial back, the supplier return', () => {
+  let f: StockFixture;
+  const quarantine = newId();
+  let seq = 0;
+
+  beforeAll(async () => {
+    f = await stockFixture(exec.id);
+    await asMigrator(
+      (m) => m`insert into bins (id, warehouse_id, code, kind, created_by)
+        values (${quarantine}, ${f.hub}, 'Q1', 'quarantine', ${exec.id})`,
+    );
+  });
+
+  /** A pump of the fixture in stock in bin A at a test cost, by its number. */
+  async function inStock(): Promise<string> {
+    seq += 1;
+    const serialNo = `WR-${f.tag}-${String(seq)}`;
+    await asPrincipal(exec, ({ tx }) =>
+      stockMove(tx, [
+        {
+          reason: 'adjust_gain',
+          entityId: 1,
+          itemId: f.pump,
+          toBinId: f.binA,
+          qty: '1',
+          serialNo,
+          unitCost: '12000.0000',
+          note: 'Warranty test stock',
+        },
+      ]),
+    );
+    return serialNo;
+  }
+
+  /** A claim of company 1 with its failed pump identified, delivered to the claim's customer. */
+  async function identified(): Promise<{ claim: Claim; failedNo: string }> {
+    seq += 1;
+    const failedNo = `WF-${f.tag}-${String(seq)}`;
+    const failed = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into serials (id, entity_id, item_id, serial_no, state, account_id, site_id, warranty_until, created_by)
+        values (${failed}, 1, ${f.pump}, ${failedNo}, 'with_customer', ${account}, ${site}, '2099-03-31', ${exec.id})`,
+    );
+    const claim = await run(manager, raiseWarrantyClaim, {
+      entityId: 1,
+      serialId: failed,
+      reportedFault: 'The pump trips at start',
+    });
+    await run(manager, identifyWarrantySerial, {
+      entityId: 1,
+      claimId: claim.id,
+      serialId: failed,
+    });
+    return { claim, failedNo };
+  }
+
+  it('are refused without their grants, and for a claim of another company', async () => {
+    const { claim } = await identified();
+    const replacementSerialNo = await inStock();
+    const replace = { entityId: 1, claimId: claim.id, fromBinId: f.binA, replacementSerialNo };
+    for (const roleKey of ['general_manager', 'store_manager', 'accounts'] as const) {
+      await expect(
+        run(principalFor(roleKey, [1]), replaceWarranty, replace),
+        roleKey,
+      ).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+    }
+    const rma = { entityId: 1, claimId: claim.id, vendorId: vendor, supplierRmaRef: 'RMA-1' };
+    for (const roleKey of ['general_manager', 'accounts'] as const) {
+      await expect(
+        run(principalFor(roleKey, [1]), raiseWarrantyRma, rma),
+        roleKey,
+      ).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+    }
+    const elsewhere = await createTestPrincipal('inventory_manager', [2]);
+    await expect(
+      run(elsewhere, replaceWarranty, { ...replace, entityId: 2 }),
+    ).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    await expect(run(elsewhere, replaceWarranty, replace)).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(elsewhere, raiseWarrantyRma, { ...rma, entityId: 2 })).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    // Out of step: no RMA before the replacement.
+    await expect(run(manager, raiseWarrantyRma, rma)).rejects.toMatchObject({
+      details: { reason: 'warranty_claim_transition_not_allowed' },
+    });
+  });
+
+  it('take a claim from the replacement to the supplier and its credit, the cost seen only with finance.cost.read', async () => {
+    const { claim, failedNo } = await identified();
+    const replacementSerialNo = await inStock();
+    const recorded = memoryAuditSink();
+    const events = memoryOutboxSink();
+    const replaced = (await asPrincipal(manager, (context) =>
+      runCommand(
+        replaceWarranty,
+        { context, audit: recorded, outbox: events },
+        {
+          entityId: 1,
+          claimId: claim.id,
+          fromBinId: f.binA,
+          replacementSerialNo: replacementSerialNo.toLowerCase(),
+          faultyBinId: quarantine,
+        },
+      ),
+    )) as Claim;
+    expect(replaced.state).toBe('replacement_issued');
+    // The replacement is the customer's, at the site, with the failed serial's warranty; the
+    // failed serial is in quarantine, faulty.
+    const [given] = await asMigrator(
+      (m) => m<
+        { state: string; account: string; site: string; until: string; delivered: boolean }[]
+      >`
+        select state, account_id as account, site_id as site, warranty_until::text as until,
+               delivered_at is not null as delivered
+          from serials where item_id = ${f.pump} and serial_no = ${replacementSerialNo}`,
+    );
+    expect(given).toEqual({
+      state: 'with_customer',
+      account,
+      site,
+      until: '2099-03-31',
+      delivered: true,
+    });
+    expect(await serialOf(f.pump, failedNo)).toMatchObject({ state: 'faulty', binId: quarantine });
+    const moves = await asMigrator(
+      (m) => m<{ reason: string; ref: string }[]>`
+        select reason, ref_type as ref from stock_movements where ref_id = ${claim.id} order by reason`,
+    );
+    expect(moves).toEqual([
+      { reason: 'return_customer', ref: 'warranty_claim' },
+      { reason: 'warranty_replacement', ref: 'warranty_claim' },
+    ]);
+    // The cost: kept on the claim, never in the answer, the audit rows or the events.
+    const [cost] = await asMigrator(
+      (m) =>
+        m<
+          { c: string }[]
+        >`select replacement_cost::text as c from warranty_claim_costs where claim_id = ${claim.id}`,
+    );
+    expect(cost?.c).toBe('12000.00');
+    expect(JSON.stringify({ replaced, a: recorded.records, e: events.records })).not.toMatch(
+      /12000/,
+    );
+    expect(events.records.map((e) => e.type).sort()).toEqual([
+      'inventory.stock.moved',
+      'inventory.warranty.replaced',
+    ]);
+    const seen = (who: Principal) =>
+      asPrincipal(who, async ({ tx }) => {
+        const rows = (await tx.execute(
+          sql`select replacement_cost::text as c from warranty_claim_costs where claim_id = ${claim.id}`,
+        )) as unknown as { c: string }[];
+        return rows.map((r) => r.c);
+      });
+    expect(await seen(manager)).toEqual([]);
+    expect(await seen(principalFor('general_manager', [1]))).toEqual([]);
+    expect(await seen(principalFor('accounts', [1]))).toEqual(['12000.00']);
+
+    // To the supplier, with their reference: out of quarantine.
+    const rma = await run(manager, raiseWarrantyRma, {
+      entityId: 1,
+      claimId: claim.id,
+      vendorId: vendor,
+      supplierRmaRef: 'RMA-20261127-77',
+    });
+    expect(rma.state).toBe('rma_raised');
+    expect(await serialOf(f.pump, failedNo)).toMatchObject({ state: 'with_supplier', binId: null });
+
+    const closed = await run(manager, settleWarrantyClaim, {
+      entityId: 1,
+      claimId: claim.id,
+      settlement: 'credit',
+      creditAmount: '11500.00',
+    });
+    expect(closed.state).toBe('closed');
+  });
+
+  it('bring a failed serial still with its customer back with the RMA, only into quarantine', async () => {
+    const { claim, failedNo } = await identified();
+    const replacementSerialNo = await inStock();
+    // A serial not in the bin named is refused by the serial's own rule.
+    await expect(
+      run(manager, replaceWarranty, {
+        entityId: 1,
+        claimId: claim.id,
+        fromBinId: f.binB,
+        replacementSerialNo,
+      }),
+    ).rejects.toMatchObject({ details: { reason: 'stock_serial_not_in_bin' } });
+    await run(manager, replaceWarranty, {
+      entityId: 1,
+      claimId: claim.id,
+      fromBinId: f.binA,
+      replacementSerialNo,
+    });
+    expect(await serialOf(f.pump, failedNo)).toMatchObject({ state: 'with_customer' });
+    const rma = { entityId: 1, claimId: claim.id, vendorId: vendor, supplierRmaRef: 'RMA-88' };
+    await expect(run(manager, raiseWarrantyRma, rma)).rejects.toMatchObject({
+      details: { reason: 'warranty_faulty_not_back' },
+    });
+    await expect(
+      run(manager, raiseWarrantyRma, { ...rma, faultyBinId: f.binB }),
+    ).rejects.toMatchObject({
+      details: { reason: 'warranty_quarantine_bin' },
+    });
+    await expect(
+      run(manager, raiseWarrantyRma, { ...rma, vendorId: newId() }),
+    ).rejects.toMatchObject({
+      details: { reason: 'warranty_vendor_missing' },
+    });
+    await run(manager, raiseWarrantyRma, { ...rma, faultyBinId: quarantine });
+    expect(await serialOf(f.pump, failedNo)).toMatchObject({ state: 'with_supplier', binId: null });
+    const moves = await asMigrator(
+      (m) => m<{ reason: string }[]>`
+        select reason from stock_movements where ref_id = ${claim.id} order by moved_at, reason`,
+    );
+    expect(moves.map((x) => x.reason).sort()).toEqual([
+      'return_customer',
+      'return_supplier',
+      'warranty_replacement',
+    ]);
   });
 });

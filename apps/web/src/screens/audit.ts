@@ -148,6 +148,8 @@ const ACTIONS = {
   'inventory.warranty.identify_serial': 'warrantyIdentifySerial',
   'inventory.warranty.reject': 'warrantyReject',
   'inventory.warranty.settle': 'warrantySettle',
+  'inventory.warranty.replace': 'warrantyReplace',
+  'inventory.warranty.rma_raise': 'warrantyRmaRaise',
   // Q1 labels
   'inventory.label.print': 'labelPrint',
   'inventory.label.reprint': 'labelReprint',
@@ -374,6 +376,8 @@ const EVENT_NAMES = {
   'inventory.warranty.serial_identified': 'warrantySerialIdentified',
   'inventory.warranty.rejected': 'warrantyRejected',
   'inventory.warranty.closed': 'warrantyClosed',
+  'inventory.warranty.replaced': 'warrantyReplaced',
+  'inventory.warranty.rma_raised': 'warrantyRmaRaised',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -921,6 +925,7 @@ const FIELD_KINDS = [
   ['reportedFault', 'text'],
   ['rejectedReason', 'text'],
   ['settlement', 'warrantySettlement'],
+  ['supplierRmaRef', 'text'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

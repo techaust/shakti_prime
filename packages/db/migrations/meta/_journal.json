@@ -1723,6 +1723,13 @@
       "when": 1795807725517,
       "tag": "0245_r3_installed_base_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 246,
+      "version": "7",
+      "when": 1795813751036,
+      "tag": "0246_r3_warranty_ledger",
+      "breakpoints": true
     }
   ]
 }

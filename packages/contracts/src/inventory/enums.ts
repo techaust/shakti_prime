@@ -81,6 +81,10 @@ export const OPEN_STOCK_REASONS = {
   count: 'inventory.stock.adjust',
   reversal: 'inventory.stock.adjust',
   transfer: 'inventory.stock.move',
+  // R3 warranty claims: the replacement from stock, the failed serial back, and to its supplier.
+  warranty_replacement: 'inventory.warranty.write',
+  return_customer: 'inventory.warranty.write',
+  return_supplier: 'procurement.po.write',
 } as const satisfies Partial<Record<StockReason, string>>;
 
 /**

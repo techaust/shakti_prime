@@ -217,7 +217,9 @@ export { adjustStock, reverseStock, transferStock } from './commands/inventory/s
 export {
   identifyWarrantySerial,
   raiseWarrantyClaim,
+  raiseWarrantyRma,
   rejectWarrantyClaim,
+  replaceWarranty,
   settleWarrantyClaim,
 } from './commands/inventory/warranty';
 export {

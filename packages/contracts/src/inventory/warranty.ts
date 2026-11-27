@@ -67,6 +67,41 @@ export const RejectWarrantyClaimInput = z
   .strict();
 export type RejectWarrantyClaimInput = z.input<typeof RejectWarrantyClaimInput>;
 
+/** A serial number as scanned or typed: trimmed, 1 to 100 characters. */
+const SerialNo = z.string().trim().min(1).max(100);
+
+/**
+ * `inventory.warranty.replace`: a replacement of the same product issued from stock, a serial in
+ * the bin named, by its number (scanned or typed). When the failed serial has come back already,
+ * `faultyBinId` names the quarantine bin it goes into, in the same step.
+ */
+export const ReplaceWarrantyInput = z
+  .object({
+    entityId: EntityIdSchema,
+    claimId: IdSchema,
+    fromBinId: IdSchema,
+    replacementSerialNo: SerialNo,
+    faultyBinId: IdSchema.optional(),
+  })
+  .strict();
+export type ReplaceWarrantyInput = z.input<typeof ReplaceWarrantyInput>;
+
+/**
+ * `inventory.warranty.rma_raise` (`procurement.po.write`): the failed serial goes to its supplier
+ * under their warranty, with the supplier's return reference. A failed serial still with the
+ * customer comes back first, into the quarantine bin `faultyBinId` names.
+ */
+export const RaiseWarrantyRmaInput = z
+  .object({
+    entityId: EntityIdSchema,
+    claimId: IdSchema,
+    vendorId: IdSchema,
+    supplierRmaRef: z.string().trim().min(1).max(100),
+    faultyBinId: IdSchema.optional(),
+  })
+  .strict();
+export type RaiseWarrantyRmaInput = z.input<typeof RaiseWarrantyRmaInput>;
+
 /** A supplier's credit: a positive amount in rupees and paise. */
 export const SupplierCreditSchema = MoneySchema.refine((v) => Number(v) > 0, {
   message: 'more than zero',
