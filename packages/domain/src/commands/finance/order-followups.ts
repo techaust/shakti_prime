@@ -126,7 +126,7 @@ async function orderLoan(ctx: CommandContext, orderId: string): Promise<OrderLoa
     sql`select app.order_loan_gate(${orderId}::uuid) as gate`,
   )) as unknown as { gate: unknown }[];
   const gate = LoanGate.parse(row?.gate ?? null);
-  return gate === null ? { loanState: null, waived: false } : gate;
+  return gate ?? { loanState: null, waived: false };
 }
 
 /**
