@@ -564,7 +564,8 @@
     "bin_missing": "We couldn't find that bin. Refresh the page to see the current list.",
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
-    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it."
+    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -1991,7 +1992,9 @@
       "binArchive": "Bin archived",
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
-      "stockReverse": "Stock movement reversed"
+      "stockReverse": "Stock movement reversed",
+      "labelPrint": "Labels printed",
+      "labelReprint": "Label printed again"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2026,6 +2029,7 @@
       "priceListArchived": "Price list withdrawn",
       "rolePermissionsChanged": "Role permissions changed",
       "documentRequested": "Document sent for printing",
+      "labelsRequested": "Labels sent for printing",
       "sizingRecorded": "Lead sized",
       "leadAttached": "Repeat enquiry added to an open lead",
       "duplicateFound": "Possible duplicate found",
@@ -2394,6 +2398,9 @@
       "quantity": "Quantity",
       "serialNo": "Serial number",
       "adjustNote": "Reason given",
+      "labelKind": "Kind of label",
+      "labelCount": "Labels on the sheet",
+      "labelNote": "Why it was printed again",
       "warrantyMonths": "Months of warranty to the customer",
       "supplierWarrantyMonths": "Months of the supplier's warranty",
       "barcode": "Barcode",
@@ -2587,6 +2594,11 @@
         "surplus_in": "Into surplus",
         "surplus_out": "Out of surplus",
         "reversal": "Reversed"
+      },
+      "labelKind": {
+        "serial": "Serial number",
+        "bin": "Bin",
+        "package": "Package"
       }
     }
   },
@@ -3552,7 +3564,8 @@
       "whatsapp_media": "File sent on WhatsApp",
       "call_recording": "Call recording",
       "call_transcript": "Call transcript",
-      "vendor_quote": "Supplier quote"
+      "vendor_quote": "Supplier quote",
+      "label_sheet": "Labels to print"
     },
     "types": {
       "jpeg": "JPEG picture",

@@ -131,6 +131,8 @@ import {
 import { dealerCreditHistory, listDealerCredit } from '../../src/queries/sales/dealer-credit';
 // H1 stock ledger
 import { listHubs } from '../../src/queries/inventory/hubs';
+// Q1 labels
+import { loadLabelsForPrint, resolveScannedCode } from '../../src/queries/inventory/labels';
 import {
   getSerial,
   getStockCard,
@@ -195,6 +197,10 @@ afterAll(async () => {
 
 /** A dealer no row names. */
 const NO_DEALER = newId();
+
+/** A serial and a bin no row names, for the labels' reads (Q1). */
+const NO_SERIAL = newId();
+const NO_BIN = newId();
 
 /**
  * docs/03-roadmap-appendix/phase1.md §5.2: every query the app runs reads the same through the `app_reader`
@@ -375,6 +381,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
   getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
+  // Q1 labels: the render worker's read of a sheet.
+  loadLabelsForPrint: (ctx) => loadLabelsForPrint(ctx, 'bin', [NO_BIN]),
 };
 
 /**
@@ -425,6 +433,8 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
       { entityId: 1, opportunityId: newId(), lines: [{ itemId: newId(), qty: '1' }] },
       QUOTES_AT,
     ),
+  // Q1 labels: what a scanned label names, under the caller's own policies.
+  resolveScannedCode: (ctx) => resolveScannedCode(ctx, { code: `SP1:S:${NO_SERIAL}` }),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */
