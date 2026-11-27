@@ -1,6 +1,4 @@
-assignment: 2
-role: fix
-branch: fix/p3-fixes
-run_file: docs/runs/phase3/p3-fixes.md
-wait_for: none
-note: the second fix round under "Integration (the lead, 24-11-2026, on the PC)" at the end of the run file; report as report: p3-fixes fixes
+seat: 4
+max_agents: 3
+updated: 2026-11-27T14:09Z
+note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. No lanes yet: keep waiting.

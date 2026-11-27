@@ -1,6 +1,4 @@
-assignment: 3
-role: build
-branch: fix/demo-data-ist-day
-run_file: docs/runs/phase3/demo-data-ist-day.md
-wait_for: none
-note: a date-dependent web test, like alert-counts-midnight; small
+seat: 2
+max_agents: 3
+updated: 2026-11-27T14:09Z
+note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. No lanes yet: keep waiting.
