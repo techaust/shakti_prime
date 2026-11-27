@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-27T15:13Z
+updated: 2026-11-27T15:19Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -82,3 +82,11 @@ run_file: docs/runs/phase4/j3-documents.md
 wait_for: report: j3-documents done
 done_when: review: j3-documents done
 note: Tier A. Attack identity digits surviving anywhere (storage, rows, audit, logs, Sentry, model payloads), sensitive rows by grant, filing against another customer.
+
+lane: 45
+role: build
+branch: feat/j2-loans
+run_file: docs/runs/phase4/j2-loans.md
+wait_for: none
+done_when: report: j2-loans done
+note: continue. The lead read the early check (27-11 15:45 UTC): accepted, decisions 1 to 7 included. The journey uses a General Manager (Accounts holds no crm.account.write; who records loans is a question for the client, the lead records it). Build notify_owner on rejection in this lane (notice type, worker, sentence). Then the screens, the module documents and EXPLAIN on seeded volume.
