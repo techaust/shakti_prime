@@ -67,6 +67,9 @@ export const KEPT_LOOKALIKES = {
     'BOS_JWT_CURRENT_KEY',
     'BOS_JWT_NEXT_KEY',
     'FIELD_ENCRYPTION_KEY',
+    // F1: the field app's token pair, which the server signs and checks the app's tokens with.
+    'MOBILE_JWT_PRIVATE_KEY',
+    'MOBILE_JWT_PUBLIC_KEY',
   ],
   /** Sign-in needs them; a local run holds Cloudflare's test keys, which a hosted runtime refuses. */
   signIn: ['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
