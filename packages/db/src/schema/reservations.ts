@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   foreignKey,
   index,
@@ -113,6 +114,13 @@ export const reservations = pgTable(
     extendedBy: uuid('extended_by').references(() => principals.id),
     extendedAt: timestamp('extended_at', { withTimezone: true }),
     extendReason: text('extend_reason'),
+    /**
+     * Made by the backorder fill for a need put back on order by a lapse or a release by hand,
+     * out of the stock that entered storage after it: the fill counts these, whatever became of
+     * them, against that stock, so each arrived unit is given once across the item's re-queued
+     * needs.
+     */
+    fromArrivals: boolean('from_arrivals').notNull().default(false),
     /** Why it was released: by hand, with the order's cancellation, or moved to another hub. */
     releaseKind: text('release_kind'),
     releasedReason: text('released_reason'),

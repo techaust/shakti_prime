@@ -15485,6 +15485,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "from_arrivals": {
+          "name": "from_arrivals",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "release_kind": {
           "name": "release_kind",
           "type": "text",

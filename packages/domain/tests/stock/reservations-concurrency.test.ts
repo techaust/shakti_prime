@@ -1,5 +1,6 @@
 import {
   DomainError,
+  FillBackordersInput,
   newId,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   type Principal,
@@ -39,10 +40,17 @@ afterAll(closeDb);
 /**
  * Concurrent reservers (docs/03-roadmap-appendix/phase3.md §7.1): two orders confirmed at once for
  * the last unit reserve it once, the other backordered; a loss racing a confirmation never takes
- * the reserved unit, nor a confirmation the lost one; fills of items that share orders and lines,
- * and a cancellation beside a fill, wait for each other and never deadlock. Every path locks the
- * order, then H1's hubs, bins and balances, then the needs and the lines, and a fill takes one
- * item a transaction, so the second writer waits and then sees what the first left.
+ * the reserved unit, nor a confirmation the lost one. Every path locks the order, then H1's hubs,
+ * bins and balances, then the needs and the lines, so the second writer waits and then sees what
+ * the first left.
+ *
+ * The two fill races show that the arrangement as it is completes: a fill of one item waits on
+ * another's lines and goes on, and a cancellation waits on a fill and a second fill on the
+ * cancellation, all committing with the right holds. They cannot fail on the old shape (several
+ * items in one fill transaction), since the held fill finishes its work before the other starts
+ * and each fill here is one command of one item. What keeps that shape out is the contract:
+ * `FillBackordersInput` takes one `itemId` and refuses a list (the last test), and the event
+ * worker calls the command once per item (`fill-event.test.ts`).
  *
  * Each race holds the first transaction open, its locks taken, until `pg_stat_activity` shows the
  * second waiting on it, so the order of the two never rests on a timer.
@@ -279,7 +287,7 @@ describe('concurrent reservers', () => {
     expect(await balanceOf(E, s.binA, item)).toEqual({ onHand: '0.000', reserved: '0.000' });
   });
 
-  it('two fills of items that share orders and lines wait for each other and never deadlock', async () => {
+  it('two fills of items that share orders and lines wait for each other and both complete', async () => {
     const [x, y] = [await freshItem(), await freshItem()];
     const kit = await freshKit(x, y);
     const first = await confirmedOrder([{ kitId: kit, qty: '1' }]);
@@ -308,7 +316,7 @@ describe('concurrent reservers', () => {
     expect(await balanceOf(E, s.binB, y)).toEqual({ onHand: '2.000', reserved: '2.000' });
   });
 
-  it('a cancellation of an order holding one item and waiting for another waits on a fill, never deadlocks', async () => {
+  it('a cancellation of an order holding one item and waiting for another waits on a fill, and all complete', async () => {
     const [x, y] = [await freshItem(), await freshItem()];
     await gain(s.binA, x, '1');
     // The cancelled order holds the one x and waits for y.
@@ -336,5 +344,15 @@ describe('concurrent reservers', () => {
     expect(await backordersOf(waitingForX)).toEqual(['0.000']);
     expect(await backordersOf(cancelled)).toEqual(['0.000', '0.000']);
     expect(await balanceOf(E, s.binA, x)).toEqual({ onHand: '2.000', reserved: '1.000' });
+  });
+
+  it('a fill takes one item: a list of items is refused before any transaction', () => {
+    expect(FillBackordersInput.safeParse({ entityId: E, itemId: newId() }).success).toBe(true);
+    expect(
+      FillBackordersInput.safeParse({ entityId: E, itemIds: [newId(), newId()] }).success,
+    ).toBe(false);
+    expect(
+      FillBackordersInput.safeParse({ entityId: E, itemId: newId(), itemIds: [newId()] }).success,
+    ).toBe(false);
   });
 });

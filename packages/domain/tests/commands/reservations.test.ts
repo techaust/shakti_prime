@@ -682,6 +682,35 @@ describe('the platform’s jobs', () => {
     });
   });
 
+  it('give a unit that arrives after two holds lapsed to the older order only', async () => {
+    const item = await freshItem();
+    await gain(s.binA, item, '2');
+    const older = await draftOrder(f, lc.id, [{ itemId: item, qty: '1' }]);
+    const newer = await draftOrder(f, lc.id, [{ itemId: item, qty: '1' }]);
+    await confirm(older.orderId);
+    await confirm(newer.orderId);
+    // Both holds lapse, the older order's first, so it is first in the queue again.
+    for (const order of [older, newer]) {
+      await asMigrator(
+        (m) => m`update reservations set expires_at = now() - interval '1 minute'
+                  where sales_order_id = ${order.orderId} and state = 'active'`,
+      );
+      await run(workers(), scanReservations, { entityId: E });
+    }
+    await run(workers(), fillBackorders, { entityId: E, itemId: item });
+    expect(await balanceOf(E, s.binA, item)).toEqual({ onHand: '2.000', reserved: '0.000' });
+    // One unit arrives: one order takes it, the older; the two units the lapses freed stay free.
+    await gain(s.binB, item, '1');
+    await run(workers(), fillBackorders, { entityId: E, itemId: item });
+    await run(workers(), fillBackorders, { entityId: E, itemId: item });
+    expect(await backordersOf(older.orderId)).toEqual(['0.000']);
+    expect(await backordersOf(newer.orderId)).toEqual(['1.000']);
+    const held = async (orderId: string) =>
+      (await reservationsOf(orderId)).filter((r) => r.state === 'active').map((r) => r.qty);
+    expect(await held(older.orderId)).toEqual(['1.000']);
+    expect(await held(newer.orderId)).toEqual([]);
+  });
+
   it('give orders confirmed before reservations existed their needs, queued at confirmation, which the fill reserves', async () => {
     const item = await freshItem();
     await gain(s.binB, item, '1');

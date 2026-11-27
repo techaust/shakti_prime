@@ -1402,6 +1402,7 @@ erDiagram
     uuid extended_by FK "null"
     timestamptz extended_at "null"
     text extend_reason "null"
+    boolean from_arrivals
     text release_kind "null"
     text released_reason "null"
     timestamptz created_at

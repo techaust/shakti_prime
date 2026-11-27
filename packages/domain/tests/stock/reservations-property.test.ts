@@ -30,9 +30,9 @@ afterAll(closeDb);
  * open order is its reservations plus its backorder, and a cancelled order holds and waits for
  * nothing; each line's backorder is what its needs leave (a kit line's, the kits its holds do not
  * make whole, as atp.ts's `kitAvailability()` counts them); once the fill has run, no backorder
- * queued at its order's confirmation waits while some of its item is free; and a need put back on
- * order by a lapse or a release by hand holds no more than the stock that entered a storage bin
- * after it.
+ * queued at its order's confirmation waits while some of its item is free; and the needs put back
+ * on order by a lapse or a release by hand share the stock that entered storage after them, each
+ * arrived unit given to at most one of them, in queue order.
  */
 
 const E = 2;
@@ -88,7 +88,10 @@ interface Violation {
 }
 
 /** Every rule of the property, read by the table owner over this file's items and orders. */
-async function violations(orders: readonly string[]): Promise<Violation[]> {
+async function violations(
+  orders: readonly string[],
+  firstRequeue: ReadonlyMap<string, string>,
+): Promise<Violation[]> {
   return asMigrator(async (m) => {
     const found: Violation[] = [];
     const bins = await m`
@@ -163,27 +166,42 @@ async function violations(orders: readonly string[]): Promise<Violation[]> {
         found.push({ rule: 'no backorder queued at confirmation waits beside free stock', row: w });
       }
     }
-    const requeued = await m`
-      select n.id, n.requeued_at,
-             coalesce((select sum(r.qty) from reservations r
-                        where r.sales_order_line_id = n.sales_order_line_id and r.item_id = n.item_id
-                          and r.state in ('active', 'picked') and r.created_at > n.requeued_at), 0)
-               as taken,
-             coalesce((select sum(mv.qty) from stock_movements mv
-                         join bins tb on tb.id = mv.to_bin_id and tb.kind = 'storage'
-                         left join bins fb on fb.id = mv.from_bin_id
-                        where mv.entity_id = ${E} and mv.item_id = n.item_id
-                          and mv.moved_at > n.requeued_at
-                          and (fb.id is null or fb.kind <> 'storage')), 0) as arrived
-        from reservation_needs n
-       where n.sales_order_id = any (${orders}::uuid[]) and n.requeued_at is not null`;
-    for (const n of requeued) {
-      if (Number(n.taken) > Number(n.arrived)) {
-        found.push({ rule: 'a need back on order holds only stock that arrived after it', row: n });
+    // The re-queued needs share one pool: what the fill gave them, whatever became of it, is never
+    // more than what entered storage after the item's first re-queue.
+    for (const [itemId, since] of firstRequeue) {
+      const [pool] = await m`
+        select coalesce((select sum(r.qty) from reservations r
+                          where r.entity_id = ${E} and r.item_id = ${itemId} and r.from_arrivals), 0)
+                 as given,
+               coalesce((select sum(mv.qty) from stock_movements mv
+                           join bins tb on tb.id = mv.to_bin_id and tb.kind = 'storage'
+                           left join bins fb on fb.id = mv.from_bin_id
+                          where mv.entity_id = ${E} and mv.item_id = ${itemId}
+                            and mv.moved_at > ${since}::timestamptz
+                            and (fb.id is null or fb.kind <> 'storage')), 0) as arrived`;
+      if (pool && Number(pool.given) > Number(pool.arrived)) {
+        found.push({ rule: 'each unit that arrived after a re-queue is given once', row: pool });
       }
     }
     return found;
   });
+}
+
+/** Keeps, per item, the earliest moment any of the orders' needs was put back on order. */
+async function noteRequeues(orders: readonly string[], firstRequeue: Map<string, string>) {
+  if (orders.length === 0) return;
+  const rows = await asMigrator(
+    (m) => m<{ itemId: string; since: string }[]>`
+      select item_id as "itemId", min(requeued_at)::text as since from reservation_needs
+       where sales_order_id = any (${orders}::uuid[]) and requeued_at is not null
+       group by item_id`,
+  );
+  for (const r of rows) {
+    const known = firstRequeue.get(r.itemId);
+    if (known === undefined || new Date(r.since) < new Date(known)) {
+      firstRequeue.set(r.itemId, r.since);
+    }
+  }
 }
 
 async function fillAll(): Promise<void> {
@@ -196,6 +214,7 @@ describe('reservations under random confirmations, cancellations, lapses, releas
     const bins = [s.binA, s.binB, s.otherBin];
     const orders: string[] = [];
     const open: string[] = [];
+    const firstRequeue = new Map<string, string>();
     for (let step = 0; step < STEPS; step += 1) {
       const action = random.pick([
         'gain',
@@ -271,8 +290,110 @@ describe('reservations under random confirmations, cancellations, lapses, releas
       }
       // The fill runs after anything that brings or frees stock, as the worker does.
       await fillAll();
-      expect(await violations(orders), `step ${String(step)} (${action})`).toEqual([]);
+      await noteRequeues(orders, firstRequeue);
+      expect(await violations(orders, firstRequeue), `step ${String(step)} (${action})`).toEqual(
+        [],
+      );
     }
     expect(orders.length).toBeGreaterThan(5);
   });
 });
+
+describe('needs put back on order', () => {
+  it('share what arrives after them: never more than arrived, and in queue order', async () => {
+    const random = seededGenerator(0x7e9);
+    for (let round = 0; round < 6; round += 1) {
+      const item = newId();
+      await asMigrator(
+        (m) => m`insert into items (id, sku, name, category, hsn, unit, is_serial_tracked, is_active)
+          values (${item}, ${`RQP-${f.tag}-${String(round)}`}, ${`Pool item ${f.tag} ${String(round)}`},
+                  'pump', '8413', 'nos', false, true)`,
+      );
+      // N orders hold all the stock, then every hold lapses, oldest first.
+      const sizes = Array.from({ length: random.int(2, 4) }, () => random.int(1, 2));
+      await asPrincipal(manager, ({ tx }) =>
+        stockMove(tx, [
+          {
+            reason: 'adjust_gain',
+            entityId: E,
+            itemId: item,
+            toBinId: s.binA,
+            qty: String(sizes.reduce((a, b) => a + b, 0)),
+          },
+        ]),
+      );
+      const orders: string[] = [];
+      for (const qty of sizes) {
+        const { orderId } = await draftOrder(f, lc.id, [{ itemId: item, qty: String(qty) }]);
+        await run(lc, confirmSalesOrder, { entityId: E, orderId });
+        orders.push(orderId);
+      }
+      for (const orderId of orders) {
+        await asMigrator(
+          (m) => m`update reservations set expires_at = now() - interval '1 second'
+                    where sales_order_id = ${orderId} and state = 'active'`,
+        );
+        await run(workers(), scanReservations, { entityId: E });
+      }
+      // K arrivals of any size, each followed by a fill or not, then a last fill.
+      let arrived = 0;
+      for (let k = random.int(1, 4); k > 0; k -= 1) {
+        const qty = random.int(1, 3);
+        arrived += qty;
+        await asPrincipal(manager, ({ tx }) =>
+          stockMove(tx, [
+            {
+              reason: 'adjust_gain',
+              entityId: E,
+              itemId: item,
+              toBinId: random.pick([s.binA, s.binB, s.otherBin]),
+              qty: String(qty),
+            },
+          ]),
+        );
+        if (random.chance()) await run(workers(), fillBackorders, { entityId: E, itemId: item });
+        await expectShared(orders, arrived, `round ${String(round)}`);
+      }
+      await run(workers(), fillBackorders, { entityId: E, itemId: item });
+      await expectShared(orders, arrived, `round ${String(round)}, last fill`);
+      // With the fill run last, what arrived is all given, up to what the orders wait for.
+      const total = sizes.reduce((a, b) => a + b, 0);
+      expect(await heldSinceLapse(orders), `round ${String(round)}`).toBe(Math.min(arrived, total));
+      // The item leaves the catalogue's lists, which other files read the first 200 of.
+      await asMigrator((m) => m`update items set archived_at = now() where id = ${item}`);
+    }
+  });
+});
+
+/** What the orders hold now, all of it taken after their holds lapsed. */
+async function heldSinceLapse(orders: readonly string[]): Promise<number> {
+  const [row] = await asMigrator(
+    (m) => m<{ held: string }[]>`
+      select coalesce(sum(qty), 0)::text as held from reservations
+       where sales_order_id = any (${orders}::uuid[]) and state = 'active'`,
+  );
+  return Number(row?.held ?? 0);
+}
+
+/**
+ * The orders, oldest re-queue first, hold no more than `arrived` together, and no order holds
+ * anything while an order before it in the queue still waits.
+ */
+async function expectShared(orders: readonly string[], arrived: number, label: string) {
+  const needs = await asMigrator(
+    (m) => m<{ held: string; waiting: string }[]>`
+      select coalesce((select sum(r.qty) from reservations r
+                        where r.sales_order_line_id = n.sales_order_line_id
+                          and r.item_id = n.item_id and r.state = 'active'), 0)::text as held,
+             n.qty_backordered::text as waiting
+        from reservation_needs n
+       where n.sales_order_id = any (${orders}::uuid[])
+       order by n.queued_at, n.id`,
+  );
+  expect(needs.reduce((sum, n) => sum + Number(n.held), 0), label).toBeLessThanOrEqual(arrived);
+  const firstWaiting = needs.findIndex((n) => Number(n.waiting) > 0);
+  if (firstWaiting >= 0) {
+    for (const later of needs.slice(firstWaiting + 1)) expect(Number(later.held), label).toBe(0);
+  }
+}
+

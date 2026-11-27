@@ -4638,7 +4638,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### reservation_needs
 
-**Catalogue entry** (05-database.md §6.5; created in 0240): `entity_id`, `sales_order_id` (composite foreign key to the order), `sales_order_line_id`, `item_id` (unique per line and item), `qty_needed` (an item line's quantity, or a kit component's quantity per kit times the line's when the order was confirmed), `qty_backordered` (what no reservation covers, between zero and the need), `queued_at` (the place in the item's backorder queue: the order's confirmation, or when a reservation lapsed or was released by hand), `requeued_at` (when a lapse or a release by hand put it back on order, null for a need queued at confirmation: it then takes only stock that entered a storage bin after it, never what its own lapse or release freed); written by `app.reserve_order()` at confirmation and kept by the reservation definers; read by company with `inventory.stock.read` for the company; gone with its order
+**Catalogue entry** (05-database.md §6.5; created in 0240): `entity_id`, `sales_order_id` (composite foreign key to the order), `sales_order_line_id`, `item_id` (unique per line and item), `qty_needed` (an item line's quantity, or a kit component's quantity per kit times the line's when the order was confirmed), `qty_backordered` (what no reservation covers, between zero and the need), `queued_at` (the place in the item's backorder queue: the order's confirmation, or when a reservation lapsed or was released by hand), `requeued_at` (when a lapse or a release by hand put it back on order, null for a need queued at confirmation: such needs share the stock that entered a storage bin after them, each unit going to one of them, and never take what a lapse or release freed); written by `app.reserve_order()` at confirmation and kept by the reservation definers; read by company with `inventory.stock.read` for the company; gone with its order
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -4690,7 +4690,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### reservations
 
-**Catalogue entry** (05-database.md §6.5; created in 0240): `entity_id`, `sales_order_id` (composite foreign key to the order), `sales_order_line_id` and `item_id` (a composite foreign key to the need), `warehouse_id` and `bin_id` (a storage bin of a godown or factory; composite foreign key to the bin), `qty`, `state` (the `reservation` machine: `active`, `picked`, `released`, `lapsed`), `state_changed_at`, `expires_at`, `reminded_at`, `extended_by`, `extended_at` and `extend_reason` (once, together), `release_kind` (`by_hand`, `order_cancelled`, `moved`; set exactly when released) and `released_reason` (a person's release or a cancellation); the active ones of a bin are its `qty_reserved`; written only by the reservation definers (§4.1); read by company with `inventory.stock.read` for the company
+**Catalogue entry** (05-database.md §6.5; created in 0240): `entity_id`, `sales_order_id` (composite foreign key to the order), `sales_order_line_id` and `item_id` (a composite foreign key to the need), `warehouse_id` and `bin_id` (a storage bin of a godown or factory; composite foreign key to the bin), `qty`, `state` (the `reservation` machine: `active`, `picked`, `released`, `lapsed`), `state_changed_at`, `expires_at`, `reminded_at`, `extended_by`, `extended_at` and `extend_reason` (once, together), `from_arrivals` (made by the fill for a need put back on order, out of the stock that arrived after it; counted against that stock whatever became of it), `release_kind` (`by_hand`, `order_cancelled`, `moved`; set exactly when released) and `released_reason` (a person's release or a cancellation); the active ones of a bin are its `qty_reserved`; written only by the reservation definers (§4.1); read by company with `inventory.stock.read` for the company
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -4709,6 +4709,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `extended_by` | uuid | yes |  | → `principals.id` |
 | `extended_at` | timestamp with time zone | yes |  |  |
 | `extend_reason` | text | yes |  |  |
+| `from_arrivals` | boolean | no | `false` |  |
 | `release_kind` | text | yes |  |  |
 | `released_reason` | text | yes |  |  |
 | `created_by` | uuid | no |  | → `principals.id` |

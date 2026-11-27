@@ -623,16 +623,20 @@ $$;
 revoke execute on function app.sync_line_backorders(uuid[]) from public, readonly_reporter, app_user, app_reader;
 --> statement-breakpoint
 
--- 9. app.stock_reserve(need, qty, hubs, whole, expires_at): the one way stock is set aside. Takes
+-- 9. app.stock_reserve(need, qty, hubs, whole, expires_at, from_arrivals): the one way stock is
+--    set aside. Takes
 --    up to `qty` (at most the need's backorder) of the need's item from the free stock (on hand less
 --    reserved) of the company's storage bins, hub by hub in the order given and, within a hub, the
 --    bin with the most free first; each bin taken is one active reservation until `expires_at`,
 --    and its quantity is added to the bin's `qty_reserved`. The need's backorder falls by what was
 --    taken, and its line's backorder with it. With `whole`, anything short of `qty` refuses the
---    call (reservation_stock_short). Answers the quantity reserved. Locks as stock_lock_free() does, then the need. Called by the
+--    call (reservation_stock_short). `from_arrivals` marks the reservations as the fill's take,
+--    for a re-queued need, of the stock that entered storage after it (app.fill_backorders()).
+--    Answers the quantity reserved. Locks as stock_lock_free() does, then the need. Called by the
 --    definers below only, each of which has checked the caller's grant.
 create or replace function app.stock_reserve(p_need uuid, p_qty numeric, p_hubs uuid[],
-                                             p_whole boolean, p_expires_at timestamptz)
+                                             p_whole boolean, p_expires_at timestamptz,
+                                             p_from_arrivals boolean)
   returns numeric
   language plpgsql volatile security definer set search_path = '' as $$
 declare
@@ -677,9 +681,11 @@ begin
     exit when v_want <= 0;
     v_take := least(v_want, v_bin.free);
     insert into public.reservations (id, entity_id, sales_order_id, sales_order_line_id, item_id,
-                                     warehouse_id, bin_id, qty, state, expires_at, created_by)
+                                     warehouse_id, bin_id, qty, state, expires_at, from_arrivals,
+                                     created_by)
     values (app.uuid_v7(), v_need.entity_id, v_need.sales_order_id, v_need.sales_order_line_id,
-            v_need.item_id, v_bin.warehouse_id, v_bin.bin_id, v_take, 'active', p_expires_at, v_actor);
+            v_need.item_id, v_bin.warehouse_id, v_bin.bin_id, v_take, 'active', p_expires_at,
+            coalesce(p_from_arrivals, false), v_actor);
     update public.stock_balances
        set qty_reserved = qty_reserved + v_take
      where entity_id = v_need.entity_id and bin_id = v_bin.bin_id and item_id = v_need.item_id;
@@ -698,7 +704,7 @@ begin
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.stock_reserve(uuid, numeric, uuid[], boolean, timestamptz) from public, readonly_reporter, app_user, app_reader;
+revoke execute on function app.stock_reserve(uuid, numeric, uuid[], boolean, timestamptz, boolean) from public, readonly_reporter, app_user, app_reader;
 --> statement-breakpoint
 
 -- 10. app.stock_unreserve(reservations, state, kind, reason): the one way reserved stock is freed.
@@ -838,7 +844,7 @@ begin
      where n.sales_order_id = p_order
      order by l.position, n.item_id
   loop
-    perform app.stock_reserve(v_need.id, v_need.qty_backordered, v_hubs, false, p_expires_at);
+    perform app.stock_reserve(v_need.id, v_need.qty_backordered, v_hubs, false, p_expires_at, false);
   end loop;
   perform app.sync_line_backorders(
     array(select l.id from public.sales_order_lines l where l.sales_order_id = p_order));
@@ -904,10 +910,14 @@ grant execute on function app.release_order_reservations(uuid, text) to app_user
 --     confirmation, or when its reservation lapsed or was released by hand), each from the hubs
 --     in its order's preferred order, until the free stock or the backorders run out. Only the
 --     backorders of orders still open (confirmed or partly dispatched), at most `limit` of them.
---     A need put back on order by a lapse or a release by hand (`requeued_at`) takes only stock
---     that entered a storage bin after it (a receipt, a gain, a transfer in from a bin that is not
---     a storage bin), at most that quantity less what it took since; never the stock its own
---     lapse or release freed. One item a call, which the caller runs in a transaction of its own.
+--     The needs put back on order by a lapse or a release by hand (`requeued_at`) share one pool,
+--     the stock that entered the company's storage bins (a receipt, a gain, a transfer in from a
+--     bin that is not a storage bin) after the oldest such need still waiting, less every unit
+--     the fill has given any re-queued need since (`reservations.from_arrivals`, whatever became
+--     of the reservation), taken in queue order: each arrived unit goes to at most one of them,
+--     and the stock a lapse or a release freed never does. A unit that arrived before the oldest
+--     waiting need's re-queue and was given after it counts against the pool too, so the pool is
+--     never more than what is truly new. One item a call, which the caller runs in a transaction of its own.
 --     Locks the orders `for share` by id, then H1's order over the item in every hub, then the
 --     needs by id, then their lines by id, so no fill holds one item's balances while it waits for
 --     another item's orders, nor one line while it waits for another. Only with
@@ -925,6 +935,8 @@ declare
   v_want numeric;
   v_got numeric;
   v_free numeric;
+  v_since timestamptz;
+  v_pool numeric := 0;
 begin
   if app.user_id() is null or not app.has_perm('inventory.reservations.process:all') then
     raise exception 'inventory.reservations.process is required' using errcode = '42501';
@@ -958,6 +970,28 @@ begin
                    where n.sales_order_id = any (v_orders) and n.item_id = p_item)
    order by l.id
    for update;
+  -- The re-queued needs' pool: what entered storage after the oldest one still waiting, less what
+  -- the fill has given any re-queued need since.
+  select min(n.requeued_at) into v_since
+    from public.reservation_needs n
+    join public.sales_orders so on so.id = n.sales_order_id
+                               and so.state in ('confirmed', 'partially_dispatched')
+   where n.entity_id = p_entity and n.item_id = p_item and n.qty_backordered > 0
+     and n.requeued_at is not null;
+  if v_since is not null then
+    v_pool := greatest(
+      coalesce((select sum(m.qty)
+                  from public.stock_movements m
+                  join public.bins tb on tb.id = m.to_bin_id and tb.kind = 'storage'
+                  left join public.bins fb on fb.id = m.from_bin_id
+                 where m.entity_id = p_entity and m.item_id = p_item and m.moved_at > v_since
+                   and (fb.id is null or fb.kind <> 'storage')), 0)
+      - coalesce((select sum(r.qty)
+                    from public.reservations r
+                   where r.entity_id = p_entity and r.item_id = p_item and r.from_arrivals
+                     and r.created_at > v_since), 0),
+      0);
+  end if;
   for v_need in
     select n.id, n.sales_order_id, n.sales_order_line_id, n.qty_backordered, n.requeued_at
       from public.reservation_needs n
@@ -973,26 +1007,14 @@ begin
     exit when v_free <= 0;
     v_want := v_need.qty_backordered;
     if v_need.requeued_at is not null then
-      -- What entered a storage bin since the need went back on order, less what it took since.
-      select least(v_want, greatest(
-               coalesce((select sum(m.qty)
-                           from public.stock_movements m
-                           join public.bins tb on tb.id = m.to_bin_id and tb.kind = 'storage'
-                           left join public.bins fb on fb.id = m.from_bin_id
-                          where m.entity_id = p_entity and m.item_id = p_item
-                            and m.moved_at > v_need.requeued_at
-                            and (fb.id is null or fb.kind <> 'storage')), 0)
-               - coalesce((select sum(r.qty)
-                             from public.reservations r
-                            where r.sales_order_line_id = v_need.sales_order_line_id
-                              and r.item_id = p_item and r.state in ('active', 'picked')
-                              and r.created_at > v_need.requeued_at), 0),
-               0))
-        into v_want;
+      v_want := least(v_want, v_pool);
     end if;
     continue when v_want <= 0;
     v_got := app.stock_reserve(v_need.id, v_want, app.order_hubs(v_need.sales_order_id), false,
-                               p_expires_at);
+                               p_expires_at, v_need.requeued_at is not null);
+    if v_need.requeued_at is not null then
+      v_pool := v_pool - v_got;
+    end if;
     if v_got > 0 then
       need_id := v_need.id;
       sales_order_id := v_need.sales_order_id;
@@ -1235,7 +1257,7 @@ begin
    where n.sales_order_line_id = v_res.sales_order_line_id and n.item_id = v_res.item_id;
   v_before := array(select r.id from public.reservations r where r.sales_order_id = v_res.sales_order_id);
   perform 1 from app.stock_unreserve(array[p_id], 'released', 'moved', null);
-  perform app.stock_reserve(v_need, v_res.qty, array[p_hub], true, v_res.expires_at);
+  perform app.stock_reserve(v_need, v_res.qty, array[p_hub], true, v_res.expires_at, false);
   return array(select r.id from public.reservations r
                 where r.sales_order_id = v_res.sales_order_id and not (r.id = any (v_before))
                 order by r.id);

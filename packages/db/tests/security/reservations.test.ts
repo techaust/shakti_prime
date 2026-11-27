@@ -112,7 +112,7 @@ describe('the definers beneath the reservation paths', () => {
   it.each([
     [
       'app.stock_reserve',
-      sql`select app.stock_reserve(${id}::uuid, 1, '{}'::uuid[], false, ${later}::timestamptz)`,
+      sql`select app.stock_reserve(${id}::uuid, 1, '{}'::uuid[], false, ${later}::timestamptz, false)`,
     ],
     [
       'app.stock_unreserve',

@@ -31,6 +31,7 @@ CREATE TABLE "reservations" (
 	"extended_by" uuid,
 	"extended_at" timestamp with time zone,
 	"extend_reason" text,
+	"from_arrivals" boolean DEFAULT false NOT NULL,
 	"release_kind" text,
 	"released_reason" text,
 	"created_by" uuid NOT NULL,
