@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 3
-updated: 2026-11-27T14:13Z
+updated: 2026-11-27T14:26Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -42,3 +42,27 @@ run_file: docs/runs/phase3/r3-warranty.md
 wait_for: report: r3-warranty done
 done_when: review: r3-warranty done
 note: Tier A. Attack cost columns per role, serial state and bin in step, IST warranty dates.
+
+lane: 17
+role: build
+branch: feat/j1-projects
+run_file: docs/runs/phase4/j1-projects.md
+wait_for: none
+done_when: report: j1-projects early check
+note: Tier A; stop at the early check.
+
+lane: 18
+role: build
+branch: feat/f1-field-foundation
+run_file: docs/runs/phase4/f1-field-foundation.md
+wait_for: none
+done_when: report: f1-field-foundation early check
+note: Tier A; stop at the early check. The packages are installed by the lead; install nothing.
+
+lane: 24
+role: review
+branch: feat/j3-documents
+run_file: docs/runs/phase4/j3-documents.md
+wait_for: report: j3-documents done
+done_when: review: j3-documents done
+note: Tier A. Attack identity digits surviving anywhere (storage, rows, audit, logs, Sentry, model payloads), sensitive rows by grant, filing against another customer.

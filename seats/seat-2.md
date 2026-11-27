@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 3
-updated: 2026-11-27T14:13Z
+updated: 2026-11-27T14:26Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -26,3 +26,19 @@ run_file: docs/runs/phase3/h2-reservations.md
 wait_for: report: h2-reservations done
 done_when: review: h2-reservations done
 note: Tier A. Attack the definers' lock order, oversell under concurrent confirmation, a count leaking to a Lead Converter (DTO, route, event, notification), and the stock_move redefinition against main's latest.
+
+lane: 19
+role: build
+branch: feat/j2-loans
+run_file: docs/runs/phase4/j2-loans.md
+wait_for: none
+done_when: report: j2-loans early check
+note: Tier A; stop at the early check.
+
+lane: 22
+role: review
+branch: feat/f1-field-foundation
+run_file: docs/runs/phase4/f1-field-foundation.md
+wait_for: report: f1-field-foundation done
+done_when: review: f1-field-foundation done
+note: Tier A. Attack token rotation and reuse under concurrency, tokens in logs or Sentry, the version gate, and the mobile bearer's request context.
