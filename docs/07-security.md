@@ -151,6 +151,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `projects.schedule.write` | all | entity | – | – | – | – | – | entity | – | – | – |
 | `documents.read` / `.write` | all | entity | – | – | own | own | – | entity | own | entity | – |
 | `documents.sensitive.read` | all | – | – | – | – | – | – | entity | – | entity | – |
+| `field.device.revoke` | all | entity | – | – | – | – | – | entity | – | – | – |
 | `finance.proforma.write` / `.payment.write` / `.recon.write` | all | – | – | – | – | – | – | – | – | entity | – |
 | `finance.cost.read` | all | – | – | – | – | – | – | – | – | entity | – |
 | `finance.expense.submit` | own | own | own | own | own | own | own | own | own | own | own |

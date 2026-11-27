@@ -76,7 +76,8 @@ function parseJwk(raw: string, variable: string): EcPrivateJwk {
   return { kty: 'EC', crv: 'P-256', x, y, d, ...(kid === undefined ? {} : { kid }) };
 }
 
-async function signingKey(raw: string, variable: string): Promise<SigningKey> {
+/** One private P-256 JWK from a variable, with its kid; the field app's key pair uses it too. */
+export async function signingKey(raw: string, variable: string): Promise<SigningKey> {
   const jwk = parseJwk(raw, variable);
   const publicPart = { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y };
   // Without a kid the RFC 7638 thumbprint names the key, so the same key always has the same kid.

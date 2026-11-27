@@ -107,6 +107,8 @@ import {
   SERIAL_STATES_OUT,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // F1 field app foundation
+  MOBILE_DEVICE_REVOKE_REASONS,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -297,6 +299,10 @@ const PAIRS: Record<string, readonly string[]> = {
   serials_bin_check: [...SERIAL_STATES_IN_BIN, ...SERIAL_STATES_OUT, 'in_transit'],
   stock_movements_reason_check: STOCK_REASONS,
   stock_movements_reversal_check: ['reversal'],
+  // F1: the field app's phones run Android only (`MobileDevice.platform`), and are signed out by
+  // the app, from the web or for a refresh token presented twice.
+  mobile_devices_platform_check: ['android'],
+  mobile_devices_revoked_reason_check: MOBILE_DEVICE_REVOKE_REASONS,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

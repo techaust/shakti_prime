@@ -548,15 +548,20 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         if (ctx.path !== SIGN_IN_PATH && ctx.path !== RESET_REQUEST_PATH) return;
         // A call without headers comes from our own server code (an invite), never from a client.
         if (ctx.headers === undefined) return;
-        const verdict = await verifyTurnstile(ctx.headers.get(TURNSTILE_HEADER), {
-          secretKey: deps.turnstileSecretKey,
-          remoteIp: address,
-          fetch: deps.fetch,
-          expectedHostname: deps.turnstileHostname,
-          expectedAction:
-            ctx.path === SIGN_IN_PATH ? TURNSTILE_SIGN_IN_ACTION : TURNSTILE_RESET_ACTION,
-          logger: log,
-        });
+        // The field app's sign-in has no browser to run the bot check in; its route caps every
+        // address and account itself, and the lock below still applies (`signInFromFieldApp`).
+        const fieldApp = ctx.path === SIGN_IN_PATH && fieldAppSignIn.getStore() === true;
+        const verdict = fieldApp
+          ? 'human'
+          : await verifyTurnstile(ctx.headers.get(TURNSTILE_HEADER), {
+              secretKey: deps.turnstileSecretKey,
+              remoteIp: address,
+              fetch: deps.fetch,
+              expectedHostname: deps.turnstileHostname,
+              expectedAction:
+                ctx.path === SIGN_IN_PATH ? TURNSTILE_SIGN_IN_ACTION : TURNSTILE_RESET_ACTION,
+              logger: log,
+            });
         if (verdict === 'unavailable') {
           throw new APIError('SERVICE_UNAVAILABLE', {
             message: 'bot check unavailable',
@@ -717,6 +722,19 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+/**
+ * Marks a sign-in made by the field app's token route (`/api/v1/auth/mobile/token`), which only our
+ * own server code can set: the bot check is skipped for it, since a phone app has no page to run
+ * it in, and everything else (the lock, the inactive check, the per-address cap, the second factor
+ * and the audit rows) runs as for the website.
+ */
+const fieldAppSignIn = new AsyncLocalStorage<true>();
+
+/** Runs a Better Auth sign-in, and its second factor, for the field app (see `fieldAppSignIn`). */
+export function signInFromFieldApp<T>(work: () => Promise<T>): Promise<T> {
+  return fieldAppSignIn.run(true, work);
+}
 
 /** Marks a reset request whose caller is answered once its checks pass (see below). */
 const resetInBackground = new AsyncLocalStorage<{ checked: () => void }>();

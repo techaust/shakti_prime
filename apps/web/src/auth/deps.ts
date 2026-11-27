@@ -9,6 +9,7 @@ import {
 import { AWS_DEFAULT_REGION } from '../aws-region';
 import { logger } from '../log';
 import { sesMailer } from '../mail/ses-mailer';
+import { mobileKeyProblems } from './mobile-keys';
 import { upstashKeyValue } from './upstash-key-value';
 
 /** What the auth module needs from the outside world, injectable for tests. */
@@ -166,6 +167,9 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
       `WHATSAPP_BUTTON_SECRET must be at least ${String(MIN_SECRET_LENGTH)} characters when set`,
     );
   }
+  // The field app's key pair (F1): optional until the app is rolled out (its routes answer
+  // unavailable without it), and when set, both halves of one P-256 key.
+  problems.push(...mobileKeyProblems(env));
   // The fake AI transport stands in for the vendors on a developer's machine and in the journeys.
   if ((env.AI_TRANSPORT ?? '') !== '') {
     problems.push('AI_TRANSPORT is for development; a hosted environment calls the AI services');
