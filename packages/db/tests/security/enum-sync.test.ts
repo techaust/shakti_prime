@@ -308,6 +308,8 @@ const PAIRS: Record<string, readonly string[]> = {
   customer_loans_disbursed_check: ['disbursed'],
   customer_loans_rejected_check: ['rejected'],
   customer_loans_gates_dispatch_check: ['dispatch', ...LOAN_DISPATCH_GATES],
+  // Only a rejected loan's gates are waived.
+  customer_loans_waiver_check: ['rejected'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {
