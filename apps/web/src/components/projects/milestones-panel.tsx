@@ -54,7 +54,10 @@ export function MilestonesPanel({
                   <span className="text-text-muted tabular-nums">{`${String(m.position)}. `}</span>
                   {stepName(m)}
                 </span>
-                <span className="text-text-muted text-sm">
+                <span
+                  className="text-text-muted text-sm"
+                  data-dynamic={m.state === 'done' ? true : undefined}
+                >
                   {m.state === 'done' && m.doneAt !== null
                     ? by === undefined
                       ? t('doneNoName', { date: formatDate(m.doneAt) })

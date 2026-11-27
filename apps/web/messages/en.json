@@ -7011,7 +7011,7 @@
       "open": "To do",
       "next": "Next step",
       "markDone": "Mark done",
-      "markedDone": "Step marked done",
+      "markedDone": "Step marked done.",
       "missing": "Collect these documents first: {documents}",
       "empty": "This project has no steps.",
       "doneBadge": "Done"
@@ -7022,11 +7022,11 @@
       "complete": "Complete project",
       "cancel": "Cancel project",
       "assign": "Change people",
-      "resumed": "Project resumed",
-      "held": "Project put on hold",
-      "completed": "Project completed",
-      "cancelled": "Project cancelled",
-      "assigned": "People saved"
+      "resumed": "Project resumed.",
+      "held": "Project put on hold.",
+      "completed": "Project completed.",
+      "cancelled": "Project cancelled.",
+      "assigned": "People saved."
     },
     "dialogs": {
       "holdTitle": "Put {projectNo} on hold",
@@ -7061,7 +7061,7 @@
       "segment": "Business line",
       "segmentFromLead": "The lead's business line",
       "startSubmit": "Start project",
-      "started": "Project started"
+      "started": "Project started."
     }
   },
   "projectSteps": {
@@ -7079,7 +7079,7 @@
     "moveUp": "Move up",
     "moveDown": "Move down",
     "publish": "Publish steps",
-    "published": "Steps published",
+    "published": "Steps published.",
     "nameMissing": "Give every step a name.",
     "tooMany": "A project can have at most 30 steps.",
     "tooFew": "Keep at least one step."

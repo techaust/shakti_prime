@@ -149,7 +149,7 @@ export function ProjectsScreen({
     {
       id: 'updated',
       header: t('columns.updated'),
-      cell: (r) => formatDateTime(r.updatedAt),
+      cell: (r) => <time dateTime={r.updatedAt}>{formatDateTime(r.updatedAt)}</time>,
     },
   ];
 

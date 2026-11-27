@@ -57,6 +57,8 @@ import { ensureProcurementJourneys } from './procurement';
 import { ensureScreenPopJourneys } from './screen-pop';
 import { ensureShadowPackJourney } from './shadow-pack';
 import { ensureStockJourneys } from './stock';
+// J1 projects
+import { ensureProjectJourneys } from './projects';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
@@ -910,6 +912,14 @@ const orders = await ensureOrderJourneys(ids.executive ?? '');
 // H1 stock ledger
 progress('the stock journeys');
 await ensureStockJourneys(ids.executive ?? '');
+
+// J1 projects
+progress('the project journeys');
+await ensureProjectJourneys({
+  executive: ids.executive ?? '',
+  projectManager: ids.projectManager ?? '',
+  fieldEngineer: ids.fieldEngineer ?? '',
+});
 
 progress('the Lead Converter workspace');
 // One converter of company 2 per project, none of them a handover target, each with three leads
