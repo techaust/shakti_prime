@@ -29,6 +29,8 @@ export * from './inventory/enums';
 export * from './inventory/stock';
 // R3 warranty claims and supplier returns.
 export * from './inventory/warranty';
+// Q1 labels
+export * from './inventory/labels';
 export * from './catalogue/serial-pattern';
 export * from './numbering/document-no';
 export * from './tax/engine';

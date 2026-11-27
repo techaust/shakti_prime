@@ -51,7 +51,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-67 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+64 types, 22 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -101,10 +101,6 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`inventory.stock.moved`](#inventorystockmoved) | Stock moved in a company: up to 200 movements of the batch with their items, bins, quantities and reasons (never a cost), and how many it held. | `inventory.stock.transfer`, `inventory.stock.adjust`, `inventory.stock.reverse`, `imports.job.commit_batch` | none |
-| [`inventory.warranty.raised`](#inventorywarrantyraised) | A warranty claim was raised on a customer, or on the serial they reported. | `inventory.warranty.raise` | none |
-| [`inventory.warranty.serial_identified`](#inventorywarrantyserial_identified) | A warranty claim's failed serial was identified, in warranty. | `inventory.warranty.identify_serial` | none |
-| [`inventory.warranty.rejected`](#inventorywarrantyrejected) | A warranty claim was rejected: out of warranty, or not a fault. | `inventory.warranty.reject` | none |
-| [`inventory.warranty.closed`](#inventorywarrantyclosed) | A warranty claim was closed by the supplier's settlement; the amount stays restricted. | `inventory.warranty.settle` | none |
 
 ### Sign-in
 
@@ -148,6 +144,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+| [`print.labels.requested`](#printlabelsrequested) | A sheet of QR labels is to be printed: the render worker reads the serials or bins, prints the labels at the stock size and stores the PDF. | `inventory.label.print`, `inventory.label.reprint` | `POST /api/v1/workers/outbox/print.labels.requested` (QStash URL group `evt-print.labels.requested`) |
 
 ### knowledge
 
@@ -430,7 +427,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock`, `installed_base` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
 | `committedRows` | whole number from 0 |
 | `batches` | whole number from 1 |
 
@@ -438,7 +435,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock`, `installed_base` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
 | `committedRows` | whole number from 0 |
 | `failedBatch` | whole number from 1 |
 
@@ -452,14 +449,14 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock`, `installed_base` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters`, `vendors`, `opening_stock` |
 | `rolledBackRows` | whole number from 0 |
 
 ### files.file.uploaded
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript`, `vendor_quote` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript`, `vendor_quote`, `label_sheet` |
 | `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested
@@ -469,6 +466,15 @@ No fields apart from `v`.
 | `documentType` | one of `quote`, `proforma`, `delivery_challan`, `handover_kit`, `company_letterhead_proof` |
 | `documentId` | id |
 | `version` | whole number from 1 |
+
+### print.labels.requested
+
+| Field | Type |
+|---|---|
+| `sheetId` | id |
+| `labelKind` | one of `serial`, `bin` |
+| `size` | one of `50x25`, `100x50` |
+| `ids` | list of ids, at least 1 |
 
 ### knowledge.file.index_requested
 
@@ -665,26 +671,3 @@ No fields apart from `v`.
 | `vendorId` | id |
 | `itemId` | id |
 | `forGroup` | true or false |
-
-### inventory.warranty.raised
-
-| Field | Type |
-|---|---|
-| `accountId` | id |
-| `serialId` | id or null |
-
-### inventory.warranty.serial_identified
-
-| Field | Type |
-|---|---|
-| `serialId` | id |
-
-### inventory.warranty.rejected
-
-No fields apart from `v`.
-
-### inventory.warranty.closed
-
-| Field | Type |
-|---|---|
-| `settlement` | one of `credit`, `replacement` |

@@ -107,20 +107,28 @@ Closed on its engineering work on 20-11-2026 (the owner's decision): the run on 
 ## 6. Phase 4 — Projects & field (11–13 weeks)
 **Scope:** standard and PM Surya Ghar flows; subsidy gates; document vault with masked WhatsApp filing; DISCOM packs; QC; scheduling board with Concierge site-visit booking; handover kit; CMC register; customer loans; Android app with offline sync, attendance and expense capture (Expo tooling confirmed at phase start).
 
+**Plan:** 17 slices in four waves, in [`docs/03-roadmap-appendix/phase4.md`](03-roadmap-appendix/phase4.md) §3, approved on 27-11-2026 with its twelve questions decided.
+
 **Exit gate:** pilot with 2–3 engineers on live jobs for two weeks; sync conflict cases exercised; staged rollout via EAS.
 
 ## 7. Phase 5 — Finance, costing & HR (9–11 weeks)
 **Scope:** proformas and payment milestones; Tally connector with AlterID reads and tombstones; reconciliation and review queue; dealer outstanding sync; stock valuation reconciliation; payment reminders; job costing and project profit; expense approval; attendance, leave, incentives, salary export.
+
+**Plan:** 14 slices in four waves, in [`docs/03-roadmap-appendix/phase5.md`](03-roadmap-appendix/phase5.md) §3, approved on 27-11-2026 with its eleven questions decided.
 
 **Exit gate:** one full month reconciled with Tally by Accounts for all four companies; connector catch-up test after a simulated 3-day outage.
 
 ## 8. Phase 6 — AI brain & autonomy (7–9 weeks)
 **Scope:** Sizing & Quote, Project Orchestrator and Chief of Staff agents; voice Command mode; autonomy promotions per action type with eval thresholds.
 
+**Plan:** 7 slices in three waves, in [`docs/03-roadmap-appendix/phase6.md`](03-roadmap-appendix/phase6.md) §3, approved on 27-11-2026 with its questions decided.
+
 **Exit gate:** eval thresholds met per action type; ≥ 95% unedited over ≥ 200 cases before any Automatic promotion; Executive sign-off recorded.
 
 ## 9. Phase 7 — Hardening & rollout (4–5 weeks)
 **Scope:** load test at 10k leads/day and 100 concurrent users; external security review and pentest; DR restore drill; DPDP readiness review; runbooks and onboarding guide; role-wise training and in-app help; go-live.
+
+**Plan:** 7 slices, in [`docs/03-roadmap-appendix/phase7.md`](03-roadmap-appendix/phase7.md) §3, approved on 27-11-2026 with its questions decided.
 
 **Exit gate:** go-live sign-off by the Executives; open findings closed or accepted in writing.
 

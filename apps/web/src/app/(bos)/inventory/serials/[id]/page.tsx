@@ -49,6 +49,7 @@ export default async function SerialPage({
       serial={serial.data}
       company={companyNames(access)[entityId] ?? ''}
       canRaiseClaim={hasGrant(principal.permissions, 'inventory.warranty.write', 'entity')}
+      canPrint={hasGrant(principal.permissions, 'inventory.stock.move', 'entity')}
     />
   ) : (
     <Page title={t('title')} width="detail">

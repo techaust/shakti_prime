@@ -105,6 +105,8 @@ import type {
   UserSort,
   UserStatus,
   VoiceSessionMode,
+  // Q1 labels
+  LabelKind,
 } from '@shakti/contracts';
 
 // The contract values that code running in the browser reads, copied here because every module
@@ -928,6 +930,8 @@ export const FILE_PURPOSES = [
   'call_transcript',
   // U1 vendors and supplier quotes.
   'vendor_quote',
+  // Q1 labels.
+  'label_sheet',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */
@@ -1082,3 +1086,11 @@ export const WARRANTY_SETTLEMENTS = [
   'credit',
   'replacement',
 ] as const satisfies readonly WarrantySettlement[];
+
+// Q1 labels
+/** What a QR label is for. */
+export const LABEL_KINDS = ['serial', 'bin', 'package'] as const satisfies readonly LabelKind[];
+
+/** At most this many labels in one sheet, and in one reprint. */
+export const LABEL_SHEET_MAX = 500;
+export const LABEL_REPRINT_MAX = 100;

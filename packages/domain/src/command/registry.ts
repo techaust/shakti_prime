@@ -166,6 +166,8 @@ import {
   rejectWarrantyClaim,
   settleWarrantyClaim,
 } from '../commands/inventory/warranty';
+// Q1 labels
+import { printLabels, reprintLabels } from '../commands/inventory/labels';
 import {
   approvePriceList,
   archivePriceList,
@@ -324,6 +326,9 @@ export const commands = Object.freeze({
   [identifyWarrantySerial.name]: identifyWarrantySerial,
   [rejectWarrantyClaim.name]: rejectWarrantyClaim,
   [settleWarrantyClaim.name]: settleWarrantyClaim,
+  // Q1 labels
+  [printLabels.name]: printLabels,
+  [reprintLabels.name]: reprintLabels,
   [updateItem.name]: updateItem,
   [archiveItem.name]: archiveItem,
   [createKit.name]: createKit,
