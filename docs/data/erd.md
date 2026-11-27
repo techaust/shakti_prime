@@ -1382,6 +1382,7 @@ erDiagram
     numeric qty_needed "(12,3)"
     numeric qty_backordered "(12,3)"
     timestamptz queued_at
+    timestamptz requeued_at "null"
     timestamptz created_at
     timestamptz updated_at
   }

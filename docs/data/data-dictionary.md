@@ -4638,7 +4638,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### reservation_needs
 
-**Catalogue entry** (05-database.md §6.5; created in 0240): `entity_id`, `sales_order_id` (composite foreign key to the order), `sales_order_line_id`, `item_id` (unique per line and item), `qty_needed` (an item line's quantity, or a kit component's quantity per kit times the line's when the order was confirmed), `qty_backordered` (what no reservation covers, between zero and the need), `queued_at` (the place in the item's backorder queue: the order's confirmation, or when a reservation lapsed or was released by hand); written by `app.reserve_order()` at confirmation and kept by the reservation definers; read by company with `inventory.stock.read` for the company; gone with its order
+**Catalogue entry** (05-database.md §6.5; created in 0240): `entity_id`, `sales_order_id` (composite foreign key to the order), `sales_order_line_id`, `item_id` (unique per line and item), `qty_needed` (an item line's quantity, or a kit component's quantity per kit times the line's when the order was confirmed), `qty_backordered` (what no reservation covers, between zero and the need), `queued_at` (the place in the item's backorder queue: the order's confirmation, or when a reservation lapsed or was released by hand), `requeued_at` (when a lapse or a release by hand put it back on order, null for a need queued at confirmation: it then takes only stock that entered a storage bin after it, never what its own lapse or release freed); written by `app.reserve_order()` at confirmation and kept by the reservation definers; read by company with `inventory.stock.read` for the company; gone with its order
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -4650,6 +4650,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `qty_needed` | numeric(12, 3) | no |  |  |
 | `qty_backordered` | numeric(12, 3) | no |  |  |
 | `queued_at` | timestamp with time zone | no |  |  |
+| `requeued_at` | timestamp with time zone | yes |  |  |
 | `created_at` | timestamp with time zone | no | `now()` |  |
 | `updated_at` | timestamp with time zone | no | `now()` |  |
 
