@@ -8,9 +8,7 @@ import { readFeatureFlags } from './feature-flags';
  * caller's own policies: the short code of each company they work in and the feature flags that
  * apply to them. The person, their roles and grants come from principal resolution.
  */
-export async function fieldAppProfile(
-  ctx: Pick<RequestContext, 'tx' | 'entityIds'>,
-): Promise<{
+export async function fieldAppProfile(ctx: Pick<RequestContext, 'tx' | 'entityIds'>): Promise<{
   entityCodes: ReadonlyMap<number, string>;
   featureFlags: Record<FeatureFlagKey, boolean>;
 }> {

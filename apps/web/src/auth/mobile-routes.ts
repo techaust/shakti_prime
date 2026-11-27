@@ -11,12 +11,7 @@ import {
 } from '@shakti/contracts';
 import type { UserGrantRow } from '@shakti/db';
 import { loadUserGrants } from '@shakti/db/grants';
-import {
-  executeQuery,
-  fieldAppProfile,
-  type KeyValue,
-  type Logger,
-} from '@shakti/domain';
+import { executeQuery, fieldAppProfile, type KeyValue, type Logger } from '@shakti/domain';
 import { apiFailure } from '../api-failure';
 import { logger as appLogger } from '../log';
 import { tagSentryPrincipal } from '../observability/sentry-tag';
@@ -111,7 +106,12 @@ function answer(body: unknown, requestId: string): Response {
 }
 
 function refused(r: Refusal, requestId: string): Response {
-  return apiFailure(r.code, requestId, r.reason === undefined ? undefined : { reason: r.reason }, r.headers);
+  return apiFailure(
+    r.code,
+    requestId,
+    r.reason === undefined ? undefined : { reason: r.reason },
+    r.headers,
+  );
 }
 
 const updateRequired = (requestId: string) =>
@@ -175,7 +175,11 @@ export async function mobileTokenRoute(request: Request, deps: MobileRouteDeps):
   if (!appVersionAccepted(request.headers, versions.minimum)) return updateRequired(requestId);
   try {
     const address = addressKey(clientAddress(request.headers));
-    const byAddress = await capped(deps.keyValue, `mobile-token:address:${address}`, MOBILE_AUTH_CAPS.tokenPerAddress);
+    const byAddress = await capped(
+      deps.keyValue,
+      `mobile-token:address:${address}`,
+      MOBILE_AUTH_CAPS.tokenPerAddress,
+    );
     if (byAddress !== undefined) return refused(byAddress, requestId);
 
     const parsed = MobileTokenRequest.safeParse(await jsonWithin(request, TOKEN_BODY_MAX_BYTES));
@@ -184,7 +188,11 @@ export async function mobileTokenRoute(request: Request, deps: MobileRouteDeps):
     if (!appVersionAccepted(request.headers, versions.minimum, body.device.appVersion)) {
       return updateRequired(requestId);
     }
-    const byAccount = await capped(deps.keyValue, `mobile-token:account:${body.email}`, MOBILE_AUTH_CAPS.tokenPerAccount);
+    const byAccount = await capped(
+      deps.keyValue,
+      `mobile-token:account:${body.email}`,
+      MOBILE_AUTH_CAPS.tokenPerAccount,
+    );
     if (byAccount !== undefined) return refused(byAccount, requestId);
 
     const setup = await signingSetup(env);
@@ -192,12 +200,17 @@ export async function mobileTokenRoute(request: Request, deps: MobileRouteDeps):
 
     const checked = await verifyMobileCredentials(deps.auth, body, request.headers);
     if (checked.kind === 'refused') {
-      const retry = checked.reason === 'account_locked' && checked.retryAfter !== undefined
-        ? { 'retry-after': checked.retryAfter }
-        : undefined;
+      const retry =
+        checked.reason === 'account_locked' && checked.retryAfter !== undefined
+          ? { 'retry-after': checked.retryAfter }
+          : undefined;
       return refused(refuse('unauthorized', checked.reason, retry), requestId);
     }
-    const resolved = await resolveMobilePrincipal(checked.userId, `mobile:${body.device.deviceId}`, deps);
+    const resolved = await resolveMobilePrincipal(
+      checked.userId,
+      `mobile:${body.device.deviceId}`,
+      deps,
+    );
     if ('kind' in resolved) return refused(resolved, requestId);
 
     const now = (deps.now ?? (() => new Date()))();
@@ -206,7 +219,13 @@ export async function mobileTokenRoute(request: Request, deps: MobileRouteDeps):
       setup,
       now,
       async (refreshHash, expiresAt) => {
-        await deps.devices.signIn({ userId: checked.userId, device: body.device, refreshHash, expiresAt, now });
+        await deps.devices.signIn({
+          userId: checked.userId,
+          device: body.device,
+          refreshHash,
+          expiresAt,
+          now,
+        });
       },
     );
     await recordAuthEvent(
@@ -214,7 +233,7 @@ export async function mobileTokenRoute(request: Request, deps: MobileRouteDeps):
         event: 'auth.mobile.sign_in',
         outcome: 'ok',
         actorId: checked.userId,
-        fields: { deviceId: body.device.deviceId, appVersion: body.device.appVersion },
+        fields: { appVersion: body.device.appVersion },
         headers: request.headers,
       },
       deps.logger,
@@ -226,23 +245,36 @@ export async function mobileTokenRoute(request: Request, deps: MobileRouteDeps):
 }
 
 /** `POST /api/v1/auth/mobile/refresh`: the phone's refresh token → a new pair, both tokens new. */
-export async function mobileRefreshRoute(request: Request, deps: MobileRouteDeps): Promise<Response> {
+export async function mobileRefreshRoute(
+  request: Request,
+  deps: MobileRouteDeps,
+): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
   const env = deps.env ?? process.env;
   const versions = fieldAppVersions(env);
   if (!appVersionAccepted(request.headers, versions.minimum)) return updateRequired(requestId);
   try {
     const address = addressKey(clientAddress(request.headers));
-    const byAddress = await capped(deps.keyValue, `mobile-refresh:address:${address}`, MOBILE_AUTH_CAPS.refreshPerAddress);
+    const byAddress = await capped(
+      deps.keyValue,
+      `mobile-refresh:address:${address}`,
+      MOBILE_AUTH_CAPS.refreshPerAddress,
+    );
     if (byAddress !== undefined) return refused(byAddress, requestId);
 
-    const parsed = MobileRefreshRequest.safeParse(await jsonWithin(request, REFRESH_BODY_MAX_BYTES));
+    const parsed = MobileRefreshRequest.safeParse(
+      await jsonWithin(request, REFRESH_BODY_MAX_BYTES),
+    );
     if (!parsed.success) return apiFailure('validation_failed', requestId);
     const body = parsed.data;
     if (!appVersionAccepted(request.headers, versions.minimum, body.appVersion)) {
       return updateRequired(requestId);
     }
-    const byDevice = await capped(deps.keyValue, `mobile-refresh:device:${body.deviceId}`, MOBILE_AUTH_CAPS.refreshPerDevice);
+    const byDevice = await capped(
+      deps.keyValue,
+      `mobile-refresh:device:${body.deviceId}`,
+      MOBILE_AUTH_CAPS.refreshPerDevice,
+    );
     if (byDevice !== undefined) return refused(byDevice, requestId);
 
     const setup = await signingSetup(env);
@@ -265,17 +297,22 @@ export async function mobileRefreshRoute(request: Request, deps: MobileRouteDeps
           event: 'auth.mobile.refresh_reused',
           outcome: 'denied',
           actorId: outcome.userId,
-          fields: { deviceId: body.deviceId },
           headers: request.headers,
         },
         deps.logger,
       );
       return refused(refuse('unauthorized', 'refresh_reused'), requestId);
     }
-    if (outcome.kind === 'revoked') return refused(refuse('unauthorized', 'device_revoked'), requestId);
-    if (outcome.kind !== 'rotated') return refused(refuse('unauthorized', 'refresh_expired'), requestId);
+    if (outcome.kind === 'revoked')
+      return refused(refuse('unauthorized', 'device_revoked'), requestId);
+    if (outcome.kind !== 'rotated')
+      return refused(refuse('unauthorized', 'refresh_expired'), requestId);
 
-    const resolved = await resolveMobilePrincipal(outcome.userId, `mobile:${outcome.deviceId}`, deps);
+    const resolved = await resolveMobilePrincipal(
+      outcome.userId,
+      `mobile:${outcome.deviceId}`,
+      deps,
+    );
     if ('kind' in resolved) {
       // A person who may no longer act keeps no phone signed in; they sign in again once they may.
       await deps.devices.signOut(outcome.userId, outcome.deviceId, 'signed_out', now);
@@ -351,12 +388,14 @@ export function mobileRevokeRoute(request: Request, deps: MobileRouteDeps): Prom
         event: 'auth.mobile.sign_out',
         outcome: 'ok',
         actorId: caller.claims.sub,
-        fields: { deviceId: caller.claims.sid },
         headers: request.headers,
       },
       deps.logger,
     );
-    return answer(MobileRevokeResponse.parse({ revoked: true, deviceId: caller.claims.sid }), requestId);
+    return answer(
+      MobileRevokeResponse.parse({ revoked: true, deviceId: caller.claims.sid }),
+      requestId,
+    );
   });
 }
 

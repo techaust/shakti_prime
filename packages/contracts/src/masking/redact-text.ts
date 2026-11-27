@@ -15,6 +15,10 @@ const SECRET_TEXT: readonly ((text: string) => string)[] = [
   (t) => t.replace(/reset-password[:/][\w-]+/g, 'reset-password:[redacted]'),
   (t) => t.replace(/\bparams:[\s\S]*$/, 'params: [redacted]'),
   (t) => t.replace(/(token|secret|password)=[^\s&'"]+/gi, '$1=[redacted]'),
+  // The field app's bearer and any signed token written out whole (F1): a JWT is three base64url
+  // parts, the first starting `eyJ` (a JSON header).
+  (t) => t.replace(/\bBearer\s+[\w.~+/=-]+/g, 'Bearer [redacted]'),
+  (t) => t.replace(/\beyJ[\w-]{4,}\.[\w-]{4,}\.[\w-]{4,}/g, '[token]'),
   // Starting only where a word starts: the same matches, but a long word is read once, not once
   // from each of its letters.
   (t) => t.replace(/(?<![\w.+-])[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[email]'),

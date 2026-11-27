@@ -149,7 +149,8 @@ describe('who signs a phone out', () => {
   it('never signs a phone back in, nor deletes one', async () => {
     const id = await phone(engineer.id);
     await asMigrator(
-      (m) => m`update mobile_devices set revoked_at = now(), revoked_reason = 'revoked' where id = ${id}`,
+      (m) =>
+        m`update mobile_devices set revoked_at = now(), revoked_reason = 'revoked' where id = ${id}`,
     );
     await expect(
       rowsAs(
@@ -158,7 +159,10 @@ describe('who signs a phone out', () => {
       ),
     ).rejects.toThrow();
     await expect(
-      rowsAs(principalFor('executive'), sql`delete from mobile_devices where id = ${id} returning id`),
+      rowsAs(
+        principalFor('executive'),
+        sql`delete from mobile_devices where id = ${id} returning id`,
+      ),
     ).rejects.toThrow();
   });
 });

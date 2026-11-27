@@ -36,7 +36,9 @@ export function mobileKeyProblems(env: Env): string[] {
   const publicRaw = valueOf(env, MOBILE_KEY_ENV.public);
   if (privateRaw === undefined && publicRaw === undefined) return [];
   if (privateRaw === undefined || publicRaw === undefined) {
-    return [`${MOBILE_KEY_ENV.private} and ${MOBILE_KEY_ENV.public} are set together or not at all`];
+    return [
+      `${MOBILE_KEY_ENV.private} and ${MOBILE_KEY_ENV.public} are set together or not at all`,
+    ];
   }
   const read = (raw: string): Record<string, unknown> | undefined => {
     try {
@@ -52,7 +54,10 @@ export function mobileKeyProblems(env: Env): string[] {
   const pub = read(publicRaw);
   const problems: string[] = [];
   const p256 = (jwk: Record<string, unknown> | undefined) =>
-    jwk?.kty === 'EC' && jwk.crv === 'P-256' && typeof jwk.x === 'string' && typeof jwk.y === 'string';
+    jwk?.kty === 'EC' &&
+    jwk.crv === 'P-256' &&
+    typeof jwk.x === 'string' &&
+    typeof jwk.y === 'string';
   if (!p256(priv) || typeof priv?.d !== 'string') {
     problems.push(`${MOBILE_KEY_ENV.private} must be a private P-256 key as JWK JSON`);
   }

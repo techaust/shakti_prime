@@ -16,4 +16,6 @@ if (kty !== 'EC' || crv !== 'P-256' || x === undefined || y === undefined || d =
 const kid = await calculateJwkThumbprint({ kty, crv, x, y });
 process.stdout.write(`${JSON.stringify({ kty, crv, x, y, d, kid, alg: 'ES256', use: 'sig' })}\n`);
 process.stdout.write(`${JSON.stringify({ kty, crv, x, y, kid, alg: 'ES256', use: 'sig' })}\n`);
-console.error(`new field app key pair ${kid}: the first line is private; store it only as a secret`);
+console.error(
+  `new field app key pair ${kid}: the first line is private; store it only as a secret`,
+);

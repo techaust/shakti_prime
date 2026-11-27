@@ -1,7 +1,13 @@
 import { newId, type Principal } from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { asMigrator, asPrincipal, closeDb, principalFor, withoutContext } from '../../src/testing/index';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  principalFor,
+  withoutContext,
+} from '../../src/testing/index';
 
 // F1 (docs/03-roadmap-appendix/phase4.md §6.4): feature flags are read by every request with a
 // principal, the group's rows and those of the request's companies, and written only with

@@ -42,7 +42,8 @@ export interface DeviceRotation {
 }
 
 /** Where a phone stands for an access token: live since `signedInAt`, signed out, or unknown. */
-export type DeviceStanding = { kind: 'live'; signedInAt: Date } | { kind: 'revoked' } | { kind: 'unknown' };
+export type DeviceStanding =
+  { kind: 'live'; signedInAt: Date } | { kind: 'revoked' } | { kind: 'unknown' };
 
 export interface DeviceStore {
   /** Signs the installation in for the person with a new token family; answers the row's id. */
@@ -50,7 +51,12 @@ export interface DeviceStore {
   /** Rotates the installation's refresh token when the presented one is its live token. */
   rotate(input: DeviceRotation): Promise<RotateOutcome>;
   /** Signs the person's phone out; false when it was not signed in. */
-  signOut(userId: string, deviceId: string, reason: MobileDeviceRevokeReason, now: Date): Promise<boolean>;
+  signOut(
+    userId: string,
+    deviceId: string,
+    reason: MobileDeviceRevokeReason,
+    now: Date,
+  ): Promise<boolean>;
   standing(userId: string, deviceId: string): Promise<DeviceStanding>;
 }
 
@@ -65,7 +71,11 @@ export const authDeviceStore: DeviceStore = {
         .update(d)
         .set({ revokedAt: input.now, revokedReason: 'signed_out' })
         .where(
-          and(eq(d.deviceId, input.device.deviceId), ne(d.userId, input.userId), isNull(d.revokedAt)),
+          and(
+            eq(d.deviceId, input.device.deviceId),
+            ne(d.userId, input.userId),
+            isNull(d.revokedAt),
+          ),
         );
       const fields = {
         platform: input.device.platform,
@@ -107,7 +117,7 @@ export const authDeviceStore: DeviceStore = {
         .where(and(eq(d.deviceId, input.deviceId), isNull(d.revokedAt)))
         .limit(1)
         .for('update');
-      if (live !== undefined && live.hash === input.presentedHash) {
+      if (live?.hash === input.presentedHash) {
         if (live.expiresAt.getTime() <= input.now.getTime()) return { kind: 'expired' };
         await tx
           .update(d)
@@ -162,6 +172,8 @@ export const authDeviceStore: DeviceStore = {
       .where(and(eq(d.userId, userId), eq(d.deviceId, deviceId)))
       .limit(1);
     if (row === undefined) return { kind: 'unknown' };
-    return row.revokedAt === null ? { kind: 'live', signedInAt: row.signedInAt } : { kind: 'revoked' };
+    return row.revokedAt === null
+      ? { kind: 'live', signedInAt: row.signedInAt }
+      : { kind: 'revoked' };
   },
 };

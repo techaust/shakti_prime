@@ -115,14 +115,22 @@ async function runInContext<I extends z.ZodType, O extends z.ZodType>(
 ): Promise<z.output<O>> {
   const { logger = defaultLogger, onCommitted, idempotencyFront, ...runOptions } = options;
   const key = runOptions.idempotencyKey;
-  const front = idempotencyFront !== undefined && key !== undefined ? fronted(command, principal, input) : undefined;
+  const front =
+    idempotencyFront !== undefined && key !== undefined
+      ? fronted(command, principal, input)
+      : undefined;
   if (front !== undefined && idempotencyFront !== undefined && key !== undefined) {
     const kept = await readFront(idempotencyFront, principal.id, key, logger);
     // Only an exact repeat is answered here, as the runner would answer it from the table; a
     // refusal of the stored answer is left to the runner, which records it.
     if (kept?.command === command.name && kept.inputHash === front.hash) {
       try {
-        return storedAnswer(command, scoped.entityIds ?? principal.entityIds, kept.response, front.data);
+        return storedAnswer(
+          command,
+          scoped.entityIds ?? principal.entityIds,
+          kept.response,
+          front.data,
+        );
       } catch {
         // falls through to the table
       }

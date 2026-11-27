@@ -49,11 +49,15 @@ describe('admin.flag.set', () => {
     const gm = await createTestPrincipal('general_manager', [1]);
     await expect(
       asPrincipal(gm, (context) =>
-        runCommand(setFeatureFlag, { context, audit, outbox }, {
-          key: flagKey(),
-          entityId: 1,
-          enabled: true,
-        }),
+        runCommand(
+          setFeatureFlag,
+          { context, audit, outbox },
+          {
+            key: flagKey(),
+            entityId: 1,
+            enabled: true,
+          },
+        ),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
@@ -62,11 +66,15 @@ describe('admin.flag.set', () => {
     const exec = await createTestPrincipal('executive', [1]);
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(setFeatureFlag, { context, audit, outbox }, {
-          key: flagKey(),
-          entityId: 2,
-          enabled: true,
-        }),
+        runCommand(
+          setFeatureFlag,
+          { context, audit, outbox },
+          {
+            key: flagKey(),
+            entityId: 2,
+            enabled: true,
+          },
+        ),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
@@ -118,10 +126,13 @@ describe('field.device.revoke', () => {
     const id = await phone(elsewhere.id);
     const gm = await createTestPrincipal('general_manager', [1]);
     await expect(
-      asPrincipal(gm, (context) => runCommand(revokeMobileDevice, { context, audit, outbox }, { id })),
+      asPrincipal(gm, (context) =>
+        runCommand(revokeMobileDevice, { context, audit, outbox }, { id }),
+      ),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'device_missing' } });
     const [row] = await asMigrator(
-      (m) => m<{ revoked_at: Date | null }[]>`select revoked_at from mobile_devices where id = ${id}`,
+      (m) =>
+        m<{ revoked_at: Date | null }[]>`select revoked_at from mobile_devices where id = ${id}`,
     );
     expect(row?.revoked_at).toBeNull();
   });
@@ -135,7 +146,9 @@ describe('field.device.revoke', () => {
     );
     expect(result).toMatchObject({ id, userId: person.id });
     await expect(
-      asPrincipal(pm, (context) => runCommand(revokeMobileDevice, { context, audit, outbox }, { id })),
+      asPrincipal(pm, (context) =>
+        runCommand(revokeMobileDevice, { context, audit, outbox }, { id }),
+      ),
     ).rejects.toMatchObject({ code: 'not_found' });
     const [row] = await asMigrator(
       (m) => m<{ reason: string; by: string }[]>`

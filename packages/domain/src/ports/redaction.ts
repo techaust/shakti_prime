@@ -51,8 +51,14 @@ export const IDENTITY_KEYS: ReadonlySet<string> = new Set([
 /** A field name without case or separators, as the key lists compare it. */
 export const normaliseKey = (key: string): string => key.toLowerCase().replace(/[_-]/g, '');
 
+/**
+ * A field named as a token of any kind (`refreshToken`, `accessToken`, `push_token`) is secret too:
+ * the field app's tokens are bearer secrets, so no log line or audit row keeps one (F1).
+ */
 const isSecretKey = (key: string): boolean =>
-  SECRET_KEYS.has(key) || IDENTITY_KEYS.has(normaliseKey(key));
+  SECRET_KEYS.has(key) ||
+  IDENTITY_KEYS.has(normaliseKey(key)) ||
+  normaliseKey(key).endsWith('token');
 
 /**
  * Fields, compared without case or separators, whose value is an identifier or a business code

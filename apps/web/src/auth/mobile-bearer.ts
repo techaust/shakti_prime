@@ -55,7 +55,11 @@ export interface Refusal {
   headers?: Record<string, string>;
 }
 
-export const refuse = (code: ErrorCode, reason?: string, headers?: Record<string, string>): Refusal => ({
+export const refuse = (
+  code: ErrorCode,
+  reason?: string,
+  headers?: Record<string, string>,
+): Refusal => ({
   kind: 'refused',
   code,
   ...(reason === undefined ? {} : { reason }),

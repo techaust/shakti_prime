@@ -18,11 +18,16 @@ export type CredentialRefusal =
   | { reason: 'invalid_credentials' | 'totp_required' | 'totp_invalid' }
   | { reason: 'account_locked'; retryAfter: string | undefined };
 
-export type CredentialOutcome = { kind: 'ok'; userId: string } | ({ kind: 'refused' } & CredentialRefusal);
+export type CredentialOutcome =
+  { kind: 'ok'; userId: string } | ({ kind: 'refused' } & CredentialRefusal);
 
 /** Better Auth's codes for a wrong second factor, and for one locked after five wrong codes. */
 const WRONG_CODE = new Set(['INVALID_CODE', 'INVALID_BACKUP_CODE', 'INVALID_TWO_FACTOR_COOKIE']);
-const LOCKED = new Set(['ACCOUNT_LOCKED', 'ACCOUNT_TEMPORARILY_LOCKED', 'TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE']);
+const LOCKED = new Set([
+  'ACCOUNT_LOCKED',
+  'ACCOUNT_TEMPORARILY_LOCKED',
+  'TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE',
+]);
 
 function refusalOf(error: unknown, stage: 'password' | 'code'): CredentialOutcome {
   if (!(error instanceof APIError)) throw error;
@@ -87,7 +92,11 @@ export async function verifyMobileCredentials(
     } catch (error) {
       return refusalOf(error, 'password');
     }
-    const answer = first.response as { twoFactorRedirect?: unknown; token?: unknown; user?: { id?: unknown } };
+    const answer = first.response as {
+      twoFactorRedirect?: unknown;
+      token?: unknown;
+      user?: { id?: unknown };
+    };
     if (answer.twoFactorRedirect !== true) {
       await dropSession(answer.token);
       const userId = answer.user?.id;

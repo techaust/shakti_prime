@@ -110,11 +110,17 @@ describe('the Redis front of idempotency_keys', () => {
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     const key = newId();
     await expect(
-      executeCommand(caller, { entityIds: [1] }, createLead, { ...newLead(), pipelineKey: 'none' }, {
-        idempotencyKey: key,
-        idempotencyFront: front,
-        logger: memoryLogger(),
-      }),
+      executeCommand(
+        caller,
+        { entityIds: [1] },
+        createLead,
+        { ...newLead(), pipelineKey: 'none' },
+        {
+          idempotencyKey: key,
+          idempotencyFront: front,
+          logger: memoryLogger(),
+        },
+      ),
     ).rejects.toBeDefined();
     expect(await front.get(`idem:${caller.id}:${key}`)).toBeNull();
 
