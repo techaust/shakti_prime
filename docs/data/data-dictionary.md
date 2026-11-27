@@ -4863,8 +4863,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Indexes**
 
-- `stock_counts_list_idx` (btree): `entity_id, state, started_at desc, id desc`
+- `stock_counts_list_idx` (btree): `entity_id, started_at desc, id desc`
 - `stock_counts_live_unique` (btree, unique): `entity_id, warehouse_id` where `"stock_counts"."state" in ('open', 'counting', 'review')`
+- `stock_counts_state_idx` (btree): `entity_id, state, started_at desc, id desc`
 - `stock_counts_warehouse_idx` (btree): `warehouse_id`
 
 **Triggers**
