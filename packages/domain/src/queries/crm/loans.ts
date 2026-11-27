@@ -11,7 +11,6 @@ import {
   OrderLoanGateDto,
   OrderLoansDto,
   OrderLoansInput,
-  type LoanGateAnswer,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
@@ -41,6 +40,8 @@ const LOAN_COLUMNS = {
   reference: schema.customerLoans.reference,
   rejectedReason: schema.customerLoans.rejectedReason,
   gatesJson: schema.customerLoans.gatesJson,
+  gatesWaivedAt: schema.customerLoans.gatesWaivedAt,
+  gatesWaivedReason: schema.customerLoans.gatesWaivedReason,
   createdAt: schema.customerLoans.createdAt,
 };
 
@@ -61,6 +62,8 @@ interface LoanRow {
   reference: string | null;
   rejectedReason: string | null;
   gatesJson: unknown;
+  gatesWaivedAt: Date | null;
+  gatesWaivedReason: string | null;
   createdAt: Date;
 }
 
@@ -84,6 +87,8 @@ export function toCustomerLoanDto(row: LoanRow): CustomerLoanDto {
     reference: row.reference,
     rejectedReason: row.rejectedReason,
     gates: LoanGatesSchema.parse(row.gatesJson),
+    gatesWaivedAt: iso(row.gatesWaivedAt),
+    gatesWaivedReason: row.gatesWaivedReason,
     createdAt: iso(row.createdAt),
   });
 }
@@ -108,7 +113,7 @@ export async function readCustomerLoan(
 }
 
 /**
- * The order's loan gates, as `app.order_loan_gate()` alone answers them (J8's dispatch guard and
+ * The order's loan gate, as `app.order_loan_gate()` alone answers it (J8's dispatch guard and
  * Phase 5's milestones read the same). `order_missing` for an order the caller may not ask about.
  */
 export async function orderLoanGate(
@@ -126,20 +131,12 @@ export async function orderLoanGate(
   return OrderLoanGateDto.parse(result.gate);
 }
 
-/** The gates a move released: those pending before it and met after it. */
-export function releasedGates(
-  before: OrderLoanGateDto,
-  after: OrderLoanGateDto,
-): { dispatch: boolean; milestones: string[] } {
-  const released = (was: LoanGateAnswer | undefined, now: LoanGateAnswer) =>
-    was === 'pending' && now === 'met';
-  return {
-    dispatch: released(before.dispatch, after.dispatch),
-    milestones: Object.entries(after.milestones)
-      .filter(([key, now]) => released(before.milestones[key], now))
-      .map(([key]) => key)
-      .sort(),
-  };
+/**
+ * Whether a move released the order's dispatch: the gate answer held it pending before the move
+ * and not after it (met, or nothing held once a turned-down loan's gates are waived).
+ */
+export function releasedGates(before: OrderLoanGateDto, after: OrderLoanGateDto): boolean {
+  return before.dispatch === 'pending' && after.dispatch !== 'pending';
 }
 
 type QueryContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -180,9 +177,10 @@ async function writesCustomer(
 
 /**
  * The order's Loan tab (docs/03-roadmap-appendix/phase4.md §6.2): the order's loans newest first,
- * the gate answer from `app.order_loan_gate()`, the company's active lenders and whether the caller
- * may record and move a loan. Read with `crm.account.read`; `order_missing` for an order the caller
- * cannot read.
+ * the gate answer from `app.order_loan_gate()`, the company's active lenders, whether the caller
+ * may record and move a loan, and whether they may waive a turned-down loan's gates
+ * (`crm.account.write` at company scope). Read with `crm.account.read`; `order_missing` for an
+ * order the caller cannot read.
  */
 export async function getOrderLoans(ctx: QueryContext, rawInput: unknown): Promise<OrderLoansDto> {
   const input = parseQueryInput(OrderLoansInput, rawInput, 'crm.loan.order');
@@ -224,6 +222,7 @@ export async function getOrderLoans(ctx: QueryContext, rawInput: unknown): Promi
     gate,
     lenders,
     canWrite: writes && order.state !== 'cancelled',
+    canWaive: hasGrant(ctx.principal.permissions, 'crm.account.write', 'entity'),
   });
 }
 

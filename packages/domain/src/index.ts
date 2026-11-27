@@ -234,6 +234,7 @@ export { createCustomerLoan } from './commands/crm/loans-create';
 export { sanctionCustomerLoan } from './commands/crm/loans-sanction';
 export { disburseCustomerLoan } from './commands/crm/loans-disburse';
 export { rejectCustomerLoan } from './commands/crm/loans-reject';
+export { waiveLoanGates } from './commands/crm/loans-waive';
 export { createLender, updateLender } from './commands/crm/loans-lenders';
 export {
   getOrderLoans,

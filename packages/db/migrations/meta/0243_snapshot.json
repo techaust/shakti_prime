@@ -5028,6 +5028,24 @@
           "notNull": true,
           "default": "'{\"dispatch\":\"disbursed\"}'::jsonb"
         },
+        "gates_waived_at": {
+          "name": "gates_waived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gates_waived_by": {
+          "name": "gates_waived_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gates_waived_reason": {
+          "name": "gates_waived_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -5067,10 +5085,10 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
           "where": "\"customer_loans\".\"state\" in ('applied', 'sanctioned', 'disbursed')",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
         "customer_loans_order_idx": {
           "name": "customer_loans_order_idx",
@@ -5089,9 +5107,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "customer_loans_account_idx": {
           "name": "customer_loans_account_idx",
@@ -5116,9 +5134,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "customer_loans_lender_idx": {
           "name": "customer_loans_lender_idx",
@@ -5131,9 +5149,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "customer_loans_entity_created_idx": {
           "name": "customer_loans_entity_created_idx",
@@ -5152,95 +5170,108 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "customer_loans_entity_id_entities_id_fk": {
           "name": "customer_loans_entity_id_entities_id_fk",
           "tableFrom": "customer_loans",
+          "tableTo": "entities",
           "columnsFrom": [
             "entity_id"
           ],
-          "tableTo": "entities",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "customer_loans_account_id_accounts_id_fk": {
           "name": "customer_loans_account_id_accounts_id_fk",
           "tableFrom": "customer_loans",
+          "tableTo": "accounts",
           "columnsFrom": [
             "account_id"
           ],
-          "tableTo": "accounts",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "customer_loans_gates_waived_by_principals_id_fk": {
+          "name": "customer_loans_gates_waived_by_principals_id_fk",
+          "tableFrom": "customer_loans",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "gates_waived_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "customer_loans_created_by_principals_id_fk": {
           "name": "customer_loans_created_by_principals_id_fk",
           "tableFrom": "customer_loans",
+          "tableTo": "principals",
           "columnsFrom": [
             "created_by"
           ],
-          "tableTo": "principals",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "customer_loans_updated_by_principals_id_fk": {
           "name": "customer_loans_updated_by_principals_id_fk",
           "tableFrom": "customer_loans",
+          "tableTo": "principals",
           "columnsFrom": [
             "updated_by"
           ],
-          "tableTo": "principals",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "customer_loans_order_fk": {
           "name": "customer_loans_order_fk",
           "tableFrom": "customer_loans",
+          "tableTo": "sales_orders",
           "columnsFrom": [
             "sales_order_id",
             "entity_id",
             "account_id"
           ],
-          "tableTo": "sales_orders",
           "columnsTo": [
             "id",
             "entity_id",
             "account_id"
           ],
-          "onUpdate": "cascade",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "cascade"
         },
         "customer_loans_lender_fk": {
           "name": "customer_loans_lender_fk",
           "tableFrom": "customer_loans",
+          "tableTo": "lenders",
           "columnsFrom": [
             "lender_id",
             "entity_id"
           ],
-          "tableTo": "lenders",
           "columnsTo": [
             "id",
             "entity_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5277,11 +5308,15 @@
         },
         "customer_loans_gates_check": {
           "name": "customer_loans_gates_check",
-          "value": "jsonb_typeof(\"customer_loans\".\"gates_json\") = 'object'\n       and (\"customer_loans\".\"gates_json\" -> 'milestones' is null or jsonb_typeof(\"customer_loans\".\"gates_json\" -> 'milestones') = 'object')"
+          "value": "jsonb_typeof(\"customer_loans\".\"gates_json\") = 'object' and \"customer_loans\".\"gates_json\" - 'dispatch' = '{}'::jsonb"
         },
         "customer_loans_gates_dispatch_check": {
           "name": "customer_loans_gates_dispatch_check",
-          "value": "\"customer_loans\".\"gates_json\" ->> 'dispatch' in ('disbursed', 'sanctioned', 'none')"
+          "value": "coalesce(\"customer_loans\".\"gates_json\" ->> 'dispatch', '') in ('disbursed', 'sanctioned', 'none')"
+        },
+        "customer_loans_waiver_check": {
+          "name": "customer_loans_waiver_check",
+          "value": "(\"customer_loans\".\"gates_waived_at\" is null) = (\"customer_loans\".\"gates_waived_by\" is null)\n       and (\"customer_loans\".\"gates_waived_at\" is null) = (\"customer_loans\".\"gates_waived_reason\" is null)\n       and (\"customer_loans\".\"gates_waived_at\" is null or \"customer_loans\".\"state\" = 'rejected')\n       and (\"customer_loans\".\"gates_waived_reason\" is null or length(btrim(\"customer_loans\".\"gates_waived_reason\")) between 1 and 300)"
         }
       },
       "isRLSEnabled": false

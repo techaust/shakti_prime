@@ -35,7 +35,7 @@ export const customerLoanMachine = defineMachine<
   name: 'customer_loan',
   title: 'Customer loan',
   summary:
-    '`customer_loans.state`. Loan status can gate payment milestones and dispatch (`gates_json`).',
+    "`customer_loans.state`. The loan can hold back its order's dispatch until a state (`gates_json`); a payment milestone keeps its own loan gate and reads the state (Phase 5). A rejected loan keeps holding the dispatch back until a new loan replaces it or `crm.loan.gates.waive` records that the order no longer waits on one.",
   sources: ['BLUEPRINT §8.1, §19 item 2', 'PRD CRM-08', 'DATABASE §6.2 `customer_loans`'],
   states: CUSTOMER_LOAN_STATES,
   initial: 'applied',
@@ -62,7 +62,7 @@ export const customerLoanMachine = defineMachine<
         {
           key: 'release_gates',
           description:
-            'release the dispatch and milestones gated on `sanctioned` (`crm.loan.gates_released`)',
+            'release the dispatch when it waits for `sanctioned` (`crm.loan.gates_released`)',
         },
       ],
     },
@@ -77,7 +77,7 @@ export const customerLoanMachine = defineMachine<
         {
           key: 'release_gates',
           description:
-            'release the dispatch and milestones gated on `disbursed` (CRM-08, `crm.loan.gates_released`)',
+            'release the dispatch when it waits for `disbursed` (CRM-08, `crm.loan.gates_released`)',
         },
       ],
     },
@@ -92,6 +92,11 @@ export const customerLoanMachine = defineMachine<
         {
           key: 'notify_owner',
           description: 'tell the opportunity owner so another route can be offered',
+        },
+        {
+          key: 'keep_gates',
+          description:
+            'the dispatch stays held (`loan_rejected`) until a new loan or `crm.loan.gates.waive`',
         },
       ],
       proposed: true,

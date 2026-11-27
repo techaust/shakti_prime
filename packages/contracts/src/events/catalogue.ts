@@ -14,7 +14,6 @@ import { INBOUND_MATCH_LIMIT } from '../commands/calls/inbound';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 import { StockReasonSchema } from '../inventory/enums';
 import { StockQtySchema } from '../inventory/stock';
-import { LOAN_MILESTONE_GATES_MAX, LoanMilestoneKeySchema } from '../crm/loans';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -854,20 +853,21 @@ const eventCatalogue = {
       .strict(),
   },
   /**
-   * A loan's sanction or disbursal released what it held back: the order's dispatch (J8) and the
-   * payment milestones named by key (Phase 5). Raised only when something was released.
+   * What a customer's loan held back is released: the order's dispatch (J8), when the loan reached
+   * the state the dispatch waits for, or when a person recorded that the order no longer waits on
+   * a turned-down loan (`crm.loan.gates.waive`). Raised only when the dispatch was released; a
+   * Phase 5 milestone compares its own loan gate with `state`.
    */
   'crm.loan.gates_released': {
     meaning:
-      "A customer's loan reached the state its gates wait for: `dispatch` says the order's dispatch may leave, `milestones` names the payment milestones released.",
-    emittedBy: ['crm.loan.sanction', 'crm.loan.disburse'],
+      "What a customer's loan held back is released: the order's dispatch may leave, as the loan reached the state it waited for or the order no longer waits on a turned-down loan.",
+    emittedBy: ['crm.loan.sanction', 'crm.loan.disburse', 'crm.loan.gates.waive'],
     subscribed: false,
     payload: z
       .object({
         salesOrderId: IdSchema,
-        state: z.enum(['sanctioned', 'disbursed']),
-        dispatch: z.boolean(),
-        milestones: z.array(LoanMilestoneKeySchema).max(LOAN_MILESTONE_GATES_MAX),
+        state: z.enum(['sanctioned', 'disbursed', 'rejected']),
+        dispatch: z.literal(true),
       })
       .strict(),
   },

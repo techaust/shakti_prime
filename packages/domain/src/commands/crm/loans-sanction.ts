@@ -3,14 +3,20 @@ import { defineCommand } from '../../command/define-command';
 import { orderLoanGate, readCustomerLoan, releasedGates } from '../../queries/crm/loans';
 import { transition } from '../../state-machines/define-machine';
 import { customerLoanMachine } from '../../state-machines/machines/customer-loan';
-import { LOAN_AUDIT_FIELDS, lockCustomerLoan, writeCustomerLoan } from './loans-shared';
+import {
+  LOAN_AUDIT_FIELDS,
+  lockCustomerLoan,
+  requireOpenOrder,
+  writeCustomerLoan,
+} from './loans-shared';
 
 /**
  * `crm.loan.sanction` (docs/03-roadmap-appendix/phase4.md §6.2): the lender sanctioned an applied
  * loan for an amount above zero (the machine's guard, `loan_amount_missing`), which the loan keeps
- * (`set_amount`); the lender's reference may come with it. What waited for the sanction is released
- * (`release_gates`): `crm.loan.gates_released` names it, as `app.order_loan_gate()` answers before
- * and after. People only.
+ * (`set_amount`); the lender's reference may come with it. Only on an order the caller reads that
+ * is not cancelled (`loan_order_cancelled`). A dispatch that waited for the sanction is released
+ * (`release_gates`): `crm.loan.gates_released`, as `app.order_loan_gate()` answers before and
+ * after. People only.
  */
 export const sanctionCustomerLoan = defineCommand({
   name: 'crm.loan.sanction',
@@ -30,6 +36,7 @@ export const sanctionCustomerLoan = defineCommand({
       now: ctx.now,
       params: { amount: input.sanctionedAmount },
     });
+    await requireOpenOrder(ctx, row);
     const before = await orderLoanGate(ctx, row.salesOrderId);
     const reference = input.reference ?? row.reference;
     await writeCustomerLoan(ctx, row, {
@@ -57,15 +64,16 @@ export const sanctionCustomerLoan = defineCommand({
       aggregateId: row.id,
       payload: { accountId: row.accountId, salesOrderId: row.salesOrderId, state: 'sanctioned' },
     });
-    // `release_gates`: what the gate answer held pending before the move and met after it.
+    // `release_gates`: the dispatch, when the gate answer held it pending before the move and
+    // not after it.
     const released = releasedGates(before, await orderLoanGate(ctx, row.salesOrderId));
-    if (released.dispatch || released.milestones.length > 0) {
+    if (released) {
       ctx.emit({
         type: 'crm.loan.gates_released',
         entityId: row.entityId,
         aggregateType: 'customer_loan',
         aggregateId: row.id,
-        payload: { salesOrderId: row.salesOrderId, state: 'sanctioned', ...released },
+        payload: { salesOrderId: row.salesOrderId, state: 'sanctioned', dispatch: true },
       });
     }
     return readCustomerLoan(ctx, row.entityId, row.id);

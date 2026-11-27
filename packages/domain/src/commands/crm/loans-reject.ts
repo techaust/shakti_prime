@@ -9,8 +9,10 @@ import { LOAN_AUDIT_FIELDS, lockCustomerLoan, writeCustomerLoan } from './loans-
 
 /**
  * `crm.loan.reject` (docs/03-roadmap-appendix/phase4.md §6.2): the lender turned down an applied or
- * sanctioned loan, with the reason they gave. The loan stops holding the order back, and the order
- * may take another loan. `crm.loan.rejected` brings the notify worker, which tells the owner of the
+ * sanctioned loan, with the reason they gave. The order may take another loan, and until it does,
+ * or a person records that it no longer waits on one (`crm.loan.gates.waive`), the turned-down
+ * loan keeps holding back what it held (`app.order_loan_gate()` answers `pending`, reason
+ * `loan_rejected`). `crm.loan.rejected` brings the notify worker, which tells the owner of the
  * order's lead, or of the customer where the order has none, so they offer another route
  * (`notify_owner`). People only.
  */

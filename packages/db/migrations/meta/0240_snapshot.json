@@ -5028,6 +5028,24 @@
           "notNull": true,
           "default": "'{\"dispatch\":\"disbursed\"}'::jsonb"
         },
+        "gates_waived_at": {
+          "name": "gates_waived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gates_waived_by": {
+          "name": "gates_waived_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gates_waived_reason": {
+          "name": "gates_waived_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -5184,6 +5202,19 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
+        "customer_loans_gates_waived_by_principals_id_fk": {
+          "name": "customer_loans_gates_waived_by_principals_id_fk",
+          "tableFrom": "customer_loans",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "gates_waived_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "customer_loans_created_by_principals_id_fk": {
           "name": "customer_loans_created_by_principals_id_fk",
           "tableFrom": "customer_loans",
@@ -5277,11 +5308,15 @@
         },
         "customer_loans_gates_check": {
           "name": "customer_loans_gates_check",
-          "value": "jsonb_typeof(\"customer_loans\".\"gates_json\") = 'object'\n       and (\"customer_loans\".\"gates_json\" -> 'milestones' is null or jsonb_typeof(\"customer_loans\".\"gates_json\" -> 'milestones') = 'object')"
+          "value": "jsonb_typeof(\"customer_loans\".\"gates_json\") = 'object' and \"customer_loans\".\"gates_json\" - 'dispatch' = '{}'::jsonb"
         },
         "customer_loans_gates_dispatch_check": {
           "name": "customer_loans_gates_dispatch_check",
-          "value": "\"customer_loans\".\"gates_json\" ->> 'dispatch' in ('disbursed', 'sanctioned', 'none')"
+          "value": "coalesce(\"customer_loans\".\"gates_json\" ->> 'dispatch', '') in ('disbursed', 'sanctioned', 'none')"
+        },
+        "customer_loans_waiver_check": {
+          "name": "customer_loans_waiver_check",
+          "value": "(\"customer_loans\".\"gates_waived_at\" is null) = (\"customer_loans\".\"gates_waived_by\" is null)\n       and (\"customer_loans\".\"gates_waived_at\" is null) = (\"customer_loans\".\"gates_waived_reason\" is null)\n       and (\"customer_loans\".\"gates_waived_at\" is null or \"customer_loans\".\"state\" = 'rejected')\n       and (\"customer_loans\".\"gates_waived_reason\" is null or length(btrim(\"customer_loans\".\"gates_waived_reason\")) between 1 and 300)"
         }
       },
       "isRLSEnabled": false

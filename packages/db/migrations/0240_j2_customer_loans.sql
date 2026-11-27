@@ -15,6 +15,9 @@ CREATE TABLE "customer_loans" (
 	"reference" text,
 	"rejected_reason" text,
 	"gates_json" jsonb DEFAULT '{"dispatch":"disbursed"}'::jsonb NOT NULL,
+	"gates_waived_at" timestamp with time zone,
+	"gates_waived_by" uuid,
+	"gates_waived_reason" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_by" uuid NOT NULL,
@@ -30,9 +33,12 @@ CREATE TABLE "customer_loans" (
 	CONSTRAINT "customer_loans_rejected_check" CHECK (("customer_loans"."state" = 'rejected') = ("customer_loans"."rejected_reason" is not null)
        and ("customer_loans"."rejected_reason" is null or length(btrim("customer_loans"."rejected_reason")) between 1 and 300)),
 	CONSTRAINT "customer_loans_reference_check" CHECK ("customer_loans"."reference" is null or length(btrim("customer_loans"."reference")) between 1 and 60),
-	CONSTRAINT "customer_loans_gates_check" CHECK (jsonb_typeof("customer_loans"."gates_json") = 'object'
-       and ("customer_loans"."gates_json" -> 'milestones' is null or jsonb_typeof("customer_loans"."gates_json" -> 'milestones') = 'object')),
-	CONSTRAINT "customer_loans_gates_dispatch_check" CHECK ("customer_loans"."gates_json" ->> 'dispatch' in ('disbursed', 'sanctioned', 'none'))
+	CONSTRAINT "customer_loans_gates_check" CHECK (jsonb_typeof("customer_loans"."gates_json") = 'object' and "customer_loans"."gates_json" - 'dispatch' = '{}'::jsonb),
+	CONSTRAINT "customer_loans_gates_dispatch_check" CHECK (coalesce("customer_loans"."gates_json" ->> 'dispatch', '') in ('disbursed', 'sanctioned', 'none')),
+	CONSTRAINT "customer_loans_waiver_check" CHECK (("customer_loans"."gates_waived_at" is null) = ("customer_loans"."gates_waived_by" is null)
+       and ("customer_loans"."gates_waived_at" is null) = ("customer_loans"."gates_waived_reason" is null)
+       and ("customer_loans"."gates_waived_at" is null or "customer_loans"."state" = 'rejected')
+       and ("customer_loans"."gates_waived_reason" is null or length(btrim("customer_loans"."gates_waived_reason")) between 1 and 300))
 );
 --> statement-breakpoint
 CREATE TABLE "lenders" (
@@ -51,6 +57,7 @@ CREATE TABLE "lenders" (
 ALTER TABLE "customer_loans" ADD CONSTRAINT "customer_loans_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_loans" ADD CONSTRAINT "customer_loans_account_id_accounts_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_loans" ADD CONSTRAINT "customer_loans_created_by_principals_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."principals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customer_loans" ADD CONSTRAINT "customer_loans_gates_waived_by_principals_id_fk" FOREIGN KEY ("gates_waived_by") REFERENCES "public"."principals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_loans" ADD CONSTRAINT "customer_loans_updated_by_principals_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."principals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_loans" ADD CONSTRAINT "customer_loans_order_fk" FOREIGN KEY ("sales_order_id","entity_id","account_id") REFERENCES "public"."sales_orders"("id","entity_id","account_id") ON DELETE no action ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "customer_loans" ADD CONSTRAINT "customer_loans_lender_fk" FOREIGN KEY ("lender_id","entity_id") REFERENCES "public"."lenders"("id","entity_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

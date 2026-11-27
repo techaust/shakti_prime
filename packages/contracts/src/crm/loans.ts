@@ -27,29 +27,13 @@ export const LOAN_DISPATCH_GATES = ['disbursed', 'sanctioned', 'none'] as const;
 export const LoanDispatchGateSchema = z.enum(LOAN_DISPATCH_GATES);
 export type LoanDispatchGate = z.infer<typeof LoanDispatchGateSchema>;
 
-/** What a payment milestone waits for (Phase 5). */
-export const LOAN_MILESTONE_GATES = ['sanctioned', 'disbursed'] as const;
-
-/** The most payment milestones one loan may hold back. */
-export const LOAN_MILESTONE_GATES_MAX = 20;
-
-/** A payment milestone's key as Phase 5 names it: lower-case words joined by underscores. */
-export const LoanMilestoneKeySchema = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/);
-
 /**
- * What a loan holds back until which state (`customer_loans.gates_json`): the order's dispatch,
- * on disbursal unless chosen otherwise, and, from Phase 5, payment milestones by key.
+ * What a loan holds back until which state (`customer_loans.gates_json`): the order's dispatch, on
+ * disbursal unless chosen otherwise. A payment milestone's loan gate lives on the milestone (Phase
+ * 5, `payment_milestones.loan_gate`), which compares its own kind with the answer's `loanState`.
  */
 export const LoanGatesSchema = z
-  .object({
-    dispatch: LoanDispatchGateSchema.default('disbursed'),
-    milestones: z
-      .record(LoanMilestoneKeySchema, z.enum(LOAN_MILESTONE_GATES))
-      .refine((m) => Object.keys(m).length <= LOAN_MILESTONE_GATES_MAX, {
-        message: `at most ${String(LOAN_MILESTONE_GATES_MAX)} milestones`,
-      })
-      .optional(),
-  })
+  .object({ dispatch: LoanDispatchGateSchema.default('disbursed') })
   .strict();
 export type LoanGates = z.infer<typeof LoanGatesSchema>;
 
@@ -59,15 +43,28 @@ export const LoanGateAnswerSchema = z.enum(LOAN_GATE_ANSWERS);
 export type LoanGateAnswer = z.infer<typeof LoanGateAnswerSchema>;
 
 /**
- * An order's loan gates as `app.order_loan_gate()` answers them: the active loan, if any, and per
- * gate whether it holds back. J8's dispatch guard reads `dispatch`; Phase 5 reads `milestones`.
+ * Why a gate answers `pending` when no loan is under way: the lender turned the order's newest loan
+ * down, and nobody has yet recorded a new loan or that the order no longer waits on one
+ * (`crm.loan.gates.waive`).
+ */
+export const LOAN_GATE_REASONS = ['loan_rejected'] as const;
+export const LoanGateReasonSchema = z.enum(LOAN_GATE_REASONS);
+export type LoanGateReason = z.infer<typeof LoanGateReasonSchema>;
+
+/**
+ * An order's loan gate as `app.order_loan_gate()` answers it, from the order's loan: its active
+ * loan, else its newest turned-down loan. `dispatch` is what J8's dispatch guard reads; `loanState`
+ * and `waived` are what a Phase 5 milestone compares its own loan gate with. A turned-down loan
+ * keeps the dispatch `pending` (`reason: 'loan_rejected'`) until a new loan replaces it or its
+ * gates are waived (`waived`, then `none`).
  */
 export const OrderLoanGateDto = z
   .object({
     loanId: IdSchema.nullable(),
     loanState: CustomerLoanStateSchema.nullable(),
     dispatch: LoanGateAnswerSchema,
-    milestones: z.record(LoanMilestoneKeySchema, LoanGateAnswerSchema),
+    waived: z.boolean(),
+    reason: LoanGateReasonSchema.nullable(),
   })
   .strict();
 export type OrderLoanGateDto = z.infer<typeof OrderLoanGateDto>;
@@ -76,6 +73,7 @@ export const LENDER_NAME_MIN = 2;
 export const LENDER_NAME_MAX = 120;
 export const LOAN_REFERENCE_MAX = 60;
 export const LOAN_REJECTED_REASON_MAX = 300;
+export const LOAN_WAIVER_REASON_MAX = 300;
 
 const LenderNameSchema = z.string().trim().min(LENDER_NAME_MIN).max(LENDER_NAME_MAX);
 /**
@@ -149,6 +147,19 @@ export const RejectCustomerLoanInput = z
   .strict();
 export type RejectCustomerLoanInput = z.input<typeof RejectCustomerLoanInput>;
 
+/**
+ * `crm.loan.gates.waive`: the order no longer waits on a loan its lender turned down, with the
+ * reason, recorded on that loan by a person who writes customers across the company.
+ */
+export const WaiveLoanGatesInput = z
+  .object({
+    entityId: EntityIdSchema,
+    loanId: IdSchema,
+    reason: z.string().trim().min(1).max(LOAN_WAIVER_REASON_MAX),
+  })
+  .strict();
+export type WaiveLoanGatesInput = z.input<typeof WaiveLoanGatesInput>;
+
 /** One loan as the order's Loan tab and Account 360 show it. */
 export const CustomerLoanDto = z
   .object({
@@ -168,6 +179,9 @@ export const CustomerLoanDto = z
     reference: z.string().nullable(),
     rejectedReason: z.string().nullable(),
     gates: LoanGatesSchema,
+    /** When a person recorded that the order no longer waits on this turned-down loan, and why. */
+    gatesWaivedAt: z.iso.datetime().nullable(),
+    gatesWaivedReason: z.string().nullable(),
     createdAt: z.iso.datetime(),
   })
   .strict();
@@ -213,8 +227,10 @@ export type OrderLoansInput = z.input<typeof OrderLoansInput>;
 
 /**
  * The order's Loan tab: its loans newest first (one active at most), the gate answer, the
- * company's active lenders for the form, and whether the caller may record and move a loan here
- * (`crm.account.write` over the customer's relationship, on an order that is not cancelled).
+ * company's active lenders for the form, whether the caller may record and move a loan here
+ * (`crm.account.write` over the customer's relationship, on an order that is not cancelled), and
+ * whether they may record that the order no longer waits on a turned-down loan
+ * (`crm.account.write` at company scope).
  */
 export const OrderLoansDto = z
   .object({
@@ -225,6 +241,7 @@ export const OrderLoansDto = z
     gate: OrderLoanGateDto,
     lenders: z.array(LenderDto),
     canWrite: z.boolean(),
+    canWaive: z.boolean(),
   })
   .strict();
 export type OrderLoansDto = z.infer<typeof OrderLoansDto>;

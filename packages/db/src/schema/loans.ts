@@ -17,6 +17,7 @@ import {
 import { accounts } from './accounts';
 import { actorsRequired, timestamps } from './columns';
 import { entities } from './entities';
+import { principals } from './principals';
 import { salesOrders } from './sales-orders';
 
 const money = (name: string) => numeric(name, { precision: 14, scale: 2 });
@@ -56,10 +57,13 @@ export const lenders = pgTable(
  * A customer's loan for one order (docs/03-roadmap-appendix/phase4.md §6.2, PRD CRM-08), driven by
  * the `customer-loan` machine through `crm.loan.create`, `.sanction`, `.disburse` and `.reject`.
  * Its company and customer are its order's (the composite key), and it follows the order when a
- * customer merge moves it (ON UPDATE CASCADE). `gates_json` says what the loan holds back until
- * which state: the order's dispatch and, in Phase 5, payment milestones; `app.order_loan_gate()`
- * is the one answer to whether a gate is met. While a loan is applied, sanctioned or disbursed it
- * is the order's one active loan; a rejected loan leaves room for another.
+ * customer merge moves it (ON UPDATE CASCADE). `gates_json` says until which state the loan holds
+ * back the order's dispatch (a Phase 5 payment milestone keeps its own loan gate);
+ * `app.order_loan_gate()` is the one answer to whether the gate is met. While a loan is applied,
+ * sanctioned or disbursed it is the order's one active loan; a rejected loan leaves room for
+ * another, and keeps holding the order back until another loan replaces it or a person records,
+ * with a reason, that the order no longer waits on a loan (`gates_waived_*`,
+ * `crm.loan.gates.waive`).
  */
 export const customerLoans = pgTable(
   'customer_loans',
@@ -85,8 +89,12 @@ export const customerLoans = pgTable(
     /** The lender's own reference for the application or the loan account. */
     reference: text('reference'),
     rejectedReason: text('rejected_reason'),
-    /** `{ dispatch, milestones? }` as the contract `LoanGatesSchema` validates it. */
+    /** `{ dispatch }` as the contract `LoanGatesSchema` validates it. */
     gatesJson: jsonb('gates_json').notNull().default({ dispatch: 'disbursed' }),
+    /** A turned-down loan's gates waived: when, by whom and why; set once, never changed. */
+    gatesWaivedAt: timestamp('gates_waived_at', { withTimezone: true }),
+    gatesWaivedBy: uuid('gates_waived_by').references(() => principals.id),
+    gatesWaivedReason: text('gates_waived_reason'),
     ...timestamps,
     ...actorsRequired,
   },
@@ -141,14 +149,23 @@ export const customerLoans = pgTable(
       'customer_loans_reference_check',
       sql`${t.reference} is null or length(btrim(${t.reference})) between 1 and 60`,
     ),
+    // The gates hold the dispatch and nothing else, and a missing dispatch fails the check rather
+    // than passing it (`->>` gives null for a missing key).
     check(
       'customer_loans_gates_check',
-      sql`jsonb_typeof(${t.gatesJson}) = 'object'
-       and (${t.gatesJson} -> 'milestones' is null or jsonb_typeof(${t.gatesJson} -> 'milestones') = 'object')`,
+      sql`jsonb_typeof(${t.gatesJson}) = 'object' and ${t.gatesJson} - 'dispatch' = '{}'::jsonb`,
     ),
     check(
       'customer_loans_gates_dispatch_check',
-      sql`${t.gatesJson} ->> 'dispatch' in ('disbursed', 'sanctioned', 'none')`,
+      sql`coalesce(${t.gatesJson} ->> 'dispatch', '') in ('disbursed', 'sanctioned', 'none')`,
+    ),
+    // A waiver is recorded whole, with its reason, and only on a rejected loan.
+    check(
+      'customer_loans_waiver_check',
+      sql`(${t.gatesWaivedAt} is null) = (${t.gatesWaivedBy} is null)
+       and (${t.gatesWaivedAt} is null) = (${t.gatesWaivedReason} is null)
+       and (${t.gatesWaivedAt} is null or ${t.state} = 'rejected')
+       and (${t.gatesWaivedReason} is null or length(btrim(${t.gatesWaivedReason})) between 1 and 300)`,
     ),
     // An order's loans, newest first (the Loan tab) and the gate answer's lookup.
     index('customer_loans_order_idx').on(t.salesOrderId, t.createdAt),

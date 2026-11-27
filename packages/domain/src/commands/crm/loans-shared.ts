@@ -5,8 +5,9 @@ import type { CommandContext } from '../../command/context';
 
 /**
  * What the loan commands record in the audit trail besides ids: the loan's state, the amounts, the
- * lender's name, the lender's reference, the dispatch gate and the reason a lender gave for a
- * rejection (docs/03-roadmap-appendix/phase4.md §6.2).
+ * lender's name, the lender's reference, the dispatch gate, the reason a lender gave for a
+ * rejection and the reason a person gave for waiving a rejected loan's gates
+ * (docs/03-roadmap-appendix/phase4.md §6.2).
  */
 export const LOAN_AUDIT_FIELDS = [
   'loanState',
@@ -16,6 +17,7 @@ export const LOAN_AUDIT_FIELDS = [
   'loanReference',
   'dispatchGate',
   'rejectedReason',
+  'waiverReason',
 ] as const;
 
 export type CustomerLoanRow = typeof schema.customerLoans.$inferSelect;
@@ -60,6 +62,9 @@ export async function writeCustomerLoan(
       | 'disbursedAt'
       | 'reference'
       | 'rejectedReason'
+      | 'gatesWaivedAt'
+      | 'gatesWaivedBy'
+      | 'gatesWaivedReason'
     >
   >,
 ): Promise<void> {
@@ -71,5 +76,29 @@ export async function writeCustomerLoan(
     .returning({ id: cl.id });
   if (updated.length === 0) {
     throw new DomainError('forbidden', `loan ${row.id} is outside the caller's scope`);
+  }
+}
+
+/**
+ * A sanction or payout is recorded only on an order the caller reads that is not cancelled, as a
+ * loan is applied for (the update policy holds the same): `order_missing` or
+ * `loan_order_cancelled`.
+ */
+export async function requireOpenOrder(ctx: CommandContext, row: CustomerLoanRow): Promise<void> {
+  const so = schema.salesOrders;
+  const [order] = await ctx.tx
+    .select({ state: so.state })
+    .from(so)
+    .where(and(eq(so.id, row.salesOrderId), eq(so.entityId, row.entityId)))
+    .limit(1);
+  if (!order) {
+    throw new DomainError('not_found', `order ${row.salesOrderId} is not visible`, {
+      reason: 'order_missing',
+    });
+  }
+  if (order.state === 'cancelled') {
+    throw new DomainError('conflict', `order ${row.salesOrderId} is cancelled`, {
+      reason: 'loan_order_cancelled',
+    });
   }
 }
