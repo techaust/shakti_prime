@@ -1681,6 +1681,13 @@
       "when": 1795463436305,
       "tag": "0239_u1_import_undo_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1795789276331,
+      "tag": "0240_x4_stock_reasons",
+      "breakpoints": true
     }
   ]
 }
