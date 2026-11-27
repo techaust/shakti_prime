@@ -258,4 +258,17 @@ Reviewed `git diff origin/main...feat/h2-reservations` at `f2557d8` (`main` at `
 
 **For integration:** U2's `0241_u2_purchase_orders_rls.sql` also redefines `app.platform_only_permissions()`, and its `0242_u2_reorder_notice.sql` both notice type checks; whichever merges second carries the other's keys and types. The `stock_reserved_insufficient` rule goes into X4's `app.stock_move()` (`0240_x4_stock_reasons.sql`, after its `v_have < v_line.qty` check).
 
+**The lead's triage (27-11-2026): fix all nine in the one fix round.**
+- **1:** one transaction per item for the fill, from the job and the event alike, so every transaction locks in the one order. A test runs two fills on overlapping items concurrently.
+- **2:** a need put back on order by a lapse or a release by hand is filled only by stock that enters a storage bin after it was re-queued (a receipt, a gain, a transfer in), never by the stock its own lapse or release freed. Keep a `requeued_at` and compare it with the movement that brought the stock. A test: a lone order's hold lapses and its stock stays free; the next receipt fills it.
+- **3:** the SQL availability (`app.free_availability()` and the line statuses) must agree with `atp.ts`. Add a parity test on generated cases: the same balances, kits and lines through both, the same statuses and quantities. Fix every difference it finds. The pure functions stay the specification.
+- **4:** the preview adds up the same item across its lines before it answers a status, so the line order and repeats cannot be used to probe a count.
+- **5:** insert the missing balance rows before taking the locks, as H1's definer does, and map `stock_balances_reserved_on_hand_check` to a refusal.
+- **6:** the concurrency tests wait on `pg_stat_activity` instead of a fixed pause.
+- **7:** add the two platform jobs to the agent sweep.
+- **8:** correct SECURITY's wording.
+- **9:** the migration backfills needs, queued in order of confirmation, for orders already confirmed, and the first fill reserves them.
+
+**Finding 1 is high, so the reviewer re-checks the fix diff.**
+
 ## Integration
