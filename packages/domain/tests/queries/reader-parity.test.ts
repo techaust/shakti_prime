@@ -47,6 +47,10 @@ import {
 } from '../../src/queries/notifications/settings';
 import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
+// F1 field app foundation.
+import { listMobileDevices } from '../../src/queries/field/devices';
+import { readFeatureFlags } from '../../src/queries/field/feature-flags';
+import { fieldAppProfile } from '../../src/queries/field/me';
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
 import { searchPeople } from '../../src/queries/admin/search-people';
 import { listAuditPeople, queryAudit } from '../../src/queries/audit/query-audit';
@@ -214,6 +218,9 @@ const QUOTES_AT = new Date('2026-10-05T06:00:00Z');
 const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listUsers: (ctx) => listUsers(ctx, { limit: 20 }),
   listUserSessions: (ctx) => listUserSessions(ctx, { userId: ctx.principal.id }),
+  // F1: a person's phones and the feature flags.
+  listMobileDevices: (ctx) => listMobileDevices(ctx, { userId: ctx.principal.id }),
+  readFeatureFlags: (ctx) => readFeatureFlags(ctx),
   searchPeople: (ctx) => searchPeople(ctx, { q: 'kum' }),
   listRoles: (ctx) => listRoles(ctx),
   getRoleGrants: (ctx) => getRoleGrants(ctx, { roleKey: 'tele_caller_cc' }),
@@ -384,6 +391,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
 const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   // The approved Playbook, the agents' and Ask's one read of it (K2).
   approvedPlaybook: (ctx) => approvedPlaybook(ctx, {}),
+  // F1: what GET /me reads for the field app.
+  fieldAppProfile: (ctx) => fieldAppProfile(ctx),
   // Ask's cited records' words and an item's cost side (B1), on real records.
   askSourceLabels: (ctx) =>
     askSourceLabels(ctx, [
