@@ -26,6 +26,11 @@ Do not touch: `apps/tally-connector` (TC1); reconciliation, payments, orders' in
 
 Review checklist: no request reaches a table except through a definer as the connector principal; purchase vouchers only with `procurement.rate.read`; keys stored hashed, shown once; idempotency and the cursor's forward-only rule; nothing written back towards Tally.
 
+### Brief addendum (the lead, 27-11-2026 16:10 UTC): from TC1's early check
+- **Ledger balances:** a ledger's closing balance changes when a voucher posts, with no new AlterID, so the cursor never carries it. TC1 adds an optional `ledgerBalances` (party ledger GUID, name, closing balance, as of) to the daily snapshot's contract in `packages/contracts/src/api/connector.ts` (TC1 owns that change). Store them in `tally_ledgers` with their date. TC3's dealer outstanding reads them. If TC1 has not merged when you reach it, accept the field when present and say so.
+- **Signature:** verify the raw `pathname + search` the request arrived with (a space as `+`), exactly as the connector signs it (TC1's point 5).
+- **Missing GUIDs:** `missingOnServer` cannot be resent below the cursor, so a GUID the snapshot lists and the BOS lacks goes to the review queue as "missing in the BOS" for Accounts (TC1's point 4).
+
 ## How this slice runs
 - **Your role:** you are this slice's builder (or, in a review lane, its reviewer), not the lead. Read `.claude/agents/slice-builder.md` (or `slice-reviewer.md`) and follow it as your rules, with this file as your brief and [the Phase 5 design](../../03-roadmap-appendix/phase5.md) (§1, §3, §4, §5, §10, §13, §14 and your slice's section) as its source. `CLAUDE.md` calls every session the lead; that does not apply to you. Never run the `start-session` or `end-session` skills, open or merge a pull request, push to `main` or `ops/seats`, touch a hosted service or GitHub workflow, delete a branch, force-push, or install a package.
 - **Where:** a seat of the seven-day push (seats protocol v2, `seats/readme.md` on `ops/seats`). Your seat gives you a worktree of this branch with its own Postgres and app port, and its lane prompt names them. Work only there. Put every heavy command through `bash tools/integration/heavy.sh`, and also every lint, typecheck and test while another agent runs in the VM.
