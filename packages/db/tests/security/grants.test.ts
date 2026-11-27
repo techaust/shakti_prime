@@ -521,6 +521,9 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.ingest_source_token(uuid)',
       'app.ingest_source(text,text)',
       'app.lead_search_ids(text,boolean,text,integer)',
+      // A quote's or an order's availability per line, status only without inventory.stock.read
+      // (H2).
+      'app.line_availability(text,uuid)',
       // The ⌘K and /orders search's candidate orders (RPT-03).
       'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',

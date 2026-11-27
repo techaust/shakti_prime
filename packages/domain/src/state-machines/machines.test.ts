@@ -17,6 +17,7 @@ import { projectStandardMachine } from './machines/project-standard';
 import { projectSuryaGharMachine } from './machines/project-surya-ghar';
 import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
+import { reservationMachine } from './machines/reservation';
 import { serialMachine } from './machines/serial';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
@@ -55,6 +56,12 @@ const FIXTURES: Fixture[] = [
   { machine: agentActionMachine, record: {}, params: {} },
   // H1: a serial moves from the bin it is in.
   { machine: serialMachine, record: { binId: SERIAL_BIN }, params: { fromBinId: SERIAL_BIN } },
+  // H2: an active reservation not yet extended; a person's change says why.
+  {
+    machine: reservationMachine,
+    record: { extendedAt: null },
+    params: { reason: 'Customer asked to wait' },
+  },
   { machine: inboxItemMachine, record: {}, params: {} },
   { machine: knowledgeFileMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },

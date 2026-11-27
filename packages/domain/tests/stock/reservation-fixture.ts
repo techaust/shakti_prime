@@ -85,13 +85,13 @@ export async function draftOrder(
 ): Promise<{ orderId: string; lineIds: string[] }> {
   const orderId = newId();
   const lineIds = lines.map(() => newId());
-  orderSeq += 1;
+  const seq = (orderSeq += 1);
   await asMigrator((m) =>
     m.begin(async (tx) => {
       await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, account_type, site_id, tier_id,
                  place_of_supply_state, supply_kind, subtotal, cgst, sgst, igst, tax_total, round_off,
                  grand_total, created_by)
-        values (${orderId}, ${f.entityId}, ${`R${f.tag}/${String(orderSeq)}`}, '2098-99', ${f.account}, 'farm',
+        values (${orderId}, ${f.entityId}, ${`R${f.tag}/${String(seq)}`}, '2098-99', ${f.account}, 'farm',
                 ${f.site}, ${f.tierId}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${createdBy})`;
       for (const [i, line] of lines.entries()) {
         await tx`insert into sales_order_lines (id, entity_id, sales_order_id, position, item_id, kit_id, sku,
