@@ -36,6 +36,20 @@ export function fieldAppVersions(env: Env = process.env): FieldAppVersions {
 }
 
 /**
+ * The version settings a deployment has set but the server cannot read, for
+ * `productionConfigProblems()`: an unreadable minimum would otherwise be ignored without a word,
+ * and every old app would keep working after the owner meant to stop it.
+ */
+export function fieldVersionProblems(env: Env): string[] {
+  return Object.values(FIELD_VERSION_ENV).flatMap((name) => {
+    const raw = env[name]?.trim() ?? '';
+    return raw !== '' && semverOf(raw) === undefined
+      ? [`${name} must be a version of three numbers, such as 1.2.0, when set`]
+      : [];
+  });
+}
+
+/**
  * Whether the app calling may be served: its `X-App-Version` (and, where the body names one too,
  * the older of the two) at the minimum or newer. An app that sends no readable version is refused
  * like an old one, since every release of the app sends it.

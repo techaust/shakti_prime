@@ -96,8 +96,10 @@ export type MobileRevokeResponse = z.infer<typeof MobileRevokeResponse>;
 
 /**
  * Claims of the mobile access token. `sid` names the device (`mobile_devices.device_id`), whose
- * revocation is checked from a 60-second cache; `bos_role` carries the BOS role, as in the
- * Realtime token, so no BOS token ever puts an application role in `role` (ADR 0003).
+ * row is read on every call, so a phone signed out is refused at its next one; `bos_role` and
+ * `entity_ids` are informative only (the server resolves the person from their grants on every
+ * call) and `bos_role` carries the BOS role, as in the Realtime token, so no BOS token ever puts
+ * an application role in `role` (ADR 0003).
  */
 export const MobileAccessClaims = BaseClaims.extend({
   aud: z.literal(TOKEN_AUDIENCES.mobile),
