@@ -78,3 +78,12 @@ export function resolveSerial(
   if (rule !== null && !rule.test(code)) return { status: 'pattern', code };
   return { status: 'ok', code };
 }
+
+/** A ledger quantity that may be below zero (`-2.500`) as a person reads it, with its sign. */
+export function formatSignedQty(qty: string, format: (unsigned: string) => string): string {
+  if (qty.startsWith('-')) {
+    const rest = qty.slice(1);
+    return /^0*(\.0*)?$/.test(rest) ? format(rest) : `-${format(rest)}`;
+  }
+  return Number(qty) > 0 ? `+${format(qty)}` : format(qty);
+}

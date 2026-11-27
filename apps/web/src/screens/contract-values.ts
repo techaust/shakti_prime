@@ -1077,7 +1077,11 @@ export const STOCK_COUNT_STATES = [
 ] as const satisfies readonly StockCountState[];
 
 /** What a count covers. */
-export const STOCK_COUNT_SCOPES = ['hub', 'bins', 'items'] as const satisfies readonly StockCountScope[];
+export const STOCK_COUNT_SCOPES = [
+  'hub',
+  'bins',
+  'items',
+] as const satisfies readonly StockCountScope[];
 
 /** Where an item in a bin stands for its counter. */
 export const STOCK_COUNT_LINE_STATES = [

@@ -137,13 +137,7 @@ export async function postStockCount(
   rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<StockCountPostedDto>> {
-  return countCommand(
-    'postStockCount',
-    PostStockCountInput,
-    postCommand,
-    rawInput,
-    idempotencyKey,
-  );
+  return countCommand('postStockCount', PostStockCountInput, postCommand, rawInput, idempotencyKey);
 }
 
 /** Cancel a count before it posts. */

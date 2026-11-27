@@ -7023,11 +7023,18 @@
         "reviewLink": "Review this count",
         "back": "Back to stock counts"
       },
+      "printSheet": {
+        "title": "Stock count sheet",
+        "intro": "The count as it stands, for the record. Print it and have it signed.",
+        "print": "Print sheet",
+        "frame": "Stock count sheet"
+      },
       "review": {
         "title": "Review stock count",
         "heading": "Review the count of {hub}",
         "intro": "Each line shows what the records held when it was counted, with what moved in the bin during the count. Ask for anything that looks wrong to be counted again.",
         "caption": "What was counted, against the records",
+        "noLines": "Nothing was listed or found in this count.",
         "columns": {
           "bin": "Bin",
           "item": "Item",

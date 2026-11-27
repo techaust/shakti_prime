@@ -97,7 +97,9 @@ export function CountingScreen({
           <>
             <p className="font-medium">{t('progress', { count: progress.toCount })}</p>
             {progress.recountOpen > 0 ? (
-              <p className="text-warning">{t('recountProgress', { count: progress.recountOpen })}</p>
+              <p className="text-warning">
+                {t('recountProgress', { count: progress.recountOpen })}
+              </p>
             ) : null}
           </>
         ) : (
@@ -237,7 +239,10 @@ export function CountingScreen({
             {t('reviewLink')}
           </Link>
         ) : null}
-        <Link className="text-accent-text underline-offset-4 hover:underline" href="/inventory/counts">
+        <Link
+          className="text-accent-text underline-offset-4 hover:underline"
+          href="/inventory/counts"
+        >
           {t('back')}
         </Link>
       </div>

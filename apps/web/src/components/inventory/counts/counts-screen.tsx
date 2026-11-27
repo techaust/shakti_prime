@@ -113,12 +113,16 @@ export function CountsScreen({
       cell: (r) =>
         r.scope === 'hub'
           ? t('scopes.hub')
-          : t(`scopes.${r.scope}`, { count: (r.scope === 'bins' ? r.binIds : r.itemIds)?.length ?? 0 }),
+          : t(`scopes.${r.scope}`, {
+              count: (r.scope === 'bins' ? r.binIds : r.itemIds)?.length ?? 0,
+            }),
     },
     {
       id: 'state',
       header: t('columns.state'),
-      cell: (r) => <StatusBadge tone={countStateTone(r.state)}>{t(`states.${r.state}`)}</StatusBadge>,
+      cell: (r) => (
+        <StatusBadge tone={countStateTone(r.state)}>{t(`states.${r.state}`)}</StatusBadge>
+      ),
     },
     { id: 'started', header: t('columns.started'), cell: (r) => formatDateTime(r.startedAt) },
     { id: 'startedBy', header: t('columns.startedBy'), cell: (r) => r.startedByName },
@@ -210,7 +214,7 @@ export function CountsScreen({
           entityId={entityId}
           companies={companies}
           hubs={hubs}
-          returnFocusTo={startButton}
+          returnFocusTo={() => [startButton.current]}
           onClose={() => {
             setStarting(false);
           }}

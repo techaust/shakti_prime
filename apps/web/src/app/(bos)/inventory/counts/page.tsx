@@ -31,9 +31,8 @@ export default async function StockCountsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { principal, access, activeEntityId, can } = await screenAccess(
-    navRequires('inventory-counts'),
-  );
+  const guard = screenAccess(navRequires('inventory-counts'));
+  const { principal, access, activeEntityId, can } = await guard;
   const query = await searchParams;
   const asked = companyParam(query.company);
   if (asked !== undefined && !principal.entityIds.includes(asked)) notFound();
@@ -76,7 +75,9 @@ export default async function StockCountsPage({
           }
         />
       ) : (
-        <FailureMessage failure={hubs === undefined ? firstFailure(page) : firstFailure(page, hubs)} />
+        <FailureMessage
+          failure={hubs === undefined ? firstFailure(page) : firstFailure(page, hubs)}
+        />
       )}
     </Page>
   );
