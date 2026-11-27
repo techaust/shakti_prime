@@ -5,9 +5,9 @@
 | Branch | `feat/r3-warranty` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): stock out, costs behind `finance.cost.read`, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC |
-| State | briefed |
-| Next step | the builder |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account, 27-11-2026 (start and end of the blocked run) |
+| State | blocked: the ledger definer cannot give a serial the warranty states |
+| Next step | the lead decides the question in the Report, then the builder again |
 
 ## Brief
 Build [phase3 §7.5](../../03-roadmap-appendix/phase3.md#75-r3-warranty-claims-and-supplier-returns) as written, with question 10 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -65,6 +65,44 @@ Review checklist: no cost in any DTO, event, audit value or notification without
 Shared registration points take one line or one block each, kept together under a comment naming your slice; the lead merges them. They are `en.json`, `WORKSHOP_DEFAULTS`, the permission catalogue and seed, the event catalogue and worker registry, the state machine registry, the import kinds' registry, the print document registry, the testing lists, `nav.ts`, `turbo.json` and `.env.example`.
 
 ## Report
+
+### 27-11-2026, seat slot 2 (Postgres 54332): blocked before building
+
+**Nothing is built yet.** I read the brief, `CLAUDE.md`, `AGENTS.md`, phase3 §1 to §5, §7, §13 and §14, the `warranty-claim` and `serial` machines, H1's schema and its definer `app.stock_move()` in the H1 migration (`0231_h1_stock_ledger_rls.sql`), and the X4, H2 and U2 briefs. No skill was loaded, since no code was written.
+
+**The question.** Brief point 3 needs `app.stock_move()` to move serials into states it never gives. The brief also forbids redefining the function, and `serials` has no other writer: no request role holds a write grant on it.
+
+| Step in the brief | What the definer does today | Result |
+|---|---|---|
+| `.replace`: the replacement serial is issued from stock as `warranty_replacement`; the serial machine's `replace` goes `in_stock` → `with_customer` | An outbound line with no target bin always sets the serial to `scrapped` with no bin (migration line 599) | The replacement is marked written off, not with the customer |
+| The failed serial comes back into quarantine as `return_customer`, `with_customer` → `faulty` (`return_faulty`) | An inbound line with no source bin accepts only a `scrapped` serial, refuses every other state with `stock_serial_exists`, and sets `in_stock` (lines 582 to 590) | The return is refused, and would have set `in_stock` instead of `faulty` |
+| `.rma_raise`: the failed serial goes to `with_supplier` | An outbound line accepts only an `in_stock` serial (line 592). The brief opens no reason for this movement (`return_supplier` would be the ledger's one), and `serials_bin_check` needs the bin cleared for `with_supplier` | Without a movement, the quarantine bin's balance keeps a unit the serial is no longer in. With a movement, it is refused |
+| `.settle` by a supplier replacement through `receipt` | Only `opening` and `adjust_gain` create a new serial; any other reason with an unknown number is refused `stock_serial_unknown` (line 476) | A supplier's new serial cannot be received. U2's `procurement.grn.post` hits the same line for every serial-tracked receipt |
+| The replacement's customer, site, delivery date and warranty date | Only the definer writes `serials`, and it sets none of these | They cannot be recorded |
+
+**Options for the lead:**
+- **(a) Recommended.** X4 is still being built in this wave: its branch holds only the brief, as of 14:12 UTC. Widen X4's registry so that each reason also states the serial's move. That could be a second table, `app.stock_reason_serial_moves (reason, direction, from_states, to_state)`, seeded with H1's behaviour exactly, which `app.stock_move()`'s serial block reads instead of the fixed states. A later slice then adds its moves with one insert, as it opens a reason. R3 would add:
+  - `warranty_replacement` out, `in_stock` → `with_customer`;
+  - `return_customer` in, `with_customer` → `faulty`, into a quarantine bin;
+  - `return_supplier` out, `faulty` → `with_supplier`.
+
+  U2 would add `receipt` in, which creates a new serial. The customer's columns on a serial that goes to `with_customer` would be line fields the definer writes (`account_id`, `site_id`, `delivered_at`, `warranty_until`), or a narrow R3 definer that writes only those columns and never the state or bin.
+- **(b)** R3 redefines the serial block of `app.stock_move()` itself. This breaks the brief's rule, and the lead then merges three redefinitions (X4, H2, R3).
+- **(c)** R3 adds its own definer that changes the serial's state around each `app.stock_move()` call: `scrapped` before a return so the definer accepts it, then `faulty`; `with_customer` after the issue. Not recommended. The serial passes through states its machine does not have, and `serials` gets a second writer of state and bin, against phase3 §5 and this brief's review item "the serial's state and bin stay in step".
+
+**Also for the lead's decision, recorded with the brief's answer:**
+- `.rma_raise` needs a movement out of quarantine: the reason `return_supplier` and its grant, which I take to be `procurement.po.write:entity`, as phase3 §14 gives `rma.raise`.
+- The replacement serial's warranty date. I would carry the failed serial's `warranty_until` over, so the customer keeps the term they had. Whether a replacement restarts the term belongs to the client (phase3 §12, question 10). I would record that as an assumption unless the lead rules otherwise.
+
+**Not affected; built as soon as the question is answered:**
+- the `warranty_claims` table, its row security and the restricted cost columns;
+- the series kind `WC`;
+- `.raise`, `.identify_serial` (with the IST refusal at 23:30 and 00:30), `.reject` and the credit branch of `.settle`;
+- the queries, the installed-base import (its own narrow definer, which inserts `with_customer` serials with no movement), and the screens.
+
+The reason opening also waits for X4 to merge, as the brief foresees.
+
+**Checks run:** none, since no code changed.
 
 ## Review
 
