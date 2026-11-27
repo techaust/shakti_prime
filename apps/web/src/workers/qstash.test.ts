@@ -211,6 +211,7 @@ describe('qstashEventPublisher', () => {
       'sales.order.credit_held',
       'calls.missed.recorded',
       'crm.lead.attached',
+      'inventory.reservation.expiring',
     ] as const;
     const events = types.map((type) => event(type));
     queue.batchJSON.mockResolvedValue(events.map(() => ({ messageId: 'm', url: 'u' })));

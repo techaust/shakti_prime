@@ -14,6 +14,7 @@ import {
   Field,
   Input,
   Select,
+  Textarea,
   toast,
   type DataGridColumn,
   type ReturnFocusTo,
@@ -250,6 +251,8 @@ function Frame({
 
 const STATE = /^[0-9]{2}$/;
 const PIN = /^[1-9][0-9]{5}$/;
+/** At most this many PIN codes a hub serves first (`HubPinCodesSchema`). */
+const MAX_PIN_CODES = 2000;
 const CODE = /^[A-Za-z0-9][A-Za-z0-9-]*$/;
 
 function HubForm({
@@ -267,9 +270,14 @@ function HubForm({
   const create = useCommand(createHub);
   const update = useCommand(updateHub);
   const { pending, failure } = hub === undefined ? create : update;
-  const { fieldError, formFailure } = useFieldFailure(failure, ['code', 'name', 'pinCode']);
+  const { fieldError, formFailure } = useFieldFailure(failure, [
+    'code',
+    'name',
+    'pinCode',
+    'pinCodes',
+  ]);
   const [kind, setKind] = useState<string>(hub?.kind ?? 'godown');
-  const [problem, setProblem] = useState<'code' | 'name' | 'state' | 'pin' | undefined>();
+  const [problem, setProblem] = useState<'code' | 'name' | 'state' | 'pin' | 'pins' | undefined>();
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -280,6 +288,14 @@ function HubForm({
     const address = formText(data, 'address');
     const stateCode = formText(data, 'stateCode');
     const pinCode = formText(data, 'pinCode');
+    // H2: the PIN codes the hub serves first, separated by commas, spaces or lines.
+    const pinCodes = [
+      ...new Set(
+        formText(data, 'pinCodes')
+          .split(/[\s,]+/)
+          .filter((p) => p !== ''),
+      ),
+    ];
     const site = kind !== 'transit';
     if (!CODE.test(code) || code.length > 20) {
       setProblem('code');
@@ -297,6 +313,10 @@ function HubForm({
       setProblem('pin');
       return;
     }
+    if (pinCodes.length > MAX_PIN_CODES || pinCodes.some((p) => !PIN.test(p))) {
+      setProblem('pins');
+      return;
+    }
     setProblem(undefined);
     const fields = {
       code,
@@ -304,6 +324,7 @@ function HubForm({
       address: address === '' ? null : address,
       stateCode: stateCode === '' ? null : stateCode,
       pinCode: pinCode === '' ? null : pinCode,
+      pinCodes: site ? pinCodes : [],
     };
     const done = () => {
       toast.success(t('saved'));
@@ -383,6 +404,22 @@ function HubForm({
           defaultValue={hub?.pinCode ?? ''}
         />
       </Field>
+      {kind === 'transit' ? null : (
+        <Field
+          id="hub-pin-codes"
+          label={t('pinCodes')}
+          helper={t('pinCodesHelper')}
+          error={problem === 'pins' ? t('pinCodesInvalid') : fieldError('pinCodes')}
+        >
+          <Textarea
+            name="pinCodes"
+            inputMode="numeric"
+            rows={3}
+            autoComplete="off"
+            defaultValue={hub?.pinCodes.join(', ') ?? ''}
+          />
+        </Field>
+      )}
       <FailureMessage failure={formFailure} />
       <DialogFooter>
         <Button variant="secondary" onClick={onClose}>

@@ -58,6 +58,13 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
         nurtured: p.nurtured === true,
         attachedBy: typeof p.attachedBy === 'string' ? p.attachedBy : null,
       };
+    case 'inventory.reservation.expiring':
+      return {
+        ...base,
+        event: 'inventory.reservation.expiring',
+        orderId: event.aggregateId,
+        ownerId: String(p.ownerId),
+      };
     case 'calls.missed.recorded':
       return {
         ...base,

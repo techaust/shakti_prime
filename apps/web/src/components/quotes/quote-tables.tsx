@@ -1,18 +1,40 @@
 'use client';
 
-import type { QuoteLineDto, QuoteTotalsDto, SupplyKind } from '@shakti/contracts';
+import type {
+  LineAvailabilityDto,
+  QuoteLineDto,
+  QuoteTotalsDto,
+  SupplyKind,
+} from '@shakti/contracts';
 import { CardList } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { formatRupees } from '../../screens/format';
 import { plainQuantity } from '../../screens/quotes';
+import {
+  AvailabilityValue,
+  availabilityByPosition,
+  type LineAvailability,
+} from '../inventory/availability';
 
 /**
  * A quote's lines as the server priced and taxed them: every amount comes from the quote or its
  * preview, and nothing is added up here (AGENTS.md §11). A table on wider screens and a card per
  * line on a phone, so each line's amounts stay on screen (docs/08-design-system.md §5).
  */
-export function QuoteLinesTable({ lines, caption }: { lines: QuoteLineDto[]; caption: string }) {
+export function QuoteLinesTable({
+  lines,
+  caption,
+  availability,
+}: {
+  lines: QuoteLineDto[];
+  caption: string;
+  /** H2: each line's availability, shown as a column when given. */
+  availability?: LineAvailabilityDto | undefined;
+}) {
   const t = useTranslations('quotes.page');
+  const stock = useTranslations('inventory.availability');
+  const byPosition = availabilityByPosition(availability);
+  const shown = availability !== undefined;
   const gst = (line: QuoteLineDto) =>
     line.compositeRuleId === null
       ? t('gstRate', { rate: Number(line.taxRatePct ?? '0') })
@@ -70,10 +92,24 @@ export function QuoteLinesTable({ lines, caption }: { lines: QuoteLineDto[]; cap
               value: formatRupees(line.lineTotal),
               numeric: true,
             },
+            ...(shown
+              ? [
+                  {
+                    id: 'stock',
+                    label: stock('column'),
+                    value: <AvailabilityValue line={byPosition.get(line.position)} />,
+                  },
+                ]
+              : []),
           ],
         }))}
       />
-      <QuoteLinesWide lines={lines} caption={caption} gst={gst} />
+      <QuoteLinesWide
+        lines={lines}
+        caption={caption}
+        gst={gst}
+        availability={shown ? byPosition : undefined}
+      />
     </>
   );
 }
@@ -83,12 +119,15 @@ function QuoteLinesWide({
   lines,
   caption,
   gst,
+  availability,
 }: {
   lines: QuoteLineDto[];
   caption: string;
   gst: (line: QuoteLineDto) => string;
+  availability: ReadonlyMap<number, LineAvailability> | undefined;
 }) {
   const t = useTranslations('quotes.page');
+  const stock = useTranslations('inventory.availability');
   return (
     // A wide table scrolls in a narrow window: the region takes focus, so the keyboard can scroll it.
     <div
@@ -125,6 +164,11 @@ function QuoteLinesWide({
             <th scope="col" className="px-3 py-2 text-right font-medium">
               {t('lineColumns.total')}
             </th>
+            {availability === undefined ? null : (
+              <th scope="col" className="px-3 py-2 font-medium">
+                {stock('column')}
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -143,6 +187,11 @@ function QuoteLinesWide({
               </td>
               <td className="px-3 py-2 text-right tabular-nums">{gst(line)}</td>
               <td className="px-3 py-2 text-right tabular-nums">{formatRupees(line.lineTotal)}</td>
+              {availability === undefined ? null : (
+                <td className="px-3 py-2">
+                  <AvailabilityValue line={availability.get(line.position)} />
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

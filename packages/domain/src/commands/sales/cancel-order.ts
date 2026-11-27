@@ -101,7 +101,17 @@ export const cancelSalesOrder = defineCommand({
         now: ctx.now,
         params: { reason: input.reason },
       });
-      await releaseOrderReservations(ctx.tx, row.id, input.reason);
+      const released = await releaseOrderReservations(ctx.tx, row.id, input.reason);
+      // Each freed hold goes to the fill, so the next backorder of its item takes the stock.
+      for (const r of released) {
+        ctx.emit({
+          type: 'inventory.reservation.released',
+          entityId: row.entityId,
+          aggregateType: 'reservation',
+          aggregateId: r.reservationId,
+          payload: { reservationId: r.reservationId, salesOrderId: row.id, itemId: r.itemId },
+        });
+      }
     }
     if (row.quoteId !== null && row.opportunityId !== null) {
       await withdrawAcceptedQuote(ctx, row.entityId, row.quoteId, input.reason);

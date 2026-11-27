@@ -689,6 +689,7 @@ const FIELD_KINDS = [
   ['hubAddress', 'text'],
   ['hubStateCode', 'text'],
   ['hubPinCode', 'text'],
+  ['hubPinCodes', 'text'],
   ['binCode', 'text'],
   ['binKind', 'binKind'],
   ['stockReason', 'stockReason'],

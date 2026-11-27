@@ -114,6 +114,22 @@ export const QuoteExpireWorkerResponse = z
 export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;
 
 /**
+ * The daily reservation scan (`inventory.reservation.scan` and `.fill`, H2,
+ * docs/03-roadmap-appendix/phase3.md §7.1), called by the QStash schedule
+ * `reservation-scan-<environment>` with an empty body: every company in turn, its holds past their
+ * date lapsed, those ending within the reminder days told, then a fill of every item its open
+ * orders wait for, each batch in its own transaction as `system:workers`.
+ */
+export const ReservationScanWorkerBody = z.object({}).strict();
+export type ReservationScanWorkerBody = z.infer<typeof ReservationScanWorkerBody>;
+
+/** What one scan run did: holds lapsed and reminded, backorders filled, and whether it finished. */
+export const ReservationScanWorkerResponse = z
+  .object({ lapsed: Count, reminded: Count, filled: Count, done: z.boolean() })
+  .strict();
+export type ReservationScanWorkerResponse = z.infer<typeof ReservationScanWorkerResponse>;
+
+/**
  * The nightly anonymisation of unqualified leads idle for the retention period
  * (`crm.lead.anonymise`, BLUEPRINT §7.9), called by the QStash schedule
  * `lead-anonymise-<environment>` with an empty body: every company in turn, each batch in its own

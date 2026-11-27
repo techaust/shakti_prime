@@ -1,6 +1,6 @@
 'use client';
 
-import type { QuoteDto } from '@shakti/contracts';
+import type { LineAvailabilityDto, QuoteDto } from '@shakti/contracts';
 import {
   Button,
   Dialog,
@@ -59,11 +59,14 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
  */
 export function QuoteScreen({
   initial,
+  availability,
   company,
   placeOfSupply,
   acceptLimit,
 }: {
   initial: QuoteDto;
+  /** H2: each line's availability, as the reader may see it. */
+  availability?: LineAvailabilityDto | undefined;
   company: string;
   /** The state of supply in words, as the quotation prints it. */
   placeOfSupply: string;
@@ -269,7 +272,11 @@ export function QuoteScreen({
         ) : null}
       </section>
 
-      <QuoteLinesTable lines={quote.lines} caption={t('page.linesCaption')} />
+      <QuoteLinesTable
+        lines={quote.lines}
+        caption={t('page.linesCaption')}
+        availability={availability}
+      />
       <QuoteTotals totals={quote.totals} supplyKind={quote.supplyKind} />
 
       {accepting && acceptLimit !== undefined ? (

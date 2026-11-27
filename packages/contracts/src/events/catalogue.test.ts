@@ -64,6 +64,12 @@ describe('the event catalogue', () => {
         'crm.opportunity.assigned',
         'crm.opportunity.stage_moved',
         'files.file.uploaded',
+        // H2: stock into a bin and ended holds go to the fill; a hold ending soon is told.
+        'inventory.reservation.expiring',
+        'inventory.reservation.lapsed',
+        'inventory.reservation.moved',
+        'inventory.reservation.released',
+        'inventory.stock.moved',
         'knowledge.file.index_requested',
         'knowledge.playbook.changed',
         'messaging.button.pressed',

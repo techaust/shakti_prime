@@ -51,18 +51,24 @@ export function reserveOrder(tx: RequestTx, orderId: string, now: Date): Promise
   );
 }
 
+/** A reservation a cancellation released, with its item. */
+export interface ReleasedReservation {
+  reservationId: string;
+  itemId: string;
+}
+
 /**
  * A cancelled order's reservations released with its reason, and nothing of it left backordered
- * (`app.release_order_reservations()`). Answers how many reservations it released.
+ * (`app.release_order_reservations()`). Answers each reservation released, with its item.
  */
-export async function releaseOrderReservations(
+export function releaseOrderReservations(
   tx: RequestTx,
   orderId: string,
   reason: string,
-): Promise<number> {
-  const [row] = await reservationCall<{ released: number }>(
+): Promise<ReleasedReservation[]> {
+  return reservationCall<ReleasedReservation>(
     tx,
-    sql`select app.release_order_reservations(${orderId}::uuid, ${reason}) as released`,
+    sql`select reservation_id as "reservationId", item_id as "itemId"
+          from app.release_order_reservations(${orderId}::uuid, ${reason})`,
   );
-  return row?.released ?? 0;
 }

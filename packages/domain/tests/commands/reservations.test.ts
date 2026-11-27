@@ -10,8 +10,10 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  createTestUser,
   principalFor,
 } from '@shakti/db/testing';
+import type { RequestContext } from '@shakti/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
@@ -22,10 +24,15 @@ import {
   releaseReservation,
 } from '../../src/commands/inventory/reservations';
 import { fillBackorders, scanReservations } from '../../src/commands/inventory/reservations-jobs';
+import { notifyEvent } from '../../src/commands/notifications/notify';
 import { cancelSalesOrder } from '../../src/commands/sales/cancel-order';
 import { confirmSalesOrder } from '../../src/commands/sales/confirm-order';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
-import { readLineAvailability } from '../../src/queries/inventory/availability';
+import {
+  previewLineAvailability,
+  readLineAvailability,
+} from '../../src/queries/inventory/availability';
+import { listItemBackorders, listReservations } from '../../src/queries/inventory/reservations';
 import { stockMove } from '../../src/stock/move';
 import { WORKSHOP_DEFAULTS } from '../../src/workshop-defaults';
 import {
@@ -212,6 +219,7 @@ describe('availability on an order', () => {
       free: null,
       reserved: '0.500',
       backordered: '0.500',
+      dispatched: '0.000',
     });
   });
 
@@ -230,6 +238,80 @@ describe('availability on an order', () => {
       readLineAvailability(ctx, { entityId: E, kind: 'order', id: orderId }),
     );
     expect(view.withCounts).toBe(true);
+  });
+});
+
+describe('the stock lists of reservations and backorders', () => {
+  it('list an order’s and an item’s active holds, and its backorders in queue order, with inventory.stock.read', async () => {
+    const item = await freshItem();
+    await gain(s.binA, item, '1');
+    const first = await draftOrder(f, lc.id, [{ itemId: item, qty: '2' }]);
+    const second = await draftOrder(f, lc.id, [{ itemId: item, qty: '1' }]);
+    await confirm(first.orderId);
+    await confirm(second.orderId);
+    const held = await asPrincipal(manager, (ctx) =>
+      listReservations(ctx, { entityId: E, orderId: first.orderId }),
+    );
+    expect(held.items).toHaveLength(1);
+    expect(held.items[0]).toMatchObject({
+      orderId: first.orderId,
+      itemId: item,
+      qty: '1.000',
+      hubId: s.hub,
+      binCode: 'A1',
+      extended: false,
+      // The Inventory Manager reads no lead's order: its number and line stay hidden.
+      soNo: null,
+      linePosition: null,
+    });
+    const byItem = await asPrincipal(gm, (ctx) =>
+      listReservations(ctx, { entityId: E, itemId: item }),
+    );
+    expect(byItem.items.map((r) => r.orderId)).toEqual([first.orderId]);
+    expect(byItem.items[0]?.soNo).not.toBeNull();
+    const waiting = await asPrincipal(manager, (ctx) =>
+      listItemBackorders(ctx, { entityId: E, itemId: item }),
+    );
+    expect(waiting.items.map((b) => [b.orderId, b.backordered])).toEqual([
+      [first.orderId, '1.000'],
+      [second.orderId, '1.000'],
+    ]);
+    const reads: ((ctx: RequestContext) => Promise<unknown>)[] = [
+      (ctx) => listReservations(ctx, { entityId: E, itemId: item }),
+      (ctx) => listItemBackorders(ctx, { entityId: E, itemId: item }),
+    ];
+    for (const read of reads) {
+      await expect(asPrincipal(lc, read)).rejects.toMatchObject({ code: 'forbidden' });
+      await expect(asPrincipal(managerOther, read)).rejects.toMatchObject({ code: 'forbidden' });
+    }
+  });
+
+  it('preview the quote builder’s lines: a status for a Lead Converter, the free stock for the Inventory Manager', async () => {
+    const item = await freshItem();
+    await gain(s.binB, item, '2');
+    const lines = [
+      { position: 1, itemId: item, qty: '3' },
+      { position: 2, kitId: f.kit, qty: '1' },
+      { position: 3, itemId: f.service, qty: '1' },
+    ];
+    const status = await asPrincipal(lc, (ctx) =>
+      previewLineAvailability(ctx, { entityId: E, lines }),
+    );
+    expect(status.withCounts).toBe(false);
+    expect(status.lines.map((l) => [l.position, l.status])).toEqual([
+      [1, 'partly_covered'],
+      [2, expect.any(String) as unknown],
+    ]);
+    expect(JSON.stringify(status)).not.toMatch(/"(free|reserved|backordered|dispatched)"/);
+    const counted = await asPrincipal(manager, (ctx) =>
+      previewLineAvailability(ctx, { entityId: E, lines }),
+    );
+    expect(counted.withCounts).toBe(true);
+    expect(counted.lines[0]).toMatchObject({ position: 1, free: '2.000', lineId: null });
+    const field = await createTestPrincipal('field_engineer', [E]);
+    await expect(
+      asPrincipal(field, (ctx) => previewLineAvailability(ctx, { entityId: E, lines })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
 
@@ -509,6 +591,43 @@ describe('the platform’s jobs', () => {
     expect(
       (await eventsOf(orderId)).filter((e) => e.type === 'inventory.reservation.expiring'),
     ).toHaveLength(1);
+  });
+
+  it('tell the order’s owner and the company’s Inventory Managers, once a reminder', async () => {
+    const owner = await createTestUser([{ entityId: E, roleKey: 'tele_caller_lc' }]);
+    const keeper = await createTestUser([{ entityId: E, roleKey: 'inventory_manager' }]);
+    const elsewhere = await createTestUser([{ entityId: 3, roleKey: 'inventory_manager' }]);
+    const { orderId } = await heldOrder();
+    const input = {
+      event: 'inventory.reservation.expiring',
+      entityId: E,
+      eventId: newId(),
+      orderId,
+      ownerId: owner.id,
+    };
+    await run(workers(), notifyEvent, input);
+    await run(workers(), notifyEvent, input);
+    const notices = await asMigrator(
+      (m) => m<{ user_id: string; type: string }[]>`
+        select user_id, type from notifications where subject_id = ${orderId}`,
+    );
+    const to = notices.map((n) => n.user_id);
+    expect(to.filter((u) => u === owner.id)).toHaveLength(1);
+    expect(to.filter((u) => u === keeper.id)).toHaveLength(1);
+    expect(to).not.toContain(elsewhere.id);
+    expect(new Set(notices.map((n) => n.type))).toEqual(new Set(['reservation_expiring']));
+    await expect(run(manager, notifyEvent, input)).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('send a cancelled order’s freed holds to the fill', async () => {
+    const { orderId, reservationId, item } = await heldOrder();
+    await run(gm, cancelSalesOrder, { entityId: E, orderId, reason: 'Customer withdrew' });
+    const events = await eventsOf(reservationId);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: 'inventory.reservation.released',
+      payload_json: { reservationId, salesOrderId: orderId, itemId: item },
+    });
   });
 
   it('refuse a company outside the request', async () => {

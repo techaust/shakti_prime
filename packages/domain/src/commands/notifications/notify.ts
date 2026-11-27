@@ -105,6 +105,23 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         dedupeKey: `order_credit_held:${input.eventId}`,
       }));
     }
+    case 'inventory.reservation.expiring': {
+      // The order's owner and the company's Inventory Managers, while the order is open; one
+      // notice per reminder (an extension's reminder is a new event).
+      const people = (await ctx.tx.execute(
+        sql`select user_id, account_id
+              from app.notice_reservation_people(${input.entityId}::smallint, ${input.orderId}::uuid,
+                                                 ${input.ownerId}::uuid)`,
+      )) as unknown as { user_id: string; account_id: string }[];
+      return people.map((p) => ({
+        userId: p.user_id,
+        type: 'reservation_expiring',
+        subjectType: 'sales_order',
+        subjectId: input.orderId,
+        payload: { accountId: p.account_id },
+        dedupeKey: `reservation_expiring:${input.eventId}`,
+      }));
+    }
     case 'sales.quote.accepted': {
       // The lead's owner, unless they recorded the acceptance themselves; once a quote.
       const lead = await quoteLead(ctx, input.entityId, input.quoteId);

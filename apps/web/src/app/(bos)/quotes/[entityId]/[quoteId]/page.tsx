@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getQuote } from '../../../../../actions/quotes';
+import { getLineAvailability } from '../../../../../actions/reservations';
 import { QuoteScreen } from '../../../../../components/quotes/quote-screen';
 import { FailureMessage } from '../../../../../components/screens/failure';
 import { Page } from '../../../../../components/shell/page';
@@ -44,7 +45,11 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
   if (!Number.isInteger(entityId) || entityId < 1 || entityId > 32_767 || !UUID.test(quoteId)) {
     notFound();
   }
-  const quote = await getQuote({ entityId, quoteId });
+  const [quote, availability] = await Promise.all([
+    getQuote({ entityId, quoteId }),
+    // H2: each line's availability; a reader with neither stock nor quotes simply sees none.
+    getLineAvailability({ entityId, kind: 'quote', id: quoteId }),
+  ]);
   if (!quote.ok && ['quote_missing', 'forbidden'].includes(quote.error)) notFound();
   const t = await getTranslations('quotes');
   const print = await getTranslations('print');
@@ -56,6 +61,7 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
       // A fresh screen for each quote, so a re-quote opens with its own state.
       key={quote.data.id}
       initial={quote.data}
+      availability={availability.ok ? availability.data : undefined}
       company={companyNames(access)[quote.data.entityId] ?? ''}
       // For a caller who may record an acceptance once the quote is sent, whatever it is now.
       {...(can('sales.quote.send', 'own') && can('sales.order.create', 'own')

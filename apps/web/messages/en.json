@@ -2412,6 +2412,7 @@
       "hubAddress": "Hub address",
       "hubStateCode": "State code",
       "hubPinCode": "PIN code",
+      "hubPinCodes": "PIN codes this hub serves first",
       "binCode": "Bin code",
       "binKind": "Kind of bin",
       "stockReason": "Why stock moved",
@@ -5392,7 +5393,8 @@
       "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
       "missed_call": "A customer gave you a missed call",
-      "enquiry_attached": "A customer of your lead in nurture asked again"
+      "enquiry_attached": "A customer of your lead in nurture asked again",
+      "reservation_expiring": "Stock held for an order is released soon"
     },
     "settings": {
       "title": "Notification settings",
@@ -5571,6 +5573,10 @@
     "enquiry_attached": {
       "title": "A customer asked again",
       "body": "A customer of your lead in nurture made a new enquiry, and it was added to that lead. Tap to open the customer."
+    },
+    "reservation_expiring": {
+      "title": "Held stock is released soon",
+      "body": "Stock set aside for an order is released soon unless someone extends the hold. Tap to open the order."
     }
   },
   "orders": {
@@ -6843,6 +6849,9 @@
         "stateCodeInvalid": "Enter the two-digit state code.",
         "pinCode": "PIN code",
         "pinCodeInvalid": "Enter the six-digit PIN code.",
+        "pinCodes": "PIN codes this hub serves first",
+        "pinCodesHelper": "Orders for a site with one of these PIN codes take stock from this hub first. Separate them with commas or spaces.",
+        "pinCodesInvalid": "Enter six-digit PIN codes, each once, up to 2,000.",
         "submit": "Save hub"
       },
       "binForm": {
@@ -6893,6 +6902,77 @@
       "supplierWarrantyUntil": "Supplier's warranty until",
       "notSet": "Not set",
       "movements": "Movements"
+    },
+    "availability": {
+      "column": "Stock",
+      "none": "Not kept in stock",
+      "status": {
+        "covered": "In stock",
+        "partly_covered": "Partly in stock",
+        "short": "Out of stock"
+      },
+      "onOrder": "On order",
+      "expected": "Expected {date}",
+      "free": "{qty} free",
+      "reserved": "{qty} held",
+      "backordered": "{qty} waiting",
+      "dispatched": "{qty} dispatched"
+    },
+    "reservations": {
+      "heading": "Stock held for orders",
+      "orderIntro": "Stock set aside for this order, held until the date shown. A hold can be extended once.",
+      "itemIntro": "Stock of this item set aside for orders, soonest to end first.",
+      "caption": "Stock held for orders",
+      "empty": "No stock is held.",
+      "more": "Only the first 100 holds are shown.",
+      "columns": {
+        "order": "Order",
+        "item": "Item",
+        "where": "Hub and bin",
+        "quantity": "Quantity",
+        "until": "Held until",
+        "actions": "Actions"
+      },
+      "line": "Line {position}",
+      "orderHidden": "An order you can't open",
+      "extended": "Extended once",
+      "extend": "Extend",
+      "release": "Release",
+      "move": "Move",
+      "extendLabel": "Extend the hold on {item}",
+      "releaseLabel": "Release the hold on {item}",
+      "moveLabel": "Move the hold on {item}",
+      "extendTitle": "Extend this hold",
+      "extendIntro": "The stock stays set aside for one more hold period. A hold can be extended only once.",
+      "releaseTitle": "Release this hold",
+      "releaseIntro": "The stock becomes free for other orders, and this order waits for stock again behind the orders already waiting.",
+      "moveTitle": "Hold the stock in another hub",
+      "moveIntro": "The same quantity is set aside from the other hub's free stock, until the same date. If that hub has too little, nothing changes.",
+      "reason": "Reason",
+      "reasonHelper": "3 to 300 characters.",
+      "reasonInvalid": "Enter a reason of 3 to 300 characters.",
+      "hub": "Hub",
+      "chooseHub": "Choose a hub",
+      "hubRequired": "Choose the hub to hold the stock in.",
+      "extendSubmit": "Extend hold",
+      "releaseSubmit": "Release hold",
+      "moveSubmit": "Move hold",
+      "extendedToast": "Hold extended.",
+      "released": "Hold released.",
+      "moved": "Hold moved."
+    },
+    "backorders": {
+      "heading": "Orders waiting for this item",
+      "intro": "When stock arrives in a storage bin, it goes to these orders in this order.",
+      "caption": "Orders waiting for this item",
+      "empty": "No order is waiting for this item.",
+      "more": "Only the first 100 orders are shown.",
+      "columns": {
+        "order": "Order",
+        "waiting": "Waiting",
+        "needed": "Needed",
+        "since": "Waiting since"
+      }
     }
   }
 }

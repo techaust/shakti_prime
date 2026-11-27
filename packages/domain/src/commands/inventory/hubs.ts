@@ -30,6 +30,8 @@ const HUB_AUDIT_FIELDS = [
   'hubAddress',
   'hubStateCode',
   'hubPinCode',
+  // H2
+  'hubPinCodes',
   'archivedAt',
 ] as const;
 const BIN_AUDIT_FIELDS = ['binCode', 'binKind', 'archivedAt'] as const;
@@ -61,6 +63,7 @@ function auditedHub(row: HubRow) {
     hubAddress: row.address,
     hubStateCode: row.stateCode,
     hubPinCode: row.pinCode,
+    hubPinCodes: row.pinCodes.join(', '),
     archivedAt: row.archivedAt?.toISOString() ?? null,
   };
 }
@@ -195,6 +198,7 @@ export const createHub = defineCommand({
         address: input.address,
         stateCode: input.stateCode,
         pinCode: input.pinCode,
+        pinCodes: input.pinCodes,
         createdBy: ctx.principal.id,
       })
       .returning();
@@ -264,6 +268,7 @@ export const updateHub = defineCommand({
         address: input.address,
         stateCode: input.stateCode,
         pinCode: input.pinCode,
+        ...(input.pinCodes === undefined ? {} : { pinCodes: input.pinCodes }),
         updatedBy: ctx.principal.id,
       })
       .where(eq(schema.warehouses.id, before.id))

@@ -232,7 +232,16 @@ export {
   scanReservations,
   RESERVATION_BATCH,
 } from './commands/inventory/reservations-jobs';
-export { readLineAvailability, readsStockCounts } from './queries/inventory/availability';
+export {
+  previewLineAvailability,
+  readLineAvailability,
+  readsStockCounts,
+} from './queries/inventory/availability';
+export {
+  listItemBackorders,
+  listReservations,
+  RESERVATION_LIST_LIMIT,
+} from './queries/inventory/reservations';
 export { archiveKit, createKit, updateKit } from './commands/catalogue/kits';
 export { setPumpCurve } from './commands/catalogue/pump-curve';
 // U1 vendors and supplier quotes.

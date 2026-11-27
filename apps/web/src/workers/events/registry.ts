@@ -20,6 +20,7 @@ import { renderJobOf } from '../pdf/job';
 import { sendJobOf } from '../messaging/job';
 import { whatsappButtonSecret } from '../messaging/button-secret';
 import { recordProbeArrival } from './probe';
+import { handleFillEvent } from '../reservations/fill-event';
 
 /** What a handler is given: the system principal for the event's company and the shared store. */
 export interface EventHandlerContext {
@@ -229,7 +230,20 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'calls.missed.recorded': { ordering: 'every', handle: notify },
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead, told to its owner.
   'crm.lead.attached': { ordering: 'every', handle: notify },
+  // H2: stock into a bin, or a hold that ended, goes to the item's backorders in order of
+  // confirmation (docs/03-roadmap-appendix/phase3.md §7.1); a hold about to end is told to the
+  // order's owner and the company's Inventory Managers.
+  'inventory.stock.moved': { ordering: 'every', handle: fill },
+  'inventory.reservation.released': { ordering: 'every', handle: fill },
+  'inventory.reservation.moved': { ordering: 'every', handle: fill },
+  'inventory.reservation.lapsed': { ordering: 'every', handle: fill },
+  'inventory.reservation.expiring': { ordering: 'every', handle: notify },
 };
+
+/** The backorder fill after an event that brought or freed stock. */
+async function fill(event: DeliveredEvent, ctx: EventHandlerContext): Promise<void> {
+  await handleFillEvent(event, ctx);
+}
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */
 async function notify(event: DeliveredEvent, ctx: EventHandlerContext): Promise<void> {

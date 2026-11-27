@@ -16,6 +16,7 @@ function toHubDto(hub: HubRow, bins: readonly BinRow[]): HubDto {
     address: hub.address,
     stateCode: hub.stateCode,
     pinCode: hub.pinCode,
+    pinCodes: hub.pinCodes,
     archivedAt: hub.archivedAt?.toISOString() ?? null,
     bins: bins.map((b) => ({
       id: b.id,

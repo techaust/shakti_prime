@@ -1,6 +1,14 @@
 'use client';
 
-import type { CreditHoldDto, SalesOrderDto, SalesOrderReasonInput } from '@shakti/contracts';
+import type {
+  CreditHoldDto,
+  ExtendAuthority,
+  HubDto,
+  LineAvailabilityDto,
+  ReservationListDto,
+  SalesOrderDto,
+  SalesOrderReasonInput,
+} from '@shakti/contracts';
 import {
   Button,
   Dialog,
@@ -16,6 +24,7 @@ import {
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, type ReactNode, type SyntheticEvent } from 'react';
 import { cancelOrder, confirmOrder, releaseOrderCredit } from '../../actions/orders';
 import type { ActionResult } from '../../actions/result';
@@ -23,6 +32,7 @@ import { customerHref } from '../../screens/customers';
 import { formatCount, formatDateTime, formatRupees } from '../../screens/format';
 import { ORDER_STATE_TONE } from '../../screens/orders';
 import { quoteHref } from '../../screens/quotes';
+import { ReservationsPanel } from '../inventory/reservations-panel';
 import { QuoteLinesTable, QuoteTotals } from '../quotes/quote-tables';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
@@ -77,8 +87,28 @@ type ReasonAction = (
  * page then says why in plain words), release a hold (the Executive, with a reason), or cancel it
  * (the General Manager and the Executive, with a reason).
  */
-export function OrderScreen({ initial, company }: { initial: SalesOrderDto; company: string }) {
+export function OrderScreen({
+  initial,
+  company,
+  availability,
+  stock,
+}: {
+  initial: SalesOrderDto;
+  company: string;
+  /** H2: each line's availability, as the reader may see it. */
+  availability?: LineAvailabilityDto | undefined;
+  /** H2: the order's holds, for a reader of stock, with the changes the reader may make. */
+  stock?:
+    | {
+        reservations: ReservationListDto;
+        hubs: readonly HubDto[];
+        extendAuthority: ExtendAuthority | null;
+        canAdjust: boolean;
+      }
+    | undefined;
+}) {
   const t = useTranslations('orders');
+  const router = useRouter();
   const [order, setOrder] = useState(initial);
   const [asking, setAsking] = useState<'release' | 'cancel' | undefined>();
   const confirm = useCommand(confirmOrder);
@@ -136,7 +166,11 @@ export function OrderScreen({ initial, company }: { initial: SalesOrderDto; comp
               onClick={() => {
                 confirm.run({ entityId: order.entityId, orderId: order.id }, (result) => {
                   setOrder(result.order);
-                  if (result.outcome === 'confirmed') toast.success(t('page.confirmed'));
+                  if (result.outcome === 'confirmed') {
+                    toast.success(t('page.confirmed'));
+                    // The order's stock was set aside: read the page again with it.
+                    router.refresh();
+                  }
                 });
               }}
             >
@@ -192,8 +226,22 @@ export function OrderScreen({ initial, company }: { initial: SalesOrderDto; comp
         )}
       </dl>
 
-      <QuoteLinesTable lines={order.lines} caption={t('page.linesCaption')} />
+      <QuoteLinesTable
+        lines={order.lines}
+        caption={t('page.linesCaption')}
+        availability={availability}
+      />
       <QuoteTotals totals={order.totals} supplyKind={order.supplyKind} />
+      {stock === undefined || order.state === 'draft' || order.state === 'cancelled' ? null : (
+        <ReservationsPanel
+          entityId={order.entityId}
+          scope={{ orderId: order.id }}
+          initial={stock.reservations}
+          hubs={stock.hubs}
+          extendAuthority={stock.extendAuthority}
+          canAdjust={stock.canAdjust}
+        />
+      )}
 
       {asking === undefined ? null : (
         <ReasonDialog
@@ -207,6 +255,7 @@ export function OrderScreen({ initial, company }: { initial: SalesOrderDto; comp
             setAsking(undefined);
             setOrder(next);
             toast.success(asking === 'release' ? t('page.releasedToast') : t('page.cancelled'));
+            router.refresh();
           }}
         />
       )}

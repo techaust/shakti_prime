@@ -1,4 +1,4 @@
-import { hasGrant } from '@shakti/contracts';
+import { hasGrant, type ExtendAuthority } from '@shakti/contracts';
 import { Button } from '@shakti/ui';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
@@ -6,6 +6,11 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getStockCard, listHubs } from '../../../../../../actions/inventory';
+import { listItemBackorders, listReservations } from '../../../../../../actions/reservations';
+import {
+  BackordersPanel,
+  ReservationsPanel,
+} from '../../../../../../components/inventory/reservations-panel';
 import { StockCardScreen } from '../../../../../../components/inventory/stock-card-screen';
 import { FailureMessage } from '../../../../../../components/screens/failure';
 import { Page } from '../../../../../../components/shell/page';
@@ -46,10 +51,20 @@ export default async function StockCardPage({ params }: { params: Promise<Params
   ) {
     notFound();
   }
-  const [card, hubs] = await Promise.all([
+  const [card, hubs, reservations, backorders] = await Promise.all([
     getStockCard({ entityId, itemId, limit: 50 }),
     listHubs({}),
+    // H2: the stock held for orders, and the orders waiting for the item.
+    listReservations({ entityId, itemId }),
+    listItemBackorders({ entityId, itemId }),
   ]);
+  const can = (key: 'inventory.stock.adjust' | 'sales.order.cancel') =>
+    hasGrant(principal.permissions, key, 'entity');
+  const extendAuthority: ExtendAuthority | null = can('inventory.stock.adjust')
+    ? 'stock'
+    : can('sales.order.cancel')
+      ? 'order'
+      : null;
   if (!card.ok && card.error === 'stock_item_missing') notFound();
   const t = await getTranslations('inventory.card');
   const company = companyNames(access)[entityId] ?? '';
@@ -74,6 +89,17 @@ export default async function StockCardPage({ params }: { params: Promise<Params
       ) : (
         <FailureMessage failure={firstFailure(card, hubs)} />
       )}
+      {card.ok && hubs.ok && reservations.ok ? (
+        <ReservationsPanel
+          entityId={entityId}
+          scope={{ itemId }}
+          initial={reservations.data}
+          hubs={hubs.data.hubs}
+          extendAuthority={extendAuthority}
+          canAdjust={can('inventory.stock.adjust')}
+        />
+      ) : null}
+      {card.ok && backorders.ok ? <BackordersPanel list={backorders.data} /> : null}
     </Page>
   );
 }

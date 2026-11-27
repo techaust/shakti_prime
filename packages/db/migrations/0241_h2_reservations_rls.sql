@@ -834,14 +834,14 @@ grant execute on function app.reserve_order(uuid, timestamptz) to app_user;
 
 -- 12. app.release_order_reservations(order, reason): a cancelled order's reservations are released
 --     with its reason, and nothing of it stays backordered (the sales order machine's
---     release_reservations). Only with sales.order.cancel for the order's company. Answers how
---     many reservations it released.
+--     release_reservations). Only with sales.order.cancel for the order's company. Answers each
+--     reservation it released with its item, so the freed stock goes to the fill.
 create or replace function app.release_order_reservations(p_order uuid, p_reason text)
-  returns integer
+  returns table (reservation_id uuid, item_id uuid)
   language plpgsql volatile security definer set search_path = '' as $$
+#variable_conflict use_column
 declare
   v_order record;
-  v_count integer;
 begin
   if app.user_id() is null then
     raise exception 'a reservation needs a request context' using errcode = '42501';
@@ -856,16 +856,16 @@ begin
   if v_order.state <> 'cancelled' then
     perform app.stock_refuse('reservation_order_not_cancelled');
   end if;
-  select count(*)::integer into v_count
-    from app.stock_unreserve(
-      array(select r.id from public.reservations r
-             where r.sales_order_id = p_order and r.state = 'active'),
-      'released', 'order_cancelled', p_reason);
+  return query
+    select u.reservation_id, u.item_id
+      from app.stock_unreserve(
+        array(select r.id from public.reservations r
+               where r.sales_order_id = p_order and r.state = 'active'),
+        'released', 'order_cancelled', p_reason) u;
   update public.reservation_needs set qty_backordered = 0
    where sales_order_id = p_order and qty_backordered > 0;
   perform app.sync_line_backorders(
     array(select l.id from public.sales_order_lines l where l.sales_order_id = p_order));
-  return v_count;
 end
 $$;
 --> statement-breakpoint
@@ -1185,21 +1185,77 @@ revoke execute on function app.reservation_move(uuid, uuid) from public, readonl
 grant execute on function app.reservation_move(uuid, uuid) to app_user;
 --> statement-breakpoint
 
--- 20. app.line_availability(kind, id): availability per line of a quote or an order (question 4
---     (a), PRD SAL-04). For a quote or a draft order, from the company's free stock in the
---     storage bins of every hub in use: an item line is covered when the free stock meets its
---     quantity, partly covered when some is free, short when none is; a kit line counts the kits
---     its components' free stock makes (the floor of each component's free stock over its
---     quantity per kit). For a confirmed order, from its reservations: covered when nothing is
---     backordered, short when nothing is reserved, else partly covered. A cancelled order and a
---     line with nothing kept in stock answer no row. `expected_on` is the date receipts on open
---     purchase orders would cover the line, null until purchase orders exist (U2).
---     Answered to a caller in the document's company who holds inventory.stock.read for it, with
---     the quantities; or who holds sales.quote.create and reads the document's lead (or a
---     dealer's order's customer), with the status and the date and every quantity null.
+-- 20. Availability per line (question 4 (a), PRD SAL-04).
+--     app.free_availability(company, lines, counts): lines not yet holding stock (a quote's, a
+--     draft order's, or the quote builder's before it saves), each {line_id | null, position,
+--     item_id | kit_id, qty}, against the company's free stock in the storage bins of every hub
+--     in use: an item line is covered when the free stock meets its quantity, partly covered when
+--     some is free, short when none is; a kit line counts the whole kits its components' free stock
+--     makes (the floor of each component's free stock over its quantity per kit). A line with
+--     nothing kept in stock answers no row. `expected_on` is the date receipts on open purchase
+--     orders would cover the line, null until purchase orders exist (U2). The free quantity only
+--     when `counts`. Called by the two definers below only.
+create or replace function app.free_availability(p_entity smallint, p_lines jsonb, p_counts boolean)
+  returns table (line_id uuid, line_position integer, status text, expected_on date,
+                 qty_free numeric)
+  language sql stable security definer set search_path = '' as $$
+  with lines as (
+    select x.line_id, x.position, x.item_id, x.kit_id, x.qty
+      from pg_catalog.jsonb_to_recordset(coalesce(p_lines, '[]'::jsonb))
+             as x(line_id uuid, position integer, item_id uuid, kit_id uuid, qty numeric)
+     where x.qty > 0),
+  parts as (
+    select l.line_id, l.position, l.qty, l.kit_id is not null as is_kit,
+           l.item_id as part_id, 1::numeric as per_unit
+      from lines l join public.items i on i.id = l.item_id and i.is_stocked
+     where l.kit_id is null
+    union all
+    select l.line_id, l.position, l.qty, true, kc.item_id, kc.qty
+      from lines l
+      join public.kit_components kc on kc.kit_id = l.kit_id
+      join public.items i on i.id = kc.item_id and i.is_stocked
+     where l.kit_id is not null),
+  free as (
+    select p.part_id, coalesce(sum(greatest(sb.qty_on_hand - sb.qty_reserved, 0)), 0) as qty
+      from (select distinct part_id from parts) p
+      left join public.stock_balances sb
+             on sb.entity_id = p_entity and sb.item_id = p.part_id
+            and exists (select 1 from public.bins b
+                          join public.warehouses w on w.id = b.warehouse_id
+                         where b.id = sb.bin_id and b.kind = 'storage' and b.archived_at is null
+                           and w.kind in ('godown', 'factory') and w.archived_at is null)
+     group by p.part_id),
+  per_line as (
+    select p.line_id, p.position, p.qty, bool_or(p.is_kit) as is_kit,
+           min(pg_catalog.floor(f.qty / p.per_unit)) as kits,
+           min(f.qty) as item_free
+      from parts p join free f on f.part_id = p.part_id
+     group by p.line_id, p.position, p.qty)
+  select pl.line_id, pl.position,
+         case when (case when pl.is_kit then pl.kits else pl.item_free end) >= pl.qty then 'covered'
+              when (case when pl.is_kit then pl.kits else pl.item_free end) > 0 then 'partly_covered'
+              else 'short' end,
+         null::date,
+         case when p_counts then (case when pl.is_kit then pl.kits else pl.item_free end) end
+    from per_line pl
+   order by pl.position
+$$;
+--> statement-breakpoint
+revoke execute on function app.free_availability(smallint, jsonb, boolean) from public, readonly_reporter, app_user, app_reader;
+--> statement-breakpoint
+
+--     app.line_availability(kind, id): per line of a quote or an order. A quote or a draft order
+--     reads the free stock (app.free_availability()); a confirmed order reads its reservations:
+--     covered when nothing is backordered, short when nothing is reserved, else partly covered,
+--     with its reserved, backordered and dispatched quantities (dispatched 0 until D2). A
+--     cancelled order answers no row. Answered to a caller in the document's company who holds
+--     inventory.stock.read for it, with the quantities; or who holds sales.quote.create and reads
+--     the document's lead (or a dealer's order's customer), with the status and the date and every
+--     quantity null.
 create or replace function app.line_availability(p_kind text, p_id uuid)
   returns table (line_id uuid, line_position integer, status text, expected_on date,
-                 qty_free numeric, qty_reserved numeric, qty_backordered numeric)
+                 qty_free numeric, qty_reserved numeric, qty_backordered numeric,
+                 qty_dispatched numeric)
   language plpgsql stable security definer set search_path = '' as $$
 #variable_conflict use_column
 declare
@@ -1253,7 +1309,8 @@ begin
              null::date,
              null::numeric,
              case when v_counts then l.qty - l.qty_backordered end,
-             case when v_counts then l.qty_backordered end
+             case when v_counts then l.qty_backordered end,
+             case when v_counts then 0::numeric end
         from public.sales_order_lines l
         join public.reservation_needs n on n.sales_order_line_id = l.id
        where l.sales_order_id = p_id
@@ -1263,50 +1320,118 @@ begin
   end if;
 
   return query
-    with lines as (
-      select ql.id, ql.position, ql.item_id, ql.kit_id, ql.qty
-        from public.quote_lines ql where p_kind = 'quote' and ql.quote_id = p_id
-      union all
-      select sl.id, sl.position, sl.item_id, sl.kit_id, sl.qty
-        from public.sales_order_lines sl where p_kind = 'order' and sl.sales_order_id = p_id),
-    parts as (
-      select l.id as line_id, l.position, l.qty, l.kit_id is not null as is_kit,
-             l.item_id as part_id, 1::numeric as per_unit
-        from lines l join public.items i on i.id = l.item_id and i.is_stocked
-      union all
-      select l.id, l.position, l.qty, true, kc.item_id, kc.qty
-        from lines l
-        join public.kit_components kc on kc.kit_id = l.kit_id
-        join public.items i on i.id = kc.item_id and i.is_stocked),
-    free as (
-      select p.part_id, coalesce(sum(greatest(sb.qty_on_hand - sb.qty_reserved, 0)), 0) as qty
-        from (select distinct part_id from parts) p
-        left join public.stock_balances sb
-               on sb.entity_id = v_entity and sb.item_id = p.part_id
-              and exists (select 1 from public.bins b
-                            join public.warehouses w on w.id = b.warehouse_id
-                           where b.id = sb.bin_id and b.kind = 'storage' and b.archived_at is null
-                             and w.kind in ('godown', 'factory') and w.archived_at is null)
-       group by p.part_id),
-    per_line as (
-      select p.line_id, p.position, p.qty, bool_or(p.is_kit) as is_kit,
-             min(pg_catalog.floor(f.qty / p.per_unit)) as kits,
-             min(f.qty) as item_free
-        from parts p join free f on f.part_id = p.part_id
-       group by p.line_id, p.position, p.qty)
-    select pl.line_id, pl.position,
-           case when (case when pl.is_kit then pl.kits else pl.item_free end) >= pl.qty then 'covered'
-                when (case when pl.is_kit then pl.kits else pl.item_free end) > 0 then 'partly_covered'
-                else 'short' end,
-           null::date,
-           case when v_counts then (case when pl.is_kit then pl.kits else pl.item_free end) end,
-           null::numeric,
-           null::numeric
-      from per_line pl
-     order by pl.position;
+    select a.line_id, a.line_position, a.status, a.expected_on, a.qty_free,
+           null::numeric, null::numeric, null::numeric
+      from app.free_availability(
+             v_entity,
+             (select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+                        'line_id', x.id, 'position', x.position, 'item_id', x.item_id,
+                        'kit_id', x.kit_id, 'qty', x.qty)), '[]'::jsonb)
+                from (select ql.id, ql.position, ql.item_id, ql.kit_id, ql.qty
+                        from public.quote_lines ql where p_kind = 'quote' and ql.quote_id = p_id
+                      union all
+                      select sl.id, sl.position, sl.item_id, sl.kit_id, sl.qty
+                        from public.sales_order_lines sl
+                       where p_kind = 'order' and sl.sales_order_id = p_id) x),
+             v_counts) a;
 end
 $$;
 --> statement-breakpoint
 revoke execute on function app.line_availability(text, uuid) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.line_availability(text, uuid) to app_user, app_reader;
+--> statement-breakpoint
+
+--     app.preview_availability(company, lines): the quote builder's lines before the quote is
+--     made, as app.free_availability() answers them, at most 200. Answered to a caller in that
+--     company who holds inventory.stock.read for it, with the free quantity; or who holds
+--     sales.quote.create, with the status and the date alone. A quote never reserves.
+create or replace function app.preview_availability(p_entity smallint, p_lines jsonb)
+  returns table (line_position integer, status text, expected_on date, qty_free numeric)
+  language plpgsql stable security definer set search_path = '' as $$
+#variable_conflict use_column
+declare
+  v_counts boolean;
+begin
+  v_counts := app.has_perm('inventory.stock.read:entity');
+  if app.user_id() is null
+     or not (p_entity = any (coalesce(app.entity_ids(), '{}'::int[])))
+     or not (v_counts or app.has_perm('sales.quote.create:own')) then
+    raise exception 'inventory.stock.read or sales.quote.create is required' using errcode = '42501';
+  end if;
+  if p_lines is null or pg_catalog.jsonb_typeof(p_lines) <> 'array'
+     or pg_catalog.jsonb_array_length(p_lines) > 200 then
+    raise exception 'at most 200 lines' using errcode = '22023';
+  end if;
+  return query
+    select a.line_position, a.status, a.expected_on, a.qty_free
+      from app.free_availability(p_entity, p_lines, v_counts) a;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.preview_availability(smallint, jsonb) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.preview_availability(smallint, jsonb) to app_user, app_reader;
+--> statement-breakpoint
+
+-- 21. app.notice_reservation_people(company, order, owner): who the reminder before a hold lapses
+--     is for (the notify worker, notifications.send): the order's owner the scan named and every
+--     active person of the company whose role is the Inventory Manager's, while the order is open;
+--     ids only.
+create or replace function app.notice_reservation_people(p_entity smallint, p_order uuid, p_owner uuid)
+  returns table (user_id uuid, account_id uuid)
+  language plpgsql stable security definer set search_path = '' as $$
+#variable_conflict use_column
+begin
+  perform app.require_notice_sender(p_entity);
+  return query
+    select distinct on (w.uid) w.uid, o.account_id
+      from public.sales_orders o
+      join lateral (
+        select p_owner as uid
+        union
+        select uer.user_id
+          from public.user_entity_roles uer
+          join public.roles r on r.id = uer.role_id
+         where uer.entity_id = o.entity_id
+           and r.key = 'inventory_manager') w on true
+     where o.id = p_order
+       and o.entity_id = p_entity
+       and o.state in ('confirmed', 'partially_dispatched')
+       and app.notice_recipient_ok(w.uid, p_entity)
+     order by w.uid;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.notice_reservation_people(smallint, uuid, uuid) from public, readonly_reporter, app_reader;
+--> statement-breakpoint
+grant execute on function app.notice_reservation_people(smallint, uuid, uuid) to app_user;
+--> statement-breakpoint
+
+-- 22. app.backordered_items(company, limit): the items of the company that open orders wait for,
+--     for the daily scan's catch-up fill (a fill an event missed, or a batch of more than 200
+--     movements). Only with inventory.reservations.process for every company. Ids only.
+create or replace function app.backordered_items(p_entity smallint, p_limit integer)
+  returns setof uuid
+  language plpgsql stable security definer set search_path = '' as $$
+begin
+  if app.user_id() is null or not app.has_perm('inventory.reservations.process:all') then
+    raise exception 'inventory.reservations.process is required' using errcode = '42501';
+  end if;
+  if not (p_entity = any (coalesce(app.entity_ids(), '{}'::int[]))) then
+    raise exception 'company % is outside the request', p_entity using errcode = '42501';
+  end if;
+  return query
+    select distinct n.item_id
+      from public.reservation_needs n
+      join public.sales_orders so on so.id = n.sales_order_id
+                                 and so.state in ('confirmed', 'partially_dispatched')
+     where n.entity_id = p_entity and n.qty_backordered > 0
+     order by n.item_id
+     limit greatest(coalesce(p_limit, 0), 0);
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.backordered_items(smallint, integer) from public, readonly_reporter, app_reader;
+--> statement-breakpoint
+grant execute on function app.backordered_items(smallint, integer) to app_user;

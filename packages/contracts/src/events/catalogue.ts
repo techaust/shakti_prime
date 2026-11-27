@@ -294,7 +294,7 @@ const eventCatalogue = {
       'inventory.stock.reverse',
       'imports.job.commit_batch',
     ],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         count: z.number().int().min(1),
@@ -338,9 +338,9 @@ const eventCatalogue = {
   },
   'inventory.reservation.released': {
     meaning:
-      "A person freed an order's reservation of an item by hand, with a reason; it is back on order, and the item's free stock goes to the backorders in the queue.",
-    emittedBy: ['inventory.reservation.release'],
-    subscribed: false,
+      "An order's reservation of an item was freed, by a person with a reason (it is back on order) or with the order's cancellation; the item's free stock goes to the backorders in the queue.",
+    emittedBy: ['inventory.reservation.release', 'sales.order.cancel'],
+    subscribed: true,
     payload: z
       .object({ reservationId: IdSchema, salesOrderId: IdSchema, itemId: IdSchema })
       .strict(),
@@ -349,7 +349,7 @@ const eventCatalogue = {
     meaning:
       "A person reserved an order's stock from another hub instead: the old reservation, the hub and the new reservations.",
     emittedBy: ['inventory.reservation.move'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         reservationId: IdSchema,
@@ -364,7 +364,7 @@ const eventCatalogue = {
     meaning:
       "The daily scan lapsed an order's reservations whose hold ran out: their stock is free and goes to the backorders of those items in the queue, and the order's quantity is back on order.",
     emittedBy: ['inventory.reservation.scan'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         salesOrderId: IdSchema,
@@ -377,7 +377,7 @@ const eventCatalogue = {
     meaning:
       "An order's reservations lapse on `expiresAt`: the order's owner (`ownerId`) and the company's Inventory Manager are told before.",
     emittedBy: ['inventory.reservation.scan'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         salesOrderId: IdSchema,

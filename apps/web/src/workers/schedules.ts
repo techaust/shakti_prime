@@ -16,6 +16,8 @@ export const JOB_SCHEDULES = {
   'lead-anonymise': '30 22 * * *',
   // Five minutes after midnight in India, when the day's last valid quotes have lapsed.
   'quote-expire': '35 18 * * *',
+  // H2: a quarter of an hour after the quote expiry, still before the working day in India.
+  'reservation-scan': '50 18 * * *',
   'notification-scan': '*/5 * * * *',
   // Away from the top of the hour and from the sweep.
   'jobs-check': '41 * * * *',

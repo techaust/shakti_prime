@@ -26,6 +26,9 @@ export const DUPLICATE_SCAN_PATH = '/api/v1/workers/crm/duplicates';
 /** Where the daily schedule calls the quote expiry worker (docs/03-roadmap-appendix/phase1.md §7.3). */
 export const QUOTE_EXPIRE_PATH = '/api/v1/workers/quotes/expire';
 
+/** Where the daily schedule calls the reservation scan (H2, docs/03-roadmap-appendix/phase3.md §7.1). */
+export const RESERVATION_SCAN_PATH = '/api/v1/workers/reservations/scan';
+
 /** Where the nightly schedule calls the anonymisation of old unqualified leads (BLUEPRINT §7.9). */
 export const LEAD_ANONYMISE_PATH = '/api/v1/workers/crm/anonymise';
 
@@ -88,6 +91,8 @@ export const EVENT_JOB_ROUTES: Readonly<
   'calls.missed.recorded': { path: NOTIFY_PATH, body: (event) => event },
   // p2-fixes (I1 re-check N2).
   'crm.lead.attached': { path: NOTIFY_PATH, body: (event) => event },
+  // H2: an order's held stock released soon.
+  'inventory.reservation.expiring': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {

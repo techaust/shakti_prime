@@ -172,6 +172,13 @@ export const scanReservations = defineCommand({
         },
       });
     }
+    // The items open orders wait for, so the run's catch-up fill reaches a backorder an event
+    // missed (a batch of more than 200 movements, a delivery that failed for good).
+    const backordered = await reservationCall<{ itemId: string }>(
+      ctx.tx,
+      sql`select item_id as "itemId"
+            from app.backordered_items(${input.entityId}::smallint, ${RESERVATION_BATCH}::integer) as item_id`,
+    );
     if (lapsed.length > 0 || reminders.length > 0) {
       ctx.audit({
         aggregateType: 'reservation_scan',
@@ -185,6 +192,7 @@ export const scanReservations = defineCommand({
       entityId: input.entityId,
       lapsed: lapsed.length,
       reminded: reminders.length,
+      backorderedItemIds: backordered.map((r) => r.itemId),
       more: lapsed.length === RESERVATION_BATCH || reminders.length === RESERVATION_BATCH,
     };
   },

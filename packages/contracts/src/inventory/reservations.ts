@@ -102,6 +102,8 @@ export const ReservationScanDto = z
     entityId: EntityIdSchema,
     lapsed: z.number().int().min(0),
     reminded: z.number().int().min(0),
+    /** The items open orders of the company wait for, for the catch-up fill (at most 500). */
+    backorderedItemIds: z.array(IdSchema).max(500),
     /** More were due than one run takes; the next run carries on. */
     more: z.boolean(),
   })
@@ -121,7 +123,8 @@ export type ReadLineAvailabilityInput = z.input<typeof ReadLineAvailabilityInput
 /** A line's status and expected date, for a caller without `inventory.stock.read`: no count. */
 export const LineStatusDto = z
   .object({
-    lineId: IdSchema,
+    /** The line's id; null for a line of the quote builder not yet saved. */
+    lineId: IdSchema.nullable(),
     position: z.number().int().min(1),
     status: AvailabilityStatusSchema,
     /** When open purchase orders would cover the line (IST date), if known. */
@@ -137,6 +140,8 @@ export const LineStockDto = LineStatusDto.extend({
   /** Reserved and backordered, in the line's unit, on a confirmed order. */
   reserved: StockQtySchema.nullable(),
   backordered: StockQtySchema.nullable(),
+  /** Dispatched, in the line's unit, on a confirmed order (none until dispatches exist, D2). */
+  dispatched: StockQtySchema.nullable(),
 }).strict();
 export type LineStockDto = z.infer<typeof LineStockDto>;
 
@@ -146,3 +151,101 @@ export const LineAvailabilityDto = z.discriminatedUnion('withCounts', [
   z.object({ withCounts: z.literal(true), lines: z.array(LineStockDto) }).strict(),
 ]);
 export type LineAvailabilityDto = z.infer<typeof LineAvailabilityDto>;
+
+/** The quote builder's lines before the quote is made (`app.preview_availability()`). */
+export const PreviewLineAvailabilityInput = z
+  .object({
+    entityId: EntityIdSchema,
+    lines: z
+      .array(
+        z
+          .object({
+            position: z.number().int().min(1).max(200),
+            itemId: IdSchema.optional(),
+            kitId: IdSchema.optional(),
+            qty: z.string().regex(/^\d{1,9}(\.\d{1,3})?$/),
+          })
+          .strict()
+          .refine((l) => (l.itemId === undefined) !== (l.kitId === undefined), {
+            message: 'an item or a kit',
+          }),
+      )
+      .min(1)
+      .max(200),
+  })
+  .strict();
+export type PreviewLineAvailabilityInput = z.input<typeof PreviewLineAvailabilityInput>;
+
+/**
+ * The active reservations of an order, or of an item in a company (`inventory.stock.read` for the
+ * company): one of the two is named.
+ */
+export const ListReservationsInput = z
+  .object({
+    entityId: EntityIdSchema,
+    orderId: IdSchema.optional(),
+    itemId: IdSchema.optional(),
+  })
+  .strict()
+  .refine((v) => (v.orderId === undefined) !== (v.itemId === undefined), {
+    message: 'an order or an item',
+    path: ['orderId'],
+  });
+export type ListReservationsInput = z.input<typeof ListReservationsInput>;
+
+/** One active reservation, as the order page and the stock card list them. */
+export const ReservationRowDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    orderId: IdSchema,
+    /** The order's number when the reader may read the order; null otherwise. */
+    soNo: z.string().nullable(),
+    /** The order line's number when the reader may read the order; null otherwise. */
+    linePosition: z.number().int().min(1).nullable(),
+    itemId: IdSchema,
+    sku: z.string(),
+    itemName: z.string(),
+    hubId: IdSchema,
+    hubCode: z.string(),
+    hubName: z.string(),
+    binCode: z.string(),
+    qty: StockQtySchema,
+    expiresAt: z.iso.datetime(),
+    extended: z.boolean(),
+  })
+  .strict();
+export type ReservationRowDto = z.infer<typeof ReservationRowDto>;
+
+export const ReservationListDto = z
+  .object({
+    items: z.array(ReservationRowDto),
+    /** More than the list shows. */
+    more: z.boolean(),
+  })
+  .strict();
+export type ReservationListDto = z.infer<typeof ReservationListDto>;
+
+/** The orders an item's free stock goes to next, in their queue order (the stock card). */
+export const ListItemBackordersInput = z
+  .object({ entityId: EntityIdSchema, itemId: IdSchema })
+  .strict();
+export type ListItemBackordersInput = z.input<typeof ListItemBackordersInput>;
+
+export const BackorderRowDto = z
+  .object({
+    orderId: IdSchema,
+    /** The order's number when the reader may read the order; null otherwise. */
+    soNo: z.string().nullable(),
+    linePosition: z.number().int().min(1).nullable(),
+    needed: StockQtySchema,
+    backordered: StockQtySchema,
+    queuedAt: z.iso.datetime(),
+  })
+  .strict();
+export type BackorderRowDto = z.infer<typeof BackorderRowDto>;
+
+export const BackorderListDto = z
+  .object({ items: z.array(BackorderRowDto), more: z.boolean() })
+  .strict();
+export type BackorderListDto = z.infer<typeof BackorderListDto>;

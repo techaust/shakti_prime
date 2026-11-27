@@ -41,6 +41,9 @@ const Count = z.number().int().min(0);
  *   (docs/03-roadmap-appendix/phase2.md §7.4).
  * - `enquiry_attached`: a customer of your lead in nurture asked again, and the enquiry joined
  *   that lead instead of making a new one (CRM-03; not when you added it yourself).
+ * - `reservation_expiring`: stock held for your order, or for an order of your company when you
+ *   manage its stock, is released within the reminder days unless someone extends it (H2,
+ *   docs/03-roadmap-appendix/phase3.md §7.1).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -57,6 +60,8 @@ export const NOTICE_TYPES = [
   'missed_call',
   // p2-fixes (I1 re-check N2).
   'enquiry_attached',
+  // H2 reservations.
+  'reservation_expiring',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -275,6 +280,8 @@ export const NOTICE_EVENT_TYPES = [
   'calls.missed.recorded',
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead.
   'crm.lead.attached',
+  // H2: an order's held stock about to be released.
+  'inventory.reservation.expiring',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -368,6 +375,17 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       opportunityId: IdSchema,
       nurtured: z.boolean(),
       attachedBy: IdSchema.nullable(),
+    })
+    .strict(),
+  // An order's held stock is released soon: its owner and the company's Inventory Managers are
+  // told, once a reminder.
+  z
+    .object({
+      event: z.literal('inventory.reservation.expiring'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      orderId: IdSchema,
+      ownerId: IdSchema,
     })
     .strict(),
   z

@@ -48,8 +48,24 @@ const siteFields = {
   pinCode: PinCode.nullable().default(null),
 };
 
+/**
+ * The PIN codes a hub serves first (H2): an order whose site's PIN code is listed reserves from
+ * this hub before the others. Each once, at most 2,000.
+ */
+export const HubPinCodesSchema = z
+  .array(PinCode)
+  .max(2000)
+  .refine((list) => new Set(list).size === list.length, { message: 'each PIN code once' });
+
 export const CreateHubInput = z
-  .object({ code: HubCodeSchema, name: HubName, kind: WarehouseKindSchema, ...siteFields })
+  .object({
+    code: HubCodeSchema,
+    name: HubName,
+    kind: WarehouseKindSchema,
+    ...siteFields,
+    // H2: the PIN codes the hub serves first.
+    pinCodes: HubPinCodesSchema.default([]),
+  })
   .strict()
   .refine((v) => v.kind === 'transit' || (v.stateCode !== null && v.pinCode !== null), {
     message: 'a godown or factory has its state and PIN code',
@@ -58,7 +74,14 @@ export const CreateHubInput = z
 export type CreateHubInput = z.input<typeof CreateHubInput>;
 
 export const UpdateHubInput = z
-  .object({ hubId: IdSchema, code: HubCodeSchema, name: HubName, ...siteFields })
+  .object({
+    hubId: IdSchema,
+    code: HubCodeSchema,
+    name: HubName,
+    ...siteFields,
+    // H2: left out, the hub keeps the PIN codes it has.
+    pinCodes: HubPinCodesSchema.optional(),
+  })
   .strict();
 export type UpdateHubInput = z.input<typeof UpdateHubInput>;
 
@@ -149,6 +172,8 @@ export const HubDto = z
     address: z.string().nullable(),
     stateCode: z.string().nullable(),
     pinCode: z.string().nullable(),
+    /** H2: the PIN codes the hub serves first. */
+    pinCodes: z.array(z.string()),
     archivedAt: z.string().nullable(),
     bins: z.array(BinDto),
   })

@@ -1,6 +1,7 @@
 'use client';
 
 import type {
+  LineAvailabilityDto,
   QuoteBuilderDto,
   QuoteDto,
   QuoteLineInput,
@@ -13,6 +14,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createQuote, previewQuote } from '../../actions/quotes';
+import { previewLineAvailability } from '../../actions/reservations';
 import { QUOTE_MAX_QTY, SUBSIDY_SCHEMES } from '../../screens/contract-values';
 import { isOneOf } from '../../screens/customers';
 import { formatCount, formatDate, formatRupees } from '../../screens/format';
@@ -81,6 +83,9 @@ export function QuoteBuilder({
   ]);
   const [scheme, setScheme] = useState<SubsidyScheme>('none');
   const [preview, setPreview] = useState<QuotePreviewDto | undefined>();
+  // H2: the worked-out lines' availability, as the reader may see it; none when it cannot be read.
+  const [availability, setAvailability] = useState<LineAvailabilityDto | undefined>();
+  const stock = useQuery<LineAvailabilityDto>();
   const [incomplete, setIncomplete] = useState(false);
   const work = useQuery<QuotePreviewDto>();
   const make = useCommand(createQuote);
@@ -88,6 +93,7 @@ export function QuoteBuilder({
 
   function change(key: number, patch: Partial<DraftLine>) {
     setPreview(undefined);
+    setAvailability(undefined);
     setLines((all) => all.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
@@ -108,6 +114,20 @@ export function QuoteBuilder({
     const wanted = input();
     if (wanted === undefined) return;
     work.load(() => previewQuote(wanted), setPreview);
+    setAvailability(undefined);
+    stock.load(
+      () =>
+        previewLineAvailability({
+          entityId: wanted.entityId,
+          lines: wanted.lines.map((line, i) => ({
+            position: i + 1,
+            ...(line.kitId === undefined ? {} : { kitId: line.kitId }),
+            ...(line.itemId === undefined ? {} : { itemId: line.itemId }),
+            qty: line.qty,
+          })),
+        }),
+      setAvailability,
+    );
   }
 
   function makeQuote() {
@@ -316,7 +336,11 @@ export function QuoteBuilder({
               {t('validUntil', { date: formatDate(preview.validUntil) })}
             </p>
           </div>
-          <QuoteLinesTable lines={preview.lines} caption={t('linesCaption')} />
+          <QuoteLinesTable
+            lines={preview.lines}
+            caption={t('linesCaption')}
+            availability={availability}
+          />
           <QuoteTotals totals={preview.totals} supplyKind={preview.supplyKind} />
           <FailureMessage failure={make.failure} />
           <div className="flex flex-wrap gap-2">
