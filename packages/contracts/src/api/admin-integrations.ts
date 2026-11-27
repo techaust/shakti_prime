@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { MoneySchema } from '../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
-import { CursorSchema, PageLimitSchema, SemverSchema } from './common';
+import { CursorSchema, PageLimitSchema } from './common';
 import { TallyCompanyProblemSchema, TallyCompanySchema } from './connector';
 import { MessagingRefusalSchema } from './messaging';
 import { AgentNameSchema } from './worker-jobs';
