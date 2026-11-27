@@ -63,6 +63,7 @@ async function seed(engineer: string, manager: string): Promise<void> {
         insert into accounts (id, type, name, created_by)
         values (app.uuid_v7(), 'farm', 'Plan customer', ${manager}) returning id`
       )[0]?.id;
+      if (account === undefined) throw new Error('no plan customer');
       await tx`
         insert into principals (id, kind, display_name)
         select app.uuid_v7(), 'user', 'PJX person ' || g from generate_series(1, ${PEOPLE}::int) g`;
