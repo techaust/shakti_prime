@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 3
-updated: 2026-11-27T14:26Z
+updated: 2026-11-27T14:34Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 4
@@ -42,3 +42,19 @@ run_file: docs/runs/phase4/f1-field-foundation.md
 wait_for: report: f1-field-foundation done
 done_when: review: f1-field-foundation done
 note: Tier A. Attack token rotation and reuse under concurrency, tokens in logs or Sentry, the version gate, and the mobile bearer's request context.
+
+lane: 28
+role: build
+branch: feat/tc1-tally-connector
+run_file: docs/runs/phase5/tc1-tally-connector.md
+wait_for: none
+done_when: report: tc1-tally-connector early check
+note: Tier A; stop at the early check. Install nothing: packaging waits for the owner's yes.
+
+lane: 34
+role: review
+branch: feat/hr1-people
+run_file: docs/runs/phase5/hr1-people.md
+wait_for: report: hr1-people done
+done_when: review: hr1-people done
+note: Tier B

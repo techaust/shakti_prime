@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 3
-updated: 2026-11-27T14:29Z
+updated: 2026-11-27T14:34Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -49,4 +49,20 @@ branch: feat/j2-loans
 run_file: docs/runs/phase4/j2-loans.md
 wait_for: report: j2-loans done
 done_when: review: j2-loans done
+note: Tier A
+
+lane: 29
+role: build
+branch: feat/tc2-tally-ingest
+run_file: docs/runs/phase5/tc2-tally-ingest.md
+wait_for: none
+done_when: report: tc2-tally-ingest early check
+note: Tier A; stop at the early check.
+
+lane: 31
+role: review
+branch: feat/fn1-proformas
+run_file: docs/runs/phase5/fn1-proformas.md
+wait_for: report: fn1-proformas done
+done_when: review: fn1-proformas done
 note: Tier A

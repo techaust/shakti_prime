@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 3
-updated: 2026-11-27T14:26Z
+updated: 2026-11-27T14:34Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -66,3 +66,19 @@ run_file: docs/runs/phase4/j3-documents.md
 wait_for: report: j3-documents done
 done_when: review: j3-documents done
 note: Tier A. Attack identity digits surviving anywhere (storage, rows, audit, logs, Sentry, model payloads), sensitive rows by grant, filing against another customer.
+
+lane: 30
+role: build
+branch: feat/hr1-people
+run_file: docs/runs/phase5/hr1-people.md
+wait_for: none
+done_when: report: hr1-people early check
+note: Tier B; stop at the early check.
+
+lane: 32
+role: review
+branch: feat/tc1-tally-connector
+run_file: docs/runs/phase5/tc1-tally-connector.md
+wait_for: report: tc1-tally-connector done
+done_when: review: tc1-tally-connector done
+note: Tier A. Attack key handling, read-only requests to Tally, idempotent resend, the outbox across a kill.

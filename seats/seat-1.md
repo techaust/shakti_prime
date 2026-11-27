@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 3
-updated: 2026-11-27T14:29Z
+updated: 2026-11-27T14:34Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 25
@@ -42,3 +42,19 @@ run_file: docs/runs/phase4/j1-projects.md
 wait_for: report: j1-projects done
 done_when: review: j1-projects done
 note: Tier A. Attack the own scope on every route, drafting idempotency, and status_summary against main's latest.
+
+lane: 27
+role: build
+branch: feat/fn1-proformas
+run_file: docs/runs/phase5/fn1-proformas.md
+wait_for: none
+done_when: report: fn1-proformas early check
+note: Tier A; stop at the early check. Lower priority than the lanes above: start it after them.
+
+lane: 33
+role: review
+branch: feat/tc2-tally-ingest
+run_file: docs/runs/phase5/tc2-tally-ingest.md
+wait_for: report: tc2-tally-ingest done
+done_when: review: tc2-tally-ingest done
+note: Tier A. Attack HMAC and replay, the connector principal's reach, purchase vouchers by grant.
