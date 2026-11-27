@@ -543,6 +543,7 @@ describe('adaptive windows', () => {
     ]);
   });
 
+  // 2,600 vouchers through the fixture server: past vitest's 5-second default on CI's runners.
   it('reads a stretch again narrower when it holds more refused rows than a batch carries', async () => {
     h = await harness({
       companies: [SS],
@@ -569,7 +570,7 @@ describe('adaptive windows', () => {
       .filter((b) => b.includes('"fromAlterId"'))
       .flatMap((b) => (JSON.parse(b) as { refused?: unknown[] }).refused ?? []);
     expect(reported).toHaveLength(2600);
-  });
+  }, 30_000);
 
   it('reads a stretch again in a narrower window when it holds more than a batch carries', async () => {
     h = await harness({
