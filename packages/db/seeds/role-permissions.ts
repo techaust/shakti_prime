@@ -187,6 +187,15 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     accounts: 'entity',
   },
   'documents.sensitive.read': { ...EXEC, project_manager: 'entity', accounts: 'entity' },
+  // FN1: proformas, milestones and payments of the orders a person works (docs/03-roadmap-appendix/
+  // phase5.md §4); a Lead Converter their own orders, a Sales Lead their team's.
+  'finance.read': {
+    ...EXEC,
+    general_manager: 'entity',
+    sales_team_lead: 'team',
+    tele_caller_lc: 'own',
+    accounts: 'entity',
+  },
   'finance.proforma.write': { ...EXEC, accounts: 'entity' },
   'finance.payment.write': { ...EXEC, accounts: 'entity' },
   'finance.recon.write': { ...EXEC, accounts: 'entity' },
@@ -346,6 +355,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // W2: the platform's removal of WhatsApp files past the retention period; no person's role holds
   // it (SECURITY §3.3).
   'messaging.media.expire': {},
+  // FN1: the platform's planning of an order's payment milestones on confirmation; no person's
+  // role holds it (SECURITY §3.3).
+  'finance.milestones.process': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

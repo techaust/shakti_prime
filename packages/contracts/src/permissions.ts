@@ -45,6 +45,9 @@ export const PERMISSION_KEYS = [
   'documents.read',
   'documents.write',
   'documents.sensitive.read',
+  // FN1: proformas, payment milestones, payments and ageing, never a cost (docs/03-roadmap-appendix/
+  // phase5.md §4).
+  'finance.read',
   'finance.proforma.write',
   'finance.payment.write',
   'finance.recon.write',
@@ -157,6 +160,10 @@ export const PERMISSION_KEYS = [
   // removed and asks which stored keys still belong to a file through narrow definers, nothing
   // more.
   'messaging.media.expire',
+  // FN1: an order's payment milestones planned from its company's terms when it is confirmed
+  // (docs/03-roadmap-appendix/phase5.md §6.1): held only by the platform's worker principal, which
+  // reads the order's facts and records its milestones through two narrow definers, nothing more.
+  'finance.milestones.process',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -243,6 +250,8 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'voice.session.record',
   // W2 media retention.
   'messaging.media.expire',
+  // FN1 payment milestones.
+  'finance.milestones.process',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -356,6 +365,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'documents.read': ['own', 'entity', 'all'],
   'documents.write': ['own', 'entity', 'all'],
   'documents.sensitive.read': ['entity', 'all'],
+  'finance.read': ['own', 'team', 'entity', 'all'],
   'finance.proforma.write': ['entity', 'all'],
   'finance.payment.write': ['entity', 'all'],
   'finance.recon.write': ['entity', 'all'],
@@ -413,6 +423,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'voice.session.record': ['all'],
   // W2 media retention.
   'messaging.media.expire': ['all'],
+  // FN1 payment milestones.
+  'finance.milestones.process': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

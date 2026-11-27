@@ -79,3 +79,5 @@ export {
   stockMovementCosts,
   stockBalances,
 } from './stock';
+// FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1).
+export { proformas, proformaLines, paymentMilestoneTemplates, paymentMilestones } from './finance';
