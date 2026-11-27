@@ -5,9 +5,9 @@
 | Branch | `feat/tc1-tally-connector` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): a service on the client's PC holding a signing key, financial data |
-| Usage | briefed 27-11-2026; built on Opus 5.5 at high (start, early check and done, 27-11-2026); fix round on Opus 5.5 at high (start and end, 27-11-2026) |
-| State | fixes done |
-| Next step | the reviewer re-checks the fix diff of finding 1 (the lead's triage); the lead commits TC2's addendum |
+| Usage | briefed 27-11-2026; built on Opus 5.5 at high (start, early check and done, 27-11-2026); fix round on Opus 5.5 at high (start and end, 27-11-2026); second fix round on Opus 5.5 at high (start and end, 27-11-2026) |
+| State | fixes 2 done |
+| Next step | the lead reads the fix diff (no further re-check) and integrates |
 
 ## Brief
 Build [phase5 §6.2](../../03-roadmap-appendix/phase5.md#62-tc1-the-tally-connector) as written, with question 1 (a), and ADR 0013 (change its status to "Accepted (27-11-2026, Phase 5 design)"). The BOS side's rules, contracts and signing already exist; read `docs/04-architecture-appendix/tally.md`, `packages/domain/src/tally/sync-rules.ts`, `packages/contracts/src/api/connector.ts` and `apps/web/src/integrations/tally/` first. Points settled here:
@@ -201,6 +201,28 @@ All ten review findings, as the lead's triage says. Commits `e26207a7` (code and
 > 4. A snapshot the BOS refuses (any 4xx) is tried up to 10 times and then set aside. So `snapshot_would_remove_too_much` should be a 200 with the snapshot held for Accounts, not a refusal. Vercel refuses a body over 4.5 MB (about 90,000 GUIDs); decide gzip (`Content-Encoding: gzip`) or a snapshot in parts before a company grows that large.
 > 5. `missingOnServer` is logged by count only: the connector cannot send rows at or below the cursor again, so the BOS lists them for Accounts.
 > 6. The signature covers the raw `pathname + search` as received (TC1's assumption 5).
+
+### 27-11-2026, fixes 2 (seat, worktree `tc1-tally-connector`, from `41ad57b4`)
+Re-check findings 11 and 12, as the lead's triage says. Code and tests in `cdc78dc6`. Skills: none named; none loaded.
+
+**Finding 11, refused rows over a batch's cap:** `packages/contracts/src/api/connector.ts` names the cap `CONNECTOR_BATCH_MAX_REFUSED` (500 + 2,000, the value the schema already used). `readCompany()` in `src/sync.ts` counts `page.refused` against it beside the voucher and ledger caps: a page over any cap is never sent; its window is halved (not below `pageSize`) and the same stretch read again. Test (`sync.test.ts`, adaptive windows): 3,100 AlterIDs of other masters then 2,600 vouchers without ledger lines; the window grown to 3,200 meets 2,600 refused rows, is read again as 1,600, and the chain is 100, 200, 400, 800, 1600, 1600, 800, 200 up to 5,700, with one `page_narrowed`, no `batch_unreadable`, and all 2,600 rows reported in `refused`. Without the fix the test stops at 3,100, as the re-check reproduced.
+
+**Finding 12, the drain past a row the BOS did not take:** `sync.test.ts` gains:
+- "goes on past a refused row … the later unreadable one" and "goes on past an unreadable row … the later refused one" (one `it.each`): both companies' first batches pending after cycle 1, SS's first; in cycle 2 SS's row fails as before and SMP's row, now taken, is sent from the drain: the cycle's first two calls are both batch posts, before any cursor read; SS's row is left with 2 attempts and 2 refusals; SMP is contiguous and nothing is applied twice.
+- "sets a row aside after its attempts when every answer to it is unreadable": every answer to a batch unreadable for `outboxMaxAttempts` sends; the row is held, logged `outbox_row_held` with code `bad_answer`, counted in `heldRows`, and the company goes on from the BOS's cursor with nothing applied twice.
+- Checked against a regression: with the drain made to stop after a refused row, both ordering cases fail.
+
+**Tests:** connector 11 files, 69 tests (68 pass on Linux, 1 Windows only), 4 more: `sync.test.ts` 22 (+4). Contracts 344 (unchanged).
+
+**Checks** (all through the lock, from `cdc78dc6`):
+- `pnpm typecheck`: 11 tasks successful.
+- `pnpm exec turbo run test --filter=@shakti/tally-connector --filter=@shakti/contracts --force`: connector 11 files, 68 passed, 1 skipped; contracts 25 files, 344 passed.
+- `pnpm --filter web exec vitest run src/integrations/tally src/lint-fences.test.ts`: 2 files, 28 passed.
+- `pnpm exec eslint apps/tally-connector packages/contracts/src/api --max-warnings 0`: clean; Prettier: clean; `pnpm lint` (whole repository): exit 0.
+- `node apps/tally-connector/packaging/build-sea.ts`: built; answers `0.1.0`.
+- Not re-run: `pnpm build` and `js-budget` (no file of `apps/web` changed in this round; clean at the first fix round). No schema, command, query, `en.json` or screen: no security suite, copy-lint, journeys or `EXPLAIN`, and the slot database was not needed.
+
+**Decision the triage did not settle:** `batch_unreadable` (a page that fails the contract at the smallest window, which the caps can no longer cause) still sets no heartbeat `problem`; the re-check offered one, the triage did not ask, and a new `problem` value would be a contract change for TC2.
 
 ## Review
 
