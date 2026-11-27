@@ -1,4 +1,5 @@
 import {
+  AGENT_PRINCIPAL_IDS,
   newId,
   type EmployeeDto,
   type HolidayDto,
@@ -16,6 +17,7 @@ import {
   closeDb,
   createTestPrincipal,
   createTestUser,
+  principalFor,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -199,7 +201,7 @@ describe('hr.employee.create, .update and .deactivate', () => {
         stage: 'guard',
       });
     }
-    const agent = await createTestPrincipal('agent:triage', [E]);
+    const agent = principalFor('agent:triage', [E], { id: AGENT_PRINCIPAL_IDS['agent:triage'] });
     expect((await failure(agent, createEmployee, employeeInput())).code).toBe('forbidden');
     const editable = {
       id: aEmployee.id,
@@ -652,7 +654,7 @@ describe('leave: a person asks, the manager approves, the balance falls', () => 
         reason: 'x',
       }),
     ).toMatchObject({ code: 'not_found', reason: 'employee_missing' });
-    const agent = await createTestPrincipal('agent:triage', [E]);
+    const agent = principalFor('agent:triage', [E], { id: AGENT_PRINCIPAL_IDS['agent:triage'] });
     for (const command of [requestLeave, approveLeave, cancelLeave, adjustLeave]) {
       expect((await failure(agent, command, { id: asked.id })).code).toMatch(
         /forbidden|validation_failed/,

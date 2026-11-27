@@ -1855,9 +1855,13 @@ erDiagram
   }
   business_calendar {
     uuid id PK
+    untyped date
+    boolean is_holiday
+    smallint entity_id FK "null"
   }
   org_locations }o--o| entities : "entity_id"
   mobile_devices }o--|| users : "user_id"
+  business_calendar }o--o| entities : "entity_id"
 ```
 
 ### CRM

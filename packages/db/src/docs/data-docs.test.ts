@@ -59,7 +59,7 @@ describe('the ERD and data dictionary (docs/data)', () => {
 
   it('list the tables 05-database.md plans and no migration has built', () => {
     expect(docs.dictionary).toContain('| `reservations` |');
-    expect(docs.dictionary).toContain('| `employees` |');
+    expect(docs.dictionary).toContain('| `salary_sheets` |');
     expect(docs.dictionary).not.toMatch(/^\| `sales_orders` \|/m);
     expect(docs.dictionary).not.toMatch(/^\| `quotes` \|/m);
     expect(docs.dictionary).not.toMatch(/^\| `opportunities` \|/m);

@@ -5951,7 +5951,7 @@ Tables 05-database.md §6 documents that no migration has created yet, with the 
 |---|---|---|---|
 | `org_locations` | Phase 3 | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` | `entity_id` → `entities` |
 | `mobile_devices` | Phase 4 | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` | `user_id` → `users` |
-| `business_calendar` |  | Not built: the days off are `holidays` (§6.8), of a company or of the group, read through `holidaysBetween()` in `packages/domain/src/hr/calendar.ts`, beside each person's weekly days off from their shift \| `date`, `is_holiday`, `entity_id null` |  |
+| `business_calendar` | Phase 5 | `date`, `is_holiday`, `entity_id null`; until it is built, the days off are `holidays` (§6.8), of a company or of the group, read through `holidaysBetween()` in `packages/domain/src/hr/calendar.ts`, beside each person's weekly days off from their shift | `entity_id` → `entities` |
 
 ### 6.2 CRM
 

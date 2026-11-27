@@ -500,7 +500,7 @@ Key columns only; every table also has the standard columns from §2. Every colu
 | `user_entity_roles` | Built (0013) | `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows (by `app_user`, and by `readonly_reporter` under the same rule, 0059), and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the nine tables with a delete grant for `app_user`, with `role_permissions` (above), `saved_views` and `push_subscriptions` (§6.10), where each person deletes only their own rows, `kit_components` and `pump_curves` (§6.3), `contact_phones` and `opportunity_tags` (§6.2), and `pin_codes` (§6.2) |
 | `teams` | Built (0004) | `entity_id null`, `name`, `lead_principal_id` |
 | `document_sequences` | Built (0007) | `entity_id`, `doc_type`, `fy`, `prefix`, `next_no`; unique `(entity_id, doc_type, fy)`; written only by `app.next_document_no()` |
-| `business_calendar` | Not built: the days off are `holidays` (§6.8), of a company or of the group, read through `holidaysBetween()` in `packages/domain/src/hr/calendar.ts`, beside each person's weekly days off from their shift | `date`, `is_holiday`, `entity_id null` |
+| `business_calendar` | Planned (Phase 5) | `date`, `is_holiday`, `entity_id null`; until it is built, the days off are `holidays` (§6.8), of a company or of the group, read through `holidaysBetween()` in `packages/domain/src/hr/calendar.ts`, beside each person's weekly days off from their shift |
 
 ### 6.2 CRM
 | Table | Status | Key columns |
