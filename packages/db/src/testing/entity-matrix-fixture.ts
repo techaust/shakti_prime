@@ -121,6 +121,11 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   stock_movements: 'x.id::text',
   stock_movement_costs: 'x.movement_id::text',
   stock_balances: 'x.id::text',
+  // FN1 proformas and payment milestones.
+  proformas: 'x.id::text',
+  proforma_lines: 'x.id::text',
+  payment_milestone_templates: 'x.id::text',
+  payment_milestones: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -180,6 +185,19 @@ export async function removeEntityMatrixFixture(): Promise<void> {
   const like = `${P}%`;
   await asMigrator((m) =>
     m.begin(async (tx) => {
+      // FN1: an order's proformas and milestones, and the companies' payment terms, before it.
+      await tx`alter table payment_milestones disable trigger payment_milestones_guard`;
+      await tx`alter table proforma_lines disable trigger proforma_lines_append_only`;
+      await tx`alter table proformas disable trigger proformas_guard`;
+      await tx`alter table payment_milestone_templates disable trigger payment_milestone_templates_append_only`;
+      await tx`delete from payment_milestones where id::text like ${like}`;
+      await tx`delete from payment_milestone_templates where id::text like ${like}`;
+      await tx`delete from proforma_lines where id::text like ${like}`;
+      await tx`delete from proformas where id::text like ${like}`;
+      await tx`alter table payment_milestones enable trigger payment_milestones_guard`;
+      await tx`alter table proforma_lines enable trigger proforma_lines_append_only`;
+      await tx`alter table proformas enable trigger proformas_guard`;
+      await tx`alter table payment_milestone_templates enable trigger payment_milestone_templates_append_only`;
       // Orders and their commission first: they name a quote, a lead and a commission rule.
       await tx`alter table commission_accruals disable trigger commission_accruals_guard`;
       await tx`delete from commission_accruals where id::text like ${like}`;
@@ -411,6 +429,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     stock_movements: [],
     stock_movement_costs: [],
     stock_balances: [],
+    // FN1 proformas and payment milestones.
+    proformas: [],
+    proforma_lines: [],
+    payment_milestone_templates: [],
+    payment_milestones: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -613,6 +636,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const ingestKey = per(e, 0x54);
         const commissionRule = per(e, 0x37);
         const commission = per(e, 0x38);
+        // FN1: a proforma of the lead's order with its line, a milestone of it, and the company's
+        // payment terms for a segment.
+        const proforma = per(e, 0x90);
+        const proformaLine = per(e, 0x91);
+        const milestone = per(e, 0x92);
+        const paymentTerms = per(e, 0x93);
         // A second customer of the company with the first one's name, put forward as its
         // duplicate and merged into it: the candidate needs both customers, the merge the first.
         const twin = per(e, 0x22);
@@ -810,6 +839,21 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
                    commission_rule_id, basis, rate, measure, amount, created_by)
           values (${commission}, ${e}, ${account}, ${opportunity}, ${leadOrder}, ${commissionRule}, 'fixed',
                   1.00, 1, 1.00, ${ownerId})`;
+        await tx`insert into proformas (id, entity_id, proforma_no, fy, sales_order_id, place_of_supply_state,
+                   supply_kind, subtotal, cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
+          values (${proforma}, ${e}, ${`MX${e.toString()}/PI/2098-99/0001`}, '2098-99', ${leadOrder}, '08',
+                  'intra', 0, 0, 0, 0, 0, 0, 0, ${ownerId})`;
+        await tx`insert into proforma_lines (id, entity_id, proforma_id, sales_order_line_id, position, item_id,
+                   sku, description, unit, qty, unit_price, hsn, tax_rate_id, tax_rate_pct, taxable_value,
+                   cgst, sgst, igst, line_total)
+          values (${proformaLine}, ${e}, ${proforma}, ${leadOrderLine}, 1, ${item}, 'FX-MATRIX', 'matrix item',
+                  'nos', 1, 0, '8413', ${itemRate}, 0.00, 0, 0, 0, 0, 0)`;
+        await tx`insert into payment_milestone_templates (id, entity_id, segment, version, steps_json, created_by)
+          values (${paymentTerms}, ${e}, 'farmer_pumps', 9000, '[{}]'::jsonb, ${ownerId})`;
+        await tx`insert into payment_milestones (id, entity_id, sales_order_id, seq, key, label, amount,
+                   due_rule, state, created_by)
+          values (${milestone}, ${e}, ${leadOrder}, 1, 'matrix', 'matrix milestone', 0, 'on_confirmation',
+                  'pending', ${ownerId})`;
         await tx`insert into accounts (id, type, name, created_by) values (${twin}, 'farm', ${`matrix account ${e}`}, ${ownerId})`;
         await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
           values (${twinLink}, ${twin}, ${e}, ${ownerId}, ${team}, ${ownerId})`;
@@ -862,6 +906,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.dealer_terms.push({ key: terms, entities: only, leadIn: only });
         rows.dealer_outstanding.push({ key: outstanding, entities: only, leadIn: only });
         rows.commission_accruals.push({ key: commission, entities: only });
+        rows.proformas.push({ key: proforma, entities: only });
+        rows.proforma_lines.push({ key: proformaLine, entities: only });
+        rows.payment_milestone_templates.push({ key: paymentTerms, entities: only });
+        rows.payment_milestones.push({ key: milestone, entities: only });
         rows.consents.push({ key: consent, entities: only, leadIn: only });
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });

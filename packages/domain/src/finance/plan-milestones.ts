@@ -77,10 +77,11 @@ function roundAmount(numerator: bigint, denominator: bigint): bigint {
 
 /**
  * Shares an order's total among the steps (docs/03-roadmap-appendix/phase5.md §5): the fixed
- * amounts first, then each percentage of what is left, rounded half-up to the rupee as documents
- * are; the last step takes what remains, so the amounts sum to the total exactly. Refused with
- * `milestone_amounts_exceed_total` when the fixed amounts, or the rounding, leave the last step
- * below zero.
+ * amounts first, then the percentages of what is left. The percentages are rounded as they add
+ * up (each share is the rounded running total less the one before it), half-up to the rupee as
+ * documents are, and never past the whole rupees left; the last step takes what remains, so the
+ * amounts sum to the total exactly and none is below zero. Refused with
+ * `milestone_amounts_exceed_total` when the fixed amounts pass the total.
  */
 export function splitMilestoneAmounts(total: Money, steps: readonly MilestoneStep[]): Money[] {
   const whole = toPaise(total);
@@ -91,21 +92,19 @@ export function splitMilestoneAmounts(total: Money, steps: readonly MilestoneSte
       reason: 'milestone_amounts_exceed_total',
     });
   }
-  const amounts: bigint[] = [];
-  steps.forEach((step, index) => {
-    if (index === steps.length - 1) return;
-    amounts.push(
-      step.amount !== null
-        ? toPaise(step.amount)
-        : roundAmount(rest * toScaled(step.percent ?? '0', 2), 10000n),
-    );
+  const ceiling = WORKSHOP_DEFAULTS.tax.roundDocumentToRupee ? (rest / 100n) * 100n : rest;
+  let share = 0n;
+  let shared = 0n;
+  const amounts = steps.slice(0, -1).map((step) => {
+    if (step.amount !== null) return toPaise(step.amount);
+    share += toScaled(step.percent ?? '0', 2);
+    const upTo = roundAmount(rest * share, 10000n);
+    const next = upTo < ceiling ? upTo : ceiling;
+    const amount = next - shared;
+    shared = next;
+    return amount;
   });
   const last = whole - amounts.reduce((sum, a) => sum + a, 0n);
-  if (last < 0n) {
-    throw new DomainError('validation_failed', 'the rounded shares exceed the order total', {
-      reason: 'milestone_amounts_exceed_total',
-    });
-  }
   return [...amounts, last].map(moneyFromPaise);
 }
 

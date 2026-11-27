@@ -18,6 +18,8 @@ import { projectSuryaGharMachine } from './machines/project-surya-ghar';
 import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
 import { serialMachine } from './machines/serial';
+import { paymentMilestoneMachine } from './machines/payment-milestone';
+import { proformaMachine } from './machines/proforma';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
 import { taskMachine } from './machines/task';
@@ -56,6 +58,17 @@ const FIXTURES: Fixture[] = [
   // H1: a serial moves from the bin it is in.
   { machine: serialMachine, record: { binId: SERIAL_BIN }, params: { fromBinId: SERIAL_BIN } },
   { machine: inboxItemMachine, record: {}, params: {} },
+  // FN1: a proforma of a confirmed order; a milestone whose rule's moment has come.
+  {
+    machine: proformaMachine,
+    record: { orderState: 'confirmed' },
+    params: { reason: 'Issued with the wrong address' },
+  },
+  {
+    machine: paymentMilestoneMachine,
+    record: { ruleMet: true, loanGate: 'none' },
+    params: { reason: 'Settled in person' },
+  },
   { machine: knowledgeFileMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
   { machine: duplicateCandidateMachine, record: {}, params: {} },

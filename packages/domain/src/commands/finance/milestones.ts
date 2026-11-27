@@ -113,6 +113,15 @@ interface PlanResult {
   milestones: PaymentMilestoneDto[];
 }
 
+/** What `finance.milestones.planned` carries: counts and the version, never an amount. */
+function plannedPayload(result: PlanResult) {
+  return {
+    count: result.milestones.length,
+    dueCount: result.milestones.filter((m) => m.state === 'due').length,
+    templateVersion: result.templateVersion,
+  };
+}
+
 /**
  * Plans an order's milestones (docs/03-roadmap-appendix/phase5.md §6.1, question 6 (a)): from the
  * company's current terms for the order's segment, or the named default where it has published
@@ -177,19 +186,7 @@ async function planOrder(
       after: { label: m.label, milestoneAmount: m.amount, state: m.state, dueOn: m.dueOn },
     });
   }
-  const templateVersion = facts.template?.version ?? null;
-  ctx.emit({
-    type: 'finance.milestones.planned',
-    entityId: facts.entityId,
-    aggregateType: 'sales_order',
-    aggregateId: facts.orderId,
-    payload: {
-      count: milestones.length,
-      dueCount: milestones.filter((m) => m.state === 'due').length,
-      templateVersion,
-    },
-  });
-  return { orderId: facts.orderId, templateVersion, milestones };
+  return { orderId: facts.orderId, templateVersion: facts.template?.version ?? null, milestones };
 }
 
 const PLAN_AUDIT_FIELDS = ['label', 'milestoneAmount', 'state', 'dueOn'];
@@ -233,6 +230,13 @@ export const planMilestonesByHand = defineCommand({
       kind: 'principal',
       principal: ctx.principal,
     });
+    ctx.emit({
+      type: 'finance.milestones.planned',
+      entityId: facts.entityId,
+      aggregateType: 'sales_order',
+      aggregateId: facts.orderId,
+      payload: plannedPayload(result),
+    });
     return {
       ...result,
       milestones: await readOrderMilestones(ctx, input.entityId, input.orderId),
@@ -266,6 +270,13 @@ export const planConfirmedMilestones = defineCommand({
     const result = await planOrder(ctx, facts, {
       kind: 'system',
       job: 'finance.milestone.plan_confirmed',
+    });
+    ctx.emit({
+      type: 'finance.milestones.planned',
+      entityId: facts.entityId,
+      aggregateType: 'sales_order',
+      aggregateId: facts.orderId,
+      payload: plannedPayload(result),
     });
     return { outcome: 'planned' as const, count: result.milestones.length };
   },

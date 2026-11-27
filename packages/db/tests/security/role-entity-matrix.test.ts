@@ -85,6 +85,9 @@ const VENDOR_READ: Rule = {
 };
 const RATE_READ = grant('procurement.rate.read', 'entity');
 
+/** FN1: proformas, milestones and payment terms (docs/03-roadmap-appendix/phase5.md §4). */
+const FINANCE_READ = grant('finance.read', 'own');
+
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
@@ -376,6 +379,12 @@ const RULES: Record<MatrixTable, TableRule> = {
   vendor_contacts: { read: VENDOR_READ, leak: () => sql`false` },
   item_vendors: { read: VENDOR_READ, leak: () => sql`false` },
   vendor_quotes: { read: RATE_READ, group: RATE_READ, leak: otherCompany },
+  // FN1: an order's proformas, their lines and its milestones with finance.read over the order
+  // (the matrix owns the lead), a company's payment terms with finance.read; no agent holds it.
+  proformas: { read: FINANCE_READ, leak: otherCompany },
+  proforma_lines: { read: FINANCE_READ, leak: otherCompany },
+  payment_milestone_templates: { read: FINANCE_READ, leak: otherCompany },
+  payment_milestones: { read: FINANCE_READ, leak: otherCompany },
 };
 
 const TABLES = Object.keys(RULES) as MatrixTable[];

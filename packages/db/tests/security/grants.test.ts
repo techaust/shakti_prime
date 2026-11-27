@@ -197,6 +197,13 @@ describe('app_user role (docs/05-database.md §3)', () => {
     stock_movement_costs: { i: false, u: false },
     stock_balances: { i: false, u: false },
     item_costs: { i: false, u: false },
+    // FN1: a proforma changes only its cancel (column grants), its lines and the payment terms are
+    // never changed, and an order's milestones are written only through
+    // app.record_order_milestones() and change only their waiver (column grants).
+    proformas: { i: true, u: false },
+    proforma_lines: { i: true, u: false },
+    payment_milestone_templates: { i: true, u: false },
+    payment_milestones: { i: false, u: false },
   };
 
   /**
@@ -518,6 +525,11 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.ingest_source(text,text)',
       'app.lead_search_ids(text,boolean,text,integer)',
       // The ⌘K and /orders search's candidate orders (RPT-03).
+      // FN1: whether a reader reads an order's money (the proforma and milestone policies), the
+      // dispatch's payment gate, and the loan gates (J2's, or its stand-in until J2 merges).
+      'app.order_dispatch_payment_gate(uuid)',
+      'app.order_finance_readable(uuid)',
+      'app.order_loan_gate(uuid)',
       'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       // Which recordings on a timeline page its reader may play (T3, 0171).

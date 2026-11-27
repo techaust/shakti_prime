@@ -28,6 +28,8 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
 | Knowledge Vault file | **yes** | 5 | 7 | 0 | [knowledge-file.md](knowledge-file.md) |
 | Serial | **yes** | 8 | 18 | 14 | [serial.md](serial.md) |
+| Proforma | **yes** | 2 | 2 | 0 | [proforma.md](proforma.md) |
+| Payment milestone | **yes** | 5 | 5 | 1 | [payment-milestone.md](payment-milestone.md) |
 
 ## Workshop defaults
 
@@ -52,6 +54,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `credit.exposureCountsConfirmedOrders` | true |
 | `dispatch.ewayBillThresholdPaise` | 5000000 |
 | `stock.reversalDays` | 7 |
+| `finance.milestoneSteps` | key: advance; label: Advance; percent: 50.00; amount: null; dueRule: on_confirmation; dueDays: null; loanGate: none<br>key: balance; label: Balance; percent: 50.00; amount: null; dueRule: before_dispatch; dueDays: null; loanGate: none |
 | `crm.dispositions` | key: 1; code: interested; label: Interested; nextAction: callback<br>key: 2; code: call_back_later; label: Call back later; nextAction: callback<br>key: 3; code: not_reachable; label: Not reachable; nextAction: retry<br>key: 4; code: switched_off; label: Switched off; nextAction: retry<br>key: 5; code: wrong_number; label: Wrong number; nextAction: wrong_number<br>key: 6; code: not_interested; label: Not interested; nextAction: not_interested<br>key: 7; code: already_bought; label: Already bought; nextAction: not_interested<br>key: 8; code: qualified; label: Qualified; nextAction: qualified |
 | `crm.scoreBase` | 50 |
 | `crm.scoreRules` | none |

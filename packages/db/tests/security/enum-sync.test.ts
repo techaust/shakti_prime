@@ -1,4 +1,8 @@
 import {
+  MilestoneDueRuleSchema,
+  MilestoneLoanGateSchema,
+  PaymentMilestoneStateSchema,
+  ProformaStateSchema,
   VOICE_SESSION_MODES,
   AGENT_ACTION_STATES,
   AGENT_AUTONOMY,
@@ -208,6 +212,22 @@ const PAIRS: Record<string, readonly string[]> = {
   commission_accruals_basis_check: CommissionBasisSchema.options,
   commission_accruals_state_check: CommissionAccrualStateSchema.options,
   commission_accruals_cancel_check: CommissionAccrualStateSchema.extract(['cancelled']).options,
+  // FN1 proformas and payment milestones.
+  proformas_state_check: ProformaStateSchema.options,
+  proformas_supply_kind_check: SupplyKindSchema.options,
+  proformas_gst_split_check: SupplyKindSchema.options,
+  // Only a cancelled proforma says why.
+  proformas_cancel_check: ProformaStateSchema.extract(['cancelled']).options,
+  payment_milestone_templates_segment_check: SegmentSchema.options,
+  payment_milestones_due_rule_check: MilestoneDueRuleSchema.options,
+  // Only a payment due days after the invoice names its days.
+  payment_milestones_due_days_check: MilestoneDueRuleSchema.extract(['days_after_invoice']).options,
+  payment_milestones_loan_gate_check: MilestoneLoanGateSchema.options,
+  payment_milestones_state_check: PaymentMilestoneStateSchema.options,
+  // What is paid matches the state: nothing while pending or due, part, or all.
+  payment_milestones_paid_check: PaymentMilestoneStateSchema.exclude(['waived']).options,
+  // Only a waived milestone carries its waiver.
+  payment_milestones_waive_check: PaymentMilestoneStateSchema.extract(['waived']).options,
   // Only a pump sizing names a catalogue pump.
   sizings_item_kind_check: SizingKindSchema.extract(['pump']).options,
   tasks_kind_check: TaskKindSchema.options,

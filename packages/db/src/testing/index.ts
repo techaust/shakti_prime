@@ -406,6 +406,13 @@ export const ENTITY_TABLES = [
   'stock_movements',
   'stock_movement_costs',
   'stock_balances',
+  // FN1: an order's proformas, their lines and its payment milestones, read with finance.read over
+  // the order; a company's payment terms, read with finance.read (docs/03-roadmap-appendix/
+  // phase5.md §6.1)
+  'proformas',
+  'proforma_lines',
+  'payment_milestone_templates',
+  'payment_milestones',
 ] as const;
 
 /**

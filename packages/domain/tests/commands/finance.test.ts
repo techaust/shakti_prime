@@ -584,6 +584,7 @@ describe('finance.terms.publish (question 6 (a))', () => {
       code: 'forbidden',
     });
     expect(await failure(gm, publishPaymentTerms, input)).toMatchObject({ code: 'forbidden' });
+    // The Executive acting for company 1 only: company 4 is outside the request.
     const execIn1 = { ...exec, entityIds: [1] };
     expect(await failure(execIn1, publishPaymentTerms, input)).toMatchObject({
       code: 'forbidden',
@@ -608,6 +609,7 @@ describe('finance.milestone.waive', () => {
     const input = { entityId: E, milestoneId: balance?.id ?? '', reason: 'Settled in person' };
     expect(await failure(accounts, waiveMilestone, input)).toMatchObject({ code: 'forbidden' });
     expect(await failure(lc, waiveMilestone, input)).toMatchObject({ code: 'forbidden' });
+    // The Executive acting for company 1 only: company 4 is outside the request.
     expect(await failure({ ...exec, entityIds: [1] }, waiveMilestone, input)).toMatchObject({
       code: 'forbidden',
     });
