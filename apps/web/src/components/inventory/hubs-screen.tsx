@@ -10,14 +10,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   EmptyState,
   Field,
   Input,
   Select,
   toast,
+  useFocusTargets,
   type DataGridColumn,
   type ReturnFocusTo,
 } from '@shakti/ui';
+import { Ellipsis } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
@@ -46,7 +52,7 @@ type Open =
   | { kind: 'archiveBin'; bin: BinDto }
   // Q1 labels
   | { kind: 'printHub'; hub: HubDto; bins: BinDto[] }
-  | { kind: 'reprintBin'; hub: HubDto; bin: BinDto };
+  | { kind: 'printBin' | 'reprintBin'; hub: HubDto; bin: BinDto };
 
 /** Bins that carry a label: every bin of a godown or factory; a transit bin is no place on a rack. */
 const labelled = (hub: HubDto) => hub.bins.filter((b) => b.kind !== 'transit');
@@ -55,7 +61,8 @@ const labelled = (hub: HubDto) => hub.bins.filter((b) => b.kind !== 'transit');
  * `/inventory/hubs` (docs/03-roadmap-appendix/phase3.md §5): the group's hubs and their bins. An
  * Executive (`inventory.stock.adjust` for every company) adds and edits hubs and bins and
  * archives one that holds no stock; everyone else reads them. A stock handler
- * (`inventory.stock.move` for the company, Q1) prints a hub's bin labels and a bin's again.
+ * (`inventory.stock.move` for the company, Q1) prints a hub's bin labels, and a bin's label, a
+ * first one or one again with why. A bin's actions are in its row's menu, which fits a phone.
  */
 export function HubsScreen({
   initial,
@@ -69,6 +76,7 @@ export function HubsScreen({
 }) {
   const t = useTranslations('inventory.hubs');
   const labels = useTranslations('inventory.labels');
+  const common = useTranslations('common');
   const hubKind = useHubKindText();
   const binKind = useBinKindText();
   const [hubs, setHubs] = useState(initial.hubs);
@@ -76,6 +84,9 @@ export function HubsScreen({
   const { load, failure } = useQuery<HubListDto>();
   const addButton = useRef<HTMLButtonElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
+  // A bin's dialog opens from its row's menu, whose item has gone when it closes: focus goes back
+  // to the row's Actions button (docs/08-design-system.md §6, Dialog).
+  const binMenus = useFocusTargets<string>();
 
   function reload() {
     load(
@@ -89,6 +100,9 @@ export function HubsScreen({
   const ask = (what: Open, button: HTMLButtonElement | null) => {
     opener.current = button;
     setOpen({ what, returnFocusTo: () => [opener.current, addButton.current] });
+  };
+  const askForBin = (what: Open, bin: BinDto) => {
+    setOpen({ what, returnFocusTo: () => [binMenus.get(bin.id), addButton.current] });
   };
   const close = () => {
     setOpen(undefined);
@@ -110,41 +124,56 @@ export function HubsScreen({
         align: 'end',
         cell: (b) =>
           b.kind === 'transit' ? null : (
-            <span className="flex justify-end gap-2">
-              {labelsFor === null ? null : (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={(e) => {
-                    ask({ kind: 'reprintBin', hub, bin: b }, e.currentTarget);
-                  }}
-                >
-                  {labels('newLabel', { bin: b.code })}
-                </Button>
-              )}
-              {canEdit ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={(e) => {
-                    ask({ kind: 'bin', hub, bin: b }, e.currentTarget);
-                  }}
-                >
-                  {t('editBin', { bin: b.code })}
-                </Button>
-              ) : null}
-              {!canEdit || b.kind === 'receiving' || b.kind === 'dispatch' ? null : (
+            // Not modal, so the dialog it opens takes focus cleanly when the menu closes.
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild ref={binMenus.ref(b.id)}>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    ask({ kind: 'archiveBin', bin: b }, e.currentTarget);
-                  }}
+                  size="icon"
+                  aria-label={common('rowActions', { name: b.code })}
                 >
-                  {t('archiveBin', { bin: b.code })}
+                  <Ellipsis aria-hidden />
                 </Button>
-              )}
-            </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {labelsFor === null ? null : (
+                  <>
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        askForBin({ kind: 'printBin', hub, bin: b }, b);
+                      }}
+                    >
+                      {labels('firstLabel')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        askForBin({ kind: 'reprintBin', hub, bin: b }, b);
+                      }}
+                    >
+                      {labels('reprintLabel')}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {canEdit ? (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      askForBin({ kind: 'bin', hub, bin: b }, b);
+                    }}
+                  >
+                    {t('editBin', { bin: b.code })}
+                  </DropdownMenuItem>
+                ) : null}
+                {!canEdit || b.kind === 'receiving' || b.kind === 'dispatch' ? null : (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      askForBin({ kind: 'archiveBin', bin: b }, b);
+                    }}
+                  >
+                    {t('archiveBin', { bin: b.code })}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           ),
       });
     }
@@ -249,6 +278,17 @@ export function HubsScreen({
           returnFocusTo={open.returnFocusTo}
           onClose={close}
         />
+      ) : open.what.kind === 'printBin' ? (
+        <LabelsDialog
+          mode="print"
+          entityId={labelsFor}
+          labelKind="bin"
+          ids={[open.what.bin.id]}
+          title={labels('printBinTitle', { bin: open.what.bin.code })}
+          intro={labels('printBinIntro', { hub: open.what.hub.name })}
+          returnFocusTo={open.returnFocusTo}
+          onClose={close}
+        />
       ) : open.what.kind === 'reprintBin' ? (
         <LabelsDialog
           mode="reprint"
@@ -263,6 +303,7 @@ export function HubsScreen({
       ) : null}
       {open === undefined ||
       open.what.kind === 'printHub' ||
+      open.what.kind === 'printBin' ||
       open.what.kind === 'reprintBin' ? null : (
         <Frame returnFocusTo={open.returnFocusTo} onClose={close}>
           {open.what.kind === 'hub' ? (

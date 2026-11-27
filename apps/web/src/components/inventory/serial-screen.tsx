@@ -17,20 +17,24 @@ const LabelsDialog = dynamic(() => import('./labels-dialog').then((m) => m.Label
 
 /**
  * A serial: where it is, its warranty dates and every movement, newest first. A stock handler
- * (`inventory.stock.move` for the company) prints its label again, with why (Q1).
+ * (`inventory.stock.move` for the company) prints its label (Q1): a first one, for a serial that
+ * came in without a receipt, or one again, with why.
  */
 export function SerialScreen({
   serial,
   company,
-  canReprint,
+  canPrint,
 }: {
   serial: SerialDto;
   company: string;
-  canReprint: boolean;
+  canPrint: boolean;
 }) {
   const t = useTranslations('inventory.serial');
   const labels = useTranslations('inventory.labels');
-  const [reprinting, setReprinting] = useState<{ returnFocusTo: ReturnFocusTo } | undefined>();
+  const [printing, setPrinting] = useState<
+    { mode: 'print' | 'reprint'; returnFocusTo: ReturnFocusTo } | undefined
+  >();
+  const printButton = useRef<HTMLButtonElement>(null);
   const reprintButton = useRef<HTMLButtonElement>(null);
   const state = useSerialStateText();
   const facts: [string, string][] = [
@@ -61,16 +65,27 @@ export function SerialScreen({
       width="detail"
       actions={
         <>
-          {canReprint ? (
-            <Button
-              ref={reprintButton}
-              variant="secondary"
-              onClick={() => {
-                setReprinting({ returnFocusTo: () => [reprintButton.current] });
-              }}
-            >
-              {labels('reprintLabel')}
-            </Button>
+          {canPrint ? (
+            <>
+              <Button
+                ref={printButton}
+                variant="secondary"
+                onClick={() => {
+                  setPrinting({ mode: 'print', returnFocusTo: () => [printButton.current] });
+                }}
+              >
+                {labels('firstLabel')}
+              </Button>
+              <Button
+                ref={reprintButton}
+                variant="secondary"
+                onClick={() => {
+                  setPrinting({ mode: 'reprint', returnFocusTo: () => [reprintButton.current] });
+                }}
+              >
+                {labels('reprintLabel')}
+              </Button>
+            </>
           ) : null}
           <Button asChild variant="secondary">
             <Link href={stockCardHref(serial.entityId, serial.item.id)}>{t('card')}</Link>
@@ -92,17 +107,23 @@ export function SerialScreen({
         </h2>
         <MovementsTable entityId={serial.entityId} movements={serial.movements} />
       </section>
-      {reprinting === undefined ? null : (
+      {printing === undefined ? null : (
         <LabelsDialog
-          mode="reprint"
+          mode={printing.mode}
           entityId={serial.entityId}
           labelKind="serial"
           ids={[serial.id]}
-          title={labels('reprintSerialTitle', { serial: serial.serialNo })}
-          intro={labels('reprintSerialIntro')}
-          returnFocusTo={reprinting.returnFocusTo}
+          title={
+            printing.mode === 'print'
+              ? labels('printSerialTitle', { serial: serial.serialNo })
+              : labels('reprintSerialTitle', { serial: serial.serialNo })
+          }
+          intro={
+            printing.mode === 'print' ? labels('printSerialIntro') : labels('reprintSerialIntro')
+          }
+          returnFocusTo={printing.returnFocusTo}
           onClose={() => {
-            setReprinting(undefined);
+            setPrinting(undefined);
           }}
         />
       )}

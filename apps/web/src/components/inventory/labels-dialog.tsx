@@ -144,7 +144,7 @@ export function LabelsDialog({
             </Button>
             {stage.kind === 'ask' ? (
               <Button type="submit" pending={pending}>
-                {mode === 'print' ? t('printSubmit') : t('reprintSubmit')}
+                {ids.length === 1 ? t('printOneSubmit') : t('printSubmit')}
               </Button>
             ) : stage.kind === 'ready' ? (
               <Button

@@ -48,7 +48,7 @@ export default async function SerialPage({
     <SerialScreen
       serial={serial.data}
       company={companyNames(access)[entityId] ?? ''}
-      canReprint={hasGrant(principal.permissions, 'inventory.stock.move', 'entity')}
+      canPrint={hasGrant(principal.permissions, 'inventory.stock.move', 'entity')}
     />
   ) : (
     <Page title={t('title')} width="detail">
