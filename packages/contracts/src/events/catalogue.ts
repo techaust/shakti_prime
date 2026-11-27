@@ -14,6 +14,7 @@ import { INBOUND_MATCH_LIMIT } from '../commands/calls/inbound';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 import { StockReasonSchema } from '../inventory/enums';
 import { StockQtySchema } from '../inventory/stock';
+import { WarrantySettlementSchema } from '../inventory/warranty';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -808,6 +809,31 @@ const eventCatalogue = {
     emittedBy: ['procurement.quote.withdraw'],
     subscribed: false,
     payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
+  },
+  // R3 warranty claims (docs/03-roadmap-appendix/phase3.md §7.5): ids only, never a cost.
+  'inventory.warranty.raised': {
+    meaning: 'A warranty claim was raised on a customer, or on the serial they reported.',
+    emittedBy: ['inventory.warranty.raise'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema, serialId: IdSchema.nullable() }).strict(),
+  },
+  'inventory.warranty.serial_identified': {
+    meaning: "A warranty claim's failed serial was identified, in warranty.",
+    emittedBy: ['inventory.warranty.identify_serial'],
+    subscribed: false,
+    payload: z.object({ serialId: IdSchema }).strict(),
+  },
+  'inventory.warranty.rejected': {
+    meaning: 'A warranty claim was rejected: out of warranty, or not a fault.',
+    emittedBy: ['inventory.warranty.reject'],
+    subscribed: false,
+    payload: z.object({}).strict(),
+  },
+  'inventory.warranty.closed': {
+    meaning: "A warranty claim was closed by the supplier's settlement; the amount stays restricted.",
+    emittedBy: ['inventory.warranty.settle'],
+    subscribed: false,
+    payload: z.object({ settlement: WarrantySettlementSchema }).strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 

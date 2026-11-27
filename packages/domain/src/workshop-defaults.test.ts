@@ -21,6 +21,8 @@ describe('workshop defaults', () => {
           proforma: 'PI',
           challan: 'DC',
           purchase_order: 'PO',
+          // R3 warranty claims
+          warranty_claim: 'WC',
         },
         separator: '/',
         serialDigits: 4,

@@ -255,6 +255,8 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
       proforma: 'PI',
       challan: 'DC',
       purchase_order: 'PO',
+      // R3: the brief's code for a warranty claim (docs/runs/phase3/r3-warranty.md, point 1).
+      warranty_claim: 'WC',
     },
     separator: '/',
     serialDigits: 4,

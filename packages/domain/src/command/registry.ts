@@ -159,6 +159,13 @@ import {
   updateHub,
 } from '../commands/inventory/hubs';
 import { adjustStock, reverseStock, transferStock } from '../commands/inventory/stock';
+// R3 warranty claims
+import {
+  identifyWarrantySerial,
+  raiseWarrantyClaim,
+  rejectWarrantyClaim,
+  settleWarrantyClaim,
+} from '../commands/inventory/warranty';
 import {
   approvePriceList,
   archivePriceList,
@@ -312,6 +319,11 @@ export const commands = Object.freeze({
   [transferStock.name]: transferStock,
   [adjustStock.name]: adjustStock,
   [reverseStock.name]: reverseStock,
+  // R3 warranty claims
+  [raiseWarrantyClaim.name]: raiseWarrantyClaim,
+  [identifyWarrantySerial.name]: identifyWarrantySerial,
+  [rejectWarrantyClaim.name]: rejectWarrantyClaim,
+  [settleWarrantyClaim.name]: settleWarrantyClaim,
   [updateItem.name]: updateItem,
   [archiveItem.name]: archiveItem,
   [createKit.name]: createKit,

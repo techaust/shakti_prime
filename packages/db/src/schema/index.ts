@@ -79,3 +79,5 @@ export {
   stockMovementCosts,
   stockBalances,
 } from './stock';
+// R3 warranty claims and supplier returns (docs/03-roadmap-appendix/phase3.md §7.5).
+export { warrantyClaims, warrantyClaimCosts } from './warranty';

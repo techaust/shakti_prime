@@ -7,6 +7,8 @@ export const DocTypeSchema = z.enum([
   'proforma',
   'challan',
   'purchase_order',
+  // R3: a warranty claim (docs/03-roadmap-appendix/phase3.md §7.5).
+  'warranty_claim',
 ]);
 export type DocType = z.infer<typeof DocTypeSchema>;
 

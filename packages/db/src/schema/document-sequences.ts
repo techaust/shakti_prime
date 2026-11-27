@@ -24,7 +24,7 @@ export const documentSequences = pgTable(
     unique('document_sequences_series_unique').on(t.entityId, t.docType, t.fy),
     check(
       'document_sequences_doc_type_check',
-      sql`${t.docType} in ('quote', 'sales_order', 'proforma', 'challan', 'purchase_order')`,
+      sql`${t.docType} in ('quote', 'sales_order', 'proforma', 'challan', 'purchase_order', 'warranty_claim')`,
     ),
     // An Indian financial year: two consecutive years, `2026-27` (AUDIT L5).
     check(

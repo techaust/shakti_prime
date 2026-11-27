@@ -121,6 +121,9 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   stock_movements: 'x.id::text',
   stock_movement_costs: 'x.movement_id::text',
   stock_balances: 'x.id::text',
+  // R3 warranty claims.
+  warranty_claims: 'x.id::text',
+  warranty_claim_costs: 'x.claim_id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -251,6 +254,9 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from vendor_contacts where id::text like ${like}`;
       await tx`delete from vendors where id::text like ${like}`;
       await tx`delete from item_costs where id::text like ${like}`;
+      // R3: a claim names the serial, its costs the claim.
+      await tx`delete from warranty_claim_costs where claim_id::text like ${like}`;
+      await tx`delete from warranty_claims where id::text like ${like}`;
       // H1's ledger is append-only: its triggers are set aside for the fixture's own rows.
       await tx`alter table stock_movement_costs disable trigger stock_movement_costs_append_only`;
       await tx`alter table stock_movements disable trigger stock_movements_append_only`;
@@ -411,6 +417,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     stock_movements: [],
     stock_movement_costs: [],
     stock_balances: [],
+    // R3 warranty claims.
+    warranty_claims: [],
+    warranty_claim_costs: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -668,6 +677,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.stock_movements.push({ key: movement, entities: only });
         rows.stock_movement_costs.push({ key: movement, entities: only });
         rows.stock_balances.push({ key: balance, entities: only });
+        // R3: a claim on the company's customer for that serial, with its costs.
+        const claim = per(e, 0x83);
+        await tx`insert into warranty_claims (id, entity_id, claim_no, account_id, site_id, item_id, serial_id, reported_fault, state, created_by)
+          values (${claim}, ${e}, ${`MX${e.toString()}/WC/0001`}, ${account}, ${site}, ${item}, ${serial}, 'matrix fault', 'serial_identified', ${ownerId})`;
+        await tx`insert into warranty_claim_costs (claim_id, entity_id, replacement_cost)
+          values (${claim}, ${e}, 100.00)`;
+        rows.warranty_claims.push({ key: claim, entities: only });
+        rows.warranty_claim_costs.push({ key: claim, entities: only });
         await tx`insert into document_sequences (id, entity_id, doc_type, fy, prefix)
           values (${sequence}, ${e}, 'challan', '2098-99', ${`MX${e.toString()}/C`})`;
         await tx`insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command, outcome)

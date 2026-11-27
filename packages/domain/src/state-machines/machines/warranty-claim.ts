@@ -1,16 +1,13 @@
-import type { CalendarDate } from '@shakti/contracts';
+import {
+  WARRANTY_CLAIM_STATES,
+  type CalendarDate,
+  type WarrantyClaimState,
+} from '@shakti/contracts';
 import { istCalendarDate } from '../../numbering/financial-year';
 import { allOf, defineMachine, reasonGiven, type Guard } from '../define-machine';
 
-export const WARRANTY_CLAIM_STATES = [
-  'raised',
-  'serial_identified',
-  'replacement_issued',
-  'rma_raised',
-  'closed',
-  'rejected',
-] as const;
-export type WarrantyClaimState = (typeof WARRANTY_CLAIM_STATES)[number];
+export { WARRANTY_CLAIM_STATES };
+export type { WarrantyClaimState };
 export type WarrantyClaimEvent =
   'raise' | 'serial.identify' | 'replace' | 'rma.raise' | 'settle' | 'reject';
 
@@ -42,7 +39,11 @@ const underWarranty: G = {
   check: (record, { now }) =>
     record.warrantyUntil !== null && record.warrantyUntil >= istCalendarDate(now)
       ? undefined
-      : { code: 'conflict', reason: 'warranty_expired' },
+      : {
+          code: 'conflict',
+          reason: 'warranty_expired',
+          details: { warrantyUntil: record.warrantyUntil },
+        },
 };
 
 const replacementGiven: G = {
@@ -77,11 +78,17 @@ export const warrantyClaimMachine = defineMachine<
   name: 'warranty_claim',
   title: 'Warranty claim',
   summary:
-    '`warranty_claims.state`. Raised on a customer or serial; the replacement comes from stock and the supplier RMA follows; the cost lands in job costing.',
-  sources: ['BLUEPRINT §8.4, §19 item 2', 'PRD INV-08', 'DATABASE §6.5 `warranty_claims`'],
+    "`warranty_claims.state`. Raised on a customer or serial; the replacement comes from stock and the supplier RMA follows. Until job costing exists (Phase 5) the replacement's cost and the supplier's credit stay on the claim's restricted costs (`warranty_claim_costs`, `finance.cost.read`; phase3 §2 question 10 (a)).",
+  sources: [
+    'BLUEPRINT §8.4, §19 item 2',
+    'PRD INV-08',
+    'DATABASE §6.5 `warranty_claims`',
+    'docs/03-roadmap-appendix/phase3.md §7.5, §14',
+  ],
   states: WARRANTY_CLAIM_STATES,
   initial: 'raised',
   terminal: ['closed', 'rejected'],
+  stored: { table: 'warranty_claims', stateColumn: 'state', changedAtColumn: 'state_changed_at' },
   proposedStates: [
     'raised',
     'serial_identified',
@@ -104,24 +111,39 @@ export const warrantyClaimMachine = defineMachine<
       event: 'raise',
       to: 'raised',
       permission: 'inventory.warranty.write',
+      scope: 'entity',
+      emits: 'inventory.warranty.raised',
+      note: 'From Account 360, or from the serial reported, whose customer the claim takes.',
     },
     {
       from: ['raised'],
       event: 'serial.identify',
       to: 'serial_identified',
       permission: 'inventory.warranty.write',
+      scope: 'entity',
       guard: allOf(serialGiven, underWarranty),
+      emits: 'inventory.warranty.serial_identified',
+      note: "The serial is the company's, with the claim's customer; out of warranty it is refused with its date, and the claim is rejected.",
       effects: [{ key: 'set_serial', description: 'record the failed serial on the claim' }],
     },
     {
       from: ['serial_identified'],
       event: 'replace',
       to: 'replacement_issued',
-      permission: 'inventory.stock.move',
+      permission: 'inventory.warranty.write',
+      scope: 'entity',
       guard: replacementGiven,
       effects: [
-        { key: 'issue_stock', description: 'stock movement out for the replacement serial' },
-        { key: 'cost_entry', description: 'job cost entry of type `warranty` (restricted)' },
+        {
+          key: 'issue_stock',
+          description:
+            'the replacement serial leaves stock to the customer (`warranty_replacement`, at the moving average)',
+        },
+        {
+          key: 'cost_entry',
+          description:
+            "the replacement's cost on the claim's restricted costs; the job cost entry of type `warranty` waits for Phase 5 (question 10 (a))",
+        },
       ],
     },
     {
@@ -129,6 +151,7 @@ export const warrantyClaimMachine = defineMachine<
       event: 'rma.raise',
       to: 'rma_raised',
       permission: 'procurement.po.write',
+      scope: 'entity',
       guard: rmaGiven,
     },
     {
@@ -136,11 +159,14 @@ export const warrantyClaimMachine = defineMachine<
       event: 'settle',
       to: 'closed',
       permission: 'procurement.grn.write',
+      scope: 'entity',
       guard: settled,
+      emits: 'inventory.warranty.closed',
       effects: [
         {
           key: 'adjust_cost',
-          description: 'offset the warranty cost entry by the supplier credit or replacement',
+          description:
+            "the supplier's credit on the claim's restricted costs, or its replacement serial received into stock; Phase 5 offsets the job cost entry with it",
         },
       ],
     },
@@ -149,7 +175,9 @@ export const warrantyClaimMachine = defineMachine<
       event: 'reject',
       to: 'rejected',
       permission: 'inventory.warranty.write',
+      scope: 'entity',
       guard: reasonGiven(),
+      emits: 'inventory.warranty.rejected',
       proposed: true,
     },
   ],

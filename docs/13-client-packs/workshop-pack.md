@@ -194,7 +194,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 ### B4. Quotes, sales orders and dealer credit (SALE)
 
 **SALE-1 · Document number format** — Accounts, Owner
-- *Context:* quotes, sales orders, proformas, challans and purchase orders are numbered per company and per financial year (for example 2026-27), with no gaps.
+- *Context:* quotes, sales orders, proformas, challans, purchase orders and warranty claims (code WC) are numbered per company and per financial year (for example 2026-27), with no gaps.
 - *Options:* for example `ASH/Q/2026-27/0001`, `SMP-SO-26-27-0001`, or the formats used today.
 - *Today:* numbering by company, document type and financial year works, without gaps; until you decide, quotes use the first example, `ASH/Q/2026-27/0001` (the company's code, the document's code, the year and a four-digit number), which changes in one place.
 - *Bring:* a sample of each document as issued today.

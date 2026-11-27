@@ -197,6 +197,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     stock_movement_costs: { i: false, u: false },
     stock_balances: { i: false, u: false },
     item_costs: { i: false, u: false },
+    // R3: a claim changes only its step columns (column grants); its costs are written only by
+    // the claim's definers (warranty.test.ts).
+    warranty_claims: { i: true, u: false },
+    warranty_claim_costs: { i: false, u: false },
   };
 
   /**

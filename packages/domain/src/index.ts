@@ -213,6 +213,13 @@ export {
   updateHub,
 } from './commands/inventory/hubs';
 export { adjustStock, reverseStock, transferStock } from './commands/inventory/stock';
+// R3 warranty claims
+export {
+  identifyWarrantySerial,
+  raiseWarrantyClaim,
+  rejectWarrantyClaim,
+  settleWarrantyClaim,
+} from './commands/inventory/warranty';
 export { listHubs } from './queries/inventory/hubs';
 export {
   getSerial,

@@ -215,6 +215,16 @@ const RULES: Record<MatrixTable, TableRule> = {
   serials: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   stock_movements: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   stock_movement_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
+  // R3: a company's claims with inventory.stock.read or inventory.warranty.write for the company;
+  // their costs only with finance.cost.read.
+  warranty_claims: {
+    read: {
+      kind: 'any',
+      rules: [grant('inventory.stock.read', 'entity'), grant('inventory.warranty.write', 'entity')],
+    },
+    leak: otherCompany,
+  },
+  warranty_claim_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   stock_balances: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
   audit_logs: {

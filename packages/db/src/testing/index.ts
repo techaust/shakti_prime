@@ -406,6 +406,10 @@ export const ENTITY_TABLES = [
   'stock_movements',
   'stock_movement_costs',
   'stock_balances',
+  // R3: a company's warranty claims, read with inventory.stock.read or inventory.warranty.write for
+  // the company; their costs with finance.cost.read (docs/03-roadmap-appendix/phase3.md §7.5)
+  'warranty_claims',
+  'warranty_claim_costs',
 ] as const;
 
 /**
