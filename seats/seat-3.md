@@ -1,6 +1,6 @@
 seat: 3
-max_agents: 5
-updated: 2026-11-27T17:45Z
+max_agents: 3
+updated: 2026-11-27T18:28Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
