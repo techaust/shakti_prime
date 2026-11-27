@@ -334,6 +334,16 @@ All ten findings are fixed, and each has a test. Finding 1, the high, is closed,
 
 ## Integration
 
+### The lead, 27-11-2026, cloud session (slot 6)
+- **The second round's diff, read by the lead:** a page over any of the batch's caps, refused rows included, is read again in a narrower window and never sent. New tests prove the drain goes past a set-aside row to a later one.
+- **Main taken in again** after the seat's prep (Q1 #299, then the day's documents), by a merge commit. There was no conflict, and the slice has no migration. On the merged tree, install, lint, format, copy lint, generated, typecheck and unit all passed. The seat's prep, on `main` with X4, passed security, `db:verify`, audit, build, js-budget and gitleaks; nothing since touches the database.
+- **No journeys:** the slice changes no screen of the web, and CI runs every journey.
+- **Checks files, so the owner's `checks-ok` is needed:**
+  - `.github/workflows/tally-connector.yml`, the Windows job: it builds the single executable, refuses WinSW 2.12 unless its SHA-256 matches, and runs the tests with the real DPAPI;
+  - `eslint.config.mjs`, the connector's fence;
+  - `apps/tally-connector/package.json`'s scripts (`typecheck`, `test`).
+  - The first Windows run is read on the pull request.
+
 ### 27-11-2026, Integration prep (cloud, worktree `tc1-tally-connector`)
 - **Main taken in:** `origin/main` at `bdf82df4` (#298, X4 stock reasons), by the merge commit `bc5463f0` over the slice's `2d9bf6c3`. No conflict: `merge-union.py`, `merge-json.py` and `merge-copylint.py` had nothing to resolve. `pnpm install --offline --frozen-lockfile` up to date.
 - **Migrations:** the slice has none, so `renumber-migrations.mjs origin/main 2d9bf6c3` printed "no branch-only migrations" and nothing moved. `main`'s last stays `0240_x4_stock_reasons`. `pnpm db:generate`: "No schema changes, nothing to migrate". `pnpm db:docs` left `docs/data/` unchanged.
