@@ -186,4 +186,10 @@ Reviewed `git diff origin/main...feat/q1-labels` at `7cb4036a` (`main` at `59736
 - U2 and R3 may also redefine `app.file_purpose_grant()` and widen `files_purpose_check`. At the merge, keep every purpose line from all of them.
 - The DATABASE definer row's migration column says "Q1" for now: give it the migration number at renumbering. The `0241` comment cites `0235`, `main`'s own migration, and stays.
 
+**The lead's triage (27-11-2026):**
+- **Fix all six in the one fix round:** M1, M2, L1 to L4.
+- **L1:** a quiet zone of at least 4 modules on every label kind and size. Shrink the code if it must, and re-run the jsQR decodes at 203 and 300 dpi.
+- **M2:** the actions wrap, or move into a menu on a phone, the way the other DataGrid rows do it. Check the `stock-hubs` phone picture.
+- **No re-check:** the lead reads the diff.
+
 ## Integration
