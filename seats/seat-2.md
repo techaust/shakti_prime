@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 28-11-2026 05:58 UTC
+updated: 28-11-2026 08:58 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 91
@@ -218,3 +218,11 @@ run_file: docs/runs/phase3/h3-stock-counts.md
 wait_for: docs(runs): h3-stock-counts, the lead's triage of the review
 done_when: report: h3-stock-counts fixes
 note: the one fix round: H1 parts (1) and (3), M1, L1 and L2 as the lead's triage at the end of the Review section says. No role gets a new permission in this round (the owner's questions A and B are open). Do not take main in.
+
+lane: 112
+role: fix
+branch: feat/h3-stock-counts
+run_file: docs/runs/phase3/h3-stock-counts.md
+wait_for: docs(runs): h3-stock-counts, the owner's answers to questions A and B
+done_when: report: h3-stock-counts owner answers
+note: build the addendum "the owner's answers to questions A and B" at the end of the Review section (the counting permission inventory.count.record, and blind counting by restrictive policies for counters without adjust). Commit with the subject "report: h3-stock-counts owner answers". Do not take main in.

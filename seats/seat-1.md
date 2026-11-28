@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 2
-updated: 28-11-2026 08:55 UTC
+updated: 28-11-2026 08:58 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -226,3 +226,11 @@ run_file: docs/runs/phase4/j3-documents.md
 wait_for: report: j3-documents done
 done_when: review: j3-documents done
 note: Tier A. Attack identity digits surviving anywhere (storage, rows, audit, logs, Sentry, model payloads), sensitive rows by grant, filing against another customer. (moved from seat 3: no commit for two hours)
+
+lane: 113
+role: review
+branch: feat/h3-stock-counts
+run_file: docs/runs/phase3/h3-stock-counts.md
+wait_for: report: h3-stock-counts owner answers
+done_when: review: h3-stock-counts owner answers checked
+note: a re-check of the owner's-answers addendum only (row security): the new permission's seed, oracle and scopes; the restrictive policies on stock_balances, stock_movements and serials hide counted bins only from holders of inventory.count.record without inventory.stock.adjust, fail closed, and leave every other reader (sales, H2's availability, the GM, Accounts) unchanged; the definer's search_path and grants; the tests and EXPLAIN. Write the result under the addendum and commit "review: h3-stock-counts owner answers checked".
