@@ -87,6 +87,16 @@ export interface WorkshopDefaults {
      * one with `app_update_required`. A deployment raises it with `FIELD_MIN_APP_VERSION`.
      */
     readonly minimumAppVersion: string;
+    // F2 sync engine (docs/03-roadmap-appendix/phase4.md §7.4).
+    /** The most changes one pull answers; the app pulls again at once while more wait. */
+    readonly syncPageLimit: number;
+    /**
+     * Days a pull cursor lasts: an app that has not pulled for longer starts a full pull. The
+     * refresh token's 30 days, past which the engineer signs in again anyway.
+     */
+    readonly syncCursorDays: number;
+    /** Days a completed or cancelled project stays on the engineer's phone after it ended. */
+    readonly finishedProjectDays: number;
   };
   readonly retention: {
     /**
@@ -593,6 +603,10 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   field: {
     offlineDays: 5,
     minimumAppVersion: '1.0.0',
+    // F2: the contract's default page; the refresh window; a week to look back at a finished job.
+    syncPageLimit: 500,
+    syncCursorDays: 30,
+    finishedProjectDays: 7,
   },
   retention: {
     unqualifiedLeadMonths: 24,

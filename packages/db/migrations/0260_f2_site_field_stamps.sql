@@ -1,0 +1,1 @@
+ALTER TABLE "customer_sites" ADD COLUMN "field_changed_at" jsonb DEFAULT '{}'::jsonb NOT NULL;

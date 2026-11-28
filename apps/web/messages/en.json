@@ -135,6 +135,8 @@
     "session_missing": "This sign-in has already ended.",
     "device_missing": "This phone is already signed out.",
     "app_update_required": "This version of the field app is too old. Update it from the Play Store to carry on.",
+    "cursor_expired": "Your phone's copy of your work is out of date. It will load everything again now.",
+    "sync_command_unknown": "This change can't be sent from the field app. Make it on the website instead.",
     "invalid_credentials": "That email and password don't match. Check them and try again.",
     "totp_invalid": "That code didn't work. Check the authenticator app and type the new code.",
     "totp_setup_required": "Your role needs an authenticator app. Set it up on the website first, then sign in here.",

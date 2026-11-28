@@ -270,6 +270,10 @@ export {
   type FeatureFlagRow,
 } from './queries/field/feature-flags';
 export { fieldAppProfile } from './queries/field/me';
+// F2 sync engine.
+export { syncPull, SYNC_OVERLAP_MS, type SyncPullOutcome, type SyncPullRequest } from './sync/pull';
+export { syncPush, type SyncPushOptions } from './sync/push';
+export { SYNC_REGISTRY, pushableCommand, type SyncCollectionSpec } from './sync/collections';
 export { replayDeadLetter } from './commands/integrations/replay-dead-letter';
 export { runDeliveryProbe } from './commands/platform/run-probe';
 export { requestPrintProof } from './commands/print/request-proof';

@@ -1821,6 +1821,20 @@
       "when": 1795808159502,
       "tag": "0259_j1_review_fixes",
       "breakpoints": true
+    },
+    {
+      "idx": 260,
+      "version": "7",
+      "when": 1795866212899,
+      "tag": "0260_f2_site_field_stamps",
+      "breakpoints": true
+    },
+    {
+      "idx": 261,
+      "version": "7",
+      "when": 1795866226264,
+      "tag": "0261_f2_sync",
+      "breakpoints": true
     }
   ]
 }

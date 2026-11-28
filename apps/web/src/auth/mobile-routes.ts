@@ -344,7 +344,7 @@ export async function mobileRefreshRoute(
  * The bearer routes' shared front: the version gate, then the caller. `run` gets the caller and
  * answers the route's body; the person is tagged on this request's Sentry events by id only.
  */
-async function withCaller(
+export async function withCaller(
   request: Request,
   deps: MobileRouteDeps,
   event: string,

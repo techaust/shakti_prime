@@ -113,6 +113,7 @@ export * from './api/realtime';
 export * from './api/voice';
 export * from './commands/voice/sessions';
 export * from './api/sync';
+export * from './api/sync-records';
 export * from './api/files';
 export * from './api/attendance';
 export * from './api/expenses';

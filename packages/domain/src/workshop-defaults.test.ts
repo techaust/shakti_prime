@@ -206,7 +206,13 @@ describe('workshop defaults', () => {
         dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
       },
       // F1: five days offline (ADR 0012, PROJ-4) and the first release as the oldest app served.
-      field: { offlineDays: 5, minimumAppVersion: '1.0.0' },
+      field: {
+        offlineDays: 5,
+        minimumAppVersion: '1.0.0',
+        syncPageLimit: 500,
+        syncCursorDays: 30,
+        finishedProjectDays: 7,
+      },
       // BLUEPRINT §7.9, for the CA to confirm.
       retention: {
         unqualifiedLeadMonths: 24,

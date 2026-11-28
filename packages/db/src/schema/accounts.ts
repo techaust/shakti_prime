@@ -159,6 +159,12 @@ export const customerSites = pgTable(
     lat: numeric('lat', { precision: 9, scale: 6 }),
     lng: numeric('lng', { precision: 9, scale: 6 }),
     technicalJson: jsonb('technical_json').notNull().default({}),
+    /**
+     * When each field a person edits last changed, and by whom: `{ village: { at, by } }`, kept by
+     * the trigger `customer_sites_stamp_fields` on every update. The field app's sync reads it to
+     * merge an offline edit field by field (F2, ADR 0012); nothing writes it directly.
+     */
+    fieldChangedAt: jsonb('field_changed_at').notNull().default({}),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
