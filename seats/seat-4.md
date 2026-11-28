@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 2
-updated: 2026-11-27T20:29Z
+updated: 2026-11-28T00:46Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -90,3 +90,11 @@ run_file: docs/runs/phase4/f1-field-foundation.md
 wait_for: none
 done_when: report: f1-field-foundation prepped
 note: prep for the lead's integration (owner, 27-11-2026): readme's prep prompt. main has X4 (0240) and may have Q1 (0241, 0242) by the time you start: take the latest. Watch the shared definers and checks the lead lists: app.platform_only_permissions(), notifications_type_check, app.file_purpose_grant(); diff each against main's latest.
+
+lane: 90
+role: prep
+branch: feat/j1-projects
+run_file: docs/runs/phase4/j1-projects.md
+wait_for: none
+done_when: report: j1-projects prepped
+note: prep for the lead's integration: readme's prep prompt (moved from seat 2: no commit for three hours after the lead's Prettier fix at 21:43). Diff against main's latest: app.platform_only_permissions(), app.next_document_no(), notifications_type_check and notification_preferences_type_check, app.status_summary(), document_sequences_doc_type_check.
