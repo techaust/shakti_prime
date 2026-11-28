@@ -593,7 +593,24 @@
     "loan_lender_missing": "This lender is no longer on the company's list. Choose another lender.",
     "loan_lender_from_list": "Choose the lender from the list. Ask an Executive to add a lender that is missing.",
     "lender_name_taken": "This company already has a lender with this name.",
-    "lender_missing": "We couldn't find this lender. Refresh the page and try again."
+    "lender_missing": "We couldn't find this lender. Refresh the page and try again.",
+    "schedule_conflict": "This visit clashes with another booking or someone's time away. Give a reason to book it anyway, or choose another time.",
+    "slot_missing": "We couldn't find this visit. It may have been cancelled, or belong to another company.",
+    "crew_missing": "We couldn't find this crew. It may have been archived. Choose another crew or an engineer.",
+    "slot_project_not_active": "Visits can only be booked for a project in progress. Resume the project first.",
+    "slot_step_closed": "This step is already finished. Choose an open step of the project.",
+    "slot_in_past": "This time has already passed. Choose a time from now on.",
+    "slot_not_started": "A visit can be marked done only once it has started.",
+    "schedule_slot_transition_not_allowed": "This visit can't do that in its current status. Refresh the board to see where it stands.",
+    "schedule_slot_person_outside": "The engineer must work for this project's company. Choose someone from this company.",
+    "crew_person_outside": "Everyone in a crew must work for its company. Choose people from this company.",
+    "crew_name_taken": "Another crew of this company has that name. Choose a different name.",
+    "crew_lead_not_member": "The crew lead must be one of the crew's members. Add them to the crew.",
+    "unavailability_person_outside": "This person doesn't work for this company. Choose someone from this company.",
+    "unavailability_missing": "We couldn't find this time away. It may already have been removed.",
+    "unavailability_time_invalid": "The end must come after the start, within 90 days.",
+    "slot_assignee_required": "Choose either an engineer or a crew for the visit.",
+    "slot_time_invalid": "The visit must end after it starts, and last no more than 12 hours."
   },
   "auth": {
     "signIn": {
@@ -2076,7 +2093,15 @@
       "loanReject": "Loan turned down",
       "loanGatesWaive": "Order stopped waiting for a loan",
       "lenderCreate": "Lender added",
-      "lenderUpdate": "Lender changed"
+      "lenderUpdate": "Lender changed",
+      "slotPropose": "Visit proposed",
+      "slotConfirm": "Visit confirmed",
+      "slotMove": "Visit moved",
+      "slotCancel": "Visit cancelled",
+      "slotDone": "Visit done",
+      "crewSave": "Crew saved",
+      "unavailabilityRecord": "Time away recorded",
+      "unavailabilityRemove": "Time away removed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2521,7 +2546,18 @@
       "loanReference": "Lender's reference",
       "dispatchGate": "Dispatch waits for",
       "rejectedReason": "Why the lender turned it down",
-      "waiverReason": "Why the order no longer waits for a loan"
+      "waiverReason": "Why the order no longer waits for a loan",
+      "slotState": "Visit status",
+      "startsAt": "Starts",
+      "endsAt": "Ends",
+      "travelMin": "Travel minutes",
+      "overrideReason": "Reason for booking over a clash",
+      "conflicts": "Clashes",
+      "doneNote": "Visit note",
+      "crewName": "Crew name",
+      "memberIds": "Crew members",
+      "awayKind": "Kind of time away",
+      "crewArchived": "Crew archived"
     },
     "values": {
       "percent": "{value}%",
@@ -2733,6 +2769,17 @@
         "serial": "Serial number",
         "bin": "Bin",
         "package": "Package"
+      },
+      "slotState": {
+        "proposed": "Proposed",
+        "confirmed": "Confirmed",
+        "done": "Done",
+        "cancelled": "Cancelled"
+      },
+      "awayKind": {
+        "leave": "Leave",
+        "training": "Training",
+        "other": "Other"
       }
     }
   },

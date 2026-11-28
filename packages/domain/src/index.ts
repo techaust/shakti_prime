@@ -983,3 +983,23 @@ export {
   orderProject,
   projectListQuery,
 } from './queries/projects/list-projects';
+// J5 scheduling board (docs/03-roadmap-appendix/phase4.md §7.2).
+export {
+  cancelSlot,
+  confirmSlot,
+  doneSlot,
+  moveSlot,
+  proposeSlot,
+} from './commands/projects/schedule-slots';
+export { saveCrew } from './commands/projects/schedule-crews';
+export {
+  recordUnavailability,
+  removeUnavailability,
+} from './commands/projects/schedule-unavailability';
+export {
+  findScheduleConflicts,
+  suggestSlots,
+  travelMinutes,
+  type SlotSuggestion,
+  type VisitFact,
+} from './projects/schedule';

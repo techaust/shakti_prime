@@ -81,6 +81,9 @@ import {
   ProjectFlowSchema,
   ProjectSegmentSchema,
   ProjectStateSchema,
+  // J5 scheduling board
+  ScheduleSlotStateSchema,
+  UnavailabilityKindSchema,
   SupplyKindSchema,
   TaskKindSchema,
   TaskStateSchema,
@@ -334,6 +337,13 @@ const PAIRS: Record<string, readonly string[]> = {
   customer_loans_gates_dispatch_check: ['dispatch', ...LOAN_DISPATCH_GATES],
   // Only a rejected loan's gates are waived.
   customer_loans_waiver_check: ['rejected'],
+  // J5: a visit's states; a confirmed or done one says who confirmed it, a done one who did it, a
+  // cancelled one why; the kinds of time away.
+  schedule_slots_state_check: ScheduleSlotStateSchema.options,
+  schedule_slots_confirmed_check: ['confirmed', 'done'],
+  schedule_slots_done_check: ['done'],
+  schedule_slots_cancel_reason_check: ['cancelled'],
+  unavailability_kind_check: UnavailabilityKindSchema.options,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

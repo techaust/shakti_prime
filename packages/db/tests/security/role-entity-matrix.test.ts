@@ -85,6 +85,12 @@ const VENDOR_READ: Rule = {
 };
 const RATE_READ = grant('procurement.rate.read', 'entity');
 
+/** J5: a crew or a visit, read with projects.read at any scope or by the company's schedulers. */
+const SCHEDULE_READ: Rule = {
+  kind: 'any',
+  rules: [grant('projects.read', 'own'), grant('projects.schedule.write', 'entity')],
+};
+
 /** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
@@ -228,6 +234,13 @@ const RULES: Record<MatrixTable, TableRule> = {
   // company, as the customer's relationship there is read.
   lenders: { read: CONTEXT, leak: otherCompany },
   customer_loans: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: otherCompany },
+  // J5: crews with projects.read at any scope, or by a scheduler; the matrix acts as the project's
+  // owner, so `own` reads its visit too (app.project_is_mine()); the second person's time away by
+  // the company's schedulers.
+  crews: { read: SCHEDULE_READ, leak: otherCompany },
+  crew_members: { read: SCHEDULE_READ, leak: otherCompany },
+  schedule_slots: { read: SCHEDULE_READ, leak: otherCompany },
+  unavailability: { read: grant('projects.schedule.write', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
   audit_logs: {
     read: grant('audit.read', 'entity'),

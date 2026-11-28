@@ -32,7 +32,16 @@ describe('workshop defaults', () => {
       // H1 stock ledger
       stock: { reversalDays: 7 },
       // J1 projects
-      projects: { standardSteps: ['survey', 'dispatch', 'install', 'commission', 'handover'] },
+      projects: {
+        standardSteps: ['survey', 'dispatch', 'install', 'commission', 'handover'],
+        // J5 scheduling board
+        schedule: {
+          roadFactor: 1.4,
+          averageSpeedKmh: 30,
+          bufferMin: 15,
+          workingDay: { startMin: 570, endMin: 1080 },
+        },
+      },
       // Q1 labels
       labels: { sizeByKind: { serial: '50x25', bin: '50x25', package: '100x50' } },
       crm: {

@@ -618,7 +618,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'projectState':
       case 'projectFlow':
       case 'milestoneState':
-      case 'subsidyScheme': {
+      case 'subsidyScheme':
+      // J5 scheduling board
+      case 'slotState':
+      case 'awayKind': {
         const key = `values.${group}.${value}` as Parameters<typeof t>[0];
         return t.has(key) ? t(key) : wordsOf(value);
       }

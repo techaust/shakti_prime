@@ -15,6 +15,20 @@ import {
 } from '@shakti/contracts';
 import { STANDARD_MILESTONES } from './state-machines/machines/project-standard';
 
+/**
+ * How the scheduling board reckons travel and the working day (J5, docs/03-roadmap-appendix/
+ * phase4.md §10): `findScheduleConflicts()` and `suggestSlots()` read it.
+ */
+export interface ScheduleDefaults {
+  /** Road distance over straight-line distance. */
+  readonly roadFactor: number;
+  readonly averageSpeedKmh: number;
+  /** Minutes kept free between two visits, besides the travel. */
+  readonly bufferMin: number;
+  /** The working day in minutes after midnight IST, start inclusive and end exclusive. */
+  readonly workingDay: { readonly startMin: number; readonly endMin: number };
+}
+
 export interface WorkshopDefaults {
   readonly tax: {
     readonly placeOfSupplyOrder: readonly SupplySource[];
@@ -58,6 +72,8 @@ export interface WorkshopDefaults {
      * the message catalogue (`projects.defaultSteps.*`).
      */
     readonly standardSteps: readonly string[];
+    // J5 scheduling board
+    readonly schedule: ScheduleDefaults;
   };
   // Q1 labels
   readonly labels: {
@@ -328,6 +344,19 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      * company's own on Settings › Project steps.
      */
     standardSteps: STANDARD_MILESTONES,
+    // J5 scheduling board
+    /**
+     * Phase 4 design §10 and question 6 (a) (PROJ-4, with HR-1's partial answer for the day):
+     * travel between two sites is the straight-line distance × 1.4 ÷ 30 km/h, with 15 minutes
+     * between visits, and the slot finder offers times within 09:30 to 18:00 IST. No routing
+     * service is called. The project manager confirms or gives the usual travel times (PROJ-4).
+     */
+    schedule: {
+      roadFactor: 1.4,
+      averageSpeedKmh: 30,
+      bufferMin: 15,
+      workingDay: { startMin: 9 * 60 + 30, endMin: 18 * 60 },
+    },
   },
   // Q1 labels
   labels: {

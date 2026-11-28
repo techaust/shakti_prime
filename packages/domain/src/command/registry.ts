@@ -227,6 +227,19 @@ import { disburseCustomerLoan } from '../commands/crm/loans-disburse';
 import { rejectCustomerLoan } from '../commands/crm/loans-reject';
 import { waiveLoanGates } from '../commands/crm/loans-waive';
 import { createLender, updateLender } from '../commands/crm/loans-lenders';
+// J5 scheduling board.
+import {
+  cancelSlot,
+  confirmSlot,
+  doneSlot,
+  moveSlot,
+  proposeSlot,
+} from '../commands/projects/schedule-slots';
+import { saveCrew } from '../commands/projects/schedule-crews';
+import {
+  recordUnavailability,
+  removeUnavailability,
+} from '../commands/projects/schedule-unavailability';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -472,6 +485,15 @@ export const commands = Object.freeze({
   [waiveLoanGates.name]: waiveLoanGates,
   [createLender.name]: createLender,
   [updateLender.name]: updateLender,
+  // J5 scheduling board (docs/03-roadmap-appendix/phase4.md §7.2).
+  [proposeSlot.name]: proposeSlot,
+  [confirmSlot.name]: confirmSlot,
+  [moveSlot.name]: moveSlot,
+  [cancelSlot.name]: cancelSlot,
+  [doneSlot.name]: doneSlot,
+  [saveCrew.name]: saveCrew,
+  [recordUnavailability.name]: recordUnavailability,
+  [removeUnavailability.name]: removeUnavailability,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

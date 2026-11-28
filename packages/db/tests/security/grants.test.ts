@@ -208,6 +208,13 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // sanction, the disbursal, the reference and the rejection (column grants).
     lenders: { i: true, u: false },
     customer_loans: { i: true, u: false },
+    // J5: a crew changes only its name, lead and archive, a visit only its people, times, state
+    // and reasons (column grants); a crew's members and a person's time away are added and
+    // removed, never edited (schedule.test.ts).
+    crews: { i: true, u: false },
+    crew_members: { i: true, u: false, d: true },
+    schedule_slots: { i: true, u: false },
+    unavailability: { i: true, u: false, d: true },
   };
 
   /**
@@ -549,6 +556,9 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.quote_search_ids(text,integer)',
       // The catalogue and GST rates screens ask it before they offer a change (0072).
       'app.request_covers_group()',
+      // J5: when the people on a visit are busy, and where the board's projects are.
+      'app.schedule_busy(uuid[],timestamp with time zone,timestamp with time zone)',
+      'app.schedule_site_points(uuid[])',
       // Integration Health and the hourly check read each scheduled job's last run (audit 2026-10).
       'app.scheduled_jobs()',
       // The retention job's dry run counts a company's stale leads on the reader pool, as the

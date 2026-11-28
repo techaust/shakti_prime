@@ -129,6 +129,11 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   // J2 customer loans.
   lenders: 'x.id::text',
   customer_loans: 'x.id::text',
+  // J5 scheduling board.
+  crews: 'x.id::text',
+  crew_members: 'x.id::text',
+  schedule_slots: 'x.id::text',
+  unavailability: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -193,6 +198,11 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from customer_loans where id::text like ${like}`;
       await tx`alter table customer_loans enable trigger customer_loans_guard`;
       await tx`delete from lenders where id::text like ${like}`;
+      // J5: a visit names a project's step and a crew.
+      await tx`delete from schedule_slots where id::text like ${like}`;
+      await tx`delete from crew_members where id::text like ${like}`;
+      await tx`delete from crews where id::text like ${like}`;
+      await tx`delete from unavailability where id::text like ${like}`;
       // Orders and their commission first: they name a quote, a lead and a commission rule.
       // J1: a project names its order and its checklist; published checklists never change, so
       // their trigger is set aside for the fixture's own rows.
@@ -440,6 +450,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     // J2 customer loans.
     lenders: [],
     customer_loans: [],
+    // J5 scheduling board.
+    crews: [],
+    crew_members: [],
+    schedule_slots: [],
+    unavailability: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -1031,6 +1046,29 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${loan}, ${e}, ${per(e, 0x02)}, ${per(e, 0x32)}, ${lender}, 1.00, ${ownerId})`;
         rows.lenders.push({ key: lender, entities: [e] });
         rows.customer_loans.push({ key: loan, entities: [e], leadIn: [e] });
+      }
+
+      // J5: each company's crew led by the owner with the second person in it, a visit by that
+      // crew to the owner's project's step, and the second person's time away, all far ahead.
+      for (const e of ALL_ENTITY_IDS) {
+        const crew = per(e, 0xa0);
+        const crewMember = per(e, 0xa1);
+        const slot = per(e, 0xa2);
+        const away = per(e, 0xa3);
+        await tx`insert into crews (id, entity_id, name, lead_id, created_by)
+          values (${crew}, ${e}, ${`matrix crew ${e.toString()}`}, ${ownerId}, ${ownerId})`;
+        await tx`insert into crew_members (id, entity_id, crew_id, person_id, created_by)
+          values (${crewMember}, ${e}, ${crew}, ${otherUserId}, ${ownerId})`;
+        await tx`insert into schedule_slots (id, entity_id, project_id, milestone_id, crew_id, starts_at, ends_at,
+                   proposed_by, created_by)
+          values (${slot}, ${e}, ${per(e, 0x90)}, ${per(e, 0x92)}, ${crew}, '2098-06-01T04:00:00Z',
+                  '2098-06-01T06:00:00Z', ${ownerId}, ${ownerId})`;
+        await tx`insert into unavailability (id, entity_id, person_id, starts_at, ends_at, kind, created_by)
+          values (${away}, ${e}, ${otherUserId}, '2098-06-02T00:00:00Z', '2098-06-03T00:00:00Z', 'training', ${ownerId})`;
+        rows.crews.push({ key: crew, entities: [e] });
+        rows.crew_members.push({ key: crewMember, entities: [e] });
+        rows.schedule_slots.push({ key: slot, entities: [e] });
+        rows.unavailability.push({ key: away, entities: [e] });
       }
 
       // The shared customer: one account, contact and site, related to companies 1 and 2.

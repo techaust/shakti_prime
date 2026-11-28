@@ -297,6 +297,15 @@ const ACTIONS = {
   'projects.project.assign': 'projectAssign',
   'projects.template.publish': 'projectStepsPublish',
   'projects.project.cancel_for_order': 'projectCancelForOrder',
+  // J5 scheduling board
+  'projects.slot.propose': 'slotPropose',
+  'projects.slot.confirm': 'slotConfirm',
+  'projects.slot.move': 'slotMove',
+  'projects.slot.cancel': 'slotCancel',
+  'projects.slot.done': 'slotDone',
+  'projects.crew.save': 'crewSave',
+  'projects.unavailability.record': 'unavailabilityRecord',
+  'projects.unavailability.remove': 'unavailabilityRemove',
   // J2 customer loans
   'crm.loan.create': 'loanCreate',
   'crm.loan.sanction': 'loanSanction',
@@ -560,6 +569,9 @@ const CODE_GROUPS = [
   'loanDispatchGate',
   // Q1 labels
   'labelKind',
+  // J5 scheduling board
+  'slotState',
+  'awayKind',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -972,6 +984,18 @@ const FIELD_KINDS = [
   ['dispatchGate', 'loanDispatchGate'],
   ['rejectedReason', 'text'],
   ['waiverReason', 'text'],
+  // J5 scheduling board: a visit's clashes are counted here and named in the audit row.
+  ['slotState', 'slotState'],
+  ['startsAt', 'time'],
+  ['endsAt', 'time'],
+  ['travelMin', 'number'],
+  ['overrideReason', 'text'],
+  ['conflicts', 'listCount'],
+  ['doneNote', 'text'],
+  ['crewName', 'text'],
+  ['memberIds', 'listCount'],
+  ['crewArchived', 'yesNo'],
+  ['awayKind', 'awayKind'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

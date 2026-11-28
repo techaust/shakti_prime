@@ -435,6 +435,13 @@ export const ENTITY_TABLES = [
   // the customer's relationship in the loan's company (docs/03-roadmap-appendix/phase4.md §6.2)
   'lenders',
   'customer_loans',
+  // J5: a company's crews, read by any holder of projects.read there; its visits, read with
+  // projects.read for the company, by its schedulers, or by the person on one; time away, read by
+  // the schedulers and the person (docs/03-roadmap-appendix/phase4.md §7.2)
+  'crews',
+  'crew_members',
+  'schedule_slots',
+  'unavailability',
 ] as const;
 
 /**

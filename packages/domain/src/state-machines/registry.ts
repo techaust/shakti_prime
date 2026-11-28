@@ -14,6 +14,7 @@ import { projectStandardMachine } from './machines/project-standard';
 import { projectSuryaGharMachine } from './machines/project-surya-ghar';
 import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
+import { scheduleSlotMachine } from './machines/schedule-slot';
 import { serialMachine } from './machines/serial';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
@@ -46,6 +47,8 @@ export const MACHINES: readonly AnyMachine[] = [
   knowledgeFileMachine,
   // H1 stock ledger
   serialMachine,
+  // J5 scheduling board
+  scheduleSlotMachine,
 ];
 
 /**
@@ -70,6 +73,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'project_standard',
   // J2 customer loans
   'customer_loan',
+  // J5 scheduling board
+  'schedule_slot',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */
