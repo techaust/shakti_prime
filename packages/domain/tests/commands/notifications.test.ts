@@ -283,6 +283,69 @@ describe('an enquiry that joined a lead in nurture (enquiry_attached, I1 re-chec
   });
 });
 
+describe('a loan the lender turned down (loan_rejected, J2 notify_owner)', () => {
+  const ORDER = newId();
+  const LOAN = newId();
+
+  afterAll(async () => {
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`delete from customer_loans where id = ${LOAN}`;
+        await tx`delete from sales_orders where id = ${ORDER}`;
+      }),
+    );
+  });
+
+  /** A dealer-style order of callerA's customer with a loan the lender turned down. */
+  async function rejectedLoan(): Promise<Lead> {
+    const lead = await newLead(callerA);
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id,
+                   place_of_supply_state, supply_kind, subtotal, cgst, sgst, igst, tax_total,
+                   round_off, grand_total, created_by)
+          values (${ORDER}, 1, ${`NT/SO/2098-99/${RUN}`}, '2098-99', ${lead.account.id},
+                  ${tierId('dealer')}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0, ${callerA.id})`;
+        await tx`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_name,
+                   amount, state, rejected_reason, created_by)
+          values (${LOAN}, 1, ${lead.account.id}, ${ORDER}, 'Notice suite bank', 50000.00,
+                  'rejected', 'Papers not accepted', ${callerA.id})`;
+      }),
+    );
+    return lead;
+  }
+
+  it('tells the owner of the customer once, unless they recorded it themselves', async () => {
+    const lead = await rejectedLoan();
+    const input = { event: 'crm.loan.rejected', entityId: 1, loanId: LOAN };
+    expect((await notify({ ...input, eventId: newId(), rejectedBy: callerA.id })).notices).toEqual(
+      [],
+    );
+    const told = await notify({ ...input, eventId: newId(), rejectedBy: gm.id });
+    expect(told.notices).toEqual([
+      expect.objectContaining({ userId: callerA.id, type: 'loan_rejected' }),
+    ]);
+    expect((await notify({ ...input, eventId: newId(), rejectedBy: gm.id })).notices).toEqual([]);
+    const rows = await noticesAbout(ORDER);
+    expect(rows.map((r) => [r.user_id, r.type, r.payload_json])).toEqual([
+      [callerA.id, 'loan_rejected', { accountId: lead.account.id }],
+    ]);
+  });
+
+  it('is refused to a person, and to the worker acting for another company', async () => {
+    const input = {
+      event: 'crm.loan.rejected',
+      entityId: 1,
+      eventId: newId(),
+      loanId: LOAN,
+      rejectedBy: gm.id,
+    };
+    expect(await refusal(notify(input, gm))).toMatchObject({ code: 'forbidden' });
+    expect(await refusal(notify(input, workers([2])))).toMatchObject({ code: 'forbidden' });
+  });
+});
+
 describe('a possible duplicate (duplicate_found)', () => {
   it('tells the owners of both leads in the card’s company, once', async () => {
     const first = await newLead(callerA);
