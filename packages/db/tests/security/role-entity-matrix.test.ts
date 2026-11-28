@@ -221,6 +221,10 @@ const RULES: Record<MatrixTable, TableRule> = {
   // H2: a company's order needs and reservations with inventory.stock.read for the company.
   reservation_needs: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   reservations: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
+  // J2: a company's lenders to every principal acting in it; a loan with the customer in its
+  // company, as the customer's relationship there is read.
+  lenders: { read: CONTEXT, leak: otherCompany },
+  customer_loans: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
   audit_logs: {
     read: grant('audit.read', 'entity'),
@@ -412,6 +416,8 @@ const THREAD_BOUND_FOR_AGENTS: ReadonlySet<MatrixTable> = new Set<MatrixTable>([
   'copilot_notes',
   'customer_merges',
   'customer_sites',
+  // J2: a loan is read with its customer.
+  'customer_loans',
   'dealer_outstanding',
   'dealer_terms',
   'duplicate_candidates',

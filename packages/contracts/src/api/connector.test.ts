@@ -2,8 +2,14 @@ import { createHash, createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   CONNECTOR_CLOCK_SKEW_SECONDS,
+  ConnectorAnswers,
   ConnectorBatchRequest,
+  ConnectorBatchResponse,
+  ConnectorCursorResponse,
   ConnectorHeaders,
+  ConnectorHeartbeatRequest,
+  ConnectorHeartbeatResponse,
+  ConnectorSnapshotResponse,
   connectorSigningString,
   isConnectorTimestampFresh,
   TallyVoucher,
@@ -85,8 +91,64 @@ describe('connector batches', () => {
     expect(TallyVoucher.safeParse({ ...voucher, guid: tallyGuid(1) }).success).toBe(true);
   });
 
+  it('carries the rows the contract refused by GUID and field, inside the batch range', () => {
+    const refused = { kind: 'voucher', guid: tallyGuid(9), alterId: 48210, field: 'ledgerEntries' };
+    expect(ConnectorBatchRequest.safeParse({ ...batch, refused: [refused] }).success).toBe(true);
+    expect(
+      ConnectorBatchRequest.safeParse({ ...batch, refused: [{ ...refused, alterId: 48200 }] })
+        .success,
+    ).toBe(false);
+    expect(
+      ConnectorBatchRequest.safeParse({ ...batch, refused: [{ ...refused, field: 'a b' }] })
+        .success,
+    ).toBe(false);
+  });
+
   it('carries amounts as strings with two decimals', () => {
     const [voucher] = batch.vouchers;
     expect(TallyVoucher.safeParse({ ...voucher, amount: 125000 }).success).toBe(false);
+  });
+});
+
+describe('the connector reading the BOS answers', () => {
+  const answers = {
+    batch: ConnectorBatchResponse.parse(API_FIXTURES['connector.batches'].response),
+    snapshot: ConnectorSnapshotResponse.parse(API_FIXTURES['connector.snapshot'].response),
+    heartbeat: ConnectorHeartbeatResponse.parse(API_FIXTURES['connector.heartbeat'].response),
+    cursor: ConnectorCursorResponse.parse(API_FIXTURES['connector.cursor'].response),
+  };
+
+  it('drops a field it does not know, at every level, where the strict contract refuses it', () => {
+    const later = {
+      ...answers.batch,
+      accepted: { ...answers.batch.accepted, vouchersRefused: 1 },
+      queuedForAccounts: 1,
+    };
+    expect(ConnectorBatchResponse.safeParse(later).success).toBe(false);
+    expect(ConnectorAnswers.batch.parse(later)).toEqual(answers.batch);
+    const heartbeat = { ...answers.heartbeat, releaseNotesUrl: 'https://shaktiprime.com/notes' };
+    expect(ConnectorHeartbeatResponse.safeParse(heartbeat).success).toBe(false);
+    expect(ConnectorAnswers.heartbeat.parse(heartbeat)).toEqual(answers.heartbeat);
+    const snapshot = { ...answers.snapshot, waitsForAccounts: true };
+    expect(ConnectorSnapshotResponse.safeParse(snapshot).success).toBe(false);
+    expect(ConnectorAnswers.snapshot.parse(snapshot)).toEqual(answers.snapshot);
+    expect(ConnectorAnswers.cursor.parse({ ...answers.cursor, extra: 1 })).toEqual(answers.cursor);
+  });
+
+  it('still refuses an answer missing a field it needs', () => {
+    expect(
+      ConnectorAnswers.batch.safeParse({ ...answers.batch, lastAlterId: undefined }).success,
+    ).toBe(false);
+  });
+
+  it('takes the heartbeat with Tally’s last AlterID, a problem and the rows held', () => {
+    const request = ConnectorHeartbeatRequest.parse(API_FIXTURES['connector.heartbeat'].request);
+    const [first] = request.companies;
+    expect(
+      ConnectorHeartbeatRequest.safeParse({
+        ...request,
+        companies: [{ ...first, problem: 'tally_closed' }],
+      }).success,
+    ).toBe(false);
   });
 });

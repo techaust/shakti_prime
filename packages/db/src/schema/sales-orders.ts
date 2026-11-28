@@ -104,6 +104,9 @@ export const salesOrders = pgTable(
     unique('sales_orders_entity_so_no_unique').on(t.entityId, t.soNo),
     // The key the lines and the accruals point at, so they stay in the order's company.
     unique('sales_orders_id_entity_unique').on(t.id, t.entityId),
+    // J2: the key a customer loan names its order by, so the loan keeps the order's company and
+    // customer and follows the order through a customer merge.
+    unique('sales_orders_id_entity_account_unique').on(t.id, t.entityId, t.accountId),
     // An order of a lead belongs to its lead's company and customer and follows the lead when a
     // customer merge moves it, as its quote does (`app.merge_customers()`).
     foreignKey({

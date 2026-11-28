@@ -31,6 +31,8 @@ export const CLIENT_SCOPES = {
     'integrations',
     'knowledge',
     'leads',
+    // J2: a loan's status and what its dispatch waits for, in the Activity log's details.
+    'loans',
     'messaging',
     'orders',
     'pipelineSettings',
@@ -81,6 +83,7 @@ export const CLIENT_SCOPES = {
     'duplicates',
     'files',
     'leads',
+    'loans',
     'messaging',
     'orders',
     'pinLookup',
@@ -97,7 +100,7 @@ export const CLIENT_SCOPES = {
   '/knowledge': ['common', 'files', 'knowledge', 'playbook'],
   '/leads': ['common', 'leads', 'pinLookup', 'qualification'],
   '/messages': ['messaging'],
-  '/orders': ['common', 'holds', 'orders', 'quotes'],
+  '/orders': ['common', 'holds', 'loans', 'orders', 'quotes'],
   '/price-master': ['catalogue', 'common', 'priceMaster'],
   '/quotes': ['common', 'files', 'holds', 'orders', 'quotes'],
   '/settings': [
@@ -106,6 +109,7 @@ export const CLIENT_SCOPES = {
     'companies',
     'files',
     'leadSources',
+    'loans',
     'pipelineSettings',
     'profile',
     'taxSettings',

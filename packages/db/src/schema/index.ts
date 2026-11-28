@@ -81,3 +81,5 @@ export {
 } from './stock';
 // H2 reservations and availability (docs/03-roadmap-appendix/phase3.md §7.1).
 export { reservationNeeds, reservations } from './reservations';
+// J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
+export { lenders, customerLoans } from './loans';

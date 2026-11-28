@@ -249,6 +249,8 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'inventory.reservation.moved': { ordering: 'every', handle: fill },
   'inventory.reservation.lapsed': { ordering: 'every', handle: fill },
   'inventory.reservation.expiring': { ordering: 'every', handle: notify },
+  // J2: a loan turned down, told to the owner of the order's lead or customer.
+  'crm.loan.rejected': { ordering: 'every', handle: notify },
 };
 
 /** The backorder fill after an event that brought or freed stock. */

@@ -72,7 +72,7 @@ describe('the ERD and data dictionary (docs/data)', () => {
     expect(planned).toContain('  po_lines }o--|| purchase_orders : "po_id"');
     // A planned table points at a built one too.
     expect(planned).toContain('  dispatch_lines }o--|| sales_order_lines : "so_line_id"');
-    expect(planned).toContain('  customer_loans }o--|| accounts : "account_id"');
+    expect(planned).toContain('  warranty_claims }o--|| accounts : "account_id"');
     expect(planned).not.toContain('  sales_orders {');
     expect(planned).not.toContain('  opportunities {');
     expect(planned).not.toContain('  quotes {');

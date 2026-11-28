@@ -254,6 +254,20 @@ export { setItemVendor, setVendorContacts } from './commands/procurement/vendor-
 export { recordVendorQuote, withdrawVendorQuote } from './commands/procurement/quotes';
 export { readQuoteComparison, getVendor, listVendors } from './queries/procurement/vendor-queries';
 export { readsRates, readsVendors } from './queries/procurement/vendor-read';
+// J2 customer loans.
+export { createCustomerLoan } from './commands/crm/loans-create';
+export { sanctionCustomerLoan } from './commands/crm/loans-sanction';
+export { disburseCustomerLoan } from './commands/crm/loans-disburse';
+export { rejectCustomerLoan } from './commands/crm/loans-reject';
+export { waiveLoanGates } from './commands/crm/loans-waive';
+export { createLender, updateLender } from './commands/crm/loans-lenders';
+export {
+  getOrderLoans,
+  listAccountLoans,
+  listLenders,
+  orderLoanGate,
+  readCustomerLoan,
+} from './queries/crm/loans';
 export { serialMatchesPattern, serialsOutsidePattern } from './catalogue/serial-pattern';
 export type { ItemSerialPattern } from './catalogue/serial-pattern';
 export { setTaxRate } from './commands/tax/set-tax-rate';

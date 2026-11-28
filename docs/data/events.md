@@ -51,7 +51,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-70 types, 27 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+75 types, 28 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -74,6 +74,11 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`crm.opportunity.won`](#crmopportunitywon) | An open lead was closed as won. | `crm.opportunity.win` | none |
 | [`crm.opportunity.lost`](#crmopportunitylost) | An open or nurtured lead was closed as lost with a reason code. | `calls.call.log`, `crm.opportunity.lose` | none |
 | [`crm.sizing.recorded`](#crmsizingrecorded) | A person recorded a pump or rooftop sizing of a lead, worked out on the server, with whether it is within the engineering limits and the reason codes when it is not. | `crm.sizing.record` | none |
+| [`crm.loan.created`](#crmloancreated) | A customer's loan was applied for on an order, with what it holds back. | `crm.loan.create` | none |
+| [`crm.loan.sanctioned`](#crmloansanctioned) | The lender sanctioned a customer's loan for an amount. | `crm.loan.sanction` | none |
+| [`crm.loan.disbursed`](#crmloandisbursed) | The lender paid out a customer's sanctioned loan. | `crm.loan.disburse` | none |
+| [`crm.loan.rejected`](#crmloanrejected) | The lender turned down a customer's loan; the owner of the order's lead, or of the customer where the order has none, is told so another route can be offered. | `crm.loan.reject` | `POST /api/v1/workers/outbox/crm.loan.rejected` (QStash URL group `evt-crm.loan.rejected`) |
+| [`crm.loan.gates_released`](#crmloangates_released) | What a customer's loan held back is released: the order's dispatch may leave, as the loan reached the state it waited for or the order no longer waits on a turned-down loan. | `crm.loan.sanction`, `crm.loan.disburse`, `crm.loan.gates.waive` | none |
 
 ### Pricing
 
@@ -727,3 +732,46 @@ No fields apart from `v`.
 | `vendorId` | id |
 | `itemId` | id |
 | `forGroup` | true or false |
+
+### crm.loan.created
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
+| `state` | always `applied` |
+
+### crm.loan.sanctioned
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
+| `state` | always `sanctioned` |
+
+### crm.loan.disbursed
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
+| `state` | always `disbursed` |
+
+### crm.loan.rejected
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
+| `opportunityId` | id or null |
+| `fromState` | one of `applied`, `sanctioned` |
+| `state` | always `rejected` |
+| `rejectedBy` | id |
+
+### crm.loan.gates_released
+
+| Field | Type |
+|---|---|
+| `salesOrderId` | id |
+| `state` | one of `sanctioned`, `disbursed`, `rejected` |
+| `dispatch` | true or false |

@@ -5,8 +5,10 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { listHubs } from '../../../../../actions/inventory';
+import { getOrderLoans } from '../../../../../actions/loans';
 import { getOrder } from '../../../../../actions/orders';
 import { getLineAvailability, listReservations } from '../../../../../actions/reservations';
+import { OrderLoanPanel } from '../../../../../components/loans/order-loan-panel';
 import { OrderScreen } from '../../../../../components/orders/order-screen';
 import { FailureMessage } from '../../../../../components/screens/failure';
 import { Page } from '../../../../../components/shell/page';
@@ -36,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * One order (docs/03-roadmap-appendix/phase1.md §8.3): its lines and totals, and confirming, releasing or
- * cancelling it. An order the caller may not read, or an address that names none, shows the
+ * cancelling it; below them its Loan tab (docs/03-roadmap-appendix/phase4.md §6.2). An order the caller may not read, or an address that names none, shows the
  * not-found screen.
  */
 export default async function OrderPage({ params }: { params: Promise<Params> }) {
@@ -48,8 +50,11 @@ export default async function OrderPage({ params }: { params: Promise<Params> })
   }
   const readsStock = hasGrant(principal.permissions, 'inventory.stock.read', 'entity');
   const canAdjust = hasGrant(principal.permissions, 'inventory.stock.adjust', 'entity');
-  const [order, availability, reservations, hubs] = await Promise.all([
+  // The order, its Loan tab (J2) and its stock (H2) are read at once; a caller who may not read
+  // the customer's loans sees the order without the tab.
+  const [order, loans, availability, reservations, hubs] = await Promise.all([
     getOrder({ entityId, orderId }),
+    getOrderLoans({ entityId, orderId }),
     // H2: each line's availability, and the holds for a reader of stock.
     getLineAvailability({ entityId, kind: 'order', id: orderId }),
     readsStock ? listReservations({ entityId, orderId }) : undefined,
@@ -74,7 +79,9 @@ export default async function OrderPage({ params }: { params: Promise<Params> })
             }
           : undefined
       }
-    />
+    >
+      {loans.ok ? <OrderLoanPanel initial={loans.data} /> : null}
+    </OrderScreen>
   ) : (
     <Page
       title={t('title')}

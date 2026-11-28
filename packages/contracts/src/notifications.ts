@@ -62,6 +62,8 @@ export const NOTICE_TYPES = [
   'enquiry_attached',
   // H2 reservations.
   'reservation_expiring',
+  // J2: a lender turned down a customer's loan.
+  'loan_rejected',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -282,6 +284,8 @@ export const NOTICE_EVENT_TYPES = [
   'crm.lead.attached',
   // H2: an order's held stock about to be released.
   'inventory.reservation.expiring',
+  // J2: a customer's loan turned down, told to the lead's owner (the machine's `notify_owner`).
+  'crm.loan.rejected',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -396,6 +400,17 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       providerCallId: IdSchema,
       opportunityId: IdSchema,
       ownerId: IdSchema.nullable(),
+    })
+    .strict(),
+  // J2: a loan turned down: the owner of the order's lead, or of the customer where the order has
+  // no lead, is told so another route can be offered, unless they recorded it themselves.
+  z
+    .object({
+      event: z.literal('crm.loan.rejected'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      loanId: IdSchema,
+      rejectedBy: IdSchema,
     })
     .strict(),
 ]);

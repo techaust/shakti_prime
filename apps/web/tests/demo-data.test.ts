@@ -125,13 +125,22 @@ async function retailList(): Promise<string> {
   return live.id;
 }
 
+// Every page of the list, as the loader reads it: the database is never cleaned, so each suite run
+// leaves more active items, and by name the demo pump falls past the first page after a few runs.
 async function pricedOn(priceListId: string) {
-  const items = await read((ctx) => listPrices(ctx, { priceListId, limit: 200 }));
-  const kits = await read((ctx) => listKitPrices(ctx, { priceListId, limit: 200 }));
-  return [
-    ...items.items.filter((r) => r.sku.startsWith(set.codePrefix)).map((r) => [r.sku, r.price]),
-    ...kits.items.filter((r) => r.sku.startsWith(set.codePrefix)).map((r) => [r.sku, r.price]),
-  ];
+  const rows: { sku: string; price: string | null }[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await read((ctx) => listPrices(ctx, { priceListId, limit: 200, cursor }));
+    rows.push(...page.items);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor !== undefined);
+  do {
+    const page = await read((ctx) => listKitPrices(ctx, { priceListId, limit: 200, cursor }));
+    rows.push(...page.items);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor !== undefined);
+  return rows.filter((r) => r.sku.startsWith(set.codePrefix)).map((r) => [r.sku, r.price]);
 }
 
 describe('the demo data loader', () => {

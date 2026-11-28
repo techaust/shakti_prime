@@ -73,6 +73,13 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
         opportunityId: String(p.opportunityId),
         ownerId: typeof p.ownerId === 'string' ? p.ownerId : null,
       };
+    case 'crm.loan.rejected':
+      return {
+        ...base,
+        event: 'crm.loan.rejected',
+        loanId: event.aggregateId,
+        rejectedBy: String(p.rejectedBy),
+      };
     default:
       throw new DomainError('validation_failed', `${event.type} does not notify`, {
         type: event.type,

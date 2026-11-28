@@ -217,6 +217,34 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         },
       ];
     }
+    case 'crm.loan.rejected': {
+      // J2 `notify_owner`: the owner of the order's lead, or of the customer in the company where
+      // the order has no lead, unless they recorded the rejection themselves; once a loan.
+      const rows = (await ctx.tx.execute(
+        sql`select user_id, account_id, opportunity_id, sales_order_id
+              from app.notice_loan_owner(${input.entityId}::smallint, ${input.loanId}::uuid)`,
+      )) as unknown as {
+        user_id: string;
+        account_id: string;
+        opportunity_id: string | null;
+        sales_order_id: string;
+      }[];
+      const owner = rows[0];
+      if (owner === undefined || owner.user_id === input.rejectedBy) return [];
+      return [
+        {
+          userId: owner.user_id,
+          type: 'loan_rejected',
+          subjectType: 'sales_order',
+          subjectId: owner.sales_order_id,
+          payload:
+            owner.opportunity_id === null
+              ? { accountId: owner.account_id }
+              : { accountId: owner.account_id, opportunityId: owner.opportunity_id },
+          dedupeKey: `loan_rejected:${input.loanId}`,
+        },
+      ];
+    }
   }
 }
 
@@ -251,7 +279,7 @@ async function quoteLead(
 /**
  * `notifications.event.notify`: the notices one event stands for (`crm.opportunity.assigned`,
  * `crm.duplicate.found`, `crm.enquiry.routed`, `sales.order.credit_held`, `sales.quote.accepted`,
- * `calls.missed.recorded`, a quote marked sent on WhatsApp that did not go, and an Accept pressed
+ * `calls.missed.recorded`, `crm.loan.rejected`, a quote marked sent on WhatsApp that did not go, and an Accept pressed
  * on WhatsApp on a lapsed quote), each for the person who acts on it in the event's company and
  * once per person however often the event is delivered.
  */

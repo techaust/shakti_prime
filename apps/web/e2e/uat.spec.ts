@@ -9,7 +9,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { insideCallingHours, setServerClock } from './support/clock';
+import { callingHours, setClocks } from './support/clock';
 import { solidPng } from './support/png';
 import {
   QUOTE_JOURNEY_COMPANY,
@@ -98,7 +98,7 @@ test.describe('UAT: a Cold Caller qualifies a lead and the Lead Converter takes 
     browser,
   }) => {
     test.setTimeout(180_000);
-    await setServerClock(context, insideCallingHours());
+    await setClocks(context, callingHours('inside'));
     const name = fresh('Bhanwar Lal Jat');
     // A rooftop enquiry, so the converter's sizing is the rooftop's three figures.
 
@@ -129,8 +129,11 @@ test.describe('UAT: a Cold Caller qualifies a lead and the Lead Converter takes 
 
     // The present Lead Converter of company 1 is given the lead; it is on her board, needing a
     // sizing before a quote.
-    const converter = await asRole(browser, 'converter');
-    await setServerClock(converter.context(), insideCallingHours());
+    const converterContext = await browser.newContext({
+      storageState: storageStatePath('converter'),
+    });
+    await setClocks(converterContext, callingHours('inside'));
+    const converter = await converterContext.newPage();
     await expect(async () => {
       await converter.goto('/converting');
       await expect(converter.getByRole('heading', { name: 'Converting', level: 1 })).toBeVisible();

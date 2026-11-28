@@ -201,6 +201,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // owner (reservations.test.ts).
     reservation_needs: { i: false, u: false },
     reservations: { i: false, u: false },
+    // J2: a lender changes only its name and whether it is active; a loan only its state, the
+    // sanction, the disbursal, the reference and the rejection (column grants).
+    lenders: { i: true, u: false },
+    customer_loans: { i: true, u: false },
   };
 
   /**
@@ -526,6 +530,9 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // A quote's or an order's availability per line, status only without inventory.stock.read
       // (H2).
       'app.line_availability(text,uuid)',
+      // J2: an order's loan gates, read by the order's Loan tab, the dispatch guard (J8) and the
+      // payment milestones (Phase 5).
+      'app.order_loan_gate(uuid)',
       // The ⌘K and /orders search's candidate orders (RPT-03).
       'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',

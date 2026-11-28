@@ -106,6 +106,9 @@ import type {
   // H2 reservations
   AvailabilityStatus,
   ReservationState,
+  // J2 customer loans
+  CustomerLoanState,
+  LoanDispatchGate,
   // Q1 labels
   LabelKind,
 } from '@shakti/contracts';
@@ -1084,6 +1087,28 @@ export const AVAILABILITY_STATUSES = [
   'partly_covered',
   'short',
 ] as const satisfies readonly AvailabilityStatus[];
+// J2 customer loans
+/** A customer loan's states (the `customer-loan` machine). */
+export const CUSTOMER_LOAN_STATES = [
+  'applied',
+  'sanctioned',
+  'disbursed',
+  'rejected',
+] as const satisfies readonly CustomerLoanState[];
+
+/** The states in which a loan is its order's one active loan. */
+export const ACTIVE_LOAN_STATE_VALUES = [
+  'applied',
+  'sanctioned',
+  'disbursed',
+] as const satisfies readonly CustomerLoanState[];
+
+/** What an order's dispatch waits for on its loan. */
+export const LOAN_DISPATCH_GATES = [
+  'disbursed',
+  'sanctioned',
+  'none',
+] as const satisfies readonly LoanDispatchGate[];
 // Q1 labels
 /** What a QR label is for. */
 export const LABEL_KINDS = ['serial', 'bin', 'package'] as const satisfies readonly LabelKind[];

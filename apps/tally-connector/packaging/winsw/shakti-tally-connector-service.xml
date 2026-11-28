@@ -1,0 +1,30 @@
+<!--
+  The Tally connector as a Windows service, run by WinSW 2.12.0 (WinSW-x64.exe, its SHA-256 checked
+  by .github/workflows/tally-connector.yml). WinSW is renamed to shakti-tally-connector-service.exe
+  and sits beside this file and shakti-tally-connector.exe. Install it from an administrator's
+  window with `shakti-tally-connector-service.exe install /p`, which asks for the service's own
+  Windows account (a local account that is not an administrator); run the connector's setup once
+  under that same account, so the sealed settings open for the service (apps/tally-connector/README.md).
+-->
+<service>
+  <id>ShaktiTallyConnector</id>
+  <name>Shakti Tally Connector</name>
+  <description>Reads Tally and sends its vouchers to Shakti Prime. It never changes Tally.</description>
+  <executable>%BASE%\shakti-tally-connector.exe</executable>
+  <arguments>run</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+  <env name="TALLY_URL" value="http://localhost:9000" />
+  <env name="TALLY_CONNECTOR_HOME" value="%ProgramData%\ShaktiTallyConnector" />
+  <startmode>Automatic</startmode>
+  <!-- Ctrl+C first: the connector finishes the page in hand and closes its outbox. -->
+  <stoptimeout>30 sec</stoptimeout>
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="60 sec" />
+  <onfailure action="restart" delay="5 min" />
+  <resetfailure>1 hour</resetfailure>
+  <!-- WinSW's own record of starts and stops; the connector writes its log in its home folder. -->
+  <logpath>%ProgramData%\ShaktiTallyConnector\service</logpath>
+  <log mode="roll-by-time">
+    <pattern>yyyyMMdd</pattern>
+  </log>
+</service>

@@ -97,6 +97,7 @@ export function OrderScreen({
   company,
   availability,
   stock,
+  children,
 }: {
   initial: SalesOrderDto;
   company: string;
@@ -111,6 +112,8 @@ export function OrderScreen({
         canAdjust: boolean;
       }
     | undefined;
+  /** The order's further tabs below its lines and holds (J2: the Loan tab). */
+  children?: ReactNode;
 }) {
   const t = useTranslations('orders');
   const router = useRouter();
@@ -247,6 +250,7 @@ export function OrderScreen({
           canAdjust={stock.canAdjust}
         />
       )}
+      {children}
 
       {asking === undefined ? null : (
         <ReasonDialog

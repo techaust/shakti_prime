@@ -1706,22 +1706,50 @@
     {
       "idx": 243,
       "version": "7",
-      "when": 1795789696023,
-      "tag": "0243_h2_reservations",
+      "when": 1795789970707,
+      "tag": "0243_j2_customer_loans",
       "breakpoints": true
     },
     {
       "idx": 244,
       "version": "7",
-      "when": 1795789697023,
-      "tag": "0244_h2_reservations_rls",
+      "when": 1795789987756,
+      "tag": "0244_j2_customer_loans_rls",
       "breakpoints": true
     },
     {
       "idx": 245,
       "version": "7",
+      "when": 1795792875141,
+      "tag": "0245_j2_loan_rejected_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 246,
+      "version": "7",
+      "when": 1795792882017,
+      "tag": "0246_j2_loan_rejected_notice_owner",
+      "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1795792883017,
+      "tag": "0247_h2_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 248,
+      "version": "7",
+      "when": 1795792884017,
+      "tag": "0248_h2_reservations_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 249,
+      "version": "7",
       "when": 1795796326394,
-      "tag": "0245_h2_reservation_notice",
+      "tag": "0249_h2_reservation_notice",
       "breakpoints": true
     }
   ]
