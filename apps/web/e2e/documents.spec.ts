@@ -40,7 +40,8 @@ test.describe('a customer’s documents, for the Project Manager', () => {
     const opened = page.waitForEvent('popup');
     await section.getByRole('button', { name: 'Open the Identity proof' }).click();
     const tab = await opened;
-    await expect.poll(() => tab.url()).toContain('customer_document');
+    // The journeys' file store serves it from the app itself.
+    await expect.poll(() => tab.url()).toContain('/api/v1/files/local/');
     await tab.close();
   });
 
@@ -103,7 +104,8 @@ test.describe('a customer’s documents, for the Project Manager', () => {
     const opened = page.waitForEvent('popup');
     await section.getByRole('button', { name: 'Open the Identity proof' }).first().click();
     const tab = await opened;
-    await expect.poll(() => tab.url()).toContain('customer_document');
+    // The journeys' file store serves it from the app itself.
+    await expect.poll(() => tab.url()).toContain('/api/v1/files/local/');
     await tab.close();
   });
 });
@@ -133,7 +135,7 @@ test.describe('Settings › Document requirements, for the Executive', () => {
     // The page's title streams in after its content; axe needs it (document-title).
     await expect(page).toHaveTitle(/^Document requirements · /);
     const survey = page.getByRole('region', { name: 'Survey' });
-    await expect(survey.getByText('Electricity bill')).toBeVisible();
+    await expect(survey.getByText('Electricity bill', { exact: true })).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'document-requirements');
 

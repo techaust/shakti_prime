@@ -30,13 +30,16 @@ const config: NextConfig = {
   ],
   // Chromium's driver and the serverless Chromium build load files beside their own code at run
   // time, so they stay plain packages rather than bundled (ADR 0009); so does PDFium, which loads its
-  // WebAssembly beside its code.
+  // WebAssembly beside its code. The OCR masking step (tesseract.js) starts its worker from a
+  // script beside its own code too; bundled, that path pointed nowhere and every masked upload of
+  // a production build stopped there (J3's document journey).
   serverExternalPackages: [
     'postgres',
     '@node-rs/argon2',
     'playwright-core',
     '@sparticuz/chromium',
     '@hyzyla/pdfium',
+    'tesseract.js',
   ],
   // The serverless Chromium (`bin/*.br`, unpacked on a cold start) and the print fonts go only with
   // the render route, the one function that prints on a hosted runtime (docs/runbooks/deploy.md).
