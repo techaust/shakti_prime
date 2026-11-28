@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 28-11-2026 05:08 UTC
+updated: 28-11-2026 05:12 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 91
@@ -202,3 +202,11 @@ run_file: docs/runs/phase4/j3-documents.md
 wait_for: docs(runs): j3-documents, the lead's triage of the review
 done_when: report: j3-documents fixes
 note: the one fix round: H1 (all four parts), M1, L1, L2, L3 and L4 as the lead's triage at the end of the Review section says. H1 first. H2 is the merge's, not yours; do not take main in.
+
+lane: 104
+role: prep
+branch: feat/tc2-tally-ingest
+run_file: docs/runs/phase5/tc2-tally-ingest.md
+wait_for: report: tc2-tally-ingest fixes
+done_when: report: tc2-tally-ingest prepped
+note: the lead read the fix round's diff and accepted it. main now holds TC1 (#303, apps/tally-connector, the moved Tally XML parsing) and J2 (#300, migrations 0243 to 0246). packages/contracts/src/api/connector.ts changed on both sides: keep TC1's and add TC2's held rows (TallyHeldRow, TALLY_HELD_REASONS, held on the batch answer), and run apps/tally-connector's tests (its ConnectorAnswers must still read an answer with held). TC2 widens roles_key_check and app.platform_only_permissions(): each carries every line of main's latest. finance.read merges with FN1's when FN1 lands.
