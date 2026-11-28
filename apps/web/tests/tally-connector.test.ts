@@ -5,6 +5,7 @@ import {
   localKeyProvider,
   executeCommand,
   mapTallyCompany,
+  memoryKeyValue,
   newConnectorKey,
   registerTallyConnector,
   retireTallyConnectorKey,
@@ -12,7 +13,9 @@ import {
   rotateTallyConnectorKey,
 } from '@shakti/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { forgetTallyConnector } from '../src/integrations/tally/connector-cache';
 import {
+  TALLY_CAPS,
   tallyBatchRoute,
   tallyCursorRoute,
   tallyHeartbeatRoute,
@@ -42,6 +45,7 @@ let key: ReturnType<typeof newConnectorKey>;
 const cipher = envelopeCipher(localKeyProvider(Buffer.alloc(32, 13).toString('base64')));
 const deps = (now: Date = NOW): TallyRouteDeps => ({
   now: () => now,
+  keyValue: memoryKeyValue(),
   cipher: () => cipher,
   options: () => ({}),
 });
@@ -216,11 +220,15 @@ describe('the connector’s signature', () => {
       { connectorId, key: next.key },
       { fieldCipher: cipher },
     );
+    // The Admin action forgets the connector on its own instance; another reads it again within
+    // the minute, or at once after a refused signature once its reading is ten seconds old.
+    forgetTallyConnector(connectorId);
     for (const secret of [key.key, next.key]) {
       const response = await tallyCursorRoute(signed('GET', cursorPath(), { secret }), deps());
       expect(response.status).toBe(200);
     }
     await executeCommand(exec, { entityIds: [1] }, retireTallyConnectorKey, { connectorId });
+    // A rotation under way is read again on every call, so the old key stops at once here too.
     const old = await tallyCursorRoute(signed('GET', cursorPath(), { secret: key.key }), deps());
     expect(old.status).toBe(401);
     key = next;
@@ -254,6 +262,7 @@ describe('the batch route', () => {
         company: COMPANY,
         accepted: { vouchersNew: 2, vouchersChanged: 0, vouchersUnchanged: 0, ledgers: 0 },
         lastAlterId: 10,
+        held: [],
       },
     });
     const again = await json(
@@ -341,12 +350,54 @@ describe('the release route and a runtime with no cipher', () => {
     expect(unsigned.status).toBe(401);
   });
 
+  it('verifies on a warm instance before any read, and refuses a wrong key there too', async () => {
+    // With no cipher, a call that reached the database's keys would answer 503: these do not.
+    const noCipher = { ...deps(), cipher: () => undefined };
+    const warm = await tallyCursorRoute(signed('GET', cursorPath()), noCipher);
+    expect(warm.status).toBe(200);
+    const wrong = await tallyCursorRoute(
+      signed('GET', cursorPath(), { secret: newConnectorKey().key }),
+      noCipher,
+    );
+    expect(wrong.status).toBe(401);
+  });
+
   it('answers unavailable when the keys cannot be opened on this runtime', async () => {
+    forgetTallyConnector(connectorId);
     const response = await tallyCursorRoute(signed('GET', cursorPath()), {
       ...deps(),
       cipher: () => undefined,
     });
     expect(response.status).toBe(503);
+  });
+
+  it('refuses a call with a stale or missing signature before reading its body', async () => {
+    const stale = signed('POST', `${BASE}/heartbeat`, {
+      body: { not: 'read' },
+      at: new Date(NOW.getTime() - 3600_000),
+    });
+    expect((await tallyHeartbeatRoute(stale, deps())).status).toBe(401);
+    expect(stale.bodyUsed).toBe(false);
+    const unsigned = new Request(`${ORIGIN}${cursorPath()}`, {
+      headers: { [CONNECTOR_HEADERS.id]: connectorId },
+    });
+    expect((await tallyCursorRoute(unsigned, deps())).status).toBe(401);
+  });
+
+  it('caps the calls per connector and per address, answering when to try again', async () => {
+    for (const [key, rule] of [
+      [`tally:connector:${connectorId}`, TALLY_CAPS.perConnector],
+      [`tally:address:no-address`, TALLY_CAPS.perAddress],
+    ] as const) {
+      const store = memoryKeyValue();
+      for (let i = 0; i < rule.max; i += 1) await store.incr(`cap:${key}`, rule.window);
+      const response = await tallyCursorRoute(signed('GET', cursorPath()), {
+        ...deps(),
+        keyValue: store,
+      });
+      expect(response.status, key).toBe(429);
+      expect(response.headers.get('retry-after')).toBe(String(rule.window));
+    }
   });
 });
 
@@ -403,6 +454,9 @@ describe('the snapshot and heartbeat routes', () => {
 
   it('refuses every call of a revoked connector', async () => {
     await executeCommand(exec, { entityIds: [1] }, revokeTallyConnector, { connectorId });
+    // An instance that read it within the minute is refused by the definers, and reads it again.
+    const warm = await tallyCursorRoute(signed('GET', cursorPath()), deps());
+    expect(warm.status).toBe(403);
     const response = await tallyCursorRoute(signed('GET', cursorPath()), deps());
     expect(response.status).toBe(401);
   });

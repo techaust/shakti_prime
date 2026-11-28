@@ -6,6 +6,8 @@
 // type into the connector's setup on the office computer; it is never stored in the clear.
 
 import {
+  DomainError,
+  isDomainError,
   MapTallyCompanyInput,
   RegisterTallyConnectorRequest,
   RotateTallyConnectorRequest,
@@ -13,6 +15,7 @@ import {
   TallySnapshotConfirmInput,
   UnmapTallyCompanyInput,
   type HeldTallySnapshotDto,
+  type HeldTallyVoucherPageDto,
   type TallyConnectorDto,
   type TallySnapshotConfirmDto,
 } from '@shakti/contracts';
@@ -21,6 +24,7 @@ import {
   executeCommand,
   executeQuery,
   listHeldTallySnapshots as listHeldTallySnapshotsQuery,
+  listHeldTallyVouchers as listHeldTallyVouchersQuery,
   listTallyConnectors as listTallyConnectorsQuery,
   mapTallyCompany as mapTallyCompanyCommand,
   newConnectorKey,
@@ -31,8 +35,27 @@ import {
   unmapTallyCompany as unmapTallyCompanyCommand,
 } from '@shakti/domain';
 import { fieldCipher } from '../crypto/kms-cipher';
+import { forgetTallyConnector } from '../integrations/tally/connector-cache';
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
+
+/**
+ * A key is made afresh on every call, so a retry under the same form key after a lost answer
+ * reaches the command with other input: the change was made, but its key never reached the
+ * screen. The person is told to make a new key rather than shown a key that was never stored.
+ */
+async function withNewKey<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (isDomainError(error) && error.details?.reason === 'idempotency_mismatch') {
+      throw new DomainError('conflict', 'the key made earlier was not shown', {
+        reason: 'tally_key_not_shown',
+      });
+    }
+    throw error;
+  }
+}
 
 /** A connector with the key made for it, shown once. */
 export interface TallyConnectorWithKey {
@@ -65,15 +88,17 @@ export async function registerTallyConnector(
     const meta = await requestMeta();
     const made = newConnectorKey();
     const cipher = fieldCipher();
-    const connector = await executeCommand(
-      principal,
-      { entityIds: principal.entityIds, requestId: meta.requestId },
-      registerTallyConnectorCommand,
-      { name: input.name, key: made.key },
-      {
-        ...commandOptions(meta, idempotencyKey),
-        ...(cipher === undefined ? {} : { fieldCipher: cipher }),
-      },
+    const connector = await withNewKey(() =>
+      executeCommand(
+        principal,
+        { entityIds: principal.entityIds, requestId: meta.requestId },
+        registerTallyConnectorCommand,
+        { name: input.name, key: made.key },
+        {
+          ...commandOptions(meta, idempotencyKey),
+          ...(cipher === undefined ? {} : { fieldCipher: cipher }),
+        },
+      ),
     );
     return { connector, key: made.key };
   });
@@ -90,16 +115,19 @@ export async function rotateTallyConnectorKey(
     const meta = await requestMeta();
     const made = newConnectorKey();
     const cipher = fieldCipher();
-    const connector = await executeCommand(
-      principal,
-      { entityIds: principal.entityIds, requestId: meta.requestId },
-      rotateTallyConnectorKeyCommand,
-      { connectorId: input.connectorId, key: made.key },
-      {
-        ...commandOptions(meta, idempotencyKey),
-        ...(cipher === undefined ? {} : { fieldCipher: cipher }),
-      },
+    const connector = await withNewKey(() =>
+      executeCommand(
+        principal,
+        { entityIds: principal.entityIds, requestId: meta.requestId },
+        rotateTallyConnectorKeyCommand,
+        { connectorId: input.connectorId, key: made.key },
+        {
+          ...commandOptions(meta, idempotencyKey),
+          ...(cipher === undefined ? {} : { fieldCipher: cipher }),
+        },
+      ),
     );
+    forgetTallyConnector(input.connectorId);
     return { connector, key: made.key };
   });
 }
@@ -112,13 +140,15 @@ export async function mapTallyCompany(
     const principal = await signedIn();
     const input = parseInput(MapTallyCompanyInput, rawInput);
     const meta = await requestMeta();
-    return executeCommand(
+    const connector = await executeCommand(
       principal,
       { entityIds: principal.entityIds, requestId: meta.requestId },
       mapTallyCompanyCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );
+    forgetTallyConnector(input.connectorId);
+    return connector;
   });
 }
 
@@ -130,13 +160,15 @@ export async function unmapTallyCompany(
     const principal = await signedIn();
     const input = parseInput(UnmapTallyCompanyInput, rawInput);
     const meta = await requestMeta();
-    return executeCommand(
+    const connector = await executeCommand(
       principal,
       { entityIds: principal.entityIds, requestId: meta.requestId },
       unmapTallyCompanyCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );
+    forgetTallyConnector(input.connectorId);
+    return connector;
   });
 }
 
@@ -148,13 +180,15 @@ export async function retireTallyConnectorKey(
     const principal = await signedIn();
     const input = parseInput(TallyConnectorIdInput, rawInput);
     const meta = await requestMeta();
-    return executeCommand(
+    const connector = await executeCommand(
       principal,
       { entityIds: principal.entityIds, requestId: meta.requestId },
       retireTallyConnectorKeyCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );
+    forgetTallyConnector(input.connectorId);
+    return connector;
   });
 }
 
@@ -166,13 +200,15 @@ export async function revokeTallyConnector(
     const principal = await signedIn();
     const input = parseInput(TallyConnectorIdInput, rawInput);
     const meta = await requestMeta();
-    return executeCommand(
+    const connector = await executeCommand(
       principal,
       { entityIds: principal.entityIds, requestId: meta.requestId },
       revokeTallyConnectorCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );
+    forgetTallyConnector(input.connectorId);
+    return connector;
   });
 }
 
@@ -186,6 +222,22 @@ export async function listHeldTallySnapshots(): Promise<ActionResult<HeldTallySn
       { entityIds: principal.entityIds, requestId },
       (ctx) => listHeldTallySnapshotsQuery(ctx),
       { name: 'listHeldTallySnapshots' },
+    );
+  });
+}
+
+/** Tally checks: one page of the records a held snapshot would mark removed. */
+export async function listHeldTallyVouchers(
+  rawInput: unknown,
+): Promise<ActionResult<HeldTallyVoucherPageDto>> {
+  return toResult('listHeldTallyVouchers', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { entityIds: principal.entityIds, requestId },
+      (ctx) => listHeldTallyVouchersQuery(ctx, rawInput),
+      { name: 'listHeldTallyVouchers' },
     );
   });
 }

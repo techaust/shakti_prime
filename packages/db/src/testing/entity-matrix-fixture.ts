@@ -1037,12 +1037,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${ledger}, ${e}, ${company}, ${connector}, ${guid(3)}, 7, 'matrix ledger', 'Sundry Debtors',
             0.00, 100.00, '2090-01-01', now(), now())`;
         await tx`insert into tally_snapshots (id, entity_id, tally_company, connector_id, as_of, from_date, guid_count,
-            live, tombstoned, missing, reappeared, state)
-          values (${snapshot}, ${e}, ${company}, ${connector}, now(), '2090-01-01', 2, 2, 1, 0, 0, 'applied')`;
+            live, tombstoned, missing, reappeared, state, compared_at)
+          values (${snapshot}, ${e}, ${company}, ${connector}, now(), '2090-01-01', 2, 2, 1, 0, 0, 'applied', now())`;
         await tx`insert into tally_voucher_tombstones (id, entity_id, voucher_guid, voucher_type, snapshot_id, detected_at)
           values (${tombstone}, ${e}, ${guid(4)}, 'sales', ${snapshot}, now())`;
-        await tx`insert into tally_refused_rows (id, entity_id, tally_company, connector_id, kind, guid, alter_id, field, refused_at)
-          values (${refused}, ${e}, ${company}, ${connector}, 'voucher', ${guid(5)}, 9, 'partyGstin', now())`;
+        await tx`insert into tally_refused_rows (id, entity_id, tally_company, connector_id, kind, guid, alter_id, reason, field, refused_at)
+          values (${refused}, ${e}, ${company}, ${connector}, 'voucher', ${guid(5)}, 9, 'connector_refused', 'partyGstin', now())`;
         const only = [e];
         rows.tally_refused_rows.push({ key: refused, entities: only });
         rows.tally_connector_companies.push({ key: `${connector}/${company}`, entities: only });

@@ -489,7 +489,7 @@ export const PERMISSION_SHARED_TABLES = ['warehouses', 'bins'] as const;
 
 /**
  * TC2: the Tally connectors, of no company (one serves several), read only by an Executive
- * (`admin.integrations.write`) in a request with a company, column by column so their key hashes
+ * (`admin.integrations.write`) in a request with a company, column by column so their sealed keys
  * stay unread, and written only by the admin definers. Asserted in tally.test.ts.
  */
 export const CONNECTOR_TABLES = ['tally_connectors'] as const;

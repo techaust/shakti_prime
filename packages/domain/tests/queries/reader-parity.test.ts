@@ -15,6 +15,7 @@ import { readTallyConnector } from '../../src/commands/tally/connectors';
 import {
   findTallyConnector,
   listHeldTallySnapshots,
+  listHeldTallyVouchers,
   listTallyConnectors,
   readTallyConnectorAlerts,
   readTallyConnectorHealth,
@@ -392,6 +393,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   readTallyConnectorHealth: (ctx) => readTallyConnectorHealth(ctx, QUOTES_AT),
   listTallyConnectors: (ctx) => listTallyConnectors(ctx),
   listHeldTallySnapshots: (ctx) => listHeldTallySnapshots(ctx),
+  listHeldTallyVouchers: (ctx) => listHeldTallyVouchers(ctx, { snapshotId: newId() }),
 };
 
 /**

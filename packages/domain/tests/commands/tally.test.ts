@@ -26,7 +26,11 @@ import {
   recordTallyHeartbeat,
   recordTallySnapshot,
 } from '../../src/commands/tally/ingest';
-import { findTallyConnector, readTallyCursor } from '../../src/queries/tally/connector';
+import {
+  findTallyConnector,
+  listHeldTallyVouchers,
+  readTallyCursor,
+} from '../../src/queries/tally/connector';
 import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
 import { newConnectorKey, openConnectorKeys } from '../../src/tally/connector-key';
 
@@ -45,6 +49,8 @@ afterAll(closeDb);
 const RUN = newId().slice(-8);
 const COMPANY = `TC2 ${RUN} Shakti Supreme`;
 const SPARE = `TC2 ${RUN} Agro Solar`;
+/** The same group company's next financial year, a Tally company of its own. */
+const NEXT_YEAR = `TC2 ${RUN} Shakti Supreme 2027-28`;
 let exec: Principal;
 let accounts: Principal;
 let connector: TallyConnectorDto;
@@ -296,6 +302,7 @@ describe('tally.batch.ingest', () => {
       company: COMPANY,
       accepted: { vouchersNew: 3, vouchersChanged: 0, vouchersUnchanged: 0, ledgers: 0 },
       lastAlterId: 10,
+      held: [],
     });
     expect(await stateOf('tally_vouchers', guid(1))).toBe('received');
     expect(await stateOf('tally_purchase_vouchers', guid(2))).toBe('received');
@@ -462,6 +469,36 @@ describe('tally.snapshot.record and tally.snapshot.confirm', () => {
     expect(held.response.tombstoned).toBe(0);
     expect(await stateOf('tally_vouchers', guid(200))).toBe('received');
 
+    // Tally checks list what the check would mark removed, a page at a time, never an amount;
+    // a purchase only to those who read supplier rates.
+    const pageOf = (principal: Principal, cursor?: string) =>
+      withRequestContext(principal, { entityIds: [1] }, (ctx) =>
+        listHeldTallyVouchers(ctx, {
+          snapshotId: held.snapshotId,
+          limit: 20,
+          ...(cursor === undefined ? {} : { cursor }),
+        }),
+      );
+    const first = await pageOf(accounts);
+    expect(first.total).toBe(32);
+    expect(first.items).toHaveLength(20);
+    expect(first.items[0]).toEqual({
+      guid: expect.any(String),
+      type: expect.any(String),
+      voucherNo: expect.any(String),
+      voucherDate: '2026-09-27',
+      partyName: 'Kisan Agro Traders',
+    });
+    const second = await pageOf(accounts, first.nextCursor ?? undefined);
+    expect(second.items).toHaveLength(12);
+    expect(second.nextCursor).toBeNull();
+    const seen = new Set([...first.items, ...second.items].map((v) => v.guid));
+    expect(seen.size).toBe(32);
+    expect(seen.has(guid(2))).toBe(true);
+    const gm = await createTestPrincipal('general_manager', [1]);
+    const gmPage = await pageOf(gm);
+    expect(gmPage.total).toBe(31);
+
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     expect(
       await failure(
@@ -497,6 +534,11 @@ describe('tally.snapshot.record and tally.snapshot.confirm', () => {
         }),
       ),
     ).toMatchObject({ code: 'conflict', reason: 'tally_snapshot_not_held' });
+    // Confirmed, it is no longer listed.
+    await expect(pageOf(accounts)).rejects.toMatchObject({
+      code: 'not_found',
+      details: { reason: 'tally_snapshot_missing' },
+    });
   });
 });
 
@@ -539,6 +581,103 @@ describe('refused rows on a batch', () => {
   });
 });
 
+describe('rows held back from a batch', () => {
+  const ledger = (n: number, alterId: number, parent = 'Sundry Debtors'): TallyLedger => ({
+    guid: guid(n),
+    alterId,
+    name: 'Kisan Agro Traders',
+    parent,
+    gstin: null,
+    openingBalance: '0.00',
+    closingBalance: '-100.00',
+    asOf: '2026-09-27',
+  });
+  const reviewRows = () =>
+    asMigrator(
+      (m) => m<{ guid: string; kind: string; reason: string; field: string }[]>`
+        select guid, kind, reason, field from tally_refused_rows
+         where connector_id = ${connector.id} and resolved_at is null
+           and reason <> 'connector_refused' order by guid`,
+    );
+
+  it('holds a row in conflict for Accounts with its reason and applies the rest of the batch', async () => {
+    // The next year's Tally company carries company 1's party ledger and a voucher already read
+    // from the current year's; a creditor's ledger comes too. The batch applies without them.
+    connector = await executeCommand(exec, { entityIds: [1] }, mapTallyCompany, {
+      connectorId: connector.id,
+      tallyCompany: NEXT_YEAR,
+      entityId: 1,
+    });
+    const nextYear = (from: number, max: number, vouchers: TallyVoucher[], ledgers: TallyLedger[]) => ({
+      entityId: 1,
+      batch: { ...batch(from, max, vouchers, ledgers).batch, company: NEXT_YEAR },
+    });
+    const out = await executeCommand(
+      connectorPrincipal(),
+      { entityIds: [1] },
+      ingestTallyBatch,
+      nextYear(0, 10, [voucher(1, 4), voucher(300, 5)], [
+        ledger(100, 6),
+        ledger(102, 7, 'Sundry Creditors'),
+      ]),
+      { idempotencyKey: newId() },
+    );
+    expect(out).toEqual({
+      company: NEXT_YEAR,
+      accepted: { vouchersNew: 1, vouchersChanged: 0, vouchersUnchanged: 0, ledgers: 0 },
+      lastAlterId: 10,
+      held: [
+        { kind: 'voucher', guid: guid(1), alterId: 4, reason: 'other_company' },
+        { kind: 'ledger', guid: guid(100), alterId: 6, reason: 'other_company' },
+        { kind: 'ledger', guid: guid(102), alterId: 7, reason: 'not_debtor' },
+      ],
+    });
+    expect(await stateOf('tally_vouchers', guid(300))).toBe('received');
+    // The next batch is not stopped by the rows held before it.
+    const next = await executeCommand(
+      connectorPrincipal(),
+      { entityIds: [1] },
+      ingestTallyBatch,
+      nextYear(10, 12, [voucher(301, 11)], []),
+      { idempotencyKey: newId() },
+    );
+    expect(next).toMatchObject({ lastAlterId: 12, held: [] });
+    expect(next.accepted.vouchersNew).toBe(1);
+  });
+
+  it('holds a voucher that moved between a sale and a purchase, its stored version not current', async () => {
+    const cursor = await withRequestContext(connectorPrincipal(), { entityIds: [1] }, (ctx) =>
+      readTallyCursor(ctx, { entityId: 1, company: COMPANY }),
+    );
+    const from = cursor.lastAlterId;
+    const out = await executeCommand(
+      connectorPrincipal(),
+      { entityIds: [1] },
+      ingestTallyBatch,
+      batch(from, from + 2, [voucher(3, from + 1, 'purchase')]),
+      { idempotencyKey: newId() },
+    );
+    expect(out.lastAlterId).toBe(from + 2);
+    expect(out.held).toEqual([
+      { kind: 'voucher', guid: guid(3), alterId: from + 1, reason: 'type_changed' },
+    ]);
+    expect(await stateOf('tally_purchase_vouchers', guid(3))).toBeUndefined();
+    const [stored] = await asMigrator(
+      (m) => m<{ refused: boolean }[]>`
+        select refused_at is not null as refused from tally_vouchers where guid = ${guid(3)}`,
+    );
+    expect(stored?.refused).toBe(true);
+    expect(await reviewRows()).toEqual(
+      [
+        { guid: guid(1), kind: 'voucher', reason: 'other_company', field: 'company' },
+        { guid: guid(100), kind: 'ledger', reason: 'other_company', field: 'company' },
+        { guid: guid(102), kind: 'ledger', reason: 'not_debtor', field: 'parent' },
+        { guid: guid(3), kind: 'voucher', reason: 'type_changed', field: 'type' },
+      ].sort((a, b) => a.guid.localeCompare(b.guid)),
+    );
+  });
+});
+
 describe('tally.heartbeat.record', () => {
   it('records the connector’s report for its mapped companies only', async () => {
     const out = await executeCommand(
@@ -564,7 +703,7 @@ describe('tally.heartbeat.record', () => {
         select c.connector_version as v, c.queue_depth as q, c.last_heartbeat_at as at,
                m.reported_alter_id as reported
           from tally_connectors c join tally_connector_companies m on m.connector_id = c.id
-         where c.id = ${connector.id}`,
+         where c.id = ${connector.id} and m.tally_company = ${COMPANY}`,
     );
     expect(row).toMatchObject({ v: '1.0.0', q: 2, reported: '61' });
     expect(row?.at).not.toBeNull();
@@ -590,6 +729,7 @@ describe('tally.connector.unmap', () => {
         executeCommand(accounts, { entityIds: [1] }, unmapTallyCompany, {
           connectorId: connector.id,
           entityId: 1,
+          tallyCompany: COMPANY,
         }),
       ),
     ).toMatchObject({ code: 'forbidden' });
@@ -598,6 +738,7 @@ describe('tally.connector.unmap', () => {
         executeCommand(exec, { entityIds: [1] }, unmapTallyCompany, {
           connectorId: connector.id,
           entityId: 2,
+          tallyCompany: COMPANY,
         }),
       ),
     ).toMatchObject({ code: 'forbidden' });
@@ -605,12 +746,35 @@ describe('tally.connector.unmap', () => {
 });
 
 describe('unmap and revoke', () => {
-  it('unmaps a company, then revokes the connector, whose keys stop working', async () => {
+  it('unmaps one Tally company, then revokes the connector, whose keys stop working', async () => {
+    // The group company's other Tally company (its next year) stays linked.
     const unmapped = await executeCommand(exec, { entityIds: [1] }, unmapTallyCompany, {
       connectorId: connector.id,
       entityId: 1,
+      tallyCompany: COMPANY,
     });
-    expect(unmapped.companies).toEqual([]);
+    expect(unmapped.companies.map((c) => c.tallyCompany)).toEqual([NEXT_YEAR]);
+    const [audit] = await asMigrator(
+      (m) => m<{ before: unknown }[]>`select before from audit_logs
+        where aggregate_id = ${connector.id} and command = 'tally.connector.unmap'
+          and outcome = 'ok' order by created_at desc limit 1`,
+    );
+    expect(audit?.before).toEqual({ tallyCompany: COMPANY });
+    expect(
+      await failure(
+        executeCommand(exec, { entityIds: [1] }, unmapTallyCompany, {
+          connectorId: connector.id,
+          entityId: 1,
+          tallyCompany: COMPANY,
+        }),
+      ),
+    ).toMatchObject({ code: 'not_found', reason: 'tally_company_not_mapped' });
+    const last = await executeCommand(exec, { entityIds: [1] }, unmapTallyCompany, {
+      connectorId: connector.id,
+      entityId: 1,
+      tallyCompany: NEXT_YEAR,
+    });
+    expect(last.companies).toEqual([]);
     connector = await executeCommand(exec, { entityIds: [1] }, revokeTallyConnector, {
       connectorId: connector.id,
     });

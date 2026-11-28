@@ -538,10 +538,11 @@
     "tally_snapshot_missing": "This Tally check is no longer available. Refresh the page to see the current ones.",
     "tally_snapshot_not_held": "This Tally check is no longer waiting. A newer one may have replaced it. Refresh the page.",
     "tally_company_already_mapped": "This company is already linked to a Tally company. Remove that link first.",
-    "tally_connector_revoked": "This connector has been turned off. Register a new connector instead.",
+    "tally_connector_revoked": "This connector has been turned off. Set up a new connector instead.",
     "tally_connector_no_next_key": "There is no new key waiting. Make a new key first.",
     "tally_no_release": "There is no new version of the Tally connector yet. Keep the one you have.",
     "tally_snapshot_part_mismatch": "This part of the daily Tally check does not match the parts before it. The connector will send the check again.",
+    "tally_key_not_shown": "This was done, but its key did not reach your screen. Make a new key for the connector in the list below.",
     "stock_batch_empty": "Nothing was given to move. Add a quantity and try again.",
     "stock_batch_too_large": "That is too much to move at once. Split it into smaller parts and try again.",
     "stock_reason_not_open": "Stock can't be moved this way yet. Use an adjustment or a move between bins.",
@@ -6218,7 +6219,7 @@
     "link": "Link",
     "linked": "The Tally company is linked.",
     "unlink": "Unlink",
-    "unlinkLabel": "Unlink the Tally company from {company}",
+    "unlinkLabel": "Unlink {tally} from {company}",
     "unlinked": "The Tally company is unlinked. Its records are no longer read."
   },
   "tallyChecks": {
@@ -6236,6 +6237,28 @@
     },
     "confirmCheck": "Confirm",
     "confirmLabel": "Confirm the check of {company}",
+    "seeRecords": "See records",
+    "seeRecordsLabel": "See the records the check of {company} would mark removed",
+    "voucherType": {
+      "sales": "Sale",
+      "receipt": "Receipt",
+      "credit_note": "Credit note",
+      "purchase": "Purchase",
+      "debit_note": "Debit note"
+    },
+    "records": {
+      "heading": "Records the check would mark removed: {tally}, {company}",
+      "intro": "Find each of these in Tally. Confirm the check only if they are deleted or cancelled there.",
+      "caption": "{count, plural, one {# record the check would mark removed} other {# records the check would mark removed}}",
+      "none": "None of these records is still here.",
+      "number": "Number",
+      "noNumber": "No number",
+      "date": "Date",
+      "party": "Party",
+      "noParty": "No party",
+      "type": "Type",
+      "hidden": "{count, plural, one {# more record is a purchase or debit note, which only people who see supplier rates can see.} other {# more records are purchases or debit notes, which only people who see supplier rates can see.}}"
+    },
     "confirmed": "{count, plural, =0 {Confirmed. No record needed marking.} one {Confirmed. # record is marked removed.} other {Confirmed. # records are marked removed.}}"
   },
   "leadSources": {

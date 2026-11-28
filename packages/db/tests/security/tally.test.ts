@@ -2,7 +2,7 @@
 // security. A connector's principal reads no table and writes only through its definers, for the
 // companies mapped to it; people read a company's mirror with finance.read, purchase vouchers
 // only with procurement.rate.read as well, on both pools; an Executive reads the connectors, never
-// their key hashes; tombstones are append-only. The role × company matrix covers every role's
+// their sealed keys; tombstones are append-only. The role × company matrix covers every role's
 // reads of a company's rows (role-entity-matrix.test.ts).
 import {
   hasGrant,
@@ -441,8 +441,8 @@ describe('tombstones are append-only', () => {
     const tombstone = newId();
     await asMigrator(async (m) => {
       await m`insert into tally_snapshots (id, entity_id, tally_company, connector_id, as_of, from_date,
-          guid_count, live, tombstoned, missing, reappeared, state)
-        values (${snapshot}, 1, ${COMPANY_1}, ${connector}, now(), '2026-04-01', 0, 0, 1, 0, 0, 'applied')`;
+          guid_count, live, tombstoned, missing, reappeared, state, compared_at)
+        values (${snapshot}, 1, ${COMPANY_1}, ${connector}, now(), '2026-04-01', 0, 0, 1, 0, 0, 'applied', now())`;
       await m`insert into tally_voucher_tombstones (id, entity_id, voucher_guid, voucher_type, snapshot_id, detected_at)
         values (${tombstone}, 1, ${guid(30)}, 'sales', ${snapshot}, now())`;
     });
@@ -484,7 +484,14 @@ describe('refused rows, snapshot parts, the heartbeat and the alerts, through th
     const self = connectorPrincipal(connector, [1, 2]);
     await run(self, [1], write(1, COMPANY_1, [voucher(40, 'sales', 41)]));
     const refused = [
-      { id: newId(), kind: 'voucher', guid: guid(40), alter_id: 45, field: 'partyGstin' },
+      {
+        id: newId(),
+        kind: 'voucher',
+        guid: guid(40),
+        alter_id: 45,
+        reason: 'connector_refused',
+        field: 'partyGstin',
+      },
     ];
     await run(
       self,
@@ -638,5 +645,125 @@ describe('refused rows, snapshot parts, the heartbeat and the alerts, through th
         principal.roleKey,
       ).toBe('42501');
     }
+  });
+});
+
+describe('the second checks behind a batch and a snapshot (the fix round)', () => {
+  const ledger = (n: number, alterId: number) => ({
+    id: newId(),
+    guid: guid(n),
+    alter_id: alterId,
+    name: 'Tally test party',
+    parent: 'Sundry Debtors',
+    gstin: null,
+    opening_balance: '0.00',
+    closing_balance: '100.00',
+    as_of: '2026-09-27',
+  });
+  const writeLedgers = (entity: number, company: string, rows: unknown[]): SQL =>
+    sql`select app.tally_ledgers_write(${entity}::smallint, ${company}::text, ${JSON.stringify(rows)}::jsonb) as n`;
+
+  it("names to the company's connector the GUIDs another company holds, and to nobody else", async () => {
+    const self = connectorPrincipal(connector, [1, 2]);
+    const elsewhere = (entity: number, company: string, kind: string) =>
+      run<{ guid: string }>(
+        self,
+        [entity],
+        sql`select guid from app.tally_guids_elsewhere(${entity}::smallint, ${company}::text,
+              ${kind}::text, ${`{${guid(1)},${guid(2)},${guid(99)}}`}::text[]) as guid`,
+      );
+    expect((await elsewhere(2, COMPANY_2, 'voucher')).map((r) => r.guid).sort()).toEqual(
+      [guid(1), guid(2)].sort(),
+    );
+    expect(await elsewhere(1, COMPANY_1, 'voucher')).toEqual([]);
+    expect(await elsewhere(2, COMPANY_2, 'ledger')).toEqual([]);
+    expect(
+      await failure(
+        run(
+          principalFor('accounts', [2], { id: owner }),
+          [2],
+          sql`select * from app.tally_guids_elsewhere(2::smallint, ${COMPANY_2}::text, 'voucher', '{}'::text[])`,
+        ),
+      ),
+    ).toBe('42501');
+  });
+
+  it('refuses a voucher stored in both tables and a ledger of another company, after the writes', async () => {
+    const self = connectorPrincipal(connector, [1, 2]);
+    // guid(1) is company 1's sale: the same company sending it as a purchase is refused.
+    expect(await failure(run(self, [1], write(1, COMPANY_1, [voucher(1, 'purchase', 90)])))).toBe(
+      '23514',
+    );
+    await run(self, [1], writeLedgers(1, COMPANY_1, [ledger(80, 3)]));
+    expect(await failure(run(self, [2], writeLedgers(2, COMPANY_2, [ledger(80, 9)])))).toBe(
+      '23505',
+    );
+    const [row] = await asMigrator(
+      (m) => m<{ entity_id: number; alter_id: string }[]>`
+        select entity_id, alter_id from tally_ledgers where guid = ${guid(80)}`,
+    );
+    expect(row).toEqual({ entity_id: 1, alter_id: '3' });
+    await asMigrator((m) => m`delete from tally_ledgers where guid = ${guid(80)}`);
+  });
+
+  it("marks only a held snapshot's GUIDs when a person confirms it", async () => {
+    const self = connectorPrincipal(connector, [1, 2]);
+    await run(self, [1], write(1, COMPANY_1, [voucher(70, 'sales', 70), voucher(71, 'sales', 71)]));
+    const snapshot = newId();
+    await asMigrator(
+      (m) => m`insert into tally_snapshots (id, entity_id, tally_company, connector_id, as_of,
+          from_date, guid_count, live, tombstoned, missing, reappeared, state, held_guids, compared_at)
+        values (${snapshot}, 1, ${COMPANY_1}, ${connector}, now() + interval '1 minute',
+          '2026-04-01', 0, 2, 0, 0, 0, 'held', ${`{${guid(70)}}`}::text[], now())`,
+    );
+    const [done] = await run<{ n: number }>(
+      principalFor('accounts', [1], { id: owner }),
+      [1],
+      sql`select app.tally_tombstone(${snapshot}::uuid, ${`{${guid(70)},${guid(71)}}`}::text[],
+            ${`{${newId()},${newId()}}`}::uuid[]) as n`,
+    );
+    expect(done?.n).toBe(1);
+    const states = await asMigrator(
+      (m) => m<{ guid: string; state: string }[]>`
+        select guid, state from tally_vouchers where guid in (${guid(70)}, ${guid(71)}) order by guid`,
+    );
+    expect(Object.fromEntries(states.map((s) => [s.guid, s.state]))).toEqual({
+      [guid(70)]: 'tombstoned',
+      [guid(71)]: 'received',
+    });
+    await asMigrator(async (m) => {
+      await m`alter table tally_voucher_tombstones disable trigger tally_voucher_tombstones_append_only`;
+      await m`delete from tally_voucher_tombstones where snapshot_id = ${snapshot}`;
+      await m`alter table tally_voucher_tombstones enable trigger tally_voucher_tombstones_append_only`;
+      await m`delete from tally_snapshots where id = ${snapshot}`;
+    });
+  });
+
+  it('lets the connector tombstone only for the snapshot it compared in the same transaction', async () => {
+    const self = connectorPrincipal(connector, [1, 2]);
+    const earlier = newId();
+    await asMigrator(
+      (m) => m`insert into tally_snapshots (id, entity_id, tally_company, connector_id, as_of,
+          from_date, guid_count, live, tombstoned, missing, reappeared, state, compared_at)
+        values (${earlier}, 1, ${COMPANY_1}, ${connector}, now(), '2026-04-01', 0, 0, 0, 0, 0,
+          'applied', now() - interval '1 hour')`,
+    );
+    const tombstone = (id: string) =>
+      sql`select app.tally_tombstone(${id}::uuid, ${`{${guid(71)}}`}::text[], ${`{${newId()}}`}::uuid[]) as n`;
+    expect(await failure(run(self, [1], tombstone(earlier)))).toBe('42501');
+    const now = newId();
+    const marked = await withRequestContext(self, { entityIds: [1] }, async ({ tx }) => {
+      await tx.execute(sql`select app.tally_snapshot_write(${now}::uuid, 1::smallint,
+          ${COMPANY_1}::text, now() + interval '1 minute', '2026-04-01'::date, 0, 1, 1, 0, 0,
+          'applied', '{}'::text[], '{}'::text[])`);
+      return (await tx.execute(tombstone(now))) as unknown as { n: number }[];
+    });
+    expect(marked[0]?.n).toBe(1);
+    await asMigrator(async (m) => {
+      await m`alter table tally_voucher_tombstones disable trigger tally_voucher_tombstones_append_only`;
+      await m`delete from tally_voucher_tombstones where snapshot_id in (${earlier}, ${now})`;
+      await m`alter table tally_voucher_tombstones enable trigger tally_voucher_tombstones_append_only`;
+      await m`delete from tally_snapshots where id in (${earlier}, ${now})`;
+    });
   });
 });

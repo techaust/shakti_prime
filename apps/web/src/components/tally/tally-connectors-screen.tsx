@@ -302,12 +302,22 @@ function ConnectorCard({
                     variant="ghost"
                     size="sm"
                     pending={unmap.pending}
-                    aria-label={t('unlinkLabel', { company: companyName(m.entityId) })}
+                    aria-label={t('unlinkLabel', {
+                      tally: m.tallyCompany,
+                      company: companyName(m.entityId),
+                    })}
                     onClick={() => {
-                      unmap.run({ connectorId: connector.id, entityId: m.entityId }, () => {
-                        toast.success(t('unlinked'));
-                        onChanged();
-                      });
+                      unmap.run(
+                        {
+                          connectorId: connector.id,
+                          entityId: m.entityId,
+                          tallyCompany: m.tallyCompany,
+                        },
+                        () => {
+                          toast.success(t('unlinked'));
+                          onChanged();
+                        },
+                      );
                     }}
                   >
                     {t('unlink')}
