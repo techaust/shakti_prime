@@ -217,4 +217,16 @@ Verdict: **two high findings block the merge** (H1 in the slice, H2 at the merge
 - I did not rerun web unit tests, typecheck, lint, the build or the JavaScript budget; the builder's results stand.
 - The EXPLAIN figures are the builder's (the same queries).
 
+### 28-11-2026, the lead's triage
+- **Fix in the one fix round:**
+  - **H1**, all four parts: (1) refuse filing under any other kind with the new reason `document_identity_kind`, with a catalogue sentence, whenever the file's `scan_result.lastFour` holds Aadhaar or bank account digits, or any earlier document of the file was sensitive; (2) `files_customer_document_read` reads a file only through a filed document (`d.unfiled_at is null`), and a file any document of which is sensitive is treated as sensitive, through a small definer that checks the permission and sets `search_path = ''`; (3) the tests as written; (4) SECURITY §5's sentence.
+  - **M1:** run `pnpm db:docs` and commit.
+  - **L1:** mask any run of 9 to 18 digits in a customer document's name to its last four, and add a test.
+  - **L2:** derive each seed row's id from its keys, so a list change cannot collide, or use `onConflictDoNothing()` with no target; say which.
+  - **L3:** add `constraintReasons` for `document_requirements_step_key_unique`, with a sentence.
+  - **L4:** when `documents.read` is held only at `own`, `app.documents_missing()` also requires that the caller owns the customer, with a test. J1 widens it to the project's assignee at its merge.
+- **At the merge (the lead or the prep), not in the fix round:** **H2**. `app.file_purpose_grant()` is written as `main`'s latest (0242, `label_sheet`) plus the `customer_document` writer, and `purposes.ts` is taken from both sides. `pnpm db:docs` runs again after the merge.
+- **Follow-ups, not fixed here:** **L5** (unfiled customer uploads: list them or sweep them, decided with the retention period in DATABASE §7) and **L6** (the traced files for `tesseract.js` and a preview smoke test before hosted OCR goes on). Both are recorded in STATUS.
+- Run `pnpm format:check` before the `report: j3-documents fixes` commit.
+
 ## Integration
