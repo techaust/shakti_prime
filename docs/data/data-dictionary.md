@@ -4709,7 +4709,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### goods_receipt_line_rates
 
-**Catalogue entry** (05-database.md §6.5; created in 0243; restricted, append-only): `receipt_line_id` (with `entity_id`), `unit_rate` (the order line's rate when the goods came in); read only with `procurement.rate.read`; written only by `app.goods_receipt_post()`, which posts the receipt's `receipt` movements through `app.stock_move()` at that rate per stock unit; `app.goods_receipt_unpost()` reverses them while nothing has moved on
+**Catalogue entry** (05-database.md §6.5; created in 0247; restricted, append-only): `receipt_line_id` (with `entity_id`), `unit_rate` (the order line's rate when the goods came in); read only with `procurement.rate.read`; written only by `app.goods_receipt_post()`, which posts the receipt's `receipt` movements through `app.stock_move()` at that rate per stock unit; `app.goods_receipt_unpost()` reverses them while nothing has moved on
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -4741,7 +4741,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### goods_receipt_lines
 
-**Catalogue entry** (05-database.md §6.5; created in 0243): `receipt_id` and `po_line_id` (composite foreign keys with `entity_id`), `item_id`, `bin_id` (a receiving, storage or quarantine bin of the order's hub), `qty` (purchase unit), `stock_qty` (stock unit), `is_serial_tracked`; written once with the receipt; each serial of a tracked line is a `serials` row naming the line (`receipt_line_id`), its vendor and its supplier warranty
+**Catalogue entry** (05-database.md §6.5; created in 0247): `receipt_id` and `po_line_id` (composite foreign keys with `entity_id`), `item_id`, `bin_id` (a receiving, storage or quarantine bin of the order's hub), `qty` (purchase unit), `stock_qty` (stock unit), `is_serial_tracked`; written once with the receipt; each serial of a tracked line is a `serials` row naming the line (`receipt_line_id`), its vendor and its supplier warranty
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -4795,7 +4795,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### goods_receipts
 
-**Catalogue entry** (05-database.md §6.5; created in 0243): `entity_id`, `grn_no` (from the `goods_receipt` series, code `GRN`), `po_id` (a composite foreign key to the order), `warehouse_id`, `state` (`posted`, `reversed`), `received_at`, `received_by`, `vendor_invoice_no`, `vendor_invoice_date`, `reversed_at`, `reversed_by`, `reverse_reason`; read in the company with `inventory.stock.read`, `procurement.po.write` or `procurement.grn.write`; posted with `procurement.grn.write`, changed only to reversed
+**Catalogue entry** (05-database.md §6.5; created in 0247): `entity_id`, `grn_no` (from the `goods_receipt` series, code `GRN`), `po_id` (a composite foreign key to the order), `warehouse_id`, `state` (`posted`, `reversed`), `received_at`, `received_by`, `vendor_invoice_no`, `vendor_invoice_date`, `reversed_at`, `reversed_by`, `reverse_reason`; read in the company with `inventory.stock.read`, `procurement.po.write` or `procurement.grn.write`; posted with `procurement.grn.write`, changed only to reversed
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -4911,7 +4911,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### po_line_rates
 
-**Catalogue entry** (05-database.md §6.5; created in 0243; restricted): `po_line_id` (with `entity_id`, a composite foreign key to the line, removed with it), `unit_rate` (`numeric(14,4)` per purchase unit, excluding GST), `amount` (`numeric(14,2)`, quantity times rate to the paisa), `quote_id` (the supplier quote it was filled from); read only with `procurement.rate.read` in the company; written with `procurement.rate.read` and `procurement.po.write` while the order is a draft; no grant to `readonly_reporter`
+**Catalogue entry** (05-database.md §6.5; created in 0247; restricted): `po_line_id` (with `entity_id`, a composite foreign key to the line, removed with it), `unit_rate` (`numeric(14,4)` per purchase unit, excluding GST), `amount` (`numeric(14,2)`, quantity times rate to the paisa), `quote_id` (the supplier quote it was filled from); read only with `procurement.rate.read` in the company; written with `procurement.rate.read` and `procurement.po.write` while the order is a draft; no grant to `readonly_reporter`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -4959,7 +4959,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### po_lines
 
-**Catalogue entry** (05-database.md §6.5; created in 0243): `po_id` (with `entity_id`, a composite foreign key to the order), `line_no`, `item_id` (once per order), `qty` and `qty_received` (in the purchase unit, received never above ordered), `purchase_unit`, `unit_factor` (stock units in one purchase unit), `hsn`, `tax_rate_id` and `tax_rate_pct` (the tax engine's rate on the day the line was written); read as the order; written with `procurement.po.write` while the order is a draft, then only `qty_received` with `procurement.grn.write` (`app.po_lines_guard()`)
+**Catalogue entry** (05-database.md §6.5; created in 0247): `po_id` (with `entity_id`, a composite foreign key to the order), `line_no`, `item_id` (once per order), `qty` and `qty_received` (in the purchase unit, received never above ordered), `purchase_unit`, `unit_factor` (stock units in one purchase unit), `hsn`, `tax_rate_id` and `tax_rate_pct` (the tax engine's rate on the day the line was written); read as the order; written with `procurement.po.write` while the order is a draft, then only `qty_received` with `procurement.grn.write` (`app.po_lines_guard()`)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5026,7 +5026,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### purchase_orders
 
-**Catalogue entry** (05-database.md §6.5; created in 0243): `entity_id`, `po_no` (from the `purchase_order` series, unique per company), `vendor_id`, `deliver_to_warehouse_id` (a godown or factory), `state` (the `purchase_order` machine) and `state_changed_at`, `source` (`manual`, `reorder`), `expected_at`, `drafted_by` (whoever last wrote the draft), `approved_by`, `approved_at`, `sent_at`, `sent_via` (`email`, `by_hand`), `cancel_reason`, `close_reason`, `vendor_state_code` and `place_of_supply_state_code` (the hub's state) for the tax split, `notes`; no rate or amount; read in the company with `inventory.stock.read` or `procurement.po.write`; drafted with `procurement.po.write`, and changed by its guard (`app.purchase_orders_guard()`) only as the machine moves, each move with its grant: approval with `procurement.po.approve` by someone other than the drafter unless an Executive, with every line's rate and GST rate; the reorder job drafts through `app.reorder_draft_po()`
+**Catalogue entry** (05-database.md §6.5; created in 0247): `entity_id`, `po_no` (from the `purchase_order` series, unique per company), `vendor_id`, `deliver_to_warehouse_id` (a godown or factory), `state` (the `purchase_order` machine) and `state_changed_at`, `source` (`manual`, `reorder`), `expected_at`, `drafted_by` (whoever last wrote the draft), `approved_by`, `approved_at`, `sent_at`, `sent_via` (`email`, `by_hand`), `cancel_reason`, `close_reason`, `vendor_state_code` and `place_of_supply_state_code` (the hub's state) for the tax split, `notes`; no rate or amount; read in the company with `inventory.stock.read` or `procurement.po.write`; drafted with `procurement.po.write`, and changed by its guard (`app.purchase_orders_guard()`) only as the machine moves, each move with its grant: approval with `procurement.po.approve` by someone other than the drafter unless an Executive, with every line's rate and GST rate; the reorder job drafts through `app.reorder_draft_po()`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5104,7 +5104,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### reorder_rules
 
-**Catalogue entry** (05-database.md §6.5; created in 0243): `entity_id`, `item_id`, `warehouse_id` (one rule per company, item and hub), `reorder_level` (zero or more) and `reorder_qty` (above zero), both in the stock unit; read in the company with `inventory.stock.read` or `procurement.po.write`, set and removed with `procurement.po.write`; read by the reorder job only through `app.reorder_shortfalls()`
+**Catalogue entry** (05-database.md §6.5; created in 0247): `entity_id`, `item_id`, `warehouse_id` (one rule per company, item and hub), `reorder_level` (zero or more) and `reorder_qty` (above zero), both in the stock unit; read in the company with `inventory.stock.read` or `procurement.po.write`, set and removed with `procurement.po.write`; read by the reorder job only through `app.reorder_shortfalls()`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
