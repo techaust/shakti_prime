@@ -290,6 +290,7 @@ describe('the definers’ grants', () => {
       stock_count_review: [true, true],
       stock_count_hub: [true, true],
       stock_count_hidden: [true, true],
+      stock_count_hides: [true, true],
       stock_count_bins: [true, true],
       stock_count_refuse: [false, false],
       stock_count_of: [false, false],
@@ -445,6 +446,8 @@ describe('blind counting (owner, question B)', () => {
       serial: newId(),
       move: newId(),
       outsideMove: newId(),
+      outMove: newId(),
+      fresh: newId(),
       count: newId(),
     };
     await asMigrator((m) =>
@@ -459,10 +462,17 @@ describe('blind counting (owner, question B)', () => {
         await tx`insert into stock_movements (id, entity_id, item_id, to_bin_id, qty, reason, batch_id, moved_by) values
           (${ids.move}, 1, ${cable}, ${ids.counted}, 7, 'adjust_gain', ${ids.move}, ${owner.id}),
           (${ids.outsideMove}, 1, ${cable}, ${ids.outside}, 3, 'adjust_gain', ${ids.outsideMove}, ${owner.id})`;
+        // And one out of the counted bin.
+        await tx`insert into stock_movements (id, entity_id, item_id, from_bin_id, qty, reason, batch_id, moved_by)
+          values (${ids.outMove}, 1, ${cable}, ${ids.counted}, 1, 'adjust_loss', ${ids.outMove}, ${owner.id})`;
         // Every movement has its cost, as app.stock_move() writes it.
         await tx`insert into stock_movement_costs (movement_id, entity_id, unit_cost) values
-          (${ids.move}, 1, 10), (${ids.outsideMove}, 1, 10)`;
+          (${ids.move}, 1, 10), (${ids.outsideMove}, 1, 10), (${ids.outMove}, 1, 10)`;
+        // An item held in the counted bin alone, so the screens' sentence is this test's own.
+        await tx`insert into items (id, sku, name, category, hsn, unit) values
+          (${ids.fresh}, ${`BLF-${t}`}, 'blind test wire', 'cable', '8544', 'metre')`;
         await tx`insert into stock_balances (id, entity_id, warehouse_id, bin_id, item_id, qty_on_hand) values
+          (${newId()}, 1, ${ids.hub}, ${ids.counted}, ${ids.fresh}, 4),
           (${newId()}, 1, ${ids.hub}, ${ids.counted}, ${cable}, 7),
           (${newId()}, 1, ${ids.hub}, ${ids.outside}, ${cable}, 3),
           (${newId()}, 1, ${ids.hub}, ${ids.counted}, ${pump}, 1)`;
@@ -481,6 +491,7 @@ describe('blind counting (owner, question B)', () => {
               (select count(*)::int from stock_balances where bin_id = ${ids.outside}) as "outsideBalances",
               (select count(*)::int from stock_movements where id = ${ids.move}) as "countedMoves",
               (select count(*)::int from stock_movements where id = ${ids.outsideMove}) as "outsideMoves",
+              (select count(*)::int from stock_movements where id = ${ids.outMove}) as "countedOutMoves",
               (select count(*)::int from serials where id = ${ids.serial}) as serials`,
       );
       return row;
@@ -490,13 +501,15 @@ describe('blind counting (owner, question B)', () => {
       outsideBalances: 1,
       countedMoves: 0,
       outsideMoves: 1,
+      countedOutMoves: 0,
       serials: 0,
     };
     const visible = {
-      countedBalances: 2,
+      countedBalances: 3,
       outsideBalances: 1,
       countedMoves: 1,
       outsideMoves: 1,
+      countedOutMoves: 1,
       serials: 1,
     };
     const storeManager = principalFor('store_manager', [1]);
@@ -504,6 +517,7 @@ describe('blind counting (owner, question B)', () => {
       principalFor('inventory_manager', [1]),
       principalFor('general_manager', [1]),
       principalFor('tele_caller_lc', [1]),
+      principalFor('accounts', [1]),
     ];
     for (const reader of POOLS) {
       expect({ reader, ...(await seen(storeManager, reader)) }).toEqual({ reader, ...hidden });
@@ -521,6 +535,7 @@ describe('blind counting (owner, question B)', () => {
       outsideBalances: 0,
       countedMoves: 0,
       outsideMoves: 0,
+      countedOutMoves: 0,
       serials: 0,
     });
     // Cancelled, the count no longer hides the bin.
@@ -541,7 +556,7 @@ describe('blind counting (owner, question B)', () => {
       ) => m`insert into stock_counts (id, entity_id, warehouse_id, scope, scope_item_ids, state, started_by)
         values (${itemsCount}, 1, ${ids.hub}, 'items', ${[pump]}::uuid[], 'review', ${manager.id})`,
     );
-    expect(await seen(storeManager, false)).toEqual({ ...visible, countedBalances: 1, serials: 0 });
+    expect(await seen(storeManager, false)).toEqual({ ...visible, countedBalances: 2, serials: 0 });
     await withRequestContext(manager, {}, async ({ tx }) => {
       await tx.execute(sql`update stock_counts set state = 'cancelled', state_changed_at = now(),
                                   cancelled_at = now(), cancelled_by = ${manager.id},
@@ -549,5 +564,61 @@ describe('blind counting (owner, question B)', () => {
                             where id = ${itemsCount}`);
     });
     expect(await seen(storeManager, false)).toEqual(visible);
+
+    // Open, before anyone has counted, a count hides the bin as well.
+    const openCount = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into stock_counts (id, entity_id, warehouse_id, scope, scope_bin_ids, state, started_by)
+        values (${openCount}, 1, ${ids.hub}, 'bins', ${[ids.counted]}::uuid[], 'open', ${manager.id})`,
+    );
+    for (const reader of POOLS) {
+      expect({ reader, ...(await seen(storeManager, reader)) }).toEqual({ reader, ...hidden });
+    }
+    // The screens' sentence: some of the cable is being counted, for the counter alone.
+    const hides = async (who: Principal, entity: number, item: string | null) => {
+      const [row] = await as<{ hides: boolean }>(
+        who,
+        false,
+        sql`select app.stock_count_hides(${entity}::smallint, ${item}::uuid) as hides`,
+      );
+      return row?.hides;
+    };
+    expect(await hides(storeManager, 1, ids.fresh)).toBe(true);
+    expect(await hides(storeManager, 1, null)).toBe(true);
+    expect(await hides(principalFor('accounts', [1]), 1, ids.fresh)).toBe(false);
+    expect(await hides(principalFor('inventory_manager', [1]), 1, ids.fresh)).toBe(false);
+    // Company 3's count of the same bin answers only to a request acting in company 3.
+    const otherCount = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into stock_counts (id, entity_id, warehouse_id, scope, scope_bin_ids, state, started_by)
+        values (${otherCount}, 3, ${ids.hub}, 'bins', ${[ids.counted]}::uuid[], 'counting', ${owner.id})`,
+    );
+    const [asked] = await as<{ hidden: boolean }>(
+      storeManager,
+      false,
+      sql`select app.stock_count_hidden(3::smallint, ${ids.counted}::uuid, ${cable}::uuid) as hidden`,
+    );
+    expect(asked?.hidden).toBe(false);
+    expect(await hides(storeManager, 3, ids.fresh)).toBe(false);
+    const [own] = await as<{ hidden: boolean }>(
+      principalFor('store_manager', [3]),
+      false,
+      sql`select app.stock_count_hidden(3::smallint, ${ids.counted}::uuid, ${cable}::uuid) as hidden`,
+    );
+    expect(own?.hidden).toBe(true);
+    for (const id of [openCount, otherCount]) {
+      await withRequestContext(owner, {}, async ({ tx }) => {
+        await tx.execute(sql`update stock_counts set state = 'cancelled', state_changed_at = now(),
+                                    cancelled_at = now(), cancelled_by = ${owner.id},
+                                    cancel_reason = 'Test over', updated_by = ${owner.id}
+                              where id = ${id}`);
+      });
+    }
+    expect(await seen(storeManager, false)).toEqual(visible);
+    expect(await hides(storeManager, 1, ids.fresh)).toBe(false);
   });
 });

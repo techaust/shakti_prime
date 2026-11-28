@@ -434,11 +434,21 @@ describe('blind counting (owner, question B)', () => {
           bins: list.items.filter((r) => r.itemId === f.cable).map((r) => r.binId),
           onHand: card.byHub.find((h) => h.hubId === f.hub)?.onHand ?? null,
           moved: card.movements.map((m) => m.to?.id ?? m.from?.id).sort(),
+          // What the screens say instead of "holds none" (`app.stock_count_hides()`).
+          hidden: { list: list.hiddenByCount, card: card.hiddenByCount },
         };
       });
-    expect(await reads(storeManager)).toEqual({ bins: [f.binB], onHand: '5.000', moved: [f.binB] });
-    // The Inventory Manager reads the counted bin throughout.
-    expect((await reads(manager)).onHand).toBe('45.000');
+    expect(await reads(storeManager)).toEqual({
+      bins: [f.binB],
+      onHand: '5.000',
+      moved: [f.binB],
+      hidden: { list: true, card: true },
+    });
+    // The Inventory Manager reads the counted bin throughout, and is told of nothing hidden.
+    expect(await reads(manager)).toMatchObject({
+      onHand: '45.000',
+      hidden: { list: false, card: false },
+    });
 
     await run(storeManager, recordStockCount, {
       countId: count.id,
@@ -455,6 +465,7 @@ describe('blind counting (owner, question B)', () => {
     await run(manager, postStockCount, { countId: count.id, note: 'Month-end count' });
     const after = await reads(storeManager);
     expect(after.onHand).toBe('43.000');
+    expect(after.hidden.card).toBe(false);
     expect(after.bins.sort()).toEqual([f.binA, f.binB].sort());
   });
 });

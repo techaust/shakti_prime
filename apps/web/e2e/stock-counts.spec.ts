@@ -87,7 +87,13 @@ test.describe('a stock count', () => {
       expect(cardPath).not.toBe('');
       await page.goto(cardPath);
       await expect(page.getByRole('heading', { name: cable.name, level: 1 })).toBeVisible();
-      await expect(page.getByText('The company holds none of this item.')).toBeVisible();
+      // It says the stock is being counted, never that the company holds none.
+      await expect(
+        page.getByText(
+          "This item's stock is being counted, so it doesn't show here. It shows again once the count is posted.",
+        ),
+      ).toBeVisible();
+      await expect(page.getByText('The company holds none of this item.')).toHaveCount(0);
       await expect(page.getByRole('main')).not.toContainText(hub.name);
       await expectBlind(page);
       await expectNoAxeViolations(page);

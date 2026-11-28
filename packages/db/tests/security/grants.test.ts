@@ -554,6 +554,7 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.stock_count_bins(uuid)',
       // H3: the blind-counting policies on the stock tables (owner, question B).
       'app.stock_count_hidden(smallint,uuid,uuid)',
+      'app.stock_count_hides(smallint,uuid)',
       'app.stock_count_hub(uuid)',
       'app.stock_count_progress(uuid)',
       'app.stock_count_review(uuid)',

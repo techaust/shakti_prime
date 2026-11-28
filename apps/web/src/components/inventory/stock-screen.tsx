@@ -187,6 +187,11 @@ export function StockScreen({
         </div>
       </form>
       <FailureMessage failure={failure} />
+      {initial.hiddenByCount ? (
+        <p role="status" className="text-text-muted text-sm">
+          {t('countingHidden')}
+        </p>
+      ) : null}
       <DataGrid
         caption={t('caption')}
         columns={columns}

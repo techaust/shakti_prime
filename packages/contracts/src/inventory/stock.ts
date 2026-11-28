@@ -191,7 +191,15 @@ export const StockBalanceRowDto = z
 export type StockBalanceRowDto = z.infer<typeof StockBalanceRowDto>;
 
 export const StockBalancePageDto = z
-  .object({ items: z.array(StockBalanceRowDto), nextCursor: z.string().nullable() })
+  .object({
+    items: z.array(StockBalanceRowDto),
+    nextCursor: z.string().nullable(),
+    /**
+     * Whether a live stock count hides some of this stock from the caller, a counter who cannot
+     * adjust stock (H3): the screen says so rather than that the company holds none.
+     */
+    hiddenByCount: z.boolean(),
+  })
   .strict();
 export type StockBalancePageDto = z.infer<typeof StockBalancePageDto>;
 
@@ -266,6 +274,8 @@ export const StockCardDto = z
     ),
     movements: z.array(StockMovementRowDto),
     nextCursor: z.string().nullable(),
+    /** Whether a live stock count hides some of this item's stock from the caller (H3). */
+    hiddenByCount: z.boolean(),
   })
   .strict();
 export type StockCardDto = z.infer<typeof StockCardDto>;

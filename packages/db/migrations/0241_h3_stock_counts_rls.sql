@@ -584,6 +584,7 @@ create or replace function app.stock_count_hidden(p_entity smallint, p_bin uuid,
   select p_bin is not null
      and app.has_perm('inventory.count.record:own')
      and not app.has_perm('inventory.stock.adjust:entity')
+     and p_entity = any (coalesce(app.entity_ids(), '{}'::int[]))
      and exists (
        select 1
          from public.bins b
@@ -597,6 +598,34 @@ $$;
 revoke execute on function app.stock_count_hidden(smallint, uuid, uuid) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.stock_count_hidden(smallint, uuid, uuid) to app_user, app_reader;
+--> statement-breakpoint
+-- app.stock_count_hides(company, item): whether a live count hides some of the company's stock
+-- from the caller (the same counter as above), so H1's stock list and stock card say that some
+-- stock is being counted instead of that the company holds none: with an item, whether a bin a
+-- live count covers holds some of it; without one, whether any count of the company is live.
+create or replace function app.stock_count_hides(p_entity smallint, p_item uuid)
+  returns boolean
+  language sql stable security definer set search_path = '' as $$
+  select app.has_perm('inventory.count.record:own')
+     and not app.has_perm('inventory.stock.adjust:entity')
+     and p_entity = any (coalesce(app.entity_ids(), '{}'::int[]))
+     and exists (
+       select 1
+         from public.stock_counts c
+        where c.entity_id = p_entity
+          and c.state in ('open', 'counting', 'review')
+          and (p_item is null or c.scope_item_ids is null or p_item = any (c.scope_item_ids))
+          and (p_item is null or exists (
+                select 1 from public.stock_balances b
+                 where b.entity_id = p_entity and b.item_id = p_item
+                   and b.warehouse_id = c.warehouse_id
+                   and (c.scope_bin_ids is null or b.bin_id = any (c.scope_bin_ids))
+                   and (b.qty_on_hand > 0 or b.qty_reserved > 0))))
+$$;
+--> statement-breakpoint
+revoke execute on function app.stock_count_hides(smallint, uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.stock_count_hides(smallint, uuid) to app_user, app_reader;
 --> statement-breakpoint
 create policy stock_balances_count_blind on stock_balances as restrictive for select to app_user, app_reader
   using (not (select app.has_perm('inventory.count.record:own')

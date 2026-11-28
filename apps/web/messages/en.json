@@ -6730,6 +6730,7 @@
       "cardHint": "Adjustments and moves between bins are made from an item's stock card.",
       "caption": "Stock by hub, bin and item",
       "empty": "No stock matches these filters.",
+      "countingHidden": "Some stock is being counted, so it doesn't show here. It shows again once the count is posted.",
       "notFree": "Not free stock",
       "columns": {
         "item": "Item",
@@ -6817,6 +6818,8 @@
       "byHub": "In each hub",
       "byHubCaption": "Stock of this item in each hub",
       "noStock": "The company holds none of this item.",
+      "countingHidden": "Some of this item's stock is being counted, so it doesn't show here. It shows again once the count is posted.",
+      "countingNone": "This item's stock is being counted, so it doesn't show here. It shows again once the count is posted.",
       "movements": "Movements",
       "columns": {
         "hub": "Hub",

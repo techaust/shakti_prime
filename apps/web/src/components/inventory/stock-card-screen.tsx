@@ -117,12 +117,17 @@ export function StockCardScreen({
         <h2 id="stock-card-hubs" className="text-lg font-semibold">
           {t('byHub')}
         </h2>
+        {card.hiddenByCount && card.byHub.length > 0 ? (
+          <p role="status" className="text-text-muted text-sm">
+            {t('countingHidden')}
+          </p>
+        ) : null}
         <DataGrid
           caption={t('byHubCaption')}
           columns={hubColumns}
           rows={card.byHub}
           rowKey={(h) => h.hubId}
-          empty={<EmptyState message={t('noStock')} />}
+          empty={<EmptyState message={card.hiddenByCount ? t('countingNone') : t('noStock')} />}
         />
       </section>
       <section className="flex flex-col gap-2" aria-labelledby="stock-card-movements">

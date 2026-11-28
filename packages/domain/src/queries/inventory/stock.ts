@@ -62,6 +62,19 @@ interface BalanceRow {
 }
 
 /**
+ * Whether a live stock count hides some of the company's stock (of the item, when one is named)
+ * from the caller, a counter who cannot adjust stock (H3, `app.stock_count_hides()`); false for
+ * everyone else.
+ */
+async function hiddenByCount(ctx: Ctx, entityId: number, itemId: string | null): Promise<boolean> {
+  const [row] = (await ctx.tx.execute(sql`
+    select app.stock_count_hides(${entityId}::smallint, ${itemId}::uuid) as hidden`)) as unknown as {
+    hidden: boolean;
+  }[];
+  return row?.hidden === true;
+}
+
+/**
  * `/inventory/stock`: one company's balances above zero, by hub, bin and item (keyset on the
  * balance key, the order every stock path locks in), filtered by hub, bin, item, category or the
  * item's code or name. Free stock is on hand less reserved, in storage bins only.
@@ -106,6 +119,7 @@ export async function listStockBalances(ctx: Ctx, rawInput: unknown): Promise<St
   const last = page.at(-1);
   return StockBalancePageDto.parse({
     items: page,
+    hiddenByCount: await hiddenByCount(ctx, input.entityId, input.itemId ?? null),
     nextCursor:
       rows.length > input.limit && last !== undefined
         ? encodeCursor([last.hubId, last.binId, last.itemId])
@@ -230,6 +244,7 @@ export async function getStockCard(
     entityId: input.entityId,
     item,
     byHub,
+    hiddenByCount: await hiddenByCount(ctx, input.entityId, input.itemId),
     movements: page.map((r) => toMovementDto(ctx, r, now)),
     nextCursor:
       rows.length > input.limit && last !== undefined

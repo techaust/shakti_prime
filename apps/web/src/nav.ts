@@ -318,9 +318,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'inventoryCounts',
     icon: Warehouse,
     group: 'work',
-    // listStockCounts reads a company's counts with inventory.stock.read or .move for the
-    // company, so a counter who does not read stock opens it too; counting needs .move and the
-    // review .adjust, which their screens ask for.
+    // listStockCounts reads a company's counts with inventory.stock.read or
+    // inventory.count.record for the company, so a counter who does not read stock opens it too;
+    // counting needs inventory.count.record and the review inventory.stock.adjust, which their
+    // screens ask for.
     requires: [],
     anyOf: [
       { key: 'inventory.stock.read', scope: 'entity' },
