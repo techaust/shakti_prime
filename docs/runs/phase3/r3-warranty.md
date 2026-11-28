@@ -366,3 +366,39 @@ Took `main` `994631ae` (#301 to #305: the 27-11 status documents, the demo data'
   ```
   **This is outside the merge.** The file is byte-identical to `896e0df6`, and Prettier (3.10.1) is unchanged. The two unformatted lines (line 103's `(m) => m\`insert into warranty_claims …\`` and line 112's `listWarrantyClaims(ctx, { entityId: 4, limit: 1, ... })`) came in with the fix round's cursor test (`65b94681`), so the branch as pushed already fails CI's format check. The fix is `pnpm exec prettier --write packages/domain/tests/queries/warranty.test.ts`, which only rewraps those two calls. I left it, as the prep brief says.
 - **Not run:** parts 2 (`unit`), 3 (`security dbverify`) and 4 (`audit build jsbudget gitleaks`), and no suite counts. The e2e step was never run. Once the format fix is in, the lead or a new prep lane runs part 1 again and then parts 2 to 4.
+
+### Integration prep, 28-11-2026, cloud seat (continued after the lead's format fix): prepped, with two pages over budget for the lead
+The block above was cleared by the lead's `c8d44edd` ("style(domain): Prettier on the warranty claims' query test"), which formats the fix round's cursor test. `main` has not moved (still `994631ae`), so the merge `5097ee74` and its renumbering (0247 to 0250) stand. The parts below ran on `integrate.sh`'s own Postgres on 54340, each through `heavy.sh`, with `urls_not_on_54340=0`.
+- **Part 1** (`install lint format copylint generated typecheck`), run again on `c8d44edd`: `=== INTEGRATION PARTIAL (install lint format copylint generated typecheck)`. Every step rc=0, and typecheck reported `Tasks: 11 successful, 11 total`.
+- **Part 2** (`unit`), first run: `=== INTEGRATION FAILED`. One failure, in `@shakti/db` `src/docs/data-docs.test.ts`, "draw the planned tables per section": `expected '## Planned tables…' to contain '  warranty_claims }o--|| accounts : "account_id"'`.
+  - **The merge broke this.** J2 (`bfcdb7d2`, #300) pointed the assertion at `warranty_claims` as the next planned table pointing at `accounts`, and this slice builds that table.
+  - Fixed in `767ecf58`: the assertion now names `identity_documents` (planned, Phase 4, with no slice building it). The file's own run gave 18 passed, and eslint and Prettier are clean.
+- **Part 2**, again on `767ecf58`: `=== INTEGRATION PARTIAL (unit)`, `Tasks: 11 successful, 11 total`:
+  - contracts 344 passed (25 files);
+  - db 161 passed (12 files);
+  - domain 2843 passed (112 files);
+  - web 1277 passed, 1 skipped (169 files);
+  - ui 107 passed;
+  - tokens 146 passed;
+  - copy-lint 17 passed;
+  - voice 49 passed;
+  - voice-agent 23 passed;
+  - tally-connector 68 passed, 1 skipped.
+- **Part 3** (`security dbverify`): `=== INTEGRATION PARTIAL (security dbverify)`. The security suite gave `Tasks: 4 successful, 4 total`:
+  - db 1926 passed (66 files);
+  - domain 1583 passed (115 files);
+  - web 466 passed (40 files).
+
+  `db:verify`: "every migration is applied as it is on disk".
+- **Part 4** (`audit build jsbudget gitleaks`): `=== INTEGRATION FAILED`, **on jsbudget alone**. audit rc=0 (3 moderate findings, already reviewed and ignored), build rc=0, gitleaks rc=0 (29 commits scanned, no leaks found), and `.env` was back in place after the build.
+- **For the lead: two pages over their JavaScript budget, a checks change that is not made here.** The merged app shell carries both new menu entries, R3's Warranty claims and J2's Lenders, and each side had measured only its own:
+  - `/price-master` loads 247.2 kB (gzip) against a budget of 247 kB: over by 0.2 kB.
+  - `/admin/integrations` loads 241.3 kB against a budget of 241 kB: over by 0.3 kB.
+
+  Within budget:
+  - `/catalogue` measures 245.4 kB against main's 246 kB, so it holds with both entries. js-budget.json keeps main's entry and reason, and R3 no longer changes it.
+  - `/calling` measures 206.9 kB against 207 kB, inside its budget by 0.1 kB.
+  - `/inventory/warranty` measures 237.8 kB against 250 kB, and `/inventory/warranty/[id]` 206.1 kB against 216 kB.
+
+  Raising `/price-master` to 248 and `/admin/integrations` to 242 would need the owner's `checks-ok`. R3's own new entries (`/inventory/warranty`, `/inventory/warranty/[id]`) already put `js-budget.json` in its pull request, so that label was due anyway.
+- **Not run:** the e2e step, the journeys and the Linux baselines (the lead's).
