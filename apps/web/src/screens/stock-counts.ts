@@ -1,13 +1,52 @@
 // H3's stock count screens (docs/03-roadmap-appendix/phase3.md §7.3): links, tones and reading what
 // a counter types or scans. Pure functions, so the screens and their tests share them.
 
-import type { StockCountState } from '@shakti/contracts';
+import type { StockCountSheetRowDto, StockCountState } from '@shakti/contracts';
 import type { StatusTone } from '@shakti/ui';
 import type { Route } from 'next';
 
-/** The counting screen of a count, in its company. */
-export function countHref(entityId: number, countId: string): Route {
-  return `/inventory/counts/${countId}?company=${String(entityId)}` as Route;
+/** The counting screen of a count, in its company, on one bin when one is named. */
+export function countHref(entityId: number, countId: string, binId?: string): Route {
+  const bin = binId === undefined ? '' : `&bin=${binId}`;
+  return `/inventory/counts/${countId}?company=${String(entityId)}${bin}` as Route;
+}
+
+/**
+ * Up to this many items in bins, the counting screen shows every bin at once; above it, one bin
+ * at a time, so a whole hub's count stays light on a phone.
+ */
+export const ALL_BINS_UP_TO = 100;
+
+/** A bin of a count as the counting screen offers it: how many of its items are left to count. */
+export interface CountBin {
+  binId: string;
+  binCode: string;
+  left: number;
+}
+
+/** The bins of a counter's sheet in its order, each with its items still to count or again. */
+export function countBins(rows: readonly StockCountSheetRowDto[]): CountBin[] {
+  const bins = new Map<string, CountBin>();
+  for (const row of rows) {
+    const bin = bins.get(row.binId) ?? { binId: row.binId, binCode: row.binCode, left: 0 };
+    if (row.state !== 'counted') bin.left += 1;
+    bins.set(row.binId, bin);
+  }
+  return [...bins.values()];
+}
+
+/**
+ * The bin the counting screen shows: the one asked for when the sheet has it; otherwise every
+ * bin (null) for a small count, or the first bin with items left (else the first) for a large one.
+ */
+export function shownBin(
+  rows: readonly StockCountSheetRowDto[],
+  asked: string | undefined,
+): string | null {
+  const bins = countBins(rows);
+  if (asked !== undefined && bins.some((b) => b.binId === asked)) return asked;
+  if (rows.length <= ALL_BINS_UP_TO) return null;
+  return (bins.find((b) => b.left > 0) ?? bins[0])?.binId ?? null;
 }
 
 /** The review of a count, in its company. */

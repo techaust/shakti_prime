@@ -9,8 +9,10 @@ import { useState, type SyntheticEvent } from 'react';
 import { recordStockCount, submitStockCount } from '../../../actions/stock-counts';
 import {
   countedQtyFromTyped,
+  countHref,
   countReviewHref,
   resolveSerial,
+  type CountBin,
   type SerialResolution,
 } from '../../../screens/stock-counts';
 import { FailureMessage, useFieldFailure } from '../../screens/failure';
@@ -54,14 +56,24 @@ function targetOf(row: StockCountSheetRowDto): Target {
  * of the count with its items, one form at a time under the item being counted, its buttons at
  * the thumb's reach. It shows what the counter entered, never what the records expect; a recount
  * shows nothing of the first count. Stock found where none was listed is counted by choosing the
- * bin and finding the item.
+ * bin and finding the item. A large count is shown one bin at a time, chosen at the top.
  */
 export function CountingScreen({
   sheet,
+  binChoices,
+  shownBin,
+  allBins,
   bins,
   canReview,
 }: {
+  /** The count, with the rows of the bin shown (or of every bin). */
   sheet: StockCountSheetDto;
+  /** Every bin of the count's sheet, with its items left to count. */
+  binChoices: readonly CountBin[];
+  /** The bin shown, or null for every bin. */
+  shownBin: string | null;
+  /** Whether the count is small enough to show every bin at once. */
+  allBins: boolean;
   /** The bins of the count's hub a counter may count in, for stock found where none was listed. */
   bins: readonly BinDto[];
   canReview: boolean;
@@ -106,6 +118,25 @@ export function CountingScreen({
           <p>{t('closed', { state: states(count.state) })}</p>
         )}
       </div>
+
+      {binChoices.length > 1 ? (
+        <Field id="count-bin" label={t('chooseBin')}>
+          <Select
+            value={shownBin ?? ''}
+            onChange={(e) => {
+              const bin = e.currentTarget.value;
+              router.push(countHref(count.entityId, count.id, bin === '' ? undefined : bin));
+            }}
+          >
+            {allBins ? <option value="">{t('allBins')}</option> : null}
+            {binChoices.map((b) => (
+              <option key={b.binId} value={b.binId}>
+                {t('binChoice', { bin: b.binCode, count: b.left })}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : null}
 
       {rows.length === 0 ? <p className="text-text-muted">{t('empty')}</p> : null}
       {[...byBin.entries()].map(([binCode, items]) => (

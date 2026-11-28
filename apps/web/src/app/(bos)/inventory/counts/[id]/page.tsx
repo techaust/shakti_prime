@@ -1,3 +1,4 @@
+import type { StockCountSheetRowDto } from '@shakti/contracts';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -9,6 +10,7 @@ import { Page } from '../../../../../components/shell/page';
 import { navRequires } from '../../../../../nav';
 import { screenAccess, screenTitle } from '../../../../../screens/access';
 import { companyParam } from '../../../../../screens/customers';
+import { ALL_BINS_UP_TO, countBins, shownBin } from '../../../../../screens/stock-counts';
 import { firstFailure } from '../../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +40,9 @@ export default async function CountingPage({
   if (!can('inventory.stock.move', 'entity')) notFound();
   const { id } = await params;
   if (!UUID.test(id)) notFound();
-  const asked = companyParam((await searchParams).company);
+  const query = await searchParams;
+  const asked = companyParam(query.company);
+  const askedBin = typeof query.bin === 'string' && UUID.test(query.bin) ? query.bin : undefined;
   if (asked !== undefined && !principal.entityIds.includes(asked)) notFound();
   const entityId = asked ?? activeEntityId ?? principal.entityIds[0];
   if (entityId === undefined) notFound();
@@ -56,7 +60,10 @@ export default async function CountingPage({
     >
       {sheet.ok && hubs.ok ? (
         <CountingScreen
-          sheet={sheet.data}
+          sheet={{ ...sheet.data, rows: shownRows(sheet.data.rows, askedBin) }}
+          binChoices={countBins(sheet.data.rows)}
+          shownBin={shownBin(sheet.data.rows, askedBin)}
+          allBins={sheet.data.rows.length <= ALL_BINS_UP_TO}
           bins={(hubs.data.hubs.find((h) => h.id === sheet.data.count.hubId)?.bins ?? []).filter(
             (b) =>
               b.archivedAt === null &&
@@ -69,4 +76,13 @@ export default async function CountingPage({
       )}
     </Page>
   );
+}
+
+/** The rows of the bin the screen shows, or every row when it shows every bin. */
+function shownRows(
+  rows: StockCountSheetRowDto[],
+  askedBin: string | undefined,
+): StockCountSheetRowDto[] {
+  const bin = shownBin(rows, askedBin);
+  return bin === null ? rows : rows.filter((r) => r.binId === bin);
 }
