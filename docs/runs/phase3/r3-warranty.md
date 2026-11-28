@@ -335,3 +335,34 @@ Not run: the whole security suite, the whole-repository lint, `pnpm build` and `
 **Verdict:** findings 1 to 9 and 12 are fixed (8 and 9 without a run test, as said above); the high finding is closed. Nothing the round changed blocks the merge. Finding 13 is a follow-up. Both of the round's migrations (`0244`, `0245`) were edited in place, so any database that applied their earlier text needs a fresh one, as the builder's report says.
 
 ## Integration
+
+### Integration prep, 28-11-2026, cloud seat (worktree `r3-warranty`, Postgres 54332; integrate.sh on 54340): blocked at format
+Took `main` `994631ae` (#301 to #305: the 27-11 status documents, the demo data's IST day, J2, TC1, the axe title wait, the calling-hours clock) into the branch from `896e0df6` (saved in `../r3-warranty-premerge.sha`), with a merge commit, following slice-integration §5: merge commit `5097ee74`, pushed. Its subject names J2 as "#302-#304" by mistake; the list above is the right one.
+- **Install:** `pnpm install --offline --frozen-lockfile` worked, and the lockfile is `main`'s, unchanged by the install.
+- **Migrations:** `renumber-migrations.mjs origin/main 896e0df6` moved `0243_r3_warranty_claims` to `0247`, `0244_r3_warranty_claims_rls` to `0248`, `0245_r3_installed_base_rls` to `0249` and `0246_r3_warranty_ledger` to `0250`. Each file's SQL is the same as on the branch. The journal times come after `main`'s last, and the snapshot chain runs on from `main`'s 0246 (0250 written by drizzle-kit, 109 tables). `pnpm db:generate` printed "No schema changes, nothing to migrate". `pnpm db:docs` and `machines:docs` were run again. `docs/05-database.md` now cites 0247 to 0250 in R3's rows.
+- **How the conflicts were settled:**
+  - Joined, keeping both sides: the testing lists, the matrix fixture (R3's claim id offset `0x83` is used nowhere else), `enum-sync`, `grants`, the machine registry, reader parity, the schema index, the activity details, the audit kinds and event map, `contract-values` and its test, and the Account 360 page and screen (`canRaiseClaim` and `loans` together).
+  - Event catalogue: settled by hand (the warranty `closed` entry was missing its closing brace).
+  - `en.json` and the copy-lint config: settled with their helpers.
+  - `js-budget.json`: keeps `main`'s `/catalogue` entry. Both sides had raised it to 246 kB for one menu entry each, and the shell now has both entries. The jsbudget part, which would show whether 246 kB still holds, has not run.
+- **What the merge broke, and the fixes:**
+  - Both R3 and J2 added the audit field `rejectedReason` with different labels, and the merge helper kept `main`'s. A rejected claim's Activity log would have read "Why the lender turned it down". R3's audit field is now `claimRejectedReason` ("Why it was rejected") in `CLAIM_AUDIT_FIELDS`, the reject command's audit row, `screens/audit.ts` and `activity.fields`. J2's key and label are as on `main`.
+  - Q1's `app.labels_for_print` row in `docs/05-database.md` cites `0242` again. This branch's earlier merge (`ec487b48`) had changed it to 0245.
+- **Redefinitions checked against `main`'s latest:**
+  - `app.next_document_no()` (0248) is identical to `main`'s latest (0201), plus the one line `when 'warranty_claim' then 'inventory.warranty.write:own'`.
+  - `document_sequences_doc_type_check` (0247) holds `main`'s values from 0007 (`quote`, `sales_order`, `proforma`, `challan`, `purchase_order`) plus `warranty_claim`. No later migration on `main` redefines it.
+  - `import_jobs_kind_check`, `import_mapping_templates_kind_check` and `import_rows_created_type_check` (0247) each hold `main`'s latest values (0236) plus `installed_base` and `serial`.
+  - The notification checks: R3 changes none of them. `main`'s latest is J2's 0245, which stays untouched.
+  - `app.platform_only_permissions()`: R3 does not redefine it and adds no permission.
+  - X4's registry (0240): no later migration on `main` touches it. R3's 0250 adds three `stock_reason_grants` rows: `warranty_replacement` and `return_customer` under `inventory.warranty.write:entity`, `return_supplier` under `procurement.po.write:entity`, none reversible, `opened_by` `r3-warranty`. It also adds three `stock_reason_moves` rows: `warranty_replacement` out `{in_stock}` to `with_customer`, `return_customer` in `{with_customer}` to `faulty`, `return_supplier` out `{faulty}` to `with_supplier`, none `creates`. Each row passes 0240's reason, permission, `opened_by`, direction, states, creates and bin checks, and none of the three reasons is in X4's seed rows, so `on conflict do nothing` skips nothing.
+  - R3's foreign keys are all on its own tables (0247), and no R3 function shares a name with one on `main`.
+- **Keys used twice:** none in `en.json`, the copy-lint config, `js-budget.json`, the audit field kinds (342), the testing lists, the fixture offsets R3 adds, or the e2e users (R3 adds no user).
+- **Typecheck right after the merge:** `pnpm typecheck` (through `heavy.sh`): `Tasks: 11 successful, 11 total`.
+- **Part 1** (`install lint format copylint generated typecheck`): `=== INTEGRATION FAILED`. install rc=0, lint rc=0, **format rc=1**, copylint rc=0, generated rc=0, typecheck rc=0, `urls_not_on_54340=0`. The format log:
+  ```
+  $ prettier --check .
+  [warn] packages/domain/tests/queries/warranty.test.ts
+  [warn] Code style issues found in the above file. Run Prettier with --write to fix.
+  ```
+  **This is outside the merge.** The file is byte-identical to `896e0df6`, and Prettier (3.10.1) is unchanged. The two unformatted lines (line 103's `(m) => m\`insert into warranty_claims …\`` and line 112's `listWarrantyClaims(ctx, { entityId: 4, limit: 1, ... })`) came in with the fix round's cursor test (`65b94681`), so the branch as pushed already fails CI's format check. The fix is `pnpm exec prettier --write packages/domain/tests/queries/warranty.test.ts`, which only rewraps those two calls. I left it, as the prep brief says.
+- **Not run:** parts 2 (`unit`), 3 (`security dbverify`) and 4 (`audit build jsbudget gitleaks`), and no suite counts. The e2e step was never run. Once the format fix is in, the lead or a new prep lane runs part 1 again and then parts 2 to 4.
