@@ -5,9 +5,9 @@
 | Branch | `feat/j3-documents` on GitHub, from `main` after the approved design (#295) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): identity documents, masking, sensitive files, row security |
-| Usage | briefed 27-11-2026; built from 27-11-2026 on Opus 5.5 at high (a seat's own account; worktree j3-documents, Postgres 54332, app 3032) |
-| State | early check |
-| Next step | the lead reads the early-check diff, then continues the builder for the screens |
+| Usage | briefed 27-11-2026; built from 27-11-2026 on Opus 5.5 at high (a seat's own account; worktree j3-documents, Postgres 54332, app 3032); finished 28-11-2026 on Opus 5.5 at high (lane 92, the lead's VM) |
+| State | done |
+| Next step | review; at integration, after J1 merges, the foreign key to `projects` and `app.project_missing_documents()` (Report, 28-11-2026) |
 
 ## Brief
 Build [phase4 §6.3](../../03-roadmap-appendix/phase4.md#63-j3-customer-documents-and-requirements) as written. SECURITY §5 and §11 items 7 and 8 are the heart of this slice. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -115,6 +115,38 @@ Opus 5.5 at high. Skills loaded: `add-table`, `add-command`. Stopped at the earl
 **Not done yet (after the early check):** the server actions, the Documents tab on Account 360, Account 360's Documents section, Settings › Document requirements, the journey with axe and snapshots, the SECURITY (§5 and §11 items 7 and 8) and phase4 "Built" documents, and the retention period for documents (none is given in DATABASE §7).
 
 **Uncertain:** the masking cases of item 8 run only where the OCR model is set (`OCR_LANG_PATH`; CI's security job sets it, and without it they are skipped, as the vault's are). The VM's memory was short once while other agents ran (a process was killed by the kernel during a queued build); every result above comes from a later run that finished.
+
+### 28-11-2026, lane 92 (the lead's VM; worktree `j3-documents`, Postgres 54332, app 3032): done
+Opus 5.5 at high. Skills loaded: none this round (the screens follow the existing patterns; `add-table` and `add-command` were loaded for the early check). The branch held the earlier seat's actions, Documents section, Settings screen, journeys, SECURITY, DATABASE and Built records and the Settings budget; I kept them, finished and fixed what was left, and ran every check and the journeys. The VM restarted once while I worked; every result below comes from a run after the restart on a freshly migrated and seeded slot database, except the security suite (run before the restart on commit `c5aa4e6b`; nothing after it changes schema, policies, definers, commands or queries).
+
+**Built (files) since the early check:**
+- Actions `apps/web/src/actions/documents.ts`: `loadCustomerDocuments` (documents, active requirements and each step's missing keys, now in one transaction), `fileDocument` (passes `hosted: hostedRuntime()`, see the fixes), `unfileDocument`, `openDocument` (audited through `documents.document.view`, then a short-lived inline address), `listDocumentRequirements`, `setDocumentRequirement`.
+- Screens: Account 360's Documents section `components/documents/customer-documents.tsx` (requirements of a flow's steps with Filed, Missing or Not needed, Upload, Open the masked copy, Unfile, the last four digits of an identity paper), its dialogs `documents-dialogs.tsx`, `use-open-document.ts`; Settings › Document requirements `app/(bos)/settings/document-requirements/page.tsx` with `requirements-screen.tsx` (Executive, `documents.write:all`, in `nav.ts`); the flow choice shared by both, `flow-choice.tsx` (the price master's pressed-button pattern from the UI kit). J1 has not merged, so the Documents section stands on Account 360; the project page's tab is one line once J1 is in.
+- Journeys `apps/web/e2e/documents.spec.ts` with their seed `e2e/setup/documents.ts` and the two signed-in roles (Project Manager, Field Engineer) in `e2e/support/users.ts`; the journeys' PDF writer moved from `tests/support/pdf-fixtures.ts` to `e2e/support/pdf.ts` (pure, as `docx.ts`), re-exported for the tests, with `e2e/support/pdf.test.ts`.
+- Documents: SECURITY §5 and §11 items 7 and 8, DATABASE's definers and purpose, phase4 §6.3 "Built (J3)" (the earlier seat's commit `66bcad00`, kept as written).
+
+**Fixes found by running the journeys:**
+- `apps/web/next.config.ts`: `tesseract.js` joins `serverExternalPackages`. Bundled, its worker script resolved to `/ROOT/node_modules/.pnpm/tesseract.js@7.0.0/.../worker-script/node/index.js`, so in any production build (`next start`, and Vercel) the masking step threw `MODULE_NOT_FOUND` as an uncaught exception and every masked upload (customer documents, and the vault's photos and PDFs) hung at "being handled". Not a check file, but outside the brief's file list: the lead may prefer it as its own pull request. For a hosted runtime the worker script and `tesseract.js-core`'s WebAssembly may also need `outputFileTracingIncludes` on the file-check route; I did not guess at that (no hosted OCR yet, DEPLOY §1).
+- `fileDocument` now passes `hosted: hostedRuntime()`: without it the command took every runtime as hosted and refused an unscanned file (`file_not_clean`) locally and in CI, where no scanner runs.
+
+**Tests added this round:** `e2e/support/pdf.test.ts` (2: the PDF's shape; the journey's made-up Aadhaar number has a valid check digit). Journeys: `documents.spec.ts`, 4 cases × 3 projects: the Project Manager sees the requirements, the bill and the identity paper with "Aadhaar number ending 4821" only, opens its masked copy (axe, snapshot `customer-documents`); the Project Manager uploads a bill (PNG) and an identity paper (a PDF carrying a made-up 12-digit Aadhaar number), each checked, masked and filed, sees only the last four digits, no run of the first eight digits anywhere on the page, and the masked PDF served; the Field Engineer who looks after the customer sees the bill and neither the identity paper nor its digits (axe); the Executive lists and saves a requirement (axe, snapshot `document-requirements`).
+
+**Checks run** (each through `heavy.sh`):
+- `pnpm typecheck`: 10 successful; `pnpm lint` (whole repository, the final check): clean;
+- web unit tests: 168 files, 1,244 passed; `pnpm copy-lint`: "catalogues and templates are clean";
+- `pnpm test:security` with the OCR model of CI (`@tesseract.js-data/eng@1.0.0`, SHA-256 checked) in `OCR_LANG_PATH`: db 1,834 passed (63 files), domain 1,534 passed (111 files), web 466 passed (40 files), the 5 masking cases of `customer-documents.test.ts` run, none skipped;
+- `pnpm build`: passed; `pnpm --filter web js-budget`: "Every page is within its budget (66 pages)", `/settings/document-requirements` 208.5 of 219 kB, `/customers/[accountId]` 201.0 of 205 kB;
+- journeys, on this VM with sign-in working, after `db:migrate`, `db:seed` and `e2e:seed`, with `OCR_LANG_PATH` set for the server: `playwright test documents.spec.ts`: 29 passed (the sign-ins and the 4 cases on desktop-light, desktop-dark and phone). Snapshots compared only in the Linux image: the host-made pictures were taken out of the branch (commit `test(e2e): take out…`); the lead makes the Linux baselines.
+
+**EXPLAIN (ANALYZE):** as in the early check (the Documents section's reads are the same queries, now in one transaction).
+
+**For the lead:**
+- J1 has not merged on `main` (checked 28-11-2026 04:30 UTC). At integration: the foreign key `documents (project_id, entity_id)` to `projects (id, entity_id)`, `app.project_missing_documents(project_id, step_key)` as a wrapper over `app.documents_missing()`, `own` widened to the project's assignee with `app.project_is_mine`, `documents.document.file` taking a project, and the Documents tab on the project page (one line, the same `CustomerDocuments`).
+- CI's journeys job has no OCR model, so the upload case skips there (`test.skip` on an empty `OCR_LANG_PATH`); adding the model to that job, as the unit and security jobs have it, is a `ci.yml` change for the owner's `checks-ok`.
+- `apps/web/js-budget.json` gained the Settings page's budget (a checks file: `checks-ok`).
+- Retention of customer documents is still not set: DATABASE §7 names no period (an owner's or client's decision).
+
+**Decisions this round (Assumptions):** the section's upload goes through "Upload a document" with the requirement chosen in the dialog, so a retried journey still finds it; the masked copy of a PDF is checked by its fetch (200, `application/pdf`), since the headless browser saves a PDF rather than showing it.
 
 ## Review
 
