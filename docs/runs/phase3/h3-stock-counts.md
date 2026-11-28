@@ -5,9 +5,9 @@
 | Branch | `feat/h3-stock-counts` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the ledger, values behind `finance.cost.read`, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account from 27-11-2026 14:35 UTC; screens finished on seat 2, Opus 5.5 at high, 28-11-2026 01:40 to 06:00 UTC; fix round (lane 106), Opus 5.5 at high, 28-11-2026 |
-| State | fixes |
-| Next step | the lead reads the fix round; the owner's questions A and B (a separate small change); integration renumbers after 0246 and makes the Linux baselines of `stock-counts.spec.ts` |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account from 27-11-2026 14:35 UTC; screens finished on seat 2, Opus 5.5 at high, 28-11-2026 01:40 to 06:00 UTC; fix round (lane 106), Opus 5.5 at high, 28-11-2026; the owner's answers (lane 112), Opus 5.5 at high, 28-11-2026 |
+| State | owner answers built |
+| Next step | the lead reads the owner-answers round; integration renumbers after 0246 and makes the Linux baselines of `stock-counts.spec.ts` |
 
 ## Brief
 Build [phase3 §7.3](../../03-roadmap-appendix/phase3.md#73-h3-stock-counts) as written. The exit gate's physical audit runs on this tool (§11). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -267,6 +267,110 @@ Opus 5.5 at high. This is the one fix round: H1 parts (1) and (3), M1, L1 and L2
 - 0241 was edited in place again (the guard and two new definers). My slot database migrated it in this form before the suites ran.
 - The guard's first edit and the database's copy are the same text. I re-applied the function once by hand while trying an order that I then reverted, so the file on disk is exactly what the migrator recorded.
 - Question A's answer (a role given `inventory.stock.move`, or a counting permission) needs no change to the count's code. Question B (a) is a restrictive policy on H1's tables.
+
+### 28-11-2026, lane 112 (owner answers)
+Opus 5.5 at high. This lane builds the addendum at the end of the Review section: question A (b), a counting-only permission, and question B (a), blind counting by restrictive policies. Skills loaded: `add-command` and `add-table`, as checklists. `main` was not taken in.
+
+**A (b): `inventory.count.record`**
+- **The permission:**
+  - added to the catalogue (`permissions.ts`) with the scopes own, entity and all;
+  - labelled "Count stock" (`seeds/permissions.ts`, and `en.json` `permissions.inventory_count_record` for the role editor);
+  - granted in `STAFF_MATRIX` at entity to the Store Manager and the Inventory Manager, and at all to the Executive. "all" is the Executive's column for every permission, and the oracle reads it from SECURITY §3.2, which has the new row.
+  - No agent principal holds it, and it is not platform-only.
+  - A customised role gets it only as `pnpm db:seed` gives permissions created after its customisation (the seed's existing rule).
+- **Where it replaces `inventory.stock.move`:** the counting paths only.
+  - Commands: `inventory.count.record` and `.submit`.
+  - Machine: the `stock-count` transitions open → counting and counting → review. `docs/state-machines/stock-count.md` is regenerated.
+  - Database (`0241_h3_stock_counts_rls.sql`, unmerged, edited in place):
+    - the read and update policies of `stock_counts`;
+    - the state guard;
+    - the definers `app.stock_count_record()`, `_sheet()`, `_progress()`, `_hub()` and `_bins()`.
+  - Queries `listStockCounts` and `getStockCountSheet`.
+  - Screens:
+    - the menu's `anyOf` is now `inventory.stock.read` or `inventory.count.record`;
+    - the counting page;
+    - the list's Count links;
+    - the review's link back to counting.
+- **What stays as it was:**
+  - Starting, asking for a recount, reviewing, posting and cancelling stay with `inventory.stock.adjust`.
+  - H1's stock commands and the stock card's Move between bins keep `inventory.stock.move`.
+  - The journey seed's `app.stock_move()` call keeps `inventory.stock.move`.
+
+**B (a): blind counting**
+- **The definer:** `app.stock_count_hidden(company, bin, item)` (stable, `search_path = ''`, `app_user` and `app_reader`, revoked from `public` and `readonly_reporter`). It returns true when the caller holds `inventory.count.record` without `inventory.stock.adjust` and a live count of the company covers the bin, and the item for an items count. It finds the count through the bin's hub and `stock_counts_live_unique` (company and hub, live states).
+- **The policies:** three restrictive select policies for `app_user` and `app_reader`.
+  - `stock_balances_count_blind`
+  - `stock_movements_count_blind` (either bin)
+  - `serials_count_blind`
+
+  Each first asks, as an initplan, whether the caller is such a counter, so nobody else pays for the per-row check. These are new policies only; nothing on `main` is redefined.
+- Decision: "live" includes `open` as well as `counting` and `review` (`LIVE_STOCK_COUNT_STATES`), so a counter cannot read the shelves between the start and their first entry. An items count hides only its items in the bins it covers.
+
+**Tests**
+- **db `stock-counts.test.ts`, new "blind counting" case:** one bin of a hub is under a live count. The Store Manager, on both pools, reads:
+  - no balance (untracked or serial), movement or serial of the counted bin;
+  - the bin outside the count as before.
+
+  Also:
+  - The Inventory Manager, the GM and the Lead Converter (`tele_caller_lc`, the selling role that reads stock) read everything throughout.
+  - Another company's Store Manager reads nothing of company 1's count.
+  - Once the count is cancelled, the Store Manager reads the bin again.
+  - An items count hides only its item.
+
+  The definer grants and the reader definer list in `grants.test.ts` gain `app.stock_count_hidden`. The matrix rule for `stock_counts` reads "`inventory.stock.read` or `inventory.count.record`".
+- **domain `stock-counts.test.ts`, new case:** the seeded Store Manager runs `listStockBalances` and `getStockCard` while a count of one bin is live.
+  - They see only the other bin: on hand 5 of 45, and its movement alone.
+  - They count and submit, are refused the post, and the Inventory Manager posts.
+  - Then they read both bins (on hand 43).
+  - The other counters in the file now hold `inventory.count.record`.
+- **`nav.test.ts`:** the anyOf cases now use `inventory.count.record`.
+- **Journey `stock-counts.spec.ts`, rewritten in three steps:**
+  1. The Inventory Manager opens the cable's stock card (to keep its address) and starts the count.
+  2. The Store Manager:
+     - opens that stock card, which shows "The company holds none of this item.", no hub name, no 40 or 10, and passes axe;
+     - opens the count from the list (no Start button for them), counts the cable in both bins and the pump's serials with axe and the two snapshots, and sends it for review;
+     - sees no review link.
+  3. The Inventory Manager reviews, asks again, counts again, posts and opens the sheet, as before.
+
+  The old Store Manager list-only test is gone.
+- **The count spike (`count-explain.ts`):** now also explains the stock list and card as the Store Manager and the Inventory Manager while the whole-hub count is live.
+
+**`EXPLAIN (ANALYZE)` of the blind policies** (the spike's volume: 20,000 balances in the counted hub, about 422,000 movements):
+
+| Read | Who | Plan | Time |
+|---|---|---|---|
+| Stock list of the counted hub, first page | Store Manager | Index Scan `stock_balances_key_unique` on company and hub; filter `not initplan or not app.stock_count_hidden(...)` removes all 20,000 rows (every row of the hub is hidden, so the page scans the hub) | 233 ms, 0 rows |
+| Stock list of the counted hub | Inventory Manager | the same scan; the initplan is false, so no per-row call | 0.4 ms, 50 rows |
+| Stock list of company 1 | Store Manager / Inventory Manager | key order, stops at the page | 1.4 ms / 0.3 ms |
+| Stock card of a counted item (the movements statement) | Store Manager / Inventory Manager | `stock_movements_card_idx`, the per-row check on the item's 21 movements | 8.0 ms, 0 movements / 1.2 ms, 50 movements |
+
+Each per-row check is one `bins_pkey` lookup and one `stock_counts_live_unique` probe, about 11 µs. The cost falls only on a counter who cannot adjust, and only on rows of a hub under a live count. The slowest case is a counter paging the stock list of a whole hub they are counting, which finds nothing to show.
+
+**Checks** (each through `heavy.sh`, on the slot database migrated and seeded fresh at the start of the lane):
+
+| Check | Result |
+|---|---|
+| `pnpm format:check` | all files use Prettier code style, after fixing `nav.test.ts` |
+| `pnpm copy-lint` | clean |
+| `pnpm db:docs` | `data-dictionary.md` updated with the policies, committed |
+| `machines:docs` | `stock-count.md` updated |
+| `pnpm typecheck` | 10 successful |
+| `pnpm lint` | clean |
+| Unit tests (`turbo run test --force`) | contracts 340, db 162, domain 2,868, web 1,253 (1 skipped), ui 107, tokens 146, copy-lint 17, voice 49, voice-agent 23 |
+| `pnpm build` | passed |
+| `js-budget` | 69 pages within budget; the count pages unchanged (243.3, 243.3, 207.5, 190.8 kB) |
+| Journeys (`e2e:seed`, then `playwright test e2e/stock-counts.spec.ts e2e/inventory.spec.ts --ignore-snapshots --retries 0`) | 39 passed (H1's stock journeys included) |
+
+The security suites (`turbo run test:security --concurrency=1 --continue`):
+- **db: 1,806 passed, 1 failed.** `alert-counts.test.ts` failed with a duplicate `agent_configs` row for `agent:copilot` in company 3. The journey seed wrote that row on this database at 09:11 UTC, before the suite ran, so it is not this slice's code. CI runs the suites on a database no journey has seeded.
+- **domain: 1,531 passed.**
+- **web: 460 passed, 1 failed.** `demo-data.test.ts` misread the retail list's `PUMP-3HP` price. This is the paging fault of the early check, fixed on `main` by `699a5817`; it shows once the journeys have added price list rows.
+- An earlier run also failed H1's `stock-ledger.test.ts` "a movement and its cost stay as written". Its `select id from stock_movements limit 1` picked a movement my new db test had written without a cost row. The test now writes each movement's cost, as `app.stock_move()` does. I added cost rows by hand to the 6 cost-less movements that test's earlier runs had left in the slot database (test data only). Rerun, `stock-counts` and `stock-ledger` passed 61 of 61.
+
+**Decisions taken in this lane:**
+12. A count is live for blinding from `open`, not only `counting` and `review` (the addendum's wording), so the shelves are hidden from the start.
+13. An items count hides only its items in its bins. A bins or whole-hub count hides every item in its bins.
+14. The Executive holds `inventory.count.record` at `all`, as every Executive column does; the Executive also holds `inventory.stock.adjust`, so is never blinded.
 
 ## Review
 
