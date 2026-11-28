@@ -5,9 +5,9 @@
 | Branch | `feat/h3-stock-counts` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the ledger, values behind `finance.cost.read`, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account from 27-11-2026 14:35 UTC; screens finished on seat 2, Opus 5.5 at high, 28-11-2026 01:40 to 06:00 UTC |
-| State | built |
-| Next step | review; the lead makes the Linux baselines of `stock-counts.spec.ts` at integration |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account from 27-11-2026 14:35 UTC; screens finished on seat 2, Opus 5.5 at high, 28-11-2026 01:40 to 06:00 UTC; fix round (lane 106), Opus 5.5 at high, 28-11-2026 |
+| State | fixes |
+| Next step | the lead reads the fix round; the owner's questions A and B (a separate small change); integration renumbers after 0246 and makes the Linux baselines of `stock-counts.spec.ts` |
 
 ## Brief
 Build [phase3 §7.3](../../03-roadmap-appendix/phase3.md#73-h3-stock-counts) as written. The exit gate's physical audit runs on this tool (§11). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -196,6 +196,77 @@ A whole-hub review of 20,000 lines takes under a second because each line asks t
 - The Linux screenshot baselines (`count-to-count`, `count-serials`, `count-review`) for the lead's integration.
 - `pnpm test:security` was not run again after the restart; nothing below the web layer changed since its green run.
 - U2's scan field: the counting screen uses the plain field; swapping in U2's field is one component once U2 merges.
+
+### 28-11-2026, lane 106 (fixes)
+Opus 5.5 at high. This is the one fix round: H1 parts (1) and (3), M1, L1 and L2, as the lead's triage says. L3 is accepted. No role gets a new permission, and `main` was not taken in. No skill was loaded again; each fix follows the slice's existing code.
+
+**H1 (1): counting without `inventory.stock.read`.**
+- **Menu:** the Stock counts entry (`nav.ts`) has no required grant and a new `anyOf`: `inventory.stock.read` or `inventory.stock.move` at `entity`.
+  - `NavItem.anyOf` and `navAnyOf(id)` are new in `nav.ts`.
+  - `visibleNav()` (`screens/menu-access.ts`) checks `anyOf`.
+  - The list page refuses anyone who holds neither grant.
+  - The counting page checks `inventory.stock.move` (unchanged).
+  - The review and sheet pages check `inventory.stock.adjust` (unchanged).
+- **Hub name:** two definers are added to `0241_h3_stock_counts_rls.sql` (unmerged, edited in place), both with `search_path = ''`, executable by `app_user` and `app_reader`, and revoked from `public` and `readonly_reporter`. The first is `app.stock_count_hub(hub)`: the code and name of a hub that has a count in the request's companies, for a holder of read or move. The list and the count's header now read the hub through it, since H1's `warehouses_read` needs `inventory.stock.read`.
+- **Bins:** the second definer is `app.stock_count_bins(count)`: the count's chosen bins, or its hub's bins in use, as codes only, with `inventory.stock.move` for the count's company. `StockCountSheetDto` gains `bins`, so the counting page no longer calls `listHubs`.
+- **Found stock:** the item finder (`listItems`) needs no stock grant.
+
+**H1 (3): tests.**
+- db `stock-counts.test.ts`, new case: a counter with `inventory.stock.move` alone reads the count's hub name, the sheet and the bins through the definers. On both pools they read no row of `stock_balances`, `stock_movements`, `serials`, `warehouses` or `bins`. Another company's counter is refused the bins and reads no hub name, and so is a caller who neither reads stock nor counts.
+- domain `stock-counts.test.ts`, new case: that counter lists the count with its hub's code and name, opens the sheet with its bins, counts the cable and the serials, and sends the count for review. On either pool they read no balance, movement, serial, hub or bin, and the review stays forbidden to them.
+- `nav.test.ts` (2 new cases): the menu shows Stock counts to a holder of read or move at `entity`, and not for `own` or for adjust alone. Every page of an `anyOf` screen calls `navAnyOf()`.
+- SECURITY's H3 line now says the following:
+  - Blind counting holds for a counter with `inventory.stock.move` alone.
+  - A counter who also holds `inventory.stock.read` reads the balances until the owner decides question B.
+  - No seeded role counts without that grant today (question A).
+
+**M1: held serials.**
+- `serialLineRefusal()` (`counts-plan.ts`) is one rule, used by both the review and the post:
+  - a serial that moved since its count: `stock_count_serial_moved`, as before;
+  - missing, or found in another bin than the ledger's, while reserved or picked: `stock_count_serial_reserved`;
+  - the same while faulty: `stock_count_serial_faulty`;
+  - found while on its way, with a customer or with a supplier: `stock_count_serial_elsewhere`.
+- `planCountMoves()` checks every line in its first pass, before it plans any movement.
+- The review's lines carry `postRefusal`, a new field from `STOCK_COUNT_POST_REFUSALS` in contracts. The review screen shows the sentence under the item, and instead of the post form it says that some lines can't be posted yet.
+- New `errors.*` sentences: reserved ("Release the reservation or put the unit back first") and faulty ("Settle the faulty unit first"). The `_elsewhere` sentence is corrected.
+- Tests:
+  - unit `counts-plan.test.ts`, 2 new cases: faulty, reserved and picked serials, missing or in another bin, are refused even after an untracked line, `in_transit` gives `_elsewhere`, free stock posts, and `serialLineRefusal`'s null cases.
+  - domain, 1 new case: a serial is made faulty through the serial machine (`replace` then `return_faulty`) and is missing from the count. The review names `stock_count_serial_faulty` on its line only, the post is refused with that reason and the serial number, the count posts no movement, the serial stays faulty in its bin, and the count stays in review.
+
+**L1: values.**
+- A live count is valued at the moving average now, and an item with no average has no value instead of 0.00.
+- A posted count is valued from its own movements at the cost each one posted with (`stock_movement_costs`, read under the viewer's `finance.cost.read`, found through `stock_movements_ref_idx`), so a later print reads the same. A line with no difference is worth 0.00.
+- The domain values test now covers no average (null, net 0.00), the average (-37.50), the post, then an average moved to 99 with the posted value still -37.50, and no value without `finance.cost.read`.
+- I did not measure the posted-values read with `EXPLAIN (ANALYZE)`: it reads one count's movements by the reference index, at most one per line.
+
+**L2: stamps.**
+- `app.stock_counts_guard()` now refuses, with `stock_count_stamp` (mapped in `COUNT_CONSTRAINTS`, with a catalogue sentence):
+  - a sent stamp that changes outside counting → review;
+  - a posting stamp or note that changes outside review → posted;
+  - a cancelling stamp or reason that changes outside the move to cancelled;
+  - `state_changed_at` without a state move.
+- db test, new case: each of the five stamp writes by hand, and one step that carries another step's stamp, are refused (23514, "its own step"), and the count is unchanged.
+- The stamp check runs before the transition check. The earlier "counter posts by hand" case now accepts either refusal: posting from open carries posting stamps outside their step.
+
+**Checks** (each through `heavy.sh`, on the slot database migrated and seeded fresh at the start of this round):
+
+| Check | Result |
+|---|---|
+| `pnpm format:check` | all files use Prettier code style |
+| `pnpm copy-lint` | clean |
+| `pnpm db:docs`, `pnpm --filter @shakti/domain machines:docs` | no change |
+| `pnpm typecheck` | 10 successful |
+| `pnpm lint` | clean |
+| Unit tests (`turbo run test --force`) | contracts 340, db 161, domain 2,868, web 1,253 passed (1 skipped), ui 107, tokens 146, copy-lint 17, voice 49, voice-agent 23 |
+| `pnpm test:security` | db 1,806 passed (63 files), domain 1,530 passed (111 files), web 461 passed (39 files) |
+| `pnpm build` | passed |
+| `js-budget` | every page within its budget (69 pages); the count pages are unchanged in weight (243.3, 243.3, 207.5 and 190.8 kB) |
+| Journeys: `e2e:seed`, then `playwright test e2e/stock-counts.spec.ts --ignore-snapshots --retries 0` | 24 passed |
+
+**For the lead:**
+- 0241 was edited in place again (the guard and two new definers). My slot database migrated it in this form before the suites ran.
+- The guard's first edit and the database's copy are the same text. I re-applied the function once by hand while trying an order that I then reverted, so the file on disk is exactly what the migrator recorded.
+- Question A's answer (a role given `inventory.stock.move`, or a counting permission) needs no change to the count's code. Question B (a) is a restrictive policy on H1's tables.
 
 ## Review
 
