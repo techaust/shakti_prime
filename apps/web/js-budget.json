@@ -18,8 +18,8 @@
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the agents grid with its switches, autonomy choices and spending limits. Measured 226.1 kB on 05-10-2026, plus 5 %."
     },
     "/admin/integrations": {
-      "maxKb": 241,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Integration health grids, the delivery check and Send again. Measured 224.6 kB on 30-09-2026, plus 5 %. Raised by 1 kB on 23-11-2026 for the shell's three Inventory menu entries (H1): measured 240.4 kB."
+      "maxKb": 242,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Integration health grids, the delivery check and Send again. Measured 224.6 kB on 30-09-2026, plus 5 %. Raised by 1 kB on 23-11-2026 for the shell's three Inventory menu entries (H1): measured 240.4 kB. Raised by 1 kB on 28-11-2026 for the audit trail's labels of H2's reservations beside J2's loans, which a chunk the page loads carries: measured 241.2 kB."
     },
     "/admin/roles": {
       "maxKb": 234,
