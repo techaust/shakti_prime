@@ -272,6 +272,12 @@ const ACTIONS = {
   'auth.password.change': 'passwordChange',
   'auth.two_factor.enable': 'twoFactorEnable',
   'auth.backup_codes.regenerate': 'backupCodesRegenerate',
+  // F1 field app foundation.
+  'auth.mobile.sign_in': 'mobileSignIn',
+  'auth.mobile.sign_out': 'mobileSignOut',
+  'auth.mobile.refresh_reused': 'mobileRefreshReused',
+  'field.device.revoke': 'mobileDeviceRevoke',
+  'admin.flag.set': 'featureFlagSet',
   // U1 vendors and supplier quotes.
   'procurement.vendor.create': 'vendorCreate',
   'procurement.vendor.update': 'vendorUpdate',
@@ -292,6 +298,17 @@ const ACTIONS = {
   'hr.leave.reject': 'leaveReject',
   'hr.leave.cancel': 'leaveCancel',
   'hr.leave.adjust': 'leaveAdjust',
+  // J1 projects
+  'projects.project.draft': 'projectDraft',
+  'projects.project.create': 'projectCreate',
+  'projects.milestone.complete': 'milestoneComplete',
+  'projects.project.hold': 'projectHold',
+  'projects.project.resume': 'projectResume',
+  'projects.project.complete': 'projectComplete',
+  'projects.project.cancel': 'projectCancel',
+  'projects.project.assign': 'projectAssign',
+  'projects.template.publish': 'projectStepsPublish',
+  'projects.project.cancel_for_order': 'projectCancelForOrder',
   // J2 customer loans
   'crm.loan.create': 'loanCreate',
   'crm.loan.sanction': 'loanSanction',
@@ -386,6 +403,13 @@ const EVENT_NAMES = {
   'procurement.vendor.archived': 'vendorArchived',
   'procurement.quote.recorded': 'vendorQuoteRecorded',
   'procurement.quote.withdrawn': 'vendorQuoteWithdrawn',
+  // J1 projects
+  'projects.project.drafted': 'projectDrafted',
+  'projects.project.milestone_completed': 'milestoneCompleted',
+  'projects.project.held': 'projectHeld',
+  'projects.project.completed': 'projectCompleted',
+  'projects.project.cancelled': 'projectCancelled',
+  'projects.project.order_cancelled': 'projectOrderCancelled',
   // J2 customer loans
   'crm.loan.created': 'loanCreated',
   'crm.loan.sanctioned': 'loanSanctioned',
@@ -536,6 +560,11 @@ const CODE_GROUPS = [
   'templateOccasion',
   'inboundLine',
   'voiceMode',
+  // J1 projects
+  'projectState',
+  'projectFlow',
+  'milestoneState',
+  'subsidyScheme',
   // H1 stock ledger
   'hubKind',
   'binKind',
@@ -965,6 +994,21 @@ const FIELD_KINDS = [
   ['decisionNote', 'text'],
   ['movementKind', 'leaveMovementKind'],
   ['adjustReason', 'text'],
+  // J1 projects: who is on a project is counted, never named by id.
+  ['projectNo', 'text'],
+  ['projectState', 'projectState'],
+  ['scheme', 'subsidyScheme'],
+  ['flow', 'projectFlow'],
+  ['templateVersionId', 'recorded'],
+  ['milestones', 'number'],
+  ['holdReason', 'text'],
+  ['milestoneKey', 'text'],
+  ['milestoneState', 'milestoneState'],
+  ['ownerId', 'recorded'],
+  ['assigneeIds', 'listCount'],
+  ['steps', 'listCount'],
+  // F1 field app foundation: the app's version at sign-in.
+  ['appVersion', 'text'],
   // J2 customer loans and lenders (a lender's name and state are `name` and `isActive`).
   ['loanState', 'loanState'],
   ['loanAmount', 'money'],

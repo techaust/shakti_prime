@@ -751,7 +751,7 @@ const eventCatalogue = {
   },
   'sales.order.confirmed': {
     meaning:
-      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone.',
+      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone and drafts the project of an order that needs installing.',
     emittedBy: ['sales.order.confirm'],
     subscribed: true,
     payload: z
@@ -785,9 +785,9 @@ const eventCatalogue = {
   },
   'sales.order.cancelled': {
     meaning:
-      "A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it.",
+      "A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. Its project (J1) is cancelled by the platform while none of its steps is done, else kept and its Project Manager told.",
     emittedBy: ['sales.order.cancel'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         accountId: IdSchema,
@@ -846,6 +846,46 @@ const eventCatalogue = {
     emittedBy: ['procurement.quote.withdraw'],
     subscribed: false,
     payload: z.object({ vendorId: IdSchema, itemId: IdSchema, forGroup: z.boolean() }).strict(),
+  },
+  // J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §6.1).
+  'projects.project.drafted': {
+    meaning:
+      'A project was made for a confirmed order, by the platform or by a Project Manager, with its checklist copied.',
+    emittedBy: ['projects.project.draft', 'projects.project.create'],
+    subscribed: false,
+    payload: z.object({ salesOrderId: IdSchema, accountId: IdSchema }).strict(),
+  },
+  'projects.project.milestone_completed': {
+    meaning: "A step of a project's checklist was done, in order.",
+    emittedBy: ['projects.milestone.complete'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema, milestoneId: IdSchema }).strict(),
+  },
+  'projects.project.held': {
+    meaning: 'A project was put on hold; the reason stays on the project.',
+    emittedBy: ['projects.project.hold'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema }).strict(),
+  },
+  'projects.project.completed': {
+    meaning: 'A project was completed with every step of its checklist done.',
+    emittedBy: ['projects.project.complete'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema }).strict(),
+  },
+  'projects.project.cancelled': {
+    meaning:
+      'A project was cancelled, by a Project Manager or by the platform because its order was cancelled before any step was done; the reason stays on the project.',
+    emittedBy: ['projects.project.cancel', 'projects.project.cancel_for_order'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema }).strict(),
+  },
+  'projects.project.order_cancelled': {
+    meaning:
+      'The order of a project was cancelled after a step of the project was done, so the platform kept the project; the notify worker tells its owner, or the Project Managers of its company when it has none.',
+    emittedBy: ['projects.project.cancel_for_order'],
+    subscribed: true,
+    payload: z.object({ accountId: IdSchema, salesOrderId: IdSchema }).strict(),
   },
   // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2): ids and the state, never an
   // amount, a lender or a reason.

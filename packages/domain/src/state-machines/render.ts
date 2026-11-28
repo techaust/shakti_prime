@@ -52,7 +52,9 @@ function permissionText(t: AnyTransition): string {
 }
 
 function transitionRow(t: AnyTransition, built: boolean): string {
-  const effects = (t.effects ?? []).map((e) => `${code(e.key)}: ${e.description}`).join('; ');
+  const effects = (t.effects ?? [])
+    .map((e) => `${code(e.key)}${proposedMark(e.proposed)}: ${e.description}`)
+    .join('; ');
   const emits = built ? ` ${t.emits === undefined ? '–' : code(t.emits)} |` : '';
   return `| ${code(t.event)}${proposedMark(t.proposed)} | ${fromText(t)} → ${code(t.to)} | ${cell(permissionText(t))} | ${cell(t.guard?.description ?? '–')} | ${cell(effects || '–')} |${emits}`;
 }
@@ -101,7 +103,9 @@ function mermaid(machine: AnyMachine): string[] {
 function hasProposed(machine: AnyMachine): boolean {
   return (
     (machine.proposedStates?.length ?? 0) > 0 ||
-    machine.transitions.some((t) => t.proposed === true)
+    machine.transitions.some(
+      (t) => t.proposed === true || (t.effects ?? []).some((e) => e.proposed === true),
+    )
   );
 }
 

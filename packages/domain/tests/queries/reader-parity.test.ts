@@ -54,6 +54,10 @@ import {
 } from '../../src/queries/notifications/settings';
 import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
+// F1 field app foundation.
+import { listMobileDevices } from '../../src/queries/field/devices';
+import { readFeatureFlags } from '../../src/queries/field/feature-flags';
+import { fieldAppProfile } from '../../src/queries/field/me';
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
 import { searchPeople } from '../../src/queries/admin/search-people';
 import { listAuditPeople, queryAudit } from '../../src/queries/audit/query-audit';
@@ -197,6 +201,16 @@ import {
 } from '../../src/queries/messaging/milestones';
 import { readQuoteWhatsAppReadiness } from '../../src/sales/quote-whatsapp';
 import { readScreenPop } from '../../src/queries/calls/screen-pop';
+// J1 projects
+import {
+  accountProjects,
+  getProject,
+  listProjectFilters,
+  listProjectPeople,
+  listProjects,
+  listProjectTemplates,
+  orderProject,
+} from '../../src/queries/projects/list-projects';
 
 /** A ringing call as the key-value store holds it, the same for both pools (T4's screen-pop). */
 const RINGING = {
@@ -264,6 +278,9 @@ const QUOTES_AT = new Date('2026-10-05T06:00:00Z');
 const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listUsers: (ctx) => listUsers(ctx, { limit: 20 }),
   listUserSessions: (ctx) => listUserSessions(ctx, { userId: ctx.principal.id }),
+  // F1: a person's phones and the feature flags.
+  listMobileDevices: (ctx) => listMobileDevices(ctx, { userId: ctx.principal.id }),
+  readFeatureFlags: (ctx) => readFeatureFlags(ctx),
   searchPeople: (ctx) => searchPeople(ctx, { q: 'kum' }),
   listRoles: (ctx) => listRoles(ctx),
   getRoleGrants: (ctx) => getRoleGrants(ctx, { roleKey: 'tele_caller_cc' }),
@@ -433,6 +450,12 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listShifts: (ctx) => listShifts(ctx, { includeArchived: true }),
   listLeaveTypes: (ctx) => listLeaveTypes(ctx, { includeArchived: true }),
   listHolidays: (ctx) => listHolidays(ctx, { year: 2031 }),
+  // J1 projects
+  listProjects: (ctx) => listProjects(ctx, { entityId: 1, limit: 20 }),
+  listProjectFilters: (ctx) => listProjectFilters(ctx, { entityId: 1 }),
+  getProject: (ctx) => getProject(ctx, { entityId: 1, projectId: newId() }),
+  listProjectTemplates: (ctx) => listProjectTemplates(ctx, { entityId: 1 }),
+  listProjectPeople: (ctx) => listProjectPeople(ctx, { entityId: 1 }),
   // J2 customer loans
   readCustomerLoan: (ctx) => readCustomerLoan(ctx, 1, newId()),
   getOrderLoans: (ctx) => getOrderLoans(ctx, { entityId: 1, orderId: newId() }),
@@ -453,6 +476,8 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   loadBinLabelsForPrint: (ctx) => loadLabelsForPrint(ctx, 'bin', [labelled.binId]),
   // The approved Playbook, the agents' and Ask's one read of it (K2).
   approvedPlaybook: (ctx) => approvedPlaybook(ctx, {}),
+  // F1: what GET /me reads for the field app.
+  fieldAppProfile: (ctx) => fieldAppProfile(ctx),
   // Ask's cited records' words and an item's cost side (B1), on real records.
   askSourceLabels: (ctx) =>
     askSourceLabels(ctx, [
@@ -482,6 +507,9 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   homeCredit: (ctx) => homeCredit(ctx),
   accountQuotes: (ctx) => accountQuotes(ctx, newId(), 1, QUOTES_AT),
   accountSalesOrders: (ctx) => accountSalesOrders(ctx, newId(), 1),
+  // J1: Account 360's projects and the order page's link.
+  accountProjects: (ctx) => accountProjects(ctx, { entityId: 1, accountId: newId() }),
+  orderProject: (ctx) => orderProject(ctx, { entityId: 1, orderId: newId() }),
   // The answer names the dealer asked for, so both pools are asked for the same one.
   dealerCreditHistory: (ctx) => dealerCreditHistory(ctx, { entityId: 1, accountId: NO_DEALER }),
   previewSalesOrder: (ctx) =>

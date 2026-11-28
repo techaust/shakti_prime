@@ -37,6 +37,18 @@
       "maxKb": 204,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Ask the Business: the conversation list, the open conversation with its answers, figures and sources, and the question box that reads the answer's stream. Measured 194.2 kB on 14-11-2026, plus 5 %."
     },
+    "/projects": {
+      "maxKb": 251,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the projects grid with its filters (J1). Measured 239.2 kB on 27-11-2026, plus 5 %."
+    },
+    "/projects/[entityId]/[projectId]": {
+      "maxKb": 233,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the project page's steps with Mark done and the manager's moves and their dialogs (J1). Measured 221.2 kB on 27-11-2026, plus 5 %."
+    },
+    "/settings/project-steps": {
+      "maxKb": 217,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the steps of each business line with their editor (J1). Measured 206.2 kB on 27-11-2026, plus 5 %."
+    },
     "/voice": {
       "maxKb": 204,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB), and Talk to Shakti: the recording question, the live talk with its light, captions, cited records, push-to-talk and text box, and Teach's drafts with their Save through the Playbook's action. The LiveKit room and livekit-client (about 151 kB) are not in it: they load when a talk starts. Measured 194.2 kB on 17-11-2026, plus 5 %."

@@ -14,6 +14,9 @@ import { requestCopilotBrief } from '../commands/agents/brief-request';
 import { attachCallTranscript, reserveCallTranscript } from '../commands/calls/call-transcript';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
+// F1 field app foundation.
+import { setFeatureFlag } from '../commands/admin/set-feature-flag';
+import { revokeMobileDevice } from '../commands/field/revoke-device';
 import { setRolePermissions } from '../commands/admin/set-role-permissions';
 import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
@@ -149,6 +152,18 @@ import {
 import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
 import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
+// J1 projects
+import { assignProject } from '../commands/projects/assign-project';
+import { cancelForOrder } from '../commands/projects/cancel-for-order';
+import { createProject, draftProject } from '../commands/projects/create-project';
+import {
+  cancelProject,
+  completeMilestone,
+  completeProject,
+  holdProject,
+  resumeProject,
+} from '../commands/projects/move-project';
+import { publishProjectTemplate } from '../commands/projects/publish-template';
 // H1 stock ledger
 import {
   archiveBin,
@@ -457,6 +472,20 @@ export const commands = Object.freeze({
   [rejectLeave.name]: rejectLeave,
   [cancelLeave.name]: cancelLeave,
   [adjustLeave.name]: adjustLeave,
+  // J1 projects
+  [draftProject.name]: draftProject,
+  [createProject.name]: createProject,
+  [completeMilestone.name]: completeMilestone,
+  [holdProject.name]: holdProject,
+  [resumeProject.name]: resumeProject,
+  [completeProject.name]: completeProject,
+  [cancelProject.name]: cancelProject,
+  [assignProject.name]: assignProject,
+  [publishProjectTemplate.name]: publishProjectTemplate,
+  [cancelForOrder.name]: cancelForOrder,
+  // F1 field app foundation.
+  [setFeatureFlag.name]: setFeatureFlag,
+  [revokeMobileDevice.name]: revokeMobileDevice,
   // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
   [createCustomerLoan.name]: createCustomerLoan,
   [sanctionCustomerLoan.name]: sanctionCustomerLoan,

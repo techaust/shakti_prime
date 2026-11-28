@@ -14,7 +14,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Quote | **yes** | 6 | 7 | 0 | [quote.md](quote.md) |
 | Sales order | **yes** | 7 | 9 | 1 | [sales-order.md](sales-order.md) |
 | Dispatch | no | 5 | 6 | 4 | [dispatch.md](dispatch.md) |
-| Project, standard install flow | no | 4 | 6 | 9 | [project-standard.md](project-standard.md) |
+| Project, standard install flow | **yes** | 4 | 6 | 9 | [project-standard.md](project-standard.md) |
 | Project, PM Surya Ghar flow | no | 12 | 13 | 3 | [project-surya-ghar.md](project-surya-ghar.md) |
 | Subsidy gate | no | 4 | 5 | 9 | [subsidy-gate.md](subsidy-gate.md) |
 | Customer loan | **yes** | 4 | 4 | 1 | [customer-loan.md](customer-loan.md) |
@@ -47,6 +47,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `numbering.docCodes.proforma` | PI |
 | `numbering.docCodes.challan` | DC |
 | `numbering.docCodes.purchase_order` | PO |
+| `numbering.docCodes.project` | PRJ |
 | `numbering.separator` | / |
 | `numbering.serialDigits` | 4 |
 | `pricing.kitPricing` | fixed |
@@ -61,6 +62,7 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `hr.halfDayUnderHours` | 4 |
 | `hr.leaveTypes` | none |
 | `hr.holidays` | none |
+| `projects.standardSteps` | survey, dispatch, install, commission, handover |
 | `labels.sizeByKind.serial` | 50x25 |
 | `labels.sizeByKind.bin` | 50x25 |
 | `labels.sizeByKind.package` | 100x50 |
@@ -110,6 +112,8 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `sizing.maxPipeVelocityMps` | 2 |
 | `sizing.sanctionedLoadRatio` | 1 |
 | `sizing.dcrSchemes` | pm_surya_ghar, pm_kusum |
+| `field.offlineDays` | 5 |
+| `field.minimumAppVersion` | 1.0.0 |
 | `retention.unqualifiedLeadMonths` | 24 |
 | `retention.importReconciliationDays` | 30 |
 | `retention.importFileOpenDays` | 7 |
@@ -118,3 +122,4 @@ Values used until the discovery workshop answers (docs/03-roadmap-appendix/backe
 | `retention.whatsappMediaYears` | 3 |
 | `retention.askDays` | 90 |
 | `retention.callRecordingMonths` | 12 |
+| `retention.projectYears` | 8 |

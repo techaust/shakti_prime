@@ -7,6 +7,8 @@ export const DocTypeSchema = z.enum([
   'proforma',
   'challan',
   'purchase_order',
+  // J1: a project's number (`PRJ`).
+  'project',
 ]);
 export type DocType = z.infer<typeof DocTypeSchema>;
 

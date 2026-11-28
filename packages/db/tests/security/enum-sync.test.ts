@@ -76,6 +76,11 @@ import {
   SizingKindSchema,
   StageKindSchema,
   SubsidySchemeSchema,
+  // J1 projects
+  MilestoneStateSchema,
+  ProjectFlowSchema,
+  ProjectSegmentSchema,
+  ProjectStateSchema,
   SupplyKindSchema,
   TaskKindSchema,
   TaskStateSchema,
@@ -110,6 +115,8 @@ import {
   // HR1 people and leave
   LEAVE_MOVEMENT_KINDS,
   LEAVE_REQUEST_STATES,
+  // F1 field app foundation
+  MOBILE_DEVICE_REVOKE_REASONS,
   // J2 customer loans
   ACTIVE_LOAN_STATES,
   CUSTOMER_LOAN_STATES,
@@ -310,6 +317,23 @@ const PAIRS: Record<string, readonly string[]> = {
   leave_requests_decided_check: ['requested'],
   leave_balances_kind_check: LEAVE_MOVEMENT_KINDS,
   leave_balances_source_check: ['use', 'use'],
+  // J1: a project, its steps and its checklists. A PM Surya Ghar project follows the subsidy flow;
+  // one on hold or cancelled says why; a step done says when, one skipped why.
+  project_flow_templates_segment_check: ProjectSegmentSchema.options,
+  projects_segment_check: ProjectSegmentSchema.options,
+  projects_scheme_check: SubsidySchemeSchema.options,
+  projects_flow_check: ProjectFlowSchema.options,
+  projects_flow_scheme_check: ['surya_ghar', 'pm_surya_ghar'],
+  projects_state_check: ProjectStateSchema.options,
+  projects_hold_reason_check: ['on_hold'],
+  projects_cancel_reason_check: ['cancelled'],
+  project_milestones_state_check: MilestoneStateSchema.options,
+  project_milestones_done_check: ['done'],
+  project_milestones_skip_check: ['skipped'],
+  // F1: the field app's phones run Android only (`MobileDevice.platform`), and are signed out by
+  // the app, from the web or for a refresh token presented twice.
+  mobile_devices_platform_check: ['android'],
+  mobile_devices_revoked_reason_check: MOBILE_DEVICE_REVOKE_REASONS,
   // J2: a loan's states; which states carry a sanction, a disbursal, a rejection; what the dispatch
   // waits for (the key it is read by, then its values).
   customer_loans_state_check: CUSTOMER_LOAN_STATES,

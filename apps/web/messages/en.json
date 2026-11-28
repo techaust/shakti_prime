@@ -603,7 +603,24 @@
     "lender_missing": "We couldn't find this lender. Refresh the page and try again.",
     "stock_serial_state": "That serial number can't be moved this way from where it is now. Check where it is and try again.",
     "stock_customer_missing": "We couldn't find that customer or site. Choose the customer again, then try again.",
-    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again."
+    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again.",
+    "device_missing": "This phone is already signed out.",
+    "app_update_required": "This version of the field app is too old. Update it from the Play Store to carry on.",
+    "invalid_credentials": "That email and password don't match. Check them and try again.",
+    "totp_invalid": "That code didn't work. Check the authenticator app and type the new code.",
+    "totp_setup_required": "Your role needs an authenticator app. Set it up on the website first, then sign in here.",
+    "account_suspended": "This account is not active. Ask your manager to check it.",
+    "refresh_expired": "You've been away for a while. Please sign in again.",
+    "refresh_reused": "For your safety this phone was signed out. Please sign in again.",
+    "device_revoked": "This phone was signed out. Please sign in again.",
+    "project_missing": "We couldn't find this project. It may belong to another company, or you may not be on it.",
+    "project_exists": "This order already has a project. Open it from the order page.",
+    "project_order_not_confirmed": "Only a confirmed order can have a project. Confirm the order first.",
+    "project_segment_missing": "Choose the business line for this project before you start it.",
+    "project_subsidy_flow": "This project follows the PM Surya Ghar subsidy steps, so it can't be changed here.",
+    "milestone_missing": "We couldn't find this step on the project. Refresh the page to see its steps.",
+    "project_person_outside": "Everyone on a project must work for its company. Choose people from this company.",
+    "project_template_changed": "Someone published these steps a moment ago. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -716,7 +733,9 @@
     "hrShifts": "Shifts",
     "hrHolidays": "Holidays",
     "hrLeaveTypes": "Leave types",
-    "settingsLenders": "Lenders"
+    "settingsLenders": "Lenders",
+    "projects": "Projects",
+    "settingsProjectSteps": "Project steps"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -822,7 +841,9 @@
       "hrShifts": "Working hours, lunch breaks and weekly days off.",
       "hrHolidays": "The holidays of each company.",
       "hrLeaveTypes": "The kinds of leave people can ask for.",
-      "settingsLenders": "Keep each company's list of banks and schemes that customers borrow from."
+      "settingsLenders": "Keep each company's list of banks and schemes that customers borrow from.",
+      "projects": "Installation projects and where each one stands",
+      "settingsProjectSteps": "The steps new projects follow"
     },
     "progress": {
       "period": {
@@ -1698,7 +1719,8 @@
       "reactivate": "Reactivate",
       "resetAuthenticator": "Reset authenticator app",
       "liftLock": "Lift sign-in lock",
-      "moveLeads": "Move all leads"
+      "moveLeads": "Move all leads",
+      "phones": "Phones"
     },
     "rolesField": {
       "legend": "Role in each company",
@@ -1784,6 +1806,31 @@
       "submit": "Move leads",
       "done": "{count, plural, =0 {{name} had no leads to move.} one {# lead moved from {name}.} other {# leads moved from {name}.}}{remaining, plural, =0 {} one { One lead is still with {name}. Run Move all leads again to move it.} other { # leads are still with {name}. Run Move all leads again to move them.}}",
       "doneTeamOnly": "Leads outside your team stay with {name}."
+    },
+    "phones": {
+      "title": "Phones of {name}",
+      "intro": "The phones this person has signed in to the field app on, newest first. Sign out one that is lost, stolen or no longer theirs.",
+      "empty": "This person has not signed in to the field app yet.",
+      "phone": "Android phone",
+      "signedIn": "Signed in",
+      "signedOut": "Signed out",
+      "started": "Signed in {time}",
+      "lastUsed": "Last used {time}",
+      "version": "App version {version}",
+      "endedAt": "Signed out {time}",
+      "signOut": "Sign out",
+      "signOutLabel": "Sign out {phone}",
+      "done": "That phone is signed out. The app asks for the email and password the next time it is opened.",
+      "reason": {
+        "signed_out": "Signed out on the phone",
+        "revoked": "Signed out from the website",
+        "refresh_reused": "Signed out for safety",
+        "password_changed": "Password changed",
+        "role_changed": "Roles changed",
+        "suspended": "Suspended",
+        "totp_reset": "Authenticator app reset",
+        "totp_enrolled": "Authenticator app set up"
+      }
     }
   },
   "activity": {
@@ -2062,7 +2109,22 @@
       "lenderCreate": "Lender added",
       "lenderUpdate": "Lender changed",
       "labelPrint": "Labels printed",
-      "labelReprint": "Label printed again"
+      "labelReprint": "Label printed again",
+      "mobileSignIn": "Signed in on the field app",
+      "mobileSignOut": "Signed out of the field app",
+      "mobileRefreshReused": "Field app signed out for safety",
+      "mobileDeviceRevoke": "Phone signed out of the field app",
+      "featureFlagSet": "Feature switched on or off",
+      "projectDraft": "Project started from an order",
+      "projectCreate": "Project started",
+      "milestoneComplete": "Project step done",
+      "projectHold": "Project put on hold",
+      "projectResume": "Project resumed",
+      "projectComplete": "Project completed",
+      "projectCancel": "Project cancelled",
+      "projectCancelForOrder": "Project closed with its cancelled order",
+      "projectAssign": "Project people changed",
+      "projectStepsPublish": "Project steps published"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2134,7 +2196,13 @@
       "loanDisbursed": "Loan paid out",
       "loanRejected": "Loan turned down",
       "loanGatesReleased": "Loan let the order go ahead",
-      "labelsRequested": "Labels sent for printing"
+      "labelsRequested": "Labels sent for printing",
+      "projectDrafted": "Project started",
+      "milestoneCompleted": "Project step done",
+      "projectHeld": "Project put on hold",
+      "projectCompleted": "Project completed",
+      "projectCancelled": "Project cancelled",
+      "projectOrderCancelled": "A project's order was cancelled"
     },
     "sheet": {
       "title": "{action}",
@@ -2513,7 +2581,20 @@
       "waiverReason": "Why the order no longer waits for a loan",
       "labelKind": "Kind of label",
       "labelCount": "Labels on the sheet",
-      "labelNote": "Why it was printed again"
+      "labelNote": "Why it was printed again",
+      "appVersion": "Field app version",
+      "projectNo": "Project number",
+      "projectState": "Project status",
+      "scheme": "Subsidy scheme",
+      "flow": "Steps followed",
+      "templateVersionId": "From the published steps",
+      "milestones": "Steps",
+      "holdReason": "Why it is on hold",
+      "milestoneKey": "Step",
+      "milestoneState": "Step status",
+      "ownerId": "Project manager named",
+      "assigneeIds": "People on the project",
+      "steps": "Steps"
     },
     "values": {
       "percent": "{value}%",
@@ -2725,6 +2806,26 @@
         "serial": "Serial number",
         "bin": "Bin",
         "package": "Package"
+      },
+      "projectState": {
+        "active": "In progress",
+        "on_hold": "On hold",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "projectFlow": {
+        "standard": "Standard steps",
+        "surya_ghar": "PM Surya Ghar subsidy steps"
+      },
+      "milestoneState": {
+        "open": "To do",
+        "done": "Done",
+        "skipped": "Skipped"
+      },
+      "subsidyScheme": {
+        "none": "No subsidy",
+        "pm_surya_ghar": "PM Surya Ghar",
+        "pm_kusum": "PM-KUSUM"
       }
     }
   },
@@ -4168,7 +4269,8 @@
       "notifications": "Notices",
       "platform": "Upkeep",
       "webhooks": "Messages from other systems",
-      "messaging": "WhatsApp"
+      "messaging": "WhatsApp",
+      "field": "Field app"
     },
     "permissions": {
       "crm_lead_read": "See leads",
@@ -4266,7 +4368,9 @@
       "agents_note_write": "Write call briefs and call summaries",
       "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
       "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
-      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept"
+      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept",
+      "field_device_revoke": "Sign people's phones out of the field app",
+      "projects_draft": "Start a project when an order that needs installing is confirmed"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -5500,7 +5604,8 @@
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
       "missed_call": "A customer gave you a missed call",
       "enquiry_attached": "A customer of your lead in nurture asked again",
-      "loan_rejected": "A lender turned down a loan for your customer"
+      "loan_rejected": "A lender turned down a loan for your customer",
+      "project_order_cancelled": "The order of your project was cancelled"
     },
     "settings": {
       "title": "Notification settings",
@@ -5683,6 +5788,10 @@
     "loan_rejected": {
       "title": "A loan was turned down",
       "body": "The lender turned down your customer's loan for an order. Tap to open the order and offer another way to pay."
+    },
+    "project_order_cancelled": {
+      "title": "A project's order was cancelled",
+      "body": "Work on the project was already recorded, so it was left open for you to close. Tap to open the project."
     }
   },
   "orders": {
@@ -6459,8 +6568,8 @@
     "codeWrong": "That code does not match. You can try {left, plural, one {once more} other {# more times}}.",
     "codeLocked": "That code did not match {tries} times. Press Accept on the quote again for a new code.",
     "codeExpired": "That code is no longer valid. Press Accept on the quote again for a new code.",
-    "statusHeading": "Your quotes and orders with us:",
-    "statusNone": "We found no quotes or orders for this number. Write your question here and our team will help.",
+    "statusHeading": "Your quotes, orders and projects with us:",
+    "statusNone": "We found no quotes, orders or projects for this number. Write your question here and our team will help.",
     "statusQuoteOpen": "Quote {ref}: {state}, {total}, valid until {date}",
     "statusQuote": "Quote {ref}: {state}, {total}",
     "statusOrder": "Order {ref}: {state}, {total}",
@@ -6478,6 +6587,21 @@
       "invoiced": "invoiced",
       "closed": "complete",
       "cancelled": "cancelled"
+    },
+    "statusProject": "Project {ref}: {state}",
+    "statusProjectStep": "Project {ref}: {state}, next step {step}",
+    "unknownStep": "the next step",
+    "projectStates": {
+      "active": "in progress",
+      "on_hold": "on hold",
+      "completed": "complete"
+    },
+    "defaultSteps": {
+      "survey": "site survey",
+      "dispatch": "dispatch of the material",
+      "install": "installation",
+      "commission": "commissioning",
+      "handover": "handover"
     }
   },
   "voice": {
@@ -7462,5 +7586,159 @@
       "switchOffAria": "Switch off {name}",
       "switchOnAria": "Switch on {name}"
     }
+  },
+  "projects": {
+    "title": "Projects",
+    "intro": "Installation work started from confirmed orders, with where each project stands.",
+    "caption": "Projects",
+    "empty": "No projects match. A project starts when an order that needs installing is confirmed.",
+    "emptyOwn": "No projects for you yet. A project shows here once you are named on it.",
+    "noCustomer": "Customer details removed",
+    "noStep": "All steps done",
+    "suryaGharStep": "Tracked in the PM Surya Ghar steps",
+    "columns": {
+      "project": "Project",
+      "customer": "Customer",
+      "segment": "Business line",
+      "step": "Current step",
+      "owner": "Project manager",
+      "state": "Status",
+      "updated": "Last change"
+    },
+    "filters": {
+      "label": "Filter projects",
+      "company": "Company",
+      "state": "Status",
+      "anyState": "Any status",
+      "segment": "Business line",
+      "anySegment": "Any business line",
+      "owner": "Project manager",
+      "anyOwner": "Anyone",
+      "step": "Current step",
+      "anyStep": "Any step",
+      "apply": "Show projects",
+      "clearFilters": "Clear filters"
+    },
+    "states": {
+      "active": "In progress",
+      "on_hold": "On hold",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "segments": {
+      "farmer_pumps": "Farmer pumps",
+      "residential_rooftop": "Home rooftop solar",
+      "commercial_epc": "Commercial solar projects"
+    },
+    "schemes": {
+      "none": "No subsidy",
+      "pm_surya_ghar": "PM Surya Ghar",
+      "pm_kusum": "PM-KUSUM"
+    },
+    "defaultSteps": {
+      "survey": "Site survey",
+      "dispatch": "Material dispatched",
+      "install": "Installation",
+      "commission": "Commissioning",
+      "handover": "Handover"
+    },
+    "page": {
+      "back": "All projects",
+      "place": "{village}, {district}",
+      "segment": "Business line",
+      "scheme": "Subsidy scheme",
+      "owner": "Project manager",
+      "ownerNone": "Not named yet",
+      "people": "People on this project",
+      "peopleNone": "Nobody named yet",
+      "holdReason": "On hold because: {reason}",
+      "cancelReason": "Cancelled because: {reason}",
+      "cancelledWithOrder": "Cancelled because its order was cancelled.",
+      "suryaGhar": "This project follows the PM Surya Ghar subsidy steps, which are tracked apart from this checklist.",
+      "orderLabel": "Order"
+    },
+    "tabs": {
+      "label": "Project sections",
+      "milestones": "Steps"
+    },
+    "milestones": {
+      "intro": "Each step is marked done in order.",
+      "done": "Done on {date} by {name}",
+      "doneNoName": "Done on {date}",
+      "skipped": "Skipped",
+      "open": "To do",
+      "next": "Next step",
+      "markDone": "Mark done",
+      "markedDone": "Step marked done.",
+      "empty": "This project has no steps.",
+      "doneBadge": "Done"
+    },
+    "actions": {
+      "hold": "Put on hold",
+      "resume": "Resume",
+      "complete": "Complete project",
+      "cancel": "Cancel project",
+      "assign": "Change people",
+      "resumed": "Project resumed.",
+      "held": "Project put on hold.",
+      "completed": "Project completed.",
+      "cancelled": "Project cancelled.",
+      "assigned": "People saved."
+    },
+    "dialogs": {
+      "holdTitle": "Put {projectNo} on hold",
+      "holdIntro": "Say why the work is waiting. Everyone on the project sees it.",
+      "reason": "Reason",
+      "reasonHelper": "Up to 300 characters.",
+      "reasonMissing": "Write the reason.",
+      "holdSubmit": "Put on hold",
+      "cancelTitle": "Cancel {projectNo}",
+      "cancelIntro": "A cancelled project can't be opened again. Its order can get a new project.",
+      "cancelSubmit": "Cancel project",
+      "completeTitle": "Complete {projectNo}",
+      "completeIntro": "Every step is done. Completing the project closes it.",
+      "completeSubmit": "Complete project",
+      "assignTitle": "People on {projectNo}",
+      "assignIntro": "Name the project manager and the people who work on this project. Each person sees it in their list.",
+      "owner": "Project manager",
+      "ownerNone": "Nobody yet",
+      "people": "People on the project",
+      "assignSubmit": "Save people",
+      "keep": "Keep the project"
+    },
+    "account": {
+      "sectionTitle": "Projects",
+      "empty": "No projects with this company yet."
+    },
+    "order": {
+      "link": "Project {projectNo}",
+      "startProject": "Start project",
+      "startTitle": "Start a project for {soNo}",
+      "startIntro": "The project copies this company's current steps for its business line, and you become its project manager.",
+      "segment": "Business line",
+      "segmentFromLead": "The lead's business line",
+      "startSubmit": "Start project",
+      "started": "Project started."
+    }
+  },
+  "projectSteps": {
+    "title": "Project steps",
+    "intro": "The steps each new project follows, for each business line. A new version changes new projects only; running projects keep the steps they started with.",
+    "company": "Company",
+    "version": "Version {version}, published on {date}",
+    "none": "Nothing published yet. New projects follow the standard steps: site survey, material dispatched, installation, commissioning and handover.",
+    "edit": "Change steps",
+    "editTitle": "Steps for {segment}",
+    "editIntro": "Name each step in the order the work is done. Publishing makes these the steps of every new project of this business line.",
+    "stepName": "Step {number}",
+    "add": "Add a step",
+    "remove": "Remove",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "publish": "Publish steps",
+    "published": "Steps published.",
+    "nameMissing": "Give every step a name.",
+    "tooMany": "A project can have at most 30 steps.",
+    "tooFew": "Keep at least one step."
   }
 }

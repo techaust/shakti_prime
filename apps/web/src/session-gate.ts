@@ -47,6 +47,8 @@ export const BOS_PREFIXES = [
   '/inventory',
   // HR1 people and leave
   '/hr',
+  // J1 projects
+  '/projects',
 ] as const;
 
 /** True for a path inside the `(bos)` route group. */

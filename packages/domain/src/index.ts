@@ -20,6 +20,8 @@ export { deliveryDeduplicationId, memoryEventPublisher } from './ports/event-pub
 export { canonicalJson, inputHash } from './idempotency/hash';
 export { databaseIdempotencyStore, memoryIdempotencyStore } from './idempotency/store';
 export type { IdempotencyClaim, IdempotencyStore } from './idempotency/store';
+// F1: the Redis front of idempotency_keys for the field app's mutations.
+export { IDEMPOTENCY_FRONT_SECONDS } from './idempotency/front';
 export type { EventPublisher, PublishResult } from './ports/event-publisher';
 export { commands, getCommand } from './command/registry';
 export { executeCommand, executeQuery } from './command/execute';
@@ -258,6 +260,16 @@ export { suspendUser, reactivateUser } from './commands/admin/user-status';
 export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';
 export { clearSignInLock } from './commands/admin/clear-sign-in-lock';
+// F1 field app foundation.
+export { setFeatureFlag } from './commands/admin/set-feature-flag';
+export { revokeMobileDevice } from './commands/field/revoke-device';
+export { listMobileDevices } from './queries/field/devices';
+export {
+  readFeatureFlags,
+  resolveFeatureFlags,
+  type FeatureFlagRow,
+} from './queries/field/feature-flags';
+export { fieldAppProfile } from './queries/field/me';
 export { replayDeadLetter } from './commands/integrations/replay-dead-letter';
 export { runDeliveryProbe } from './commands/platform/run-probe';
 export { requestPrintProof } from './commands/print/request-proof';
@@ -570,7 +582,10 @@ export { salesOrderMachine } from './state-machines/machines/sales-order';
 export type { SalesOrderParams, SalesOrderRecord } from './state-machines/machines/sales-order';
 export { dispatchMachine, needsEwayBill } from './state-machines/machines/dispatch';
 export type { DispatchParams, DispatchRecord } from './state-machines/machines/dispatch';
-export { projectStandardMachine } from './state-machines/machines/project-standard';
+export {
+  projectStandardMachine,
+  STANDARD_MILESTONES,
+} from './state-machines/machines/project-standard';
 export { projectSuryaGharMachine } from './state-machines/machines/project-surya-ghar';
 export { subsidyGateMachine } from './state-machines/machines/subsidy-gate';
 export { customerLoanMachine } from './state-machines/machines/customer-loan';
@@ -965,3 +980,25 @@ export {
   listLeaveTypes,
   listShifts,
 } from './queries/hr/hr';
+// J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §6.1).
+export { createProject, draftProject } from './commands/projects/create-project';
+export {
+  cancelProject,
+  completeMilestone,
+  completeProject,
+  holdProject,
+  resumeProject,
+} from './commands/projects/move-project';
+export { assignProject } from './commands/projects/assign-project';
+export { cancelForOrder } from './commands/projects/cancel-for-order';
+export { publishProjectTemplate } from './commands/projects/publish-template';
+export {
+  accountProjects,
+  getProject,
+  listProjectFilters,
+  listProjectPeople,
+  listProjects,
+  listProjectTemplates,
+  orderProject,
+  projectListQuery,
+} from './queries/projects/list-projects';

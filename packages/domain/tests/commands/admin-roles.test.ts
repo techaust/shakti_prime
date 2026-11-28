@@ -4,6 +4,7 @@ import {
   asMigrator,
   asPrincipal,
   closeDb,
+  createTestMobileDevice,
   createTestPrincipal,
   createTestUser,
   grantsForRole,
@@ -45,6 +46,18 @@ async function sessionState(ids: readonly string[]): Promise<Record<string, stri
       select id, revoked_reason as reason from sessions where id in ${m(ids)}`,
   );
   return Object.fromEntries(rows.map((r) => [r.id, r.reason]));
+}
+
+/** Each phone's sign-out reason and who signed it out, null while it is signed in. */
+async function phoneState(
+  ids: readonly string[],
+): Promise<Record<string, { reason: string | null; by: string | null }>> {
+  const rows = await asMigrator(
+    (m) => m<{ id: string; reason: string | null; by: string | null }[]>`
+      select id, revoked_reason as reason, revoked_by as by from mobile_devices
+       where id in ${m(ids)}`,
+  );
+  return Object.fromEntries(rows.map((r) => [r.id, { reason: r.reason, by: r.by }]));
 }
 
 async function grantsOf(key: string): Promise<string[]> {
@@ -200,6 +213,13 @@ describe('admin.role.permissions.set: the change', () => {
       callerOther: await addSession(callerUser.id),
       bystander: await addSession(bystander.id),
     };
+    // Their field app phones end with the sessions, the caller's included (SECURITY §2).
+    const phones = {
+      one: await createTestMobileDevice(holderOne.id),
+      three: await createTestMobileDevice(holderThree.id),
+      caller: await createTestMobileDevice(callerUser.id),
+      bystander: await createTestMobileDevice(bystander.id),
+    };
     const recorded = memoryAuditSink();
     const emitted = memoryOutboxSink();
     try {
@@ -242,6 +262,13 @@ describe('admin.role.permissions.set: the change', () => {
         [sessions.callerKept]: null,
         [sessions.callerOther]: 'role_changed',
         [sessions.bystander]: null,
+      });
+      const signedOut = { reason: 'role_changed', by: callerUser.id };
+      expect(await phoneState(Object.values(phones))).toEqual({
+        [phones.one]: signedOut,
+        [phones.three]: signedOut,
+        [phones.caller]: signedOut,
+        [phones.bystander]: { reason: null, by: null },
       });
 
       const [row] = recorded.records;
@@ -433,6 +460,7 @@ describe('admin.role.permissions.set: a save over a stale page and holders elsew
       { entityId: archived, roleKey: 'accounts' },
     ]);
     const session = await addSession(holder.id);
+    const phone = await createTestMobileDevice(holder.id);
     const exec = await createTestPrincipal('executive');
     try {
       const dto = await asPrincipal(exec, (context) =>
@@ -444,6 +472,9 @@ describe('admin.role.permissions.set: a save over a stale page and holders elsew
       );
       expect(dto.holderUserIds).toContain(holder.id);
       expect(await sessionState([session])).toEqual({ [session]: 'role_changed' });
+      expect(await phoneState([phone])).toEqual({
+        [phone]: { reason: 'role_changed', by: exec.id },
+      });
     } finally {
       await restore(EDITED);
       await asMigrator(async (m) => {

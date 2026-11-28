@@ -618,6 +618,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return catalogue.category(value);
       case 'itemUnit':
         return catalogue.unit(value);
+      // J1 projects: a value its catalogue does not name reads in plain words.
+      case 'projectState':
+      case 'projectFlow':
+      case 'milestoneState':
+      case 'subsidyScheme': {
+        const key = `values.${group}.${value}` as Parameters<typeof t>[0];
+        return t.has(key) ? t(key) : wordsOf(value);
+      }
       case 'hubKind':
         return oneOf(WAREHOUSE_KINDS, value) ? t(`values.hubKind.${value}`) : wordsOf(value);
       case 'binKind':
