@@ -7054,7 +7054,7 @@
         "notCounted": "Not counted yet",
         "recountOpen": "Asked again",
         "recount": "Count again",
-        "recountItem": "Count {name} in bin {bin} again",
+        "recountItem": "Count again: {name} in bin {bin}",
         "recountAsked": "Asked for that item to be counted again.",
         "netValue": "Net value of the differences: {value}",
         "movementsCaption": "Stock moved in the counted bins since the count started",
@@ -7070,7 +7070,7 @@
         },
         "notReady": "The count can be posted once it is in review, every item is counted and nothing is waiting to be counted again.",
         "print": "Print sheet",
-        "sheetLink": "Open the count sheet to print",
+        "newTab": " (opens in a new tab)",
         "back": "Back to stock counts",
         "countLink": "Open the counting screen",
         "post": {

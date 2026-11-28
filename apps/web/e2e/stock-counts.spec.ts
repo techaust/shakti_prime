@@ -58,7 +58,7 @@ test.describe('a stock count', () => {
 
     await (await hydrated(page.getByRole('button', { name: 'Start a count' }))).click();
     const start = page.getByRole('dialog', { name: 'Start a stock count' });
-    await start.getByLabel('Hub').selectOption({ label: hub.name });
+    await start.getByLabel('Hub', { exact: true }).selectOption({ label: hub.name });
     await expect(start.getByLabel('The whole hub')).toBeChecked();
     await expectNoAxeViolations(page);
     await start.getByRole('button', { name: 'Start count' }).click();
@@ -94,7 +94,7 @@ test.describe('a stock count', () => {
     // The pump: two serials scanned, the second scanned twice, and one of the wrong item.
     const pumpRow = itemIn(page, first, pump.name);
     await pumpRow.getByRole('button', { name: `Count ${pump.name}` }).click();
-    const serial = pumpRow.getByLabel('Serial number');
+    const serial = pumpRow.getByLabel('Serial number', { exact: true });
     await serial.fill(serials[0]);
     await serial.press('Enter');
     await serial.fill(serials[1]);
@@ -145,7 +145,7 @@ test.describe('a stock count', () => {
     // The first bin's cable again: back to counting, then counted at 39 on the counting screen.
     await (
       await hydrated(
-        page.getByRole('button', { name: `Count ${cable.name} in bin ${first} again` }),
+        page.getByRole('button', { name: `Count again: ${cable.name} in bin ${first}` }),
       )
     ).click();
     await expect(page.getByText('Asked for that item to be counted again.')).toBeVisible();
@@ -182,7 +182,8 @@ test.describe('a stock count', () => {
     await expect(
       page.frameLocator('iframe[title="Stock count sheet"]').getByText(pump.name).first(),
     ).toBeVisible();
-    await expectNoAxeViolations(page);
+    // The printed sheet is a document of its own, always light; axe checks the page around it.
+    await expectNoAxeViolations(page, { removeFrames: 'iframe[title="Stock count sheet"]' });
   });
 });
 

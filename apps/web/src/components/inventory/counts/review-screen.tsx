@@ -210,9 +210,9 @@ export function ReviewScreen({
           className="text-accent-text underline-offset-4 hover:underline"
           href={countSheetHref(count.entityId, count.id)}
           target="_blank"
-          aria-label={t('sheetLink')}
         >
           {t('print')}
+          <span className="sr-only">{t('newTab')}</span>
         </Link>
         {canCount && (count.state === 'open' || count.state === 'counting') ? (
           <Link
