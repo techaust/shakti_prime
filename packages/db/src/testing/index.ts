@@ -410,6 +410,10 @@ export const ENTITY_TABLES = [
   // the company; their costs with finance.cost.read (docs/03-roadmap-appendix/phase3.md §7.5)
   'warranty_claims',
   'warranty_claim_costs',
+  // J2: a company's lenders, read by every principal acting in it; a customer's loan, read with
+  // the customer's relationship in the loan's company (docs/03-roadmap-appendix/phase4.md §6.2)
+  'lenders',
+  'customer_loans',
 ] as const;
 
 /**

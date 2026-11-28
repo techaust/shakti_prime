@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { loadAccount360 } from '../../../../actions/crm';
 import { listAccountDuplicates } from '../../../../actions/duplicates';
+import { listAccountLoans } from '../../../../actions/loans';
 import { AccountScreen } from '../../../../components/customers/account-screen';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
@@ -49,9 +50,13 @@ export default async function AccountPage({
   });
   if (!view.ok && view.error === 'account_missing') notFound();
   // The duplicate cards of the company shown (CRM-03); a page without them still shows the rest.
-  const duplicates = view.ok
-    ? await listAccountDuplicates({ entityId: view.data.entityId, accountId })
-    : undefined;
+  const [duplicates, loans] = view.ok
+    ? await Promise.all([
+        listAccountDuplicates({ entityId: view.data.entityId, accountId }),
+        // J2: its loans in the company shown; a page without them still shows the rest.
+        listAccountLoans({ entityId: view.data.entityId, accountId }),
+      ])
+    : [undefined, undefined];
   const t = await getTranslations('customers');
   return view.ok ? (
     <AccountScreen
@@ -60,6 +65,7 @@ export default async function AccountPage({
       {...(view.data.canEdit ? { proofLimit: proofLimit() } : {})}
       duplicates={duplicates?.ok === true ? duplicates.data : undefined}
       canRaiseClaim={hasGrant(principal.permissions, 'inventory.warranty.write', 'entity')}
+      loans={loans?.ok === true ? loans.data : undefined}
     />
   ) : (
     <Page title={t('title')}>

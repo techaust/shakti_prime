@@ -874,6 +874,69 @@ const eventCatalogue = {
     subscribed: false,
     payload: z.object({ settlement: WarrantySettlementSchema }).strict(),
   },
+  // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2): ids and the state, never an
+  // amount, a lender or a reason.
+  'crm.loan.created': {
+    meaning: "A customer's loan was applied for on an order, with what it holds back.",
+    emittedBy: ['crm.loan.create'],
+    subscribed: false,
+    payload: z
+      .object({ accountId: IdSchema, salesOrderId: IdSchema, state: z.literal('applied') })
+      .strict(),
+  },
+  'crm.loan.sanctioned': {
+    meaning: "The lender sanctioned a customer's loan for an amount.",
+    emittedBy: ['crm.loan.sanction'],
+    subscribed: false,
+    payload: z
+      .object({ accountId: IdSchema, salesOrderId: IdSchema, state: z.literal('sanctioned') })
+      .strict(),
+  },
+  'crm.loan.disbursed': {
+    meaning: "The lender paid out a customer's sanctioned loan.",
+    emittedBy: ['crm.loan.disburse'],
+    subscribed: false,
+    payload: z
+      .object({ accountId: IdSchema, salesOrderId: IdSchema, state: z.literal('disbursed') })
+      .strict(),
+  },
+  'crm.loan.rejected': {
+    meaning:
+      "The lender turned down a customer's loan; the owner of the order's lead, or of the customer where the order has none, is told so another route can be offered.",
+    emittedBy: ['crm.loan.reject'],
+    // The notify worker tells the owner (the machine's `notify_owner`).
+    subscribed: true,
+    payload: z
+      .object({
+        accountId: IdSchema,
+        salesOrderId: IdSchema,
+        opportunityId: IdSchema.nullable(),
+        fromState: z.enum(['applied', 'sanctioned']),
+        state: z.literal('rejected'),
+        rejectedBy: IdSchema,
+      })
+      .strict(),
+  },
+  /**
+   * What a customer's loan held back is released: the order's dispatch (J8), when the loan reached
+   * the state the dispatch waits for, or when a person recorded that the order no longer waits on
+   * a turned-down loan (`crm.loan.gates.waive`). Raised only when the dispatch was released; a
+   * Phase 5 milestone compares its own loan gate with `state`.
+   */
+  'crm.loan.gates_released': {
+    meaning:
+      "What a customer's loan held back is released: the order's dispatch may leave, as the loan reached the state it waited for or the order no longer waits on a turned-down loan.",
+    emittedBy: ['crm.loan.sanction', 'crm.loan.disburse', 'crm.loan.gates.waive'],
+    subscribed: false,
+    payload: z
+      .object({
+        salesOrderId: IdSchema,
+        state: z.enum(['sanctioned', 'disbursed', 'rejected']),
+        // True: the event is raised only when the dispatch was released.
+        dispatch: z.boolean(),
+      })
+      .strict(),
+  },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 
 export type EventType = keyof typeof eventCatalogue;

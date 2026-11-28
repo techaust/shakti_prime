@@ -3,6 +3,7 @@
 import type {
   Account360Dto,
   AccountDuplicatesDto,
+  AccountLoanRowDto,
   CustomerLeadDto,
   CustomerTaskDto,
   TimelinePageDto,
@@ -21,6 +22,7 @@ import {
   untagLead,
 } from '../../actions/crm';
 import { openFile } from '../../actions/files';
+import { AccountLoans } from '../loans/account-loans';
 import {
   ACCOUNT_TYPES,
   CONSENT_CHANNELS,
@@ -104,6 +106,7 @@ export function AccountScreen({
   proofLimit,
   duplicates,
   canRaiseClaim = false,
+  loans,
 }: {
   initial: Account360Dto;
   companies: Record<number, string>;
@@ -113,6 +116,8 @@ export function AccountScreen({
   duplicates?: AccountDuplicatesDto | undefined;
   /** R3: the caller raises warranty claims for the company shown (`inventory.warranty.write`). */
   canRaiseClaim?: boolean;
+  /** J2: the customer's loans in this company, when the caller reads them. */
+  loans?: readonly AccountLoanRowDto[] | undefined;
 }) {
   const t = useTranslations('customers');
   const leadsT = useTranslations('leads');
@@ -262,6 +267,7 @@ export function AccountScreen({
           <WhatsAppChats entityId={view.entityId} accountId={view.account.id} />
           <Quotes view={view} />
           <Orders view={view} />
+          {loans === undefined ? null : <AccountLoans loans={loans} />}
           <Tasks
             view={view}
             onAdd={() => {

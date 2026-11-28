@@ -81,3 +81,5 @@ export {
 } from './stock';
 // R3 warranty claims and supplier returns (docs/03-roadmap-appendix/phase3.md §7.5).
 export { warrantyClaims, warrantyClaimCosts } from './warranty';
+// J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
+export { lenders, customerLoans } from './loans';

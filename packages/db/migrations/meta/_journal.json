@@ -1706,29 +1706,57 @@
     {
       "idx": 243,
       "version": "7",
-      "when": 1795807716901,
-      "tag": "0243_r3_warranty_claims",
+      "when": 1795789970707,
+      "tag": "0243_j2_customer_loans",
       "breakpoints": true
     },
     {
       "idx": 244,
       "version": "7",
-      "when": 1795807721361,
-      "tag": "0244_r3_warranty_claims_rls",
+      "when": 1795789987756,
+      "tag": "0244_j2_customer_loans_rls",
       "breakpoints": true
     },
     {
       "idx": 245,
       "version": "7",
-      "when": 1795807725517,
-      "tag": "0245_r3_installed_base_rls",
+      "when": 1795792875141,
+      "tag": "0245_j2_loan_rejected_notice",
       "breakpoints": true
     },
     {
       "idx": 246,
       "version": "7",
+      "when": 1795792882017,
+      "tag": "0246_j2_loan_rejected_notice_owner",
+      "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1795807716901,
+      "tag": "0247_r3_warranty_claims",
+      "breakpoints": true
+    },
+    {
+      "idx": 248,
+      "version": "7",
+      "when": 1795807721361,
+      "tag": "0248_r3_warranty_claims_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 249,
+      "version": "7",
+      "when": 1795807725517,
+      "tag": "0249_r3_installed_base_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 250,
+      "version": "7",
       "when": 1795813751036,
-      "tag": "0246_r3_warranty_ledger",
+      "tag": "0250_r3_warranty_ledger",
       "breakpoints": true
     }
   ]

@@ -7,7 +7,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { insideCallingHours, outsideCallingHours, setServerClock } from './support/clock';
+import { callingHours, setClocks } from './support/clock';
 
 // T3 Click-to-dial (docs/03-roadmap-appendix/phase2.md §6.3, PRD TEL-01 and TEL-04) on the
 // simulated provider the journeys' app uses when no Exotel account is set (nothing rings): the
@@ -15,6 +15,12 @@ import { insideCallingHours, outsideCallingHours, setServerClock } from './suppo
 // numbers are seeded, seed.ts) from the Cold Caller workspace with C, watches the call ring, go on
 // the line and end on the call bar, and saves its outcome; outside calling hours the bar lists the
 // broken rule and nothing is placed.
+//
+// Each test that dials first moves both clocks, the server's and the browser's, onto the run's line
+// for its side of the calling hours (11 AM in India inside them, 10 PM outside them, at the run's
+// start) on every run, whatever the wall clock says (e2e/support/clock.ts): the moved path is the
+// one every run takes, so a run before 9:20 AM and one at noon take the same steps, and each test
+// and retry starts after the calls the earlier ones placed (slice-integration §10).
 
 /** A mobile number no earlier run used, typed the way a caller types it. */
 function freshMobile(): string {
@@ -88,7 +94,7 @@ test.describe('click-to-dial as a tele-caller', () => {
     context,
   }) => {
     test.setTimeout(180_000);
-    await setServerClock(context, insideCallingHours());
+    await setClocks(context, callingHours('inside'));
     await ownPhone(page);
     const other = await addLead(page, 'Mohan Lal Jangid');
     const dialledLead = await addLead(page, 'Kamla Devi Saini');
@@ -137,7 +143,7 @@ test.describe('click-to-dial as a tele-caller', () => {
     browser,
   }) => {
     test.setTimeout(180_000);
-    await setServerClock(context, insideCallingHours());
+    await setClocks(context, callingHours('inside'));
     await ownPhone(page);
     const lead = await addLead(page, 'Bhagwati Devi Kumawat');
     await openInWorkspace(page, lead);
@@ -229,11 +235,37 @@ test.describe('click-to-dial as a tele-caller', () => {
     }
   });
 
+  test('keeps counting a call on a phone whose clock runs hours fast', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(180_000);
+    // The browser's clock five hours ahead of the server's: the bar counts on the server's clock,
+    // so it neither counts from the wrong moment nor stops reading the call after "three hours".
+    await setClocks(context, callingHours('inside'), { deviceAheadMs: 5 * 3_600_000 });
+    await ownPhone(page);
+    const lead = await addLead(page, 'Kesar Devi Meena');
+    await openInWorkspace(page, lead);
+    const bar = page.getByRole('region', { name: 'Call from the screen' });
+    await expect(bar.getByRole('button', { name: /^Call/ })).toBeEnabled();
+    await page.keyboard.press('c');
+    const status = bar.getByRole('status');
+    const time = status.getByLabel('Time on the call');
+    await expect(status).toContainText(/Ringing|On the line|Call ended/, { timeout: 15_000 });
+    // Seconds from the press, never the five hours the phone's clock adds.
+    await expect(time).toHaveText(/^0:0\d$/);
+    await expect(status).toContainText('Call ended', { timeout: 15_000 });
+    await expect(time).toHaveText('0:03');
+    await page.locator('body').press('3');
+    await expect(page.getByText(/^Call saved\. Next try /).first()).toBeVisible();
+    await expect(bar.getByRole('status')).toHaveCount(0);
+  });
+
   test('lists the broken rule and places nothing outside calling hours', async ({
     page,
     context,
   }) => {
-    await setServerClock(context, outsideCallingHours());
+    await setClocks(context, callingHours('outside'));
     await ownPhone(page);
     const lead = await addLead(page, 'Suresh Chand Gurjar');
     await openInWorkspace(page, lead);
@@ -241,6 +273,12 @@ test.describe('click-to-dial as a tele-caller', () => {
     await (await hydrated(bar.getByRole('button', { name: /^Call/ }))).click();
     await expect(bar.getByRole('alert')).toContainText('This call cannot be placed now:');
     await expect(bar.getByRole('alert').getByRole('listitem')).not.toHaveCount(0);
+    await expect(
+      bar
+        .getByRole('alert')
+        .getByRole('listitem')
+        .filter({ hasText: 'It is outside calling hours. Calls can be made from 9 AM to 9 PM.' }),
+    ).toHaveCount(1);
     await expect(bar.getByRole('status')).toHaveCount(0);
     await expectNoAxeViolations(page);
   });

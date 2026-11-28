@@ -107,6 +107,9 @@ import {
   // R3 warranty claims
   WARRANTY_CLAIM_STATES,
   WARRANTY_SETTLEMENTS,
+  // J2 customer loans
+  CUSTOMER_LOAN_STATES,
+  LOAN_DISPATCH_GATES,
   // Q1 labels
   LABEL_KINDS,
 } from '../../screens/contract-values';
@@ -429,6 +432,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const duplicates = useTranslations('duplicates');
   const quotes = useTranslations('quotes');
   const orders = useTranslations('orders');
+  const loans = useTranslations('loans');
   const agents = useTranslations('agents');
   const knowledge = useTranslations('knowledge');
   const playbook = useTranslations('playbook');
@@ -627,6 +631,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(WARRANTY_SETTLEMENTS, value)
           ? t(`values.warrantySettlement.${value}`)
           : wordsOf(value);
+      case 'loanState':
+        return oneOf(CUSTOMER_LOAN_STATES, value) ? loans(`state.${value}`) : wordsOf(value);
+      case 'loanDispatchGate':
+        return oneOf(LOAN_DISPATCH_GATES, value) ? loans(`dispatchGate.${value}`) : wordsOf(value);
       case 'labelKind':
         return oneOf(LABEL_KINDS, value) ? t(`values.labelKind.${value}`) : wordsOf(value);
       case 'priceTier':

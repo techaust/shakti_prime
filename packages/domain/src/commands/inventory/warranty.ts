@@ -46,7 +46,7 @@ const CLAIM_AUDIT_FIELDS = [
   'claimNo',
   'claimState',
   'reportedFault',
-  'rejectedReason',
+  'claimRejectedReason',
   'settlement',
   // The stock a step moves, as the stock commands record it (never a cost).
   'stockReason',
@@ -399,7 +399,7 @@ export const rejectWarrantyClaim = defineCommand({
       aggregateId: claim.id,
       entityId: claim.entityId,
       before: { claimState: claim.state },
-      after: { claimState: to, rejectedReason: input.rejectedReason },
+      after: { claimState: to, claimRejectedReason: input.rejectedReason },
     });
     ctx.emit({
       type: 'inventory.warranty.rejected',

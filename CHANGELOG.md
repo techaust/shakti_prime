@@ -4,12 +4,22 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ## Contents
 
-- [Phase 3](#phase-3): [wave 1](#phase-3-wave-1)
+- [Phase 3](#phase-3): [wave 2 and the seven-day push](#phase-3-wave-2-and-the-seven-day-push) · [wave 1](#phase-3-wave-1)
 - [Phase 2](#phase-2): [wave 4](#phase-2-wave-4) · [wave 3](#phase-2-wave-3) · [wave 2](#phase-2-wave-2) · [wave 1](#phase-2-wave-1)
 - [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 6 and the Phase 0–1 audit](#phase-1-wave-6-and-the-phase-01-audit) · [wave 5](#phase-1-wave-5) · [wave 4](#phase-1-wave-4) · [wave 3](#phase-1-wave-3) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
 - [Phase 0](#phase-0): [hosted environments and the close](#phase-0-hosted-environments-and-the-close) · [gap-closing waves](#phase-0-gap-closing-waves) · [completeness pass and tooling](#phase-0-completeness-pass-and-tooling) · [weeks 4 to 8](#phase-0-weeks-4-to-8) · [weeks 1 to 3](#phase-0-weeks-1-to-3) · [production-readiness audit](#phase-0-production-readiness-audit) · [before pull requests](#phase-0-before-pull-requests)
 
 ## Phase 3
+
+### Phase 3 wave 2 and the seven-day push
+
+- **#300** (open, 27-11-2026) J2 customer loans: waiting for the owner's `checks-ok`
+- **#299** (27-11-2026) Q1 QR labels: serial, bin and package labels from the print registry in the two sizes of question 9 (a), each code with a 4-module quiet zone; `parseLabelPayload()` and `resolveScannedCode()` under the caller's row security; Print labels on a hub's bins, a bin and a serial, reprints audited per label with a reason; sheets rendered by the worker as `label_sheet` files; migrations 0241, 0242
+- **#298** (27-11-2026) X4 the stock ledger's reason registry: `app.stock_reason_grants` (the permission per reason and whether it may be reversed) and `app.stock_reason_moves` (the directions per reason, the serial's states for tracked lines, reversal rows keyed by the reason reversed), seeded with H1's behaviour exactly and read by `app.stock_move()`, so later slices open a reason with inserts; a delivery's customer on a line, linked to the line's company; migration 0240
+- **#297** (27-11-2026) The Phase 6 and Phase 7 designs, approved: AI brain and autonomy in 7 slices, hardening and rollout in 7, every question decided as recommended
+- **#296** (27-11-2026) The Phase 5 design, approved: finance, costing and HR in 14 slices and four waves, its eleven questions decided as recommended
+- **#295** (27-11-2026) The Phase 4 design, approved: projects and the field app in 17 slices and four waves, its twelve questions decided as recommended and the field app's packages approved
+- **#294** (27-11-2026) The seven-day push's decisions: seats 1 to 4 every day to 03-12-2026, seats protocol v2 (several lanes per seat) with integration prep by seats, the budget gate per account, phases overlapping by dependency
 
 ### Phase 3 wave 1
 
