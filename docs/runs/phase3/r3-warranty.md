@@ -5,9 +5,9 @@
 | Branch | `feat/r3-warranty` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): stock out, costs behind `finance.cost.read`, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account, 27-11-2026 (start and end of the blocked run); builder Opus 5.5 at high, 27-11-2026 (start and end of the second run, lane 7's replacement, resumed after the VM restart); builder Opus 5.5 at high, 27-11-2026 (start and end of lane 68, past the early check) |
-| State | done: every step built, X4 and Q1 taken in; settlement by a supplier's replacement waits for U2 |
-| Next step | the lead reviews and integrates; the owner's `checks-ok` for `js-budget.json` |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account, 27-11-2026 (start and end of the blocked run); builder Opus 5.5 at high, 27-11-2026 (start and end of the second run, lane 7's replacement, resumed after the VM restart); builder Opus 5.5 at high, 27-11-2026 (start and end of lane 68, past the early check); builder Opus 5.5 at high, 28-11-2026 (start and end of the fix round, lane 95, resumed after the container restart) |
+| State | fixes done: review findings 1 to 9 and 12 fixed; settlement by a supplier's replacement waits for U2 |
+| Next step | the reviewer re-checks the fix diff (finding 1 was high); the lead integrates, runs the journeys and makes the baselines; the owner's `checks-ok` for `js-budget.json` |
 
 ## Brief
 Build [phase3 §7.5](../../03-roadmap-appendix/phase3.md#75-r3-warranty-claims-and-supplier-returns) as written, with question 10 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -212,6 +212,50 @@ Option (a): X4 now moves the serial rules into data (`app.stock_reason_serial_mo
 - The serial machine's `replace` asks `inventory.stock.move` (H1's machine, not changed here). Every holder of `inventory.warranty.write` (Executive, Inventory Manager) holds it.
 - A replacement's and an RMA reference's numbers are free text, so they are masked like any other input text (as H1's serial numbers are), not listed in `unmaskedFields`.
 - The RMA dialog offers the first 200 active vendors by name.
+
+### 28-11-2026, seat (worktree `r3-warranty`, Postgres 54335): fixes
+
+**Stage.** The one fix round: findings 1 to 9 and 12, as the lead's triage says. The container restarted midway; the seat committed my work as `fadaf6f9` and I carried on from it on a new, empty database (migrated and seeded afresh). Skills loaded: none new (the changes follow the patterns already in the slice). `main` was not taken in (it has moved to `4338c5e7`; the lead takes it in at integration).
+
+**Fixed:**
+1. **Stale data dictionary (high).** `pnpm db:docs` after the last edit of DATABASE; `docs/data/data-dictionary.md` committed; db unit tests 161 passed (the data-docs test among them).
+2. **The step marked "Next".** `apps/web/src/screens/warranty.ts`: `claimSteps(state)` replaces `claimStepStatus()`. Every step up to the claim's state is done, the one after it is current ("Next"), the rest still to come. A rejected claim lists "Claim raised" and "Claim rejected", both done, and no later step (its state does not say whether it was identified first, so the sheet claims neither). New key `warranty.steps.rejected`. The unit test now asserts the whole list for `raised`, `serial_identified`, `rma_raised`, `closed` and `rejected`.
+3. **Row security holds a claim to its steps.** `app.warranty_claims_guard()` (in `0244_r3_warranty_claims_rls.sql`) now allows only the machine's transitions (`raised` → `serial_identified`, → `replacement_issued`, → `rma_raised`, → `closed`; `raised` or `serial_identified` → `rejected`). Each transition needs its own step's grant (42501 otherwise), and each changes only its own columns. Any other update, including one with no state change, is refused with `warranty_claim_transition_not_allowed`. The migration header, DATABASE §6.5 and phase3 §7.5 "Built (R3)" now say this.
+4. **SECURITY §4** lists `warranty_claim_costs` among the cost side tables.
+5. **The machine's note** now reads "…refused with its date, and the claim is then rejected by hand"; `machines:docs` regenerated.
+6. **`warrantyUntilFrom()`'s comment** now says what the code does: the day before the same date, or before the month's last day when the month has no such date (31-01-2026 plus one month runs to 27-02-2026; 12 months from 29-02-2028 to 27-02-2029). The rule stays for the client (assumption below).
+7. **A warranty end before the delivery** is refused `date_invalid` on Warranty until, in the preview and in `app.installed_base_add()` (`0245`, constraint `warranty_before_delivery`, mapped to the same finding at commit). DATABASE §4.1 and phase3 §7.5 record it.
+8. **Back with us now needs a quarantine bin.** With none, Give a replacement offers only "Still with the customer" and says why under the field (`warranty.dialogs.noQuarantineBin`). A chosen bin is always sent, so an empty one is refused rather than dropped.
+9. **Snapshots** added to `apps/web/e2e/warranty.spec.ts`: `warranty-identify-dialog` (with the out-of-warranty refusal), `warranty-rma-dialog` (before the run's reference is typed), and `warranty-list`. The list's grid and state tabs are masked, since their rows and counts grow with every walk.
+12. **The list's cursor** carries `created_at` to the microsecond as text from SQL (`to_char(... 'US')`), not through `Date`.
+
+**Tests added or changed:**
+- `packages/db/tests/security/warranty.test.ts` +1 (25 in all): settlement's grant alone cannot take a `replacement_issued` claim back to `serial_identified` (the review's probe) or raise the RMA (42501); no change without a step; no step writes another step's column; the RMA step itself passes.
+- `packages/domain/tests/commands/import-installed-base.test.ts` +1 and one row more (4 in all): a swapped Warranty until refused in the preview (row 13); a stored row changed after the preview refused by the definer at commit, `warrantyUntil`/`date_invalid`, no serial added.
+- `packages/domain/tests/queries/warranty.test.ts` +1 (5 in all): two claims raised 300 µs apart within one millisecond, paged one at a time, both seen in order.
+- `apps/web/src/screens/warranty.test.ts`: the step case rewritten, one added for a rejected claim (3 in all).
+
+**Checks, on `43e2ccb3`, through the lock:**
+- `pnpm db:docs` and `pnpm --filter @shakti/domain machines:docs`: regenerated and committed.
+- `pnpm typecheck`: 10 successful.
+- `pnpm exec eslint --max-warnings 0` on every folder touched: clean. `pnpm lint` (whole repository): exit 0.
+- `pnpm copy-lint`: clean.
+- Unit tests (`turbo run test --force`): contracts 340 passed; db 161 passed; domain 2832 passed; web 1264 passed, 1 skipped.
+- `pnpm test:security`: db 65 files, 1893 passed; domain 114 files, 1559 passed; web 40 files, 466 passed.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within its budget (67 pages); `/inventory/warranty` 237.5 kB of 250, `/inventory/warranty/[id]` 205.7 of 216, `/catalogue` 245.1 of 246.
+
+**EXPLAIN (ANALYZE):** the list's plan is unchanged. The cursor's text adds one `to_char` per returned row (at most 51), and the keyset predicate is the same.
+
+**Journeys not run:** journeys cannot sign in on a seat. The lead runs `warranty.spec.ts` and makes the Linux baselines, now seven: `warranty-raise-dialog`, `warranty-identify-dialog`, `warranty-replace-dialog`, `warranty-rma-dialog`, `warranty-settle-dialog`, `warranty-list`, `warranty-claim-closed-gm`.
+
+**For the lead:**
+- Migrations `0244` and `0245` were edited in place, since neither is on `main`. A database that applied this branch's earlier text fails `assertAllApplied` (the migration check) and needs a fresh one. The slot databases of the earlier lanes and of the review are affected.
+- Finding 10 (the PRD trace) is yours at the merge. Finding 11 is resolved by H2.
+
+**Assumptions added in this round:**
+- A rejected claim's sheet does not say whether the serial was identified before the rejection, since only the state records the step. It lists the raising and the rejection only.
+- The warranty's end from a delivery on a date the end month lacks (31st, or 29-02) is the day before that month's last day, as built. This goes to the client with phase3 §12 question 10.
+- The guard refuses every update that does not change the state, so a later slice that needs to correct a step's column needs its own transition or definer.
 
 ## Review
 Slice-reviewer, 27-11-2026, cloud session, on c53d3a56 (`git diff origin/main...feat/r3-warranty`; the branch holds `main` `fc42a09f`), Tier A. Run in the VM on the slot's Postgres (54331), each through `heavy.sh`:
