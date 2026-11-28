@@ -5,9 +5,9 @@
 | Branch | `feat/tc2-tally-ingest` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): an authenticated machine path, supplier rates, financial data, row security |
-| Usage | briefed 27-11-2026; builder Opus 5.5 at high, started 27-11-2026; early check 27-11-2026, done 27-11-2026 (Opus 5.5 at high) |
-| State | done |
-| Next step | the builder |
+| Usage | briefed 27-11-2026; builder Opus 5.5 at high, started 27-11-2026; early check 27-11-2026, done 27-11-2026 (Opus 5.5 at high); fix round 28-11-2026 (Opus 5.5 at high, moved from seat 3 to the lead's VM) |
+| State | fixes done |
+| Next step | the lead: read the fix round's diff, then integrate |
 
 ## Brief
 Build [phase5 §5](../../03-roadmap-appendix/phase5.md#5-the-money-model) (its Tally group) and [§6.3](../../03-roadmap-appendix/phase5.md#63-tc2-tally-ingest-on-the-bos) as written. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Reuse what exists: `checkBatch`, `diffSnapshot`, `connectorHealth` and `shouldAlertSilence` (`packages/domain/src/tally/sync-rules.ts`), the signature verifier and payload parsing (`apps/web/src/integrations/tally/`), the contracts and endpoints (`packages/contracts/src/api/connector.ts`, `endpoints.ts`). Points settled here:
@@ -210,7 +210,7 @@ Shared registration points take one line or one block each, kept together under 
 **Skills loaded:** `add-table`, `add-command`.
 
 ### 28-11-2026, fixes (slot worktree `tc2-tally-ingest` in the lead's cloud VM, Postgres 54334; moved from seat 3)
-The one fix round: M1, M2, M3, M5, L1 to L5, L7 and L8, as the lead's triage says. The schema changes are folded into this branch's own two migrations (not on `main`), so the lead's renumbering is unchanged. Skills loaded: `add-table`, `add-command` (for the earlier rounds; this round follows the same recipes).
+The one fix round: M1, M2, M3, M5, L1 to L5, L7 and L8, as the lead's triage says. The schema changes are folded into this branch's own two migrations (not on `main`), so the lead's renumbering is unchanged. Skills: none loaded in this round (`add-table` and `add-command` were loaded in the earlier rounds, and this round adds no table or command).
 
 **M1, a row in conflict held for Accounts, the batch applied:**
 - `tally_refused_rows.reason` (new, `connector_refused`, `other_company`, `type_changed`, `not_debtor`; check `tally_refused_rows_reason_check`, paired in `enum-sync` with the contract's `TALLY_REVIEW_REASONS`). `field` is the contract's field, or `company`, `type` or `parent` for a held row.
@@ -269,9 +269,10 @@ The connector is read again (one lookup, `app.tally_connector_auth()`) when the 
 - folder lint of every folder touched: clean after one fix (3 `no-unsafe-assignment` in the domain test);
 - `pnpm copy-lint`: clean;
 - unit tests: domain `src/tally` and `src/command` 13 files, 184 passed; contracts 25 files, 340 passed; web `src/i18n`, `src/screens` and `nav` 34 files, 286 passed;
-- security suites: db 63 files, 1,916 passed; domain 111 files, 1,542 passed (the first run had 21 failures, from unmap's missing input in the refusal sweep, the audit column's name and a GUID shared with the parts test, all in the tests); web: FIXME;
+- security suites: db 63 files, 1,916 passed; domain 111 files, 1,542 passed (the first run had 21 failures, from unmap's missing input in the refusal sweep, the audit column's name and a GUID shared with the parts test, all in the tests); web 41 files, 481 passed and 1 failed: the cap test counted the address cap under `no-address`, while the route reads the local address. After that fix, `tally-connector.test.ts` and `tally-alerts.test.ts` 2 files, 21 passed; domain `commands/tally.test.ts` and `queries/reader-parity.test.ts` (after the page's order was set on the date column) 2 files, 28 passed; with typecheck of domain and web (3 tasks successful), lint of `apps/web/tests` and `packages/domain/src/queries` and prettier clean;
 - `pnpm lint` (the whole repository): clean;
-- FIXME build, js-budget, journeys;
+- `pnpm build`: 2 tasks successful; `pnpm --filter web js-budget`: every page within its budget (67 pages, no budget changed);
+- journeys `tally.spec.ts` after `e2e:seed`, in this cloud VM (Linux, with `--update-snapshots=missing` because no baseline exists yet): 28 passed, 2 skipped (the lifecycle journey runs in `desktop-light` only). I looked at the pictures it wrote (the key box in dark, the card on the phone) and deleted them: the lead makes the baselines in the Playwright image;
 - `pnpm db:docs`: regenerated (the two columns).
 
 **`EXPLAIN (ANALYZE)` under RLS** (as `app_user` with an Accounts' settings, 20,000 sales and 2,000 purchases stored, a held check of 5,500, removed afterwards): `listHeldTallyVouchers`'s page uses an Index Scan on `tally_vouchers_guid_unique` (`guid = ANY (held_guids)`), 5,000 rows, and one on `tally_purchase_vouchers_guid_unique`, 500 rows, then a top-N heapsort for the 51 rows; 19.5 ms. The count reads the same two index scans. The held check's records are sorted in memory, since only its GUIDs select them; a check holds at most the company's live vouchers.
