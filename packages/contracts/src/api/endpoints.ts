@@ -154,7 +154,14 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: MobileTokenRequest,
     response: MobileTokenResponse,
-    errors: ['validation_failed', 'unauthorized', 'forbidden', 'rate_limited'],
+    // The field app's key pair not set here (F1).
+    errors: [
+      'validation_failed',
+      'unauthorized',
+      'forbidden',
+      'rate_limited',
+      'integration_unavailable',
+    ],
   },
   'auth.mobile.refresh': {
     method: 'POST',
@@ -163,7 +170,13 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: MobileRefreshRequest,
     response: MobileRefreshResponse,
-    errors: ['validation_failed', 'unauthorized', 'forbidden', 'rate_limited'],
+    errors: [
+      'validation_failed',
+      'unauthorized',
+      'forbidden',
+      'rate_limited',
+      'integration_unavailable',
+    ],
   },
   'auth.mobile.revoke': {
     method: 'POST',
@@ -172,7 +185,15 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: MobileRevokeRequest,
     response: MobileRevokeResponse,
-    errors: ['unauthorized', 'rate_limited'],
+    // Every bearer route refuses an old app (`app_update_required`) and a suspended person, and
+    // answers `integration_unavailable` while the field app has no key pair here.
+    errors: [
+      'validation_failed',
+      'unauthorized',
+      'forbidden',
+      'rate_limited',
+      'integration_unavailable',
+    ],
   },
   me: {
     method: 'GET',
@@ -180,7 +201,7 @@ export const API_ENDPOINTS = {
     auth: 'bearer',
     idempotencyKey: false,
     response: MeResponse,
-    errors: ['unauthorized', 'rate_limited'],
+    errors: ['unauthorized', 'forbidden', 'rate_limited', 'integration_unavailable'],
   },
   'realtime.token': {
     method: 'POST',

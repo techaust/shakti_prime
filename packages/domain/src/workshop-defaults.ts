@@ -68,6 +68,16 @@ export interface WorkshopDefaults {
   readonly calling: CallingDefaults;
   readonly whatsapp: WhatsAppDefaults;
   readonly sizing: SizingDefaults;
+  // F1 field app foundation (docs/03-roadmap-appendix/phase4.md §10).
+  readonly field: {
+    /** Days an engineer may work with no data connection before the app asks them to sync (PROJ-4). */
+    readonly offlineDays: number;
+    /**
+     * The oldest field app the server still serves (FLD-03): every mobile route refuses an older
+     * one with `app_update_required`. A deployment raises it with `FIELD_MIN_APP_VERSION`.
+     */
+    readonly minimumAppVersion: string;
+  };
   readonly retention: {
     /**
      * Months after its last activity when an unqualified lead with no transaction is anonymised
@@ -550,6 +560,14 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
    * BLUEPRINT §7.9: unqualified leads with no transaction are anonymised 24 months after their
    * last activity. Retention periods are confirmed with the CA (docs/13-client-packs/workshop-pack.md).
    */
+  /**
+   * F1 (docs/03-roadmap-appendix/phase4.md §2 question 7, §10): five days offline (ADR 0012) until
+   * the workshop answers PROJ-4; the first release of the app is the oldest one served.
+   */
+  field: {
+    offlineDays: 5,
+    minimumAppVersion: '1.0.0',
+  },
   retention: {
     unqualifiedLeadMonths: 24,
     /**

@@ -1,6 +1,6 @@
 import { findPersonalNumbers, replaceNumbers } from './number-shapes';
 
-// The text scrub of the logs and the audit trail (`@shakti/domain/redaction` keeps the field rules
+// The text scrub of the logs and the audit trail (`./redaction.ts` keeps the field rules
 // around it), here because `maskForModel()` ends with it and the voice worker masks with that
 // (SECURITY §3.4). No Node API: the edge runtime and the browser's error reporting use it too.
 
@@ -15,6 +15,10 @@ const SECRET_TEXT: readonly ((text: string) => string)[] = [
   (t) => t.replace(/reset-password[:/][\w-]+/g, 'reset-password:[redacted]'),
   (t) => t.replace(/\bparams:[\s\S]*$/, 'params: [redacted]'),
   (t) => t.replace(/(token|secret|password)=[^\s&'"]+/gi, '$1=[redacted]'),
+  // The field app's bearer and any signed token written out whole (F1): a JWT is three base64url
+  // parts, the first starting `eyJ` (a JSON header).
+  (t) => t.replace(/\bBearer\s+[\w.~+/=-]+/g, 'Bearer [redacted]'),
+  (t) => t.replace(/\beyJ[\w-]{4,}\.[\w-]{4,}\.[\w-]{4,}/g, '[token]'),
   // Starting only where a word starts: the same matches, but a long word is read once, not once
   // from each of its letters.
   (t) => t.replace(/(?<![\w.+-])[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[email]'),

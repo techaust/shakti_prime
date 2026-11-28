@@ -8,12 +8,23 @@ import {
 import type { z } from 'zod';
 import { redactForAudit, withoutPersonalDetails } from '../audit/redact';
 import { databaseAuditSink, type AuditRecord } from '../audit/sink';
+import { readFront, writeFront } from '../idempotency/front';
+import { inputHash } from '../idempotency/hash';
 import { databaseOutboxSink, type OutboxRecord, type OutboxSink } from '../outbox/sink';
+import type { KeyValue } from '../ports/key-value';
 import { jsonLogger, type Logger } from '../ports/logger';
 import { maskInputIdentity } from '../privacy/input-masking';
 import type { Command } from './define-command';
 import { isRegistered } from './registry';
-import { auditBase, auditedInput, failureOf, runCommand, type RunOptions } from './run-command';
+import {
+  auditBase,
+  auditedInput,
+  checkedInput,
+  failureOf,
+  runCommand,
+  storedAnswer,
+  type RunOptions,
+} from './run-command';
 import { monotonicClock, timed, type Clock, type TimingOptions } from './timing';
 
 export interface ExecuteOptions extends Omit<RunOptions, 'context' | 'audit' | 'outbox'> {
@@ -26,6 +37,12 @@ export interface ExecuteOptions extends Omit<RunOptions, 'context' | 'audit' | '
   onCommitted?: (events: readonly OutboxRecord[]) => Promise<void> | void;
   /** The clock the call's duration is measured with; tests pass a fake one. */
   clock?: Clock;
+  /**
+   * The key-value store in front of `idempotency_keys` for a call with a key (the field app's
+   * mutations): a repeat of a committed call is answered from it without a transaction
+   * (`idempotency/front.ts`). The table stays the authority.
+   */
+  idempotencyFront?: KeyValue;
 }
 
 export interface QueryOptions {
@@ -96,7 +113,29 @@ async function runInContext<I extends z.ZodType, O extends z.ZodType>(
   input: unknown,
   options: Omit<ExecuteOptions, 'clock'>,
 ): Promise<z.output<O>> {
-  const { logger = defaultLogger, onCommitted, ...runOptions } = options;
+  const { logger = defaultLogger, onCommitted, idempotencyFront, ...runOptions } = options;
+  const key = runOptions.idempotencyKey;
+  const front =
+    idempotencyFront !== undefined && key !== undefined
+      ? fronted(command, principal, input)
+      : undefined;
+  if (front !== undefined && idempotencyFront !== undefined && key !== undefined) {
+    const kept = await readFront(idempotencyFront, principal.id, key, logger);
+    // Only an exact repeat is answered here, as the runner would answer it from the table; a
+    // refusal of the stored answer is left to the runner, which records it.
+    if (kept?.command === command.name && kept.inputHash === front.hash) {
+      try {
+        return storedAnswer(
+          command,
+          scoped.entityIds ?? principal.entityIds,
+          kept.response,
+          front.data,
+        );
+      } catch {
+        // falls through to the table
+      }
+    }
+  }
   const stored: OutboxRecord[] = [];
   const outbox: OutboxSink = {
     async write(tx, records) {
@@ -113,6 +152,15 @@ async function runInContext<I extends z.ZodType, O extends z.ZodType>(
     await recordRefusal(principal, scoped, command, input, error, runOptions, logger);
     throw error;
   }
+  if (front !== undefined && idempotencyFront !== undefined && key !== undefined) {
+    await writeFront(
+      idempotencyFront,
+      principal.id,
+      key,
+      { command: command.name, inputHash: front.hash, response: result },
+      logger,
+    );
+  }
   if (onCommitted !== undefined && stored.length > 0) {
     try {
       await onCommitted(stored);
@@ -125,6 +173,23 @@ async function runInContext<I extends z.ZodType, O extends z.ZodType>(
     }
   }
   return result;
+}
+
+/**
+ * The checked input and its hash, as the runner computes them, for the idempotency front; undefined
+ * when the call does not pass the runner's first steps, which then refuse and record it.
+ */
+function fronted<I extends z.ZodType, O extends z.ZodType>(
+  command: Command<I, O>,
+  principal: Principal,
+  input: unknown,
+): { data: z.output<I>; hash: string } | undefined {
+  try {
+    const data = checkedInput(command, principal, input);
+    return { data, hash: inputHash(command.name, data) };
+  } catch {
+    return undefined;
+  }
 }
 
 async function recordRefusal<I extends z.ZodType, O extends z.ZodType>(

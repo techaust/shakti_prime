@@ -23,6 +23,7 @@ import { ADDRESS_OPTIONS, clientAddress } from './client-address';
 import type { AuthDeps } from './deps';
 import { withoutPersonFields } from './library-log';
 import { mailTranslator } from './mail-copy';
+import { authDeviceStore } from './mobile-devices';
 import { addressKey, countRequest, type CapRule } from './request-cap';
 import {
   TURNSTILE_HEADER,
@@ -434,12 +435,14 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         hash: (password) => hash(password, ARGON2),
         verify: ({ hash: stored, password }) => verify(stored, password),
       },
-      // The first password set through an invite link activates the user.
+      // The first password set through an invite link activates the user. A reset ends every
+      // website session (above) and signs every phone of the person out with them.
       onPasswordReset: async ({ user }) => {
         await authDb()
           .update(authSchema.users)
           .set({ status: 'active', emailVerified: true })
           .where(and(eq(authSchema.users.id, user.id), eq(authSchema.users.status, 'invited')));
+        await authDeviceStore.signOutEverywhere(user.id, 'password_changed', deps.now());
       },
       sendResetPassword: async ({ user, url, token }) => {
         const v = authSchema.auth_verifications;
@@ -548,15 +551,20 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         if (ctx.path !== SIGN_IN_PATH && ctx.path !== RESET_REQUEST_PATH) return;
         // A call without headers comes from our own server code (an invite), never from a client.
         if (ctx.headers === undefined) return;
-        const verdict = await verifyTurnstile(ctx.headers.get(TURNSTILE_HEADER), {
-          secretKey: deps.turnstileSecretKey,
-          remoteIp: address,
-          fetch: deps.fetch,
-          expectedHostname: deps.turnstileHostname,
-          expectedAction:
-            ctx.path === SIGN_IN_PATH ? TURNSTILE_SIGN_IN_ACTION : TURNSTILE_RESET_ACTION,
-          logger: log,
-        });
+        // The field app's sign-in has no browser to run the bot check in; its route caps every
+        // address and account itself, and the lock below still applies (`signInFromFieldApp`).
+        const fieldApp = ctx.path === SIGN_IN_PATH && fieldAppSignIn.getStore() === true;
+        const verdict = fieldApp
+          ? 'human'
+          : await verifyTurnstile(ctx.headers.get(TURNSTILE_HEADER), {
+              secretKey: deps.turnstileSecretKey,
+              remoteIp: address,
+              fetch: deps.fetch,
+              expectedHostname: deps.turnstileHostname,
+              expectedAction:
+                ctx.path === SIGN_IN_PATH ? TURNSTILE_SIGN_IN_ACTION : TURNSTILE_RESET_ACTION,
+              logger: log,
+            });
         if (verdict === 'unavailable') {
           throw new APIError('SERVICE_UNAVAILABLE', {
             message: 'bot check unavailable',
@@ -695,6 +703,15 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
           },
           headers: ctx.headers,
         });
+        // A password changed with the other sessions ended signs every phone out with them.
+        if (
+          ctx.path === CHANGE_PASSWORD_PATH &&
+          !failed &&
+          actorId !== undefined &&
+          (ctx.body as { revokeOtherSessions?: unknown } | undefined)?.revokeOtherSessions === true
+        ) {
+          await authDeviceStore.signOutEverywhere(actorId, 'password_changed', deps.now());
+        }
         if (verifying && !failed) {
           const user = ctx.context.newSession?.user;
           if (user) await completeSignIn({ id: user.id, email: user.email }, address);
@@ -717,6 +734,19 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+/**
+ * Marks a sign-in made by the field app's token route (`/api/v1/auth/mobile/token`), which only our
+ * own server code can set: the bot check is skipped for it, since a phone app has no page to run
+ * it in, and everything else (the lock, the inactive check, the per-address cap, the second factor
+ * and the audit rows) runs as for the website.
+ */
+const fieldAppSignIn = new AsyncLocalStorage<true>();
+
+/** Runs a Better Auth sign-in, and its second factor, for the field app (see `fieldAppSignIn`). */
+export function signInFromFieldApp<T>(work: () => Promise<T>): Promise<T> {
+  return fieldAppSignIn.run(true, work);
+}
 
 /** Marks a reset request whose caller is answered once its checks pass (see below). */
 const resetInBackground = new AsyncLocalStorage<{ checked: () => void }>();

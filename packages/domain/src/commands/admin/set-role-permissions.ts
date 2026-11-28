@@ -15,6 +15,7 @@ import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { roleGrantsVersion } from './role-grants-version';
+import { livePhoneCount, signOutPhones } from './shared';
 
 const isStaffRole = (key: string) => (STAFF_ROLE_KEYS as readonly string[]).includes(key);
 
@@ -256,9 +257,11 @@ async function holdersOf(ctx: CommandContext, roleId: string): Promise<string[]>
 
 /**
  * Revokes every live session of the holders except the caller's own named one, and answers how
- * many. The sessions policy lets an administrator revoke only a person who works in no active
- * company outside the request; should it hold any session back, nothing is saved
- * (`role_holders_kept`), because a holder still signed in would keep the old grants.
+ * many; every phone of the holders, the caller's included, is signed out of the field app with the
+ * same reason (SECURITY §2). The sessions policy, which the phones' mirrors, lets an administrator
+ * revoke only a person who works in no active company outside the request; should it hold any
+ * session or phone back, nothing is saved (`role_holders_kept`), because a holder still signed in
+ * would keep the old grants.
  */
 async function revokeHolderSessions(
   ctx: CommandContext,
@@ -281,7 +284,9 @@ async function revokeHolderSessions(
     .set({ revokedAt: ctx.now, revokedReason: 'role_changed' })
     .where(live)
     .returning({ id: s.id });
-  if (rows.length !== (counted?.n ?? 0)) {
+  const phones = await livePhoneCount(ctx, holders);
+  const phonesSignedOut = await signOutPhones(ctx, holders, 'role_changed');
+  if (rows.length !== (counted?.n ?? 0) || phonesSignedOut !== phones) {
     throw new DomainError('conflict', 'some holders could not be signed out', {
       reason: 'role_holders_kept',
     });

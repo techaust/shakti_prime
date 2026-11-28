@@ -30,6 +30,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      field: ${{ steps.diff.outputs.field }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,15 +41,31 @@ jobs:
           REF: ${{ github.ref }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
         run: |
+          # The field app's native build runs only when the app or the lockfile changed (F1): on
+          # main, in what the push or the merge brought; elsewhere, in the branch against main.
+          field() {
+            if git diff --name-only --no-renames "$1" | grep -qE '^(apps/field/|pnpm-lock\.yaml$)'; then
+              echo "field=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "field=false" >> "$GITHUB_OUTPUT"
+            fi
+          }
           # A pull request's branch, started by hand or by the merge workflow, is compared with main.
           if [ "$EVENT" = "workflow_dispatch" ] && [ "$REF" != "refs/heads/main" ]; then
             BASE=origin/main
             HEAD=HEAD
           elif [ "$EVENT" != "pull_request" ]; then
             echo "code=true" >> "$GITHUB_OUTPUT"
+            if [ "$EVENT" = "push" ] && [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+              field "$BEFORE..HEAD"
+            else
+              field "HEAD^1..HEAD"
+            fi
             exit 0
           fi
+          field "$BASE...$HEAD"
           # Without rename detection, a file moved into docs/ is listed under its old path too.
           files=$(git diff --name-only --no-renames "$BASE...$HEAD")
           echo "$files"
@@ -422,3 +439,36 @@ jobs:
           configPath: apps/web/lighthouserc.json
           uploadArtifacts: true
           temporaryPublicStorage: false
+
+  # The field app's debug APK (F1, ADR 0012): the Android project is made from app.json and built
+  # with Gradle on the runner's own Android SDK and Java 17. Runs only when apps/field or the
+  # lockfile changed, and is not a required check; the APK is kept 7 days for installing by hand.
+  android:
+    name: Field app native build
+    needs: changes
+    if: needs.changes.outputs.field == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Java 17 for Gradle
+        run: echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+      - name: Android project from app.json
+        working-directory: apps/field
+        run: pnpm exec expo prebuild --platform android --no-install
+      - name: Debug APK
+        working-directory: apps/field/android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: Keep the APK for 7 days
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: shakti-field-debug-apk
+          path: apps/field/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+          if-no-files-found: error

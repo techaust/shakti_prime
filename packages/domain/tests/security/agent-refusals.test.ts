@@ -123,6 +123,8 @@ const INPUTS: Record<string, unknown> = {
     expectedVersion: '0'.repeat(64),
   },
   'admin.session.revoke': { sessionId: newId() },
+  // F1: the feature flags.
+  'admin.flag.set': { key: 'field.refusal_sweep', entityId: null, enabled: true },
   'admin.user.lock.clear': { userId: newId() },
   'admin.user.invite': {
     email: 'agent-refusal@shakti.test',
@@ -399,6 +401,9 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     note: 'Refused gain',
   },
   'inventory.stock.reverse': { entityId: 1, movementId: newId() },
+  // F1: a feature flag and a person's phone are switched and signed out by people only.
+  'admin.flag.set': INPUTS['admin.flag.set'],
+  'field.device.revoke': { id: newId() },
   // Q1 labels: printing a sheet of labels is a person's work at the hub.
   'inventory.label.print': { entityId: 1, labelKind: 'bin', ids: [newId()] },
   'inventory.label.reprint': {

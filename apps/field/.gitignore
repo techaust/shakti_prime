@@ -1,0 +1,4 @@
+# Made by `expo prebuild` in the native build job; never committed (ADR 0012).
+/android/
+/ios/
+/.expo/
