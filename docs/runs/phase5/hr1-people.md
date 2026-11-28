@@ -332,7 +332,7 @@ Not checked:
   - DATABASE now cites 0260 for the six HR tables, 0261 for `app.hr_manages()` and 0262 for `app.hr_own_manager_name()`; F1's `mobile_devices` and `feature_flags` keep 0247.
 - **Redefinitions (§10, Merging with main):** HR1's migrations still redefine no shared object, confirmed against `main` at `eb0f3017`.
   - Its functions are `app.hr_manages()`, `app.leave_requests_guard()` and `app.hr_own_manager_name()`. None of them, and none of its six tables, appears in any of `main`'s migrations 0000 to 0259.
-  - J1 redefines `app.platform_only_permissions()`, `app.next_document_no()`, `app.projects_guard()` and `app.status_summary()`, and F1 none of note; HR1 touches none of them.
+  - J1 redefines `app.platform_only_permissions()`, `app.next_document_no()`, `app.projects_guard()` and `app.status_summary()`, and F1 redefines no function; HR1 touches none of them.
   - The shared helpers HR1 calls (`app.has_perm()`, `app.request_covers_group()`, `app.user_id()`, `app.raise_append_only()`, `app.set_updated_at()`) are not redefined in 0247 to 0259.
   - Every check constraint, foreign key, policy and trigger HR1 adds is on its own six tables. Its foreign keys point to `entities`, `principals`, `users` and its own tables, all with `no action`; none to `accounts` or `leads`.
 - **Shared lists, checked for a key used twice:** none.
