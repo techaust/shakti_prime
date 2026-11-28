@@ -17,8 +17,8 @@
 -- app.order_dispatch_payment_gate() answers D2's dispatch whether a before-dispatch milestone is
 -- still open.
 
--- 1. finance.milestones.process is platform-only, like the other workers' grants: the nineteen keys
---    of 0222, kept, and this one.
+-- 1. finance.milestones.process is platform-only, like the other workers' grants: the twenty keys
+--    of J1's definition (0222's nineteen and projects.draft), kept, and this one.
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
   select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
@@ -27,7 +27,8 @@ create or replace function app.platform_only_permissions() returns text[]
                'webhooks.process', 'crm.dnd.record', 'knowledge.playbook.check',
                'calls.process', 'crm.ingest.run', 'messaging.process',
                'voice.session.record', 'sales.quote.accept.remote',
-               'messaging.media.expire', 'finance.milestones.process']::text[]
+               'messaging.media.expire', 'projects.draft',
+               'finance.milestones.process']::text[]
 $$;
 --> statement-breakpoint
 

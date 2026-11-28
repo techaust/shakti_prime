@@ -81,6 +81,9 @@ export * from './commands/catalogue/items';
 export * from './commands/tax/set-tax';
 export * from './commands/admin/users';
 export * from './commands/admin/roles';
+// F1 field app foundation.
+export * from './commands/admin/feature-flags';
+export * from './commands/field/devices';
 export * from './commands/profile/set-theme';
 export * from './commands/profile/set-contrast';
 export * from './commands/profile/saved-views';
@@ -129,5 +132,7 @@ export * from './commands/webhooks/inbox';
 export * from './procurement/index';
 // FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1).
 export * from './finance/index';
+// J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §5, §6.1).
+export * from './projects/index';
 // J2 customer loans
 export * from './crm/loans';

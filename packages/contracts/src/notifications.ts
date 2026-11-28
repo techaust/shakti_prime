@@ -41,6 +41,9 @@ const Count = z.number().int().min(0);
  *   (docs/03-roadmap-appendix/phase2.md §7.4).
  * - `enquiry_attached`: a customer of your lead in nurture asked again, and the enquiry joined
  *   that lead instead of making a new one (CRM-03; not when you added it yourself).
+ * - `project_order_cancelled`: the order of a project you run was cancelled after work on it was
+ *   recorded, so the project was left for you to close (J1; its Project Managers when nobody runs
+ *   it).
  * - `payments_not_planned`: the platform could not plan a confirmed order's payments, for the
  *   people who plan them by hand in its company (FN1).
  */
@@ -59,6 +62,8 @@ export const NOTICE_TYPES = [
   'missed_call',
   // p2-fixes (I1 re-check N2).
   'enquiry_attached',
+  // J1: a project kept for a cancelled order.
+  'project_order_cancelled',
   // FN1: the platform could not plan a confirmed order's payments.
   'payments_not_planned',
   // J2: a lender turned down a customer's loan.
@@ -76,6 +81,8 @@ export const NOTICE_SUBJECT_TYPES = [
   'inbox_item',
   'sales_order',
   'whatsapp_thread',
+  // J1.
+  'project',
 ] as const;
 export const NoticeSubjectTypeSchema = z.enum(NOTICE_SUBJECT_TYPES);
 export type NoticeSubjectType = z.infer<typeof NoticeSubjectTypeSchema>;
@@ -281,6 +288,8 @@ export const NOTICE_EVENT_TYPES = [
   'calls.missed.recorded',
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead.
   'crm.lead.attached',
+  // J1: a project kept for a cancelled order.
+  'projects.project.order_cancelled',
   // FN1: an order's payments the platform could not plan.
   'finance.milestones.plan_failed',
   // J2: a customer's loan turned down, told to the lead's owner (the machine's `notify_owner`).
@@ -397,6 +406,15 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       providerCallId: IdSchema,
       opportunityId: IdSchema,
       ownerId: IdSchema.nullable(),
+    })
+    .strict(),
+  // J1: a project kept for its cancelled order: its owner is told, else its Project Managers.
+  z
+    .object({
+      event: z.literal('projects.project.order_cancelled'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      projectId: IdSchema,
     })
     .strict(),
   // J2: a loan turned down: the owner of the order's lead, or of the customer where the order has

@@ -27,6 +27,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [sales](#sales)
   - [procurement](#procurement)
   - [finance](#finance)
+  - [projects](#projects)
 - [Payloads](#payloads)
 
 ## Rules
@@ -52,7 +53,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-75 types, 28 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+81 types, 29 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -192,10 +193,10 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`sales.quote.expired`](#salesquoteexpired) | The daily job marked a quote whose validity had passed as expired. | `sales.quote.expire` | none |
 | [`sales.quote.accepted`](#salesquoteaccepted) | A sent quote was accepted (by a signed copy staff uploaded, or on WhatsApp by its Accept button and, for a large quote, a code) and became the order `orderId`; `acceptedBy` is the person who recorded it or the platform. The notify worker tells the lead's owner. | `sales.quote.accept`, `sales.quote.accept_remote` | `POST /api/v1/workers/outbox/sales.quote.accepted` (QStash URL group `evt-sales.quote.accepted`) |
 | [`sales.order.created`](#salesordercreated) | A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one. | `sales.quote.accept`, `sales.quote.accept_remote`, `sales.order.create` | none |
-| [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone and plans the order's payment milestones. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.confirmed` (QStash URL group `evt-sales.order.confirmed`) |
+| [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. The platform sends the customer the `order_confirmed` milestone, drafts the project of an order that needs installing and plans the order's payment milestones. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.confirmed` (QStash URL group `evt-sales.order.confirmed`) |
 | [`sales.order.credit_held`](#salesordercredit_held) | Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.credit_held` (QStash URL group `evt-sales.order.credit_held`) |
 | [`sales.order.credit_released`](#salesordercredit_released) | The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once. | `sales.credit.release` | none |
-| [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. The platform cancels its live proforma and its waiting payments. | `sales.order.cancel` | `POST /api/v1/workers/outbox/sales.order.cancelled` (QStash URL group `evt-sales.order.cancelled`) |
+| [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. Its project (J1) is cancelled by the platform while none of its steps is done, else kept and its Project Manager told; the platform cancels its live proforma and its waiting payments. | `sales.order.cancel` | `POST /api/v1/workers/outbox/sales.order.cancelled` (QStash URL group `evt-sales.order.cancelled`) |
 | [`sales.commission.accrued`](#salescommissionaccrued) | A referral partner's commission was recorded on a confirmed order by the partner's rule in force that day. | `sales.order.confirm` | none |
 
 ### procurement
@@ -218,6 +219,17 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`finance.milestones.plan_failed`](#financemilestonesplan_failed) | The platform could not plan a confirmed order's payments (`reason`: the terms' fixed amounts pass its total, or a loan's gate could not be read); Accounts are told, and its dispatch waits until they are planned. | `finance.milestone.plan_confirmed` | `POST /api/v1/workers/outbox/finance.milestones.plan_failed` (QStash URL group `evt-finance.milestones.plan_failed`) |
 | [`finance.milestone.waived`](#financemilestonewaived) | The Executive waived a payment milestone of an order, with a reason. | `finance.milestone.waive` | none |
 | [`finance.terms.published`](#financetermspublished) | An Executive published a new version of a company's payment terms for a segment. | `finance.terms.publish` | none |
+
+### projects
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`projects.project.drafted`](#projectsprojectdrafted) | A project was made for a confirmed order, by the platform or by a Project Manager, with its checklist copied. | `projects.project.draft`, `projects.project.create` | none |
+| [`projects.project.milestone_completed`](#projectsprojectmilestone_completed) | A step of a project's checklist was done, in order. | `projects.milestone.complete` | none |
+| [`projects.project.held`](#projectsprojectheld) | A project was put on hold; the reason stays on the project. | `projects.project.hold` | none |
+| [`projects.project.completed`](#projectsprojectcompleted) | A project was completed with every step of its checklist done. | `projects.project.complete` | none |
+| [`projects.project.cancelled`](#projectsprojectcancelled) | A project was cancelled, by a Project Manager or by the platform because its order was cancelled before any step was done; the reason stays on the project. | `projects.project.cancel`, `projects.project.cancel_for_order` | none |
+| [`projects.project.order_cancelled`](#projectsprojectorder_cancelled) | The order of a project was cancelled after a step of the project was done, so the platform kept the project; the notify worker tells its owner, or the Project Managers of its company when it has none. | `projects.project.cancel_for_order` | `POST /api/v1/workers/outbox/projects.project.order_cancelled` (QStash URL group `evt-projects.project.order_cancelled`) |
 
 ## Payloads
 
@@ -728,6 +740,45 @@ No fields apart from `v`.
 |---|---|
 | `segment` | text from 1 to 40 characters |
 | `version` | whole number from 1 |
+
+### projects.project.drafted
+
+| Field | Type |
+|---|---|
+| `salesOrderId` | id |
+| `accountId` | id |
+
+### projects.project.milestone_completed
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `milestoneId` | id |
+
+### projects.project.held
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+
+### projects.project.completed
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+
+### projects.project.cancelled
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+
+### projects.project.order_cancelled
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
 
 ### crm.loan.created
 

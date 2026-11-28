@@ -223,6 +223,12 @@ const RULES: Record<MatrixTable, TableRule> = {
   stock_movements: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
   stock_movement_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   stock_balances: { read: grant('inventory.stock.read', 'entity'), leak: otherCompany },
+  // J1: the matrix acts as the project's owner, so `own` reads it (app.project_is_mine()); its
+  // steps and people with it; the company's checklists with projects.read at any scope.
+  projects: { read: grant('projects.read', 'own'), leak: otherCompany },
+  project_assignments: { read: grant('projects.read', 'own'), leak: otherCompany },
+  project_milestones: { read: grant('projects.read', 'own'), leak: otherCompany },
+  project_flow_templates: { read: grant('projects.read', 'own'), leak: otherCompany },
   // J2: a company's lenders to every principal acting in it; a loan with the customer in its
   // company, as the customer's relationship there is read.
   lenders: { read: CONTEXT, leak: otherCompany },

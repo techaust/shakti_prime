@@ -121,6 +121,22 @@ export const SIGNED_IN_ROLES = [
     entityIds: [1],
     twoFactor: false,
   },
+  // J1: the Project Manager of company 1, who runs the journeys' projects, and a Field Engineer
+  // there, who is on one project per journey project and on no other (projects.spec.ts).
+  {
+    key: 'projectManager',
+    name: 'Deepak Bhardwaj',
+    roleKey: 'project_manager',
+    entityIds: [1],
+    twoFactor: false,
+  },
+  {
+    key: 'fieldEngineer',
+    name: 'Ravi Meena',
+    roleKey: 'field_engineer',
+    entityIds: [1],
+    twoFactor: false,
+  },
 ] as const;
 export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
 
@@ -582,3 +598,98 @@ export const SNAPSHOT_VENDORS = {
   cables: 'Marudhar Cables and Wires',
   solar: 'Marudhar Solar Traders',
 } as const;
+
+/**
+ * J1's project journeys (projects.spec.ts), written by the seed (`e2e/setup/projects.ts`) afresh
+ * each run: per journey project, in company 1, two confirmed orders of the journeys' customer with
+ * its site, each with its project of the five standard steps, all open, run by the Project
+ * Manager. The first the Project Manager moves; on the second the Field Engineer is named, and
+ * nobody moves it. A third order, of a customer of its own, has no project until the Project
+ * Manager starts one. Every name here is a test value for these journeys alone.
+ */
+export const PROJECT_JOURNEY = {
+  entityId: 1,
+  /** The Project Manager's project of each journey project, which the journey moves. */
+  managed: {
+    'desktop-light': 'JRN/PRJ/2098-99/0001',
+    'desktop-dark': 'JRN/PRJ/2098-99/0002',
+    phone: 'JRN/PRJ/2098-99/0003',
+  },
+  /** The Field Engineer's project of each journey project, which nobody moves. */
+  engineered: {
+    'desktop-light': 'JRN/PRJ/2098-99/0011',
+    'desktop-dark': 'JRN/PRJ/2098-99/0012',
+    phone: 'JRN/PRJ/2098-99/0013',
+  },
+  /** The projects' ids, as the seed writes them. */
+  ids: {
+    managed: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00110',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00111',
+      phone: '01990000-0000-7000-8000-0000e2e00112',
+    },
+    engineered: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00210',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00211',
+      phone: '01990000-0000-7000-8000-0000e2e00212',
+    },
+  },
+  /**
+   * Per journey project, a confirmed order with no project, of a customer of its own, which the
+   * Project Manager starts a project for from the order page and then finds on Account 360.
+   */
+  start: {
+    soNo: {
+      'desktop-light': 'JRN/SO/2098-99/0021',
+      'desktop-dark': 'JRN/SO/2098-99/0022',
+      phone: 'JRN/SO/2098-99/0023',
+    },
+    orderIds: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00300',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00301',
+      phone: '01990000-0000-7000-8000-0000e2e00302',
+    },
+    accountIds: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00030',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00031',
+      phone: '01990000-0000-7000-8000-0000e2e00032',
+    },
+    customer: 'Journey new project customer',
+  },
+  customer: 'Journey project customer',
+  village: 'Journey village',
+} as const;
+
+/**
+ * F1: the phones of Admin › Team members › Phones (field-phones.spec.ts), written by the seed
+ * (`e2e/setup/field.ts`) as the auth module would: for the screenshot, a phone of the snapshot
+ * company's tele-caller at fixed times, only ever shown; and per project, a field engineer of
+ * company 1 whose phone the Executive signs out, signed in again by every seed run.
+ */
+export const FIELD_PHONES = {
+  snapshot: {
+    deviceId: '0199e2e0-0000-4000-8000-00000000f001',
+    model: 'Galaxy M14',
+    appVersion: '1.0.0',
+    signedInAt: '2026-11-20T04:30:00Z',
+    lastSeenAt: '2026-11-26T06:45:00Z',
+  },
+  owners: {
+    'desktop-light': {
+      name: 'E2E phone owner desktop-light',
+      deviceId: '0199e2e0-0000-4000-8000-00000000f011',
+    },
+    'desktop-dark': {
+      name: 'E2E phone owner desktop-dark',
+      deviceId: '0199e2e0-0000-4000-8000-00000000f012',
+    },
+    phone: { name: 'E2E phone owner phone', deviceId: '0199e2e0-0000-4000-8000-00000000f013' },
+  },
+  ownerModel: 'Redmi Note 13',
+} as const satisfies {
+  owners: Record<ProjectName, { name: string; deviceId: string }>;
+  [key: string]: unknown;
+};
+
+/** The sign-in email of a project's phone owner. */
+export const fieldPhoneOwnerKey = (project: ProjectName) => `fieldPhoneOwner-${project}`;

@@ -12,6 +12,8 @@ import { handleFileUploaded } from '../files/handle-file-uploaded';
 import { indexJobOf } from '../knowledge/job';
 import { discardVaultMasker, maskingConfigured, vaultMasker } from '../ocr/vault-masker';
 import { handleHandoverEvent } from '../handover/handover-event';
+import { handleProjectDraft } from '../projects/draft-event';
+import { handleOrderCancelled } from '../projects/order-cancelled-event';
 import { handleNoticeEvent } from '../notify/notify-event';
 import { handleTriageEvent } from '../triage/triage-event';
 import { handleBriefEvent, handleCallSummaryEvent } from '../copilot/copilot-event';
@@ -198,9 +200,12 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       await handleQuoteSent(event, ctx);
     },
   },
+  // J1: a confirmed order that needs installing also gets its project (docs/03-roadmap-appendix/
+  // phase4.md §6.1), drafted first, since it waits on no outside service; once per order.
   'sales.order.confirmed': {
     ordering: 'every',
     handle: async (event, ctx) => {
+      await handleProjectDraft(event, ctx);
       // The customer's message, and (FN1) the order's payment milestones: each runs whatever the
       // other answered, and both are safe to repeat, so a failure of either is delivered again.
       const { handleOrderConfirmed } = await import('../messaging/milestones');
@@ -208,6 +213,19 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       const message = await Promise.allSettled([handleOrderConfirmed(event, ctx)]);
       await handleOrderConfirmedMilestones(event, ctx);
       if (message[0].status === 'rejected') throw message[0].reason;
+    },
+  },
+  // J1: a cancelled order's project is cancelled while none of its steps is done, else kept and
+  // its Project Manager told (`projects.project.order_cancelled`, a notice). FN1: its live proforma
+  // and waiting payments are cancelled with it. Each runs whatever the other answered, and both are
+  // safe to repeat, so a failure of either is delivered again.
+  'sales.order.cancelled': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      const { handleOrderCancelledFinance } = await import('../finance/order-followups');
+      const project = await Promise.allSettled([handleOrderCancelled(event, ctx)]);
+      await handleOrderCancelledFinance(event, ctx);
+      if (project[0].status === 'rejected') throw project[0].reason;
     },
   },
   // A quote's Accept or Talk to us pressed on WhatsApp (§7.1): checked and answered by the
@@ -242,19 +260,13 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'sales.order.credit_held': { ordering: 'every', handle: notify },
   // FN1: a confirmed order's payments the platform could not plan, told to Accounts.
   'finance.milestones.plan_failed': { ordering: 'every', handle: notify },
-  // FN1: a cancelled order's live proforma and waiting payments are cancelled with it.
-  'sales.order.cancelled': {
-    ordering: 'every',
-    handle: async (event, ctx) => {
-      const { handleOrderCancelledFinance } = await import('../finance/order-followups');
-      await handleOrderCancelledFinance(event, ctx);
-    },
-  },
   'sales.quote.accepted': { ordering: 'every', handle: notify },
   // A missed call's callback, told to the lead's owner (docs/03-roadmap-appendix/phase2.md §7.4).
   'calls.missed.recorded': { ordering: 'every', handle: notify },
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead, told to its owner.
   'crm.lead.attached': { ordering: 'every', handle: notify },
+  // J1: a project kept for its cancelled order, told to its owner or the Project Managers.
+  'projects.project.order_cancelled': { ordering: 'every', handle: notify },
   // J2: a loan turned down, told to the owner of the order's lead or customer.
   'crm.loan.rejected': { ordering: 'every', handle: notify },
   // FN1 with J2: a loan's move lets the order's payments it held fall due (review finding 4).

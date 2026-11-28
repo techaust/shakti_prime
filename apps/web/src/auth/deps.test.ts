@@ -159,6 +159,23 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
     expect(productionConfigProblems({ ...GOOD, WHATSAPP_BUTTON_SECRET: '' })).toEqual([]);
   });
 
+  it('refuses a field app version setting it cannot read, and starts with none or readable ones', () => {
+    expect(productionConfigProblems({ ...GOOD, FIELD_MIN_APP_VERSION: '1.2' })).toEqual([
+      'FIELD_MIN_APP_VERSION must be a version of three numbers, such as 1.2.0, when set',
+    ]);
+    expect(productionConfigProblems({ ...GOOD, FIELD_LATEST_APP_VERSION: 'v2' })).toEqual([
+      'FIELD_LATEST_APP_VERSION must be a version of three numbers, such as 1.2.0, when set',
+    ]);
+    expect(
+      productionConfigProblems({
+        ...GOOD,
+        FIELD_MIN_APP_VERSION: '1.2.0',
+        FIELD_LATEST_APP_VERSION: ' 1.3.0 ',
+      }),
+    ).toEqual([]);
+    expect(productionConfigProblems({ ...GOOD, FIELD_MIN_APP_VERSION: '' })).toEqual([]);
+  });
+
   it('starts without any file storage or key settings', () => {
     const none = { FILES_BUCKET: '', FILES_KMS_KEY_ID: '', AWS_ACCESS_KEY_ID: '' };
     expect(productionConfigProblems({ ...GOOD, ...none })).toEqual([]);

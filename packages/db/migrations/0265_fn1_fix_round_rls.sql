@@ -35,7 +35,7 @@ $$;
 revoke execute on function app.record_order_milestone_failure(uuid, text) from public, readonly_reporter;
 --> statement-breakpoint
 
--- 2. Recording the order's milestones clears a failure recorded before (otherwise as 0244 §10).
+-- 2. Recording the order's milestones clears a failure recorded before (otherwise as 0261 §10).
 create or replace function app.record_order_milestones(p_order uuid, p_template uuid, p_rows jsonb)
   returns integer
   language plpgsql security definer set search_path = '' as $$
@@ -106,7 +106,7 @@ $$;
 --    waived, and, for a confirmed order with no payments planned, while its plan failed or its
 --    terms would hold a payment before dispatch (its company's current terms for its segment, or
 --    the standard terms, which hold the balance before dispatch, where it has none); `clear`
---    otherwise, and for a cancelled order. Callers as 0244 §11.
+--    otherwise, and for a cancelled order. Callers as 0261 §11.
 create or replace function app.order_dispatch_payment_gate(p_order uuid) returns text
   language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -284,7 +284,7 @@ $$;
 revoke execute on function app.milestones_fall_due(uuid, uuid[], date) from public, readonly_reporter;
 --> statement-breakpoint
 
--- 8. Attaches the PDF the render worker recorded to its proforma, as 0246 §4, and once more for a
+-- 8. Attaches the PDF the render worker recorded to its proforma, as 0263 §4, and once more for a
 --    cancelled proforma: a file recorded at or after the cancel, which the template prints
 --    "Cancelled" across, replaces the one printed while it was live.
 create or replace function app.attach_proforma_pdf(p_entity smallint, p_proforma uuid, p_file uuid)

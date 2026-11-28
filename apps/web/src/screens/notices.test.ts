@@ -43,6 +43,16 @@ describe('where a notice takes its person (docs/03-roadmap-appendix/phase1.md §
         subjectId: subject,
       }),
     ).toBe(`/orders/2/${subject}`);
+    // J1: a project kept for its cancelled order opens the project.
+    expect(
+      noticeHref({
+        type: 'project_order_cancelled',
+        entityId: 2,
+        accountId: account,
+        quoteId: null,
+        subjectId: subject,
+      }),
+    ).toBe(`/projects/2/${subject}`);
     // A quote accepted, or Accept pressed on WhatsApp after it lapsed (phase2.md §7.1).
     for (const type of [
       'quote_accepted',

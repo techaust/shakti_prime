@@ -284,6 +284,89 @@ export function translateDatabaseError(
 }
 
 /**
+ * Validates one call's input, masks the Aadhaar numbers typed into it and guards the caller: the
+ * first steps of the runner, before any key is claimed or any row read. The idempotency front
+ * (`idempotency/front.ts`) runs them too, so a replay it answers is refused to a caller the runner
+ * would refuse. Errors carry their stage (`failureOf`).
+ */
+export function checkedInput<I extends z.ZodType, O extends z.ZodType>(
+  command: Command<I, O>,
+  principal: Principal,
+  rawInput: unknown,
+): z.output<I> {
+  const parsed = command.input.safeParse(rawInput);
+  if (!parsed.success) {
+    throw tag(
+      new DomainError('validation_failed', `invalid input for ${command.name}`, {
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      }),
+      'input',
+      undefined,
+    );
+  }
+
+  // An Aadhaar number typed into the input keeps only its last four digits before anything reads
+  // it: the guard, the key's hash, the handler, the audit row and an inner command all see the
+  // masked input, and a repeat typed the same way hashes alike (docs/07-security.md §5).
+  const data = maskInputIdentity(parsed.data, command.unmaskedFields).value;
+
+  try {
+    // A person's own voice session runs a command for people only that opts in (Ask's record).
+    const voiceAllowed =
+      command.voiceSession === true &&
+      principal.kind === 'voice_session' &&
+      principal.voiceSessionId !== undefined;
+    if (command.peopleOnly === true && !voiceAllowed) {
+      checkPerson(principal, command.name);
+    }
+    guardPermission(principal, command, data);
+    for (const also of command.alsoRequires ?? []) {
+      checkPermission(principal, also.permission, also.minScope);
+    }
+    if (command.peopleOnly === true && isAgent(principal)) {
+      throw new DomainError('forbidden', `${command.name} is for people, not agents`, {
+        permission: command.permission,
+      });
+    }
+  } catch (e) {
+    throw tag(e, 'guard', data);
+  }
+  return data;
+}
+
+/**
+ * The first answer of a call made again with its key, as the runner gives it back: refused when it
+ * belongs to a company the request no longer covers (a person who has lost that company since must
+ * not read again what the answer holds, U1 review L10), and parsed through the command's DTO.
+ */
+export function storedAnswer<I extends z.ZodType, O extends z.ZodType>(
+  command: Command<I, O>,
+  entityIds: readonly number[],
+  response: unknown,
+  data: z.output<I>,
+): z.output<O> {
+  const answered = response as { entityId?: unknown } | null;
+  if (typeof answered?.entityId === 'number' && !entityIds.includes(answered.entityId)) {
+    throw tag(
+      new DomainError('forbidden', `${command.name} replayed outside the request's companies`, {
+        entityId: answered.entityId,
+      }),
+      'guard',
+      data,
+    );
+  }
+  const replay = command.output.safeParse(response);
+  if (!replay.success) {
+    throw tag(
+      new DomainError('internal', `${command.name} stored an answer outside its DTO`),
+      'handler',
+      data,
+    );
+  }
+  return replay.data;
+}
+
+/**
  * Runs one command inside an existing request context: validate → guard → handler → strict DTO →
  * audit rows and events in the same transaction. Denied calls throw `forbidden` before the handler
  * runs; every error carries its stage for `executeCommand` (see `failureOf`).
@@ -307,43 +390,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
   inImportBatch: boolean,
 ): Promise<z.output<O>> {
   const { context } = options;
-  const parsed = command.input.safeParse(rawInput);
-  if (!parsed.success) {
-    throw tag(
-      new DomainError('validation_failed', `invalid input for ${command.name}`, {
-        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
-      }),
-      'input',
-      undefined,
-    );
-  }
-
-  // An Aadhaar number typed into the input keeps only its last four digits before anything reads
-  // it: the guard, the key's hash, the handler, the audit row and an inner command all see the
-  // masked input, and a repeat typed the same way hashes alike (docs/07-security.md §5).
-  const data = maskInputIdentity(parsed.data, command.unmaskedFields).value;
-
-  try {
-    // A person's own voice session runs a command for people only that opts in (Ask's record).
-    const voiceAllowed =
-      command.voiceSession === true &&
-      context.principal.kind === 'voice_session' &&
-      context.principal.voiceSessionId !== undefined;
-    if (command.peopleOnly === true && !voiceAllowed) {
-      checkPerson(context.principal, command.name);
-    }
-    guardPermission(context.principal, command, data);
-    for (const also of command.alsoRequires ?? []) {
-      checkPermission(context.principal, also.permission, also.minScope);
-    }
-    if (command.peopleOnly === true && isAgent(context.principal)) {
-      throw new DomainError('forbidden', `${command.name} is for people, not agents`, {
-        permission: command.permission,
-      });
-    }
-  } catch (e) {
-    throw tag(e, 'guard', data);
-  }
+  const data = checkedInput(command, context.principal, rawInput);
 
   // A key is claimed after the guard, so a refused caller learns nothing about an earlier call,
   // and before the handler, so a repeat never runs it twice (docs/03-roadmap-appendix/backend-weeks-3-5.md §5).
@@ -376,31 +423,8 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
           data,
         );
       }
-      // A stored answer of a company the request no longer covers is not given back: a person who
-      // has lost that company since must not read again what the answer holds (U1 review L10).
-      const answered = claim.response as { entityId?: unknown } | null;
-      if (
-        typeof answered?.entityId === 'number' &&
-        !context.entityIds.includes(answered.entityId)
-      ) {
-        throw tag(
-          new DomainError('forbidden', `${command.name} replayed outside the request's companies`, {
-            entityId: answered.entityId,
-          }),
-          'guard',
-          data,
-        );
-      }
       // Nothing changes on a replay, so it writes no audit row and no event.
-      const replay = command.output.safeParse(claim.response);
-      if (!replay.success) {
-        throw tag(
-          new DomainError('internal', `${command.name} stored an answer outside its DTO`),
-          'handler',
-          data,
-        );
-      }
-      return replay.data;
+      return storedAnswer(command, context.entityIds, claim.response, data);
     }
   }
 

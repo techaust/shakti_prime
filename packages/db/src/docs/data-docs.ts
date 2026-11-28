@@ -592,6 +592,8 @@ const MODULE_TABLES: Record<string, { title: string; tables: string[] }> = {
       'auth_accounts',
       'auth_verifications',
       'user_two_factor',
+      // F1: the field app's phones, kept by the auth module.
+      'mobile_devices',
     ],
   },
   crm: { title: 'CRM', tables: [] },

@@ -69,6 +69,8 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
         opportunityId: String(p.opportunityId),
         ownerId: typeof p.ownerId === 'string' ? p.ownerId : null,
       };
+    case 'projects.project.order_cancelled':
+      return { ...base, event: 'projects.project.order_cancelled', projectId: event.aggregateId };
     case 'crm.loan.rejected':
       return {
         ...base,

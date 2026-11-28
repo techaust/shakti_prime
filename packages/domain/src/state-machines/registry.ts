@@ -75,6 +75,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   // FN1 proformas and payment milestones
   'proforma',
   'payment_milestone',
+  // J1 projects
+  'project_standard',
   // J2 customer loans
   'customer_loan',
 ]);

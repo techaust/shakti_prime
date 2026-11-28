@@ -168,6 +168,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'projects.gate.approve': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
   'projects.qc.signoff': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
   'projects.schedule.write': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
+  // F1 (phase4 §4).
+  'field.device.revoke': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
   'documents.read': {
     ...EXEC,
     general_manager: 'entity',
@@ -355,6 +357,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // W2: the platform's removal of WhatsApp files past the retention period; no person's role holds
   // it (SECURITY §3.3).
   'messaging.media.expire': {},
+  // J1: the platform's drafting of a project from a confirmed order; no person's role holds it
+  // (SECURITY §3.3).
+  'projects.draft': {},
   // FN1: the platform's planning of an order's payment milestones on confirmation; no person's
   // role holds it (SECURITY §3.3).
   'finance.milestones.process': {},

@@ -21,6 +21,10 @@ export const AUTH_AUDIT_EVENTS = [
   'auth.password.change',
   'auth.two_factor.enable',
   'auth.backup_codes.regenerate',
+  // F1: the field app's sign-in, its sign-out, and a refresh token presented twice.
+  'auth.mobile.sign_in',
+  'auth.mobile.sign_out',
+  'auth.mobile.refresh_reused',
 ] as const;
 export const AuthAuditEventSchema = z.enum(AUTH_AUDIT_EVENTS);
 export type AuthAuditEvent = z.infer<typeof AuthAuditEventSchema>;

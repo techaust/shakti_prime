@@ -361,7 +361,7 @@ export const waiveMilestone = defineCommand({
       .limit(1);
     if (!row) {
       throw new DomainError('not_found', `milestone ${input.milestoneId} is not visible`, {
-        reason: 'milestone_missing',
+        reason: 'payment_milestone_missing',
       });
     }
     const waived = transition(

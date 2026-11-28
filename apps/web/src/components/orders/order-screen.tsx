@@ -80,10 +80,13 @@ type ReasonAction = (
 export function OrderScreen({
   initial,
   company,
+  project,
   children,
 }: {
   initial: SalesOrderDto;
   company: string;
+  /** J1: the order's project, its link or Start project, from the page. */
+  project?: ReactNode;
   /** The order's further tabs below its lines (J2: the Loan tab; FN1: the Payments tab). */
   children?: ReactNode;
 }) {
@@ -112,6 +115,7 @@ export function OrderScreen({
           >
             {order.customerName}
           </Link>
+          {project}
         </span>
       }
       actions={
