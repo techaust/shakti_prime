@@ -235,7 +235,10 @@ test.describe('click-to-dial as a tele-caller', () => {
     }
   });
 
-  test('keeps counting a call on a phone whose clock runs hours fast', async ({ page, context }) => {
+  test('keeps counting a call on a phone whose clock runs hours fast', async ({
+    page,
+    context,
+  }) => {
     test.setTimeout(180_000);
     // The browser's clock five hours ahead of the server's: the bar counts on the server's clock,
     // so it neither counts from the wrong moment nor stops reading the call after "three hours".
