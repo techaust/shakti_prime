@@ -486,4 +486,27 @@ Re-checked the second fix round, `8eb324f4..8cec69f9`.
 - The renamed platform-only `procurement.po.print` still lets the worker read one approved order's rates, now for the download as well as the mail. That is yours to confirm.
 - The owner's `checks-ok` is still needed (`js-budget.json`, `copy-lint.config.json`).
 
+## Integration prep
+### 28-11-2026, prep agent in the lead's cloud VM (worktree `u2-purchase-orders`, the integration database on 54340)
+- **`main`:** `4338c5e7` (Merge pull request #302 from techaust/fix/demo-data-ist-day), taken in by the merge commit `977cda27` with no conflicts. `main` had moved 14 commits since `05f7ce3b`, in three files only: `apps/web/tests/demo-data.test.ts`, `packages/domain/tests/queries/catalogue-queries.test.ts` and `docs/runs/phase3/demo-data-ist-day.md`. H2 has not merged (`git log origin/main` holds no H2 commit; `feat/h2-reservations` is still a branch), so `app.stock_move()` and the `inventory.stock.moved` handlers were not to be joined, and `main`'s latest definitions are those below.
+- **Before the merge:** `prettier --check` on the 152 files the slice changes: "All matched files use Prettier code style".
+- **Migrations:** they keep their numbers, 0243 to 0251 (`main`'s last is still 0242). `pnpm install --offline --frozen-lockfile` reported the lockfile up to date; `renumber-migrations.mjs origin/main 9252c432` placed each at its own number with its journal time unchanged (0243 at 1795789696023, after 0242's 1795789695023). It rewrote the intermediate snapshots 0243 to 0250 as `main`'s 0242 snapshot with fresh chained ids, and drizzle-kit wrote 0251's from the schema; 0251's tables are the same as before the merge. `pnpm db:generate` printed "No schema changes, nothing to migrate"; `pnpm db:docs` left the tree clean. No document cites a changed number.
+- **Redefinitions checked against `main`'s latest** (each only adds; nothing of `main`'s is dropped):
+  - `app.platform_only_permissions()` (`main`: 0222): 0244 keeps all 19 keys and adds `procurement.reorder.draft` and `procurement.po.print`; the set equals `PLATFORM_ONLY_PERMISSIONS` in `packages/contracts/src/permissions.ts` (21 keys).
+  - `app.next_document_no()` (`main`: 0201): 0244 adds the `goods_receipt` case (`procurement.grn.write:own`) and lets `procurement.reorder.draft:entity` number a `purchase_order`; the rest is unchanged.
+  - `app.file_purpose_grant()` (`main`: Q1's 0242): 0251 keeps `label_sheet` in both cases and adds `purchase_order_pdf` (`files.process:entity` and `procurement.rate.read`).
+  - `files_purpose_check` (`main`: Q1's 0241): 0250 keeps every purpose, `label_sheet` too, and adds `purchase_order_pdf`.
+  - `document_sequences_doc_type_check` (`main`: 0007): 0243 keeps all five types and adds `goods_receipt`.
+  - `notifications_type_check` and `notification_preferences_type_check` (`main`: 0228): 0245 and then 0248 keep every type and add `reorder_drafted` and `po_mail_not_sent`.
+  - `notifications_subject_type_check` (`main`: 0184): 0245 keeps every subject type and adds `purchase_order`.
+  - Foreign keys: the only ones on an existing table are `serials.vendor_id` and `serials.receipt_line_id` (columns H1 made in 0230 with no key); `main` has no key on either. The slice's nine other functions are new names on `main`. 0247 only inserts X4's registry rows for `receipt` (`on conflict do nothing`) and redefines nothing.
+- **Lists:** no key twice in `en.json` or `copy-lint.config.json` (parsed with a duplicate-key check), in the nine lists of `packages/db/src/testing/index.ts`, in `PERMISSION_KEYS` (98), `PLATFORM_ONLY_PERMISSIONS` or the other permission lists, or among the journey users' keys.
+- **Typecheck right after the merge:** `pnpm typecheck` through the lock: "Tasks: 10 successful, 10 total".
+- **`integrate.sh`, in parts, through the lock, without e2e:**
+  - `install lint format copylint generated typecheck`: `=== INTEGRATION PARTIAL (install lint format copylint generated typecheck)`, every step rc=0.
+  - `unit`: `=== INTEGRATION PARTIAL (unit)`, rc=0. tokens 146, copy-lint 17, voice 49, ui 107, voice-agent 23, db 164, contracts 340, domain 2931 (114 files) passed; web 1279 passed and 1 skipped (172 files).
+  - `security dbverify`: `=== INTEGRATION PARTIAL (security dbverify)`, both rc=0. db 1903 tests passed (65 files), domain 1574 (112 files), web 475 (41 files); `db:verify`: "every migration is applied as it is on disk".
+  - `audit build jsbudget gitleaks`: `=== INTEGRATION PARTIAL (audit build jsbudget gitleaks)`, every step rc=0. The audit has 3 moderate findings, all already reviewed and ignored. The build ran its 2 tasks with 0 cached. Every page is within its budget (71 pages). gitleaks scanned 40 commits and found no leaks.
+- **Fixed:** nothing; the merge broke nothing. **Not run:** the e2e step, as instructed; the Linux baselines are still the lead's.
+
 ## Integration
