@@ -314,6 +314,40 @@ describe('the import fences', { timeout: 60_000 }, () => {
     }
   });
 
+  // TC1 the Tally connector
+  it('keep the Tally connector to the contracts, Node and its own files', async () => {
+    const CONNECTOR = 'apps/tally-connector/src/fence-probe.ts';
+    const PACKAGING = 'apps/tally-connector/packaging/fence-probe.ts';
+    for (const ok of [
+      "import { TallyVoucher } from '@shakti/contracts';",
+      "import { DatabaseSync } from 'node:sqlite';",
+      "import { a } from './outbox';",
+      "import { b } from '../log';",
+    ]) {
+      expect(await fences(CONNECTOR, `${ok}\nexport const x = 1;\n`), ok).toEqual([]);
+    }
+    for (const refused of [
+      "import { schema } from '@shakti/db';",
+      "import { executeCommand } from '@shakti/domain';",
+      "import { z } from 'zod';",
+      "import { build } from 'esbuild';",
+      "import { x } from '../../web/src/integrations/tally/signature';",
+    ]) {
+      const found = await fences(CONNECTOR, `${refused}\nexport const x = 1;\n`);
+      expect(found, refused).toContain('no-restricted-imports');
+    }
+    for (const ok of [
+      "import { build } from 'esbuild';",
+      "import { inject } from 'postject';",
+      "import { join } from 'node:path';",
+    ]) {
+      expect(await fences(PACKAGING, `${ok}\nexport const x = 1;\n`), ok).toEqual([]);
+    }
+    expect(
+      await fences(PACKAGING, "import { schema } from '@shakti/db';\nexport const x = 1;\n"),
+    ).toContain('no-restricted-imports');
+  });
+
   it('keep the database and the domain out of packages/voice', async () => {
     const VOICE = 'packages/voice/src/fence-probe.ts';
     expect(

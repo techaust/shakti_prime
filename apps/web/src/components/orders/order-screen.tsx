@@ -84,7 +84,7 @@ export function OrderScreen({
 }: {
   initial: SalesOrderDto;
   company: string;
-  /** The order's further tabs below its lines (FN1: the Payments tab). */
+  /** The order's further tabs below its lines (J2: the Loan tab; FN1: the Payments tab). */
   children?: ReactNode;
 }) {
   const t = useTranslations('orders');

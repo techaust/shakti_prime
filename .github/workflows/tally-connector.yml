@@ -1,0 +1,83 @@
+name: Tally connector
+
+# The Tally connector on Windows (docs/03-roadmap-appendix/phase5.md §2 question 1 and §6.2): its
+# tests on the platform it runs on, with the real DPAPI, then the single executable and the WinSW
+# service folder. It runs only when the connector or what it is built from changes; the Linux run of
+# the same tests is the unit-test job of ci.yml. Windows runners cost nothing while the repository
+# is public.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/tally-connector/**'
+      - 'packages/contracts/**'
+      - 'pnpm-lock.yaml'
+      - '.node-version'
+      - '.github/workflows/tally-connector.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/tally-connector/**'
+      - 'packages/contracts/**'
+      - 'pnpm-lock.yaml'
+      - '.node-version'
+      - '.github/workflows/tally-connector.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tally-connector-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  windows:
+    name: Tally connector on Windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      # WinSW 2.12.0's x64 build, taken by the lead from its GitHub release on 27-11-2026
+      # (docs/runs/phase5/tc1-tally-connector.md, brief addendum).
+      WINSW_URL: https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe
+      WINSW_SHA256: 05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @shakti/tally-connector typecheck
+      - run: pnpm --filter @shakti/tally-connector test
+      - name: WinSW, refused unless it matches its pinned SHA-256
+        shell: pwsh
+        run: |
+          $file = Join-Path $env:RUNNER_TEMP 'WinSW-x64.exe'
+          Invoke-WebRequest -Uri $env:WINSW_URL -OutFile $file
+          $hash = (Get-FileHash -Path $file -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:WINSW_SHA256) {
+            throw "WinSW-x64.exe has SHA-256 $hash, not the pinned $env:WINSW_SHA256"
+          }
+      - name: The single executable
+        run: node apps/tally-connector/packaging/build-sea.ts
+      - name: The service folder
+        shell: pwsh
+        run: |
+          $out = 'apps/tally-connector/dist/package'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item apps/tally-connector/dist/shakti-tally-connector.exe $out
+          Copy-Item (Join-Path $env:RUNNER_TEMP 'WinSW-x64.exe') (Join-Path $out 'shakti-tally-connector-service.exe')
+          Copy-Item apps/tally-connector/packaging/winsw/shakti-tally-connector-service.xml $out
+          Copy-Item apps/tally-connector/README.md $out
+          # WinSW reads its XML and answers the service's state (not installed here): an
+          # unreadable file fails on the runner, not on the office PC.
+          $status = & (Join-Path $out 'shakti-tally-connector-service.exe') status 2>&1 | Out-String
+          Write-Output $status
+          if ($status -notmatch 'NonExistent') { throw 'WinSW could not read its configuration' }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tally-connector-windows
+          path: apps/tally-connector/dist/package
+          retention-days: 14

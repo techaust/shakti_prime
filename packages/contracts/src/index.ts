@@ -129,3 +129,5 @@ export * from './commands/webhooks/inbox';
 export * from './procurement/index';
 // FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1).
 export * from './finance/index';
+// J2 customer loans
+export * from './crm/loans';

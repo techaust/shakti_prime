@@ -1,6 +1,6 @@
 {
-  "id": "9c21ce12-e788-476b-9d8e-5ece7ffa4b1a",
-  "prevId": "e1ff2565-ae09-4648-9d00-2920dfa4e6ac",
+  "id": "3fdce953-4ed8-466f-80fa-2cb9ee3bd046",
+  "prevId": "cb43927c-4ff1-470e-b250-8fd60461d69d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4931,6 +4931,396 @@
       },
       "isRLSEnabled": false
     },
+    "public.customer_loans": {
+      "name": "customer_loans",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sales_order_id": {
+          "name": "sales_order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lender_id": {
+          "name": "lender_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lender_name": {
+          "name": "lender_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'applied'"
+        },
+        "state_changed_at": {
+          "name": "state_changed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "sanctioned_amount": {
+          "name": "sanctioned_amount",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sanctioned_at": {
+          "name": "sanctioned_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disbursed_at": {
+          "name": "disbursed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejected_reason": {
+          "name": "rejected_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gates_json": {
+          "name": "gates_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{\"dispatch\":\"disbursed\"}'::jsonb"
+        },
+        "gates_waived_at": {
+          "name": "gates_waived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gates_waived_by": {
+          "name": "gates_waived_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gates_waived_reason": {
+          "name": "gates_waived_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "customer_loans_active_unique": {
+          "name": "customer_loans_active_unique",
+          "columns": [
+            {
+              "expression": "sales_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"customer_loans\".\"state\" in ('applied', 'sanctioned', 'disbursed')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "customer_loans_order_idx": {
+          "name": "customer_loans_order_idx",
+          "columns": [
+            {
+              "expression": "sales_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "customer_loans_account_idx": {
+          "name": "customer_loans_account_idx",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "customer_loans_lender_idx": {
+          "name": "customer_loans_lender_idx",
+          "columns": [
+            {
+              "expression": "lender_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "customer_loans_entity_created_idx": {
+          "name": "customer_loans_entity_created_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "customer_loans_entity_id_entities_id_fk": {
+          "name": "customer_loans_entity_id_entities_id_fk",
+          "tableFrom": "customer_loans",
+          "tableTo": "entities",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "customer_loans_account_id_accounts_id_fk": {
+          "name": "customer_loans_account_id_accounts_id_fk",
+          "tableFrom": "customer_loans",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "customer_loans_gates_waived_by_principals_id_fk": {
+          "name": "customer_loans_gates_waived_by_principals_id_fk",
+          "tableFrom": "customer_loans",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "gates_waived_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "customer_loans_created_by_principals_id_fk": {
+          "name": "customer_loans_created_by_principals_id_fk",
+          "tableFrom": "customer_loans",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "customer_loans_updated_by_principals_id_fk": {
+          "name": "customer_loans_updated_by_principals_id_fk",
+          "tableFrom": "customer_loans",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "customer_loans_order_fk": {
+          "name": "customer_loans_order_fk",
+          "tableFrom": "customer_loans",
+          "tableTo": "sales_orders",
+          "columnsFrom": [
+            "sales_order_id",
+            "entity_id",
+            "account_id"
+          ],
+          "columnsTo": [
+            "id",
+            "entity_id",
+            "account_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        },
+        "customer_loans_lender_fk": {
+          "name": "customer_loans_lender_fk",
+          "tableFrom": "customer_loans",
+          "tableTo": "lenders",
+          "columnsFrom": [
+            "lender_id",
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id",
+            "entity_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "customer_loans_state_check": {
+          "name": "customer_loans_state_check",
+          "value": "\"customer_loans\".\"state\" in ('applied', 'sanctioned', 'disbursed', 'rejected')"
+        },
+        "customer_loans_lender_check": {
+          "name": "customer_loans_lender_check",
+          "value": "(\"customer_loans\".\"lender_id\" is null) <> (\"customer_loans\".\"lender_name\" is null)\n       and (\"customer_loans\".\"lender_name\" is null or length(btrim(\"customer_loans\".\"lender_name\")) between 2 and 120)"
+        },
+        "customer_loans_amounts_check": {
+          "name": "customer_loans_amounts_check",
+          "value": "\"customer_loans\".\"amount\" > 0 and (\"customer_loans\".\"sanctioned_amount\" is null or \"customer_loans\".\"sanctioned_amount\" > 0)"
+        },
+        "customer_loans_sanction_check": {
+          "name": "customer_loans_sanction_check",
+          "value": "(\"customer_loans\".\"sanctioned_amount\" is null) = (\"customer_loans\".\"sanctioned_at\" is null)\n       and (\"customer_loans\".\"state\" not in ('sanctioned', 'disbursed') or \"customer_loans\".\"sanctioned_at\" is not null)\n       and (\"customer_loans\".\"state\" <> 'applied' or \"customer_loans\".\"sanctioned_at\" is null)"
+        },
+        "customer_loans_disbursed_check": {
+          "name": "customer_loans_disbursed_check",
+          "value": "(\"customer_loans\".\"state\" = 'disbursed') = (\"customer_loans\".\"disbursed_at\" is not null)"
+        },
+        "customer_loans_rejected_check": {
+          "name": "customer_loans_rejected_check",
+          "value": "(\"customer_loans\".\"state\" = 'rejected') = (\"customer_loans\".\"rejected_reason\" is not null)\n       and (\"customer_loans\".\"rejected_reason\" is null or length(btrim(\"customer_loans\".\"rejected_reason\")) between 1 and 300)"
+        },
+        "customer_loans_reference_check": {
+          "name": "customer_loans_reference_check",
+          "value": "\"customer_loans\".\"reference\" is null or length(btrim(\"customer_loans\".\"reference\")) between 1 and 60"
+        },
+        "customer_loans_gates_check": {
+          "name": "customer_loans_gates_check",
+          "value": "jsonb_typeof(\"customer_loans\".\"gates_json\") = 'object' and \"customer_loans\".\"gates_json\" - 'dispatch' = '{}'::jsonb"
+        },
+        "customer_loans_gates_dispatch_check": {
+          "name": "customer_loans_gates_dispatch_check",
+          "value": "coalesce(\"customer_loans\".\"gates_json\" ->> 'dispatch', '') in ('disbursed', 'sanctioned', 'none')"
+        },
+        "customer_loans_waiver_check": {
+          "name": "customer_loans_waiver_check",
+          "value": "(\"customer_loans\".\"gates_waived_at\" is null) = (\"customer_loans\".\"gates_waived_by\" is null)\n       and (\"customer_loans\".\"gates_waived_at\" is null) = (\"customer_loans\".\"gates_waived_reason\" is null)\n       and (\"customer_loans\".\"gates_waived_at\" is null or \"customer_loans\".\"state\" = 'rejected')\n       and (\"customer_loans\".\"gates_waived_reason\" is null or length(btrim(\"customer_loans\".\"gates_waived_reason\")) between 1 and 300)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.customer_merges": {
       "name": "customer_merges",
       "schema": "",
@@ -6902,7 +7292,7 @@
       "checkConstraints": {
         "files_purpose_check": {
           "name": "files_purpose_check",
-          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence', 'call_recording', 'whatsapp_media', 'call_transcript', 'vendor_quote', 'label_sheet', 'proforma_pdf')"
+          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence', 'call_recording', 'whatsapp_media', 'call_transcript', 'vendor_quote', 'label_sheet')"
         },
         "files_status_check": {
           "name": "files_status_check",
@@ -10324,6 +10714,146 @@
       },
       "isRLSEnabled": false
     },
+    "public.lenders": {
+      "name": "lenders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "lenders_entity_name_unique": {
+          "name": "lenders_entity_name_unique",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(btrim(\"name\"))",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lenders_entity_id_entities_id_fk": {
+          "name": "lenders_entity_id_entities_id_fk",
+          "tableFrom": "lenders",
+          "tableTo": "entities",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "lenders_created_by_principals_id_fk": {
+          "name": "lenders_created_by_principals_id_fk",
+          "tableFrom": "lenders",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "lenders_updated_by_principals_id_fk": {
+          "name": "lenders_updated_by_principals_id_fk",
+          "tableFrom": "lenders",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "lenders_id_entity_unique": {
+          "name": "lenders_id_entity_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "entity_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "lenders_name_check": {
+          "name": "lenders_name_check",
+          "value": "length(btrim(\"lenders\".\"name\")) between 2 and 120"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.notification_preferences": {
       "name": "notification_preferences",
       "schema": "",
@@ -10418,7 +10948,7 @@
       "checkConstraints": {
         "notification_preferences_type_check": {
           "name": "notification_preferences_type_check",
-          "value": "\"notification_preferences\".\"type\" is null or \"notification_preferences\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached', 'payments_not_planned')"
+          "value": "\"notification_preferences\".\"type\" is null or \"notification_preferences\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached', 'loan_rejected')"
         },
         "notification_preferences_quiet_check": {
           "name": "notification_preferences_quiet_check",
@@ -10617,7 +11147,7 @@
       "checkConstraints": {
         "notifications_type_check": {
           "name": "notifications_type_check",
-          "value": "\"notifications\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached', 'payments_not_planned')"
+          "value": "\"notifications\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached', 'loan_rejected')"
         },
         "notifications_subject_type_check": {
           "name": "notifications_subject_type_check",
@@ -11669,424 +12199,6 @@
         "outbox_events_payload_version_check": {
           "name": "outbox_events_payload_version_check",
           "value": "\"outbox_events\".\"payload_json\" ? 'v'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.payment_milestone_templates": {
-      "name": "payment_milestone_templates",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "segment": {
-          "name": "segment",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "steps_json": {
-          "name": "steps_json",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "payment_milestone_templates_entity_id_entities_id_fk": {
-          "name": "payment_milestone_templates_entity_id_entities_id_fk",
-          "tableFrom": "payment_milestone_templates",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "payment_milestone_templates_created_by_fk": {
-          "name": "payment_milestone_templates_created_by_fk",
-          "tableFrom": "payment_milestone_templates",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payment_milestone_templates_version_unique": {
-          "name": "payment_milestone_templates_version_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "entity_id",
-            "segment",
-            "version"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "payment_milestone_templates_segment_check": {
-          "name": "payment_milestone_templates_segment_check",
-          "value": "\"payment_milestone_templates\".\"segment\" in ('farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale')"
-        },
-        "payment_milestone_templates_version_check": {
-          "name": "payment_milestone_templates_version_check",
-          "value": "\"payment_milestone_templates\".\"version\" >= 1"
-        },
-        "payment_milestone_templates_steps_check": {
-          "name": "payment_milestone_templates_steps_check",
-          "value": "jsonb_typeof(\"payment_milestone_templates\".\"steps_json\") = 'array' and jsonb_array_length(\"payment_milestone_templates\".\"steps_json\") between 1 and 10"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.payment_milestones": {
-      "name": "payment_milestones",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sales_order_id": {
-          "name": "sales_order_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "template_id": {
-          "name": "template_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "seq": {
-          "name": "seq",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "percent": {
-          "name": "percent",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount": {
-          "name": "amount",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "paid_amount": {
-          "name": "paid_amount",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'0'"
-        },
-        "due_rule": {
-          "name": "due_rule",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "due_days": {
-          "name": "due_days",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "loan_gate": {
-          "name": "loan_gate",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'none'"
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "due_on": {
-          "name": "due_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "waived_at": {
-          "name": "waived_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "waived_by": {
-          "name": "waived_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "waive_reason": {
-          "name": "waive_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "payment_milestones_template_idx": {
-          "name": "payment_milestones_template_idx",
-          "columns": [
-            {
-              "expression": "template_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "payment_milestones_entity_id_entities_id_fk": {
-          "name": "payment_milestones_entity_id_entities_id_fk",
-          "tableFrom": "payment_milestones",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "payment_milestones_waived_by_principals_id_fk": {
-          "name": "payment_milestones_waived_by_principals_id_fk",
-          "tableFrom": "payment_milestones",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "waived_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "payment_milestones_created_by_principals_id_fk": {
-          "name": "payment_milestones_created_by_principals_id_fk",
-          "tableFrom": "payment_milestones",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "payment_milestones_updated_by_principals_id_fk": {
-          "name": "payment_milestones_updated_by_principals_id_fk",
-          "tableFrom": "payment_milestones",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "payment_milestones_order_entity_fk": {
-          "name": "payment_milestones_order_entity_fk",
-          "tableFrom": "payment_milestones",
-          "tableTo": "sales_orders",
-          "columnsFrom": [
-            "sales_order_id",
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id",
-            "entity_id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "payment_milestones_template_fk": {
-          "name": "payment_milestones_template_fk",
-          "tableFrom": "payment_milestones",
-          "tableTo": "payment_milestone_templates",
-          "columnsFrom": [
-            "template_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payment_milestones_order_seq_unique": {
-          "name": "payment_milestones_order_seq_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "sales_order_id",
-            "seq"
-          ]
-        },
-        "payment_milestones_order_key_unique": {
-          "name": "payment_milestones_order_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "sales_order_id",
-            "key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "payment_milestones_seq_check": {
-          "name": "payment_milestones_seq_check",
-          "value": "\"payment_milestones\".\"seq\" between 1 and 10"
-        },
-        "payment_milestones_key_check": {
-          "name": "payment_milestones_key_check",
-          "value": "\"payment_milestones\".\"key\" ~ '^[a-z][a-z0-9_]{0,39}$'"
-        },
-        "payment_milestones_label_check": {
-          "name": "payment_milestones_label_check",
-          "value": "length(btrim(\"payment_milestones\".\"label\")) between 2 and 60"
-        },
-        "payment_milestones_percent_check": {
-          "name": "payment_milestones_percent_check",
-          "value": "\"payment_milestones\".\"percent\" is null or \"payment_milestones\".\"percent\" > 0"
-        },
-        "payment_milestones_amounts_check": {
-          "name": "payment_milestones_amounts_check",
-          "value": "\"payment_milestones\".\"amount\" >= 0 and \"payment_milestones\".\"paid_amount\" >= 0 and \"payment_milestones\".\"paid_amount\" <= \"payment_milestones\".\"amount\""
-        },
-        "payment_milestones_due_rule_check": {
-          "name": "payment_milestones_due_rule_check",
-          "value": "\"payment_milestones\".\"due_rule\" in ('on_confirmation', 'before_dispatch', 'on_installation', 'days_after_invoice')"
-        },
-        "payment_milestones_due_days_check": {
-          "name": "payment_milestones_due_days_check",
-          "value": "(\"payment_milestones\".\"due_rule\" = 'days_after_invoice') = (\"payment_milestones\".\"due_days\" is not null)\n       and (\"payment_milestones\".\"due_days\" is null or \"payment_milestones\".\"due_days\" between 1 and 365)"
-        },
-        "payment_milestones_loan_gate_check": {
-          "name": "payment_milestones_loan_gate_check",
-          "value": "\"payment_milestones\".\"loan_gate\" in ('none', 'sanctioned', 'disbursed')"
-        },
-        "payment_milestones_state_check": {
-          "name": "payment_milestones_state_check",
-          "value": "\"payment_milestones\".\"state\" in ('pending', 'due', 'part_paid', 'paid', 'waived', 'cancelled')"
-        },
-        "payment_milestones_paid_check": {
-          "name": "payment_milestones_paid_check",
-          "value": "(\"payment_milestones\".\"state\" not in ('pending', 'due') or \"payment_milestones\".\"paid_amount\" = 0)\n       and (\"payment_milestones\".\"state\" <> 'part_paid' or (\"payment_milestones\".\"paid_amount\" > 0 and \"payment_milestones\".\"paid_amount\" < \"payment_milestones\".\"amount\"))\n       and (\"payment_milestones\".\"state\" <> 'paid' or \"payment_milestones\".\"paid_amount\" = \"payment_milestones\".\"amount\")"
-        },
-        "payment_milestones_due_on_check": {
-          "name": "payment_milestones_due_on_check",
-          "value": "\"payment_milestones\".\"state\" <> 'due' or \"payment_milestones\".\"due_on\" is not null"
-        },
-        "payment_milestones_waive_check": {
-          "name": "payment_milestones_waive_check",
-          "value": "(\"payment_milestones\".\"state\" = 'waived') = (\"payment_milestones\".\"waived_at\" is not null)\n       and (\"payment_milestones\".\"waived_at\" is null) = (\"payment_milestones\".\"waived_by\" is null)\n       and (\"payment_milestones\".\"waived_at\" is null) = (\"payment_milestones\".\"waive_reason\" is null)\n       and (\"payment_milestones\".\"waive_reason\" is null or length(btrim(\"payment_milestones\".\"waive_reason\")) between 1 and 300)"
         }
       },
       "isRLSEnabled": false
@@ -13768,601 +13880,6 @@
         "principals_kind_check": {
           "name": "principals_kind_check",
           "value": "\"principals\".\"kind\" in ('user', 'agent', 'voice_session', 'system')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.proforma_lines": {
-      "name": "proforma_lines",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "proforma_id": {
-          "name": "proforma_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sales_order_line_id": {
-          "name": "sales_order_line_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "item_id": {
-          "name": "item_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kit_id": {
-          "name": "kit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sku": {
-          "name": "sku",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit": {
-          "name": "unit",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "qty": {
-          "name": "qty",
-          "type": "numeric(12, 3)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit_price": {
-          "name": "unit_price",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hsn": {
-          "name": "hsn",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "works_contract": {
-          "name": "works_contract",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "tax_rate_id": {
-          "name": "tax_rate_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_rate_pct": {
-          "name": "tax_rate_pct",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "composite_rule_id": {
-          "name": "composite_rule_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "goods_rate_pct": {
-          "name": "goods_rate_pct",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "services_rate_pct": {
-          "name": "services_rate_pct",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "taxable_value": {
-          "name": "taxable_value",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "goods_taxable": {
-          "name": "goods_taxable",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "services_taxable": {
-          "name": "services_taxable",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cgst": {
-          "name": "cgst",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sgst": {
-          "name": "sgst",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "igst": {
-          "name": "igst",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "line_total": {
-          "name": "line_total",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "proforma_lines_order_line_idx": {
-          "name": "proforma_lines_order_line_idx",
-          "columns": [
-            {
-              "expression": "sales_order_line_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "proforma_lines_entity_id_entities_id_fk": {
-          "name": "proforma_lines_entity_id_entities_id_fk",
-          "tableFrom": "proforma_lines",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "proforma_lines_proforma_entity_fk": {
-          "name": "proforma_lines_proforma_entity_fk",
-          "tableFrom": "proforma_lines",
-          "tableTo": "proformas",
-          "columnsFrom": [
-            "proforma_id",
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id",
-            "entity_id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "proforma_lines_order_line_fk": {
-          "name": "proforma_lines_order_line_fk",
-          "tableFrom": "proforma_lines",
-          "tableTo": "sales_order_lines",
-          "columnsFrom": [
-            "sales_order_line_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "proforma_lines_proforma_position_unique": {
-          "name": "proforma_lines_proforma_position_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "proforma_id",
-            "position"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "proforma_lines_position_check": {
-          "name": "proforma_lines_position_check",
-          "value": "\"proforma_lines\".\"position\" >= 1"
-        },
-        "proforma_lines_qty_check": {
-          "name": "proforma_lines_qty_check",
-          "value": "\"proforma_lines\".\"qty\" > 0"
-        },
-        "proforma_lines_amounts_check": {
-          "name": "proforma_lines_amounts_check",
-          "value": "\"proforma_lines\".\"unit_price\" >= 0 and \"proforma_lines\".\"taxable_value\" >= 0 and \"proforma_lines\".\"cgst\" >= 0 and \"proforma_lines\".\"sgst\" >= 0 and \"proforma_lines\".\"igst\" >= 0 and \"proforma_lines\".\"line_total\" = \"proforma_lines\".\"taxable_value\" + \"proforma_lines\".\"cgst\" + \"proforma_lines\".\"sgst\" + \"proforma_lines\".\"igst\""
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.proformas": {
-      "name": "proformas",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "proforma_no": {
-          "name": "proforma_no",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fy": {
-          "name": "fy",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sales_order_id": {
-          "name": "sales_order_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'issued'"
-        },
-        "place_of_supply_state": {
-          "name": "place_of_supply_state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supply_kind": {
-          "name": "supply_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subtotal": {
-          "name": "subtotal",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cgst": {
-          "name": "cgst",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sgst": {
-          "name": "sgst",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "igst": {
-          "name": "igst",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tax_total": {
-          "name": "tax_total",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "round_off": {
-          "name": "round_off",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "grand_total": {
-          "name": "grand_total",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "pdf_file_id": {
-          "name": "pdf_file_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancel_reason": {
-          "name": "cancel_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_by": {
-          "name": "cancelled_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "proformas_order_live_unique": {
-          "name": "proformas_order_live_unique",
-          "columns": [
-            {
-              "expression": "sales_order_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"proformas\".\"state\" = 'issued'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "proformas_order_idx": {
-          "name": "proformas_order_idx",
-          "columns": [
-            {
-              "expression": "sales_order_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "proformas_pdf_file_idx": {
-          "name": "proformas_pdf_file_idx",
-          "columns": [
-            {
-              "expression": "pdf_file_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "proformas_entity_id_entities_id_fk": {
-          "name": "proformas_entity_id_entities_id_fk",
-          "tableFrom": "proformas",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "proformas_pdf_file_id_files_id_fk": {
-          "name": "proformas_pdf_file_id_files_id_fk",
-          "tableFrom": "proformas",
-          "tableTo": "files",
-          "columnsFrom": [
-            "pdf_file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "proformas_cancelled_by_principals_id_fk": {
-          "name": "proformas_cancelled_by_principals_id_fk",
-          "tableFrom": "proformas",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "cancelled_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "proformas_created_by_principals_id_fk": {
-          "name": "proformas_created_by_principals_id_fk",
-          "tableFrom": "proformas",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "proformas_updated_by_principals_id_fk": {
-          "name": "proformas_updated_by_principals_id_fk",
-          "tableFrom": "proformas",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "proformas_order_entity_fk": {
-          "name": "proformas_order_entity_fk",
-          "tableFrom": "proformas",
-          "tableTo": "sales_orders",
-          "columnsFrom": [
-            "sales_order_id",
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id",
-            "entity_id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "proformas_entity_no_unique": {
-          "name": "proformas_entity_no_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "entity_id",
-            "proforma_no"
-          ]
-        },
-        "proformas_id_entity_unique": {
-          "name": "proformas_id_entity_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "id",
-            "entity_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "proformas_state_check": {
-          "name": "proformas_state_check",
-          "value": "\"proformas\".\"state\" in ('issued', 'cancelled')"
-        },
-        "proformas_supply_kind_check": {
-          "name": "proformas_supply_kind_check",
-          "value": "\"proformas\".\"supply_kind\" in ('intra', 'inter')"
-        },
-        "proformas_place_of_supply_check": {
-          "name": "proformas_place_of_supply_check",
-          "value": "\"proformas\".\"place_of_supply_state\" ~ '^[0-9]{2}$'"
-        },
-        "proformas_fy_check": {
-          "name": "proformas_fy_check",
-          "value": "\"proformas\".\"fy\" ~ '^[0-9]{4}-[0-9]{2}$' and right(\"proformas\".\"fy\", 2)::int = (left(\"proformas\".\"fy\", 4)::int + 1) % 100"
-        },
-        "proformas_totals_check": {
-          "name": "proformas_totals_check",
-          "value": "\"proformas\".\"subtotal\" >= 0 and \"proformas\".\"cgst\" >= 0 and \"proformas\".\"sgst\" >= 0 and \"proformas\".\"igst\" >= 0 and \"proformas\".\"tax_total\" = \"proformas\".\"cgst\" + \"proformas\".\"sgst\" + \"proformas\".\"igst\" and \"proformas\".\"grand_total\" = \"proformas\".\"subtotal\" + \"proformas\".\"tax_total\" + \"proformas\".\"round_off\""
-        },
-        "proformas_gst_split_check": {
-          "name": "proformas_gst_split_check",
-          "value": "(\"proformas\".\"supply_kind\" = 'intra' and \"proformas\".\"igst\" = 0) or (\"proformas\".\"supply_kind\" = 'inter' and \"proformas\".\"cgst\" = 0 and \"proformas\".\"sgst\" = 0)"
-        },
-        "proformas_round_off_check": {
-          "name": "proformas_round_off_check",
-          "value": "\"proformas\".\"round_off\" between -0.49 and 0.50"
-        },
-        "proformas_cancel_check": {
-          "name": "proformas_cancel_check",
-          "value": "(\"proformas\".\"state\" = 'cancelled') = (\"proformas\".\"cancel_reason\" is not null)\n       and (\"proformas\".\"cancel_reason\" is null) = (\"proformas\".\"cancelled_at\" is null)\n       and (\"proformas\".\"cancel_reason\" is null) = (\"proformas\".\"cancelled_by\" is null)\n       and (\"proformas\".\"cancel_reason\" is null or length(btrim(\"proformas\".\"cancel_reason\")) between 1 and 300)"
         }
       },
       "isRLSEnabled": false
@@ -17054,18 +16571,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "payment_plan_failure": {
-          "name": "payment_plan_failure",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payment_plan_failed_at": {
-          "name": "payment_plan_failed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -17465,6 +16970,15 @@
             "id",
             "entity_id"
           ]
+        },
+        "sales_orders_id_entity_account_unique": {
+          "name": "sales_orders_id_entity_account_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "entity_id",
+            "account_id"
+          ]
         }
       },
       "policies": {},
@@ -17524,10 +17038,6 @@
         "sales_orders_cancel_reason_check": {
           "name": "sales_orders_cancel_reason_check",
           "value": "(\"sales_orders\".\"state\" = 'cancelled') = (\"sales_orders\".\"cancel_reason\" is not null)\n       and (\"sales_orders\".\"cancel_reason\" is null or length(btrim(\"sales_orders\".\"cancel_reason\")) between 1 and 300)"
-        },
-        "sales_orders_payment_plan_failure_check": {
-          "name": "sales_orders_payment_plan_failure_check",
-          "value": "(\"sales_orders\".\"payment_plan_failure\" is null) = (\"sales_orders\".\"payment_plan_failed_at\" is null)\n       and (\"sales_orders\".\"payment_plan_failure\" is null or \"sales_orders\".\"payment_plan_failure\" in ('milestone_amounts_exceed_total', 'forbidden'))"
         }
       },
       "isRLSEnabled": false

@@ -256,38 +256,106 @@ grant select on proformas, proforma_lines, payment_milestone_templates, payment_
   to app_reader, readonly_reporter;
 --> statement-breakpoint
 
--- 8. An order's loan gate (J2, docs/03-roadmap-appendix/phase4.md §6.2). Until J2's
---    app.order_loan_gate() is in the database, a stand-in of the same shape answers that the order
---    has no loan, so nothing waits for one; it is made only where J2's is absent, so it never
---    replaces it. It answers the callers J2's does, and the platform planning milestones.
-do $do$
+-- 8. An order's loan gate (J2, docs/03-roadmap-appendix/phase4.md §6.2): J2's latest
+--    app.order_loan_gate() as it stands, with one change: the platform planning an order's
+--    milestones and moving held ones due (finance.milestones.process, held only by
+--    system:workers) reads it as the order's operations do, in the request's companies.
+create or replace function app.order_loan_gate(p_order uuid) returns jsonb
+  language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_user uuid := app.user_id();
+  v_team uuid := app.team_id();
+  v_entities int[] := coalesce(app.entity_ids(), '{}'::int[]);
+  v_operations boolean := app.has_perm('inventory.dispatch.write:entity')
+                          or app.has_perm('finance.payment.write:entity')
+                          or app.has_perm('finance.milestones.process:all');
+  v_account_entity boolean := app.has_perm('crm.account.read:entity');
+  v_account_team boolean := app.has_perm('crm.account.read:team');
+  v_account_own boolean := app.has_perm('crm.account.read:own');
+  v_lead_entity boolean := app.has_perm('crm.lead.read:entity');
+  v_lead_team boolean := app.has_perm('crm.lead.read:team');
+  v_lead_own boolean := app.has_perm('crm.lead.read:own');
+  v_agent boolean := app.is_agent_request();
+  v_person boolean := coalesce(current_setting('app.role', true), '') not like 'agent:%'
+    and coalesce(current_setting('app.role', true), '') not like 'system:%'
+    and not exists (select 1 from public.principals p
+                     where p.id = app.user_id() and p.kind in ('agent', 'system'));
+  v_entity smallint;
+  v_account uuid;
+  v_loan uuid;
+  v_state text;
+  v_need text;
+  v_waived boolean;
 begin
-  if pg_catalog.to_regprocedure('app.order_loan_gate(uuid)') is null then
-    create function app.order_loan_gate(p_order uuid) returns jsonb
-      language plpgsql stable security definer set search_path = '' as $fn$
-    begin
-      if not (app.has_perm('inventory.dispatch.write:entity')
-              or app.has_perm('finance.payment.write:entity')
-              or app.has_perm('finance.milestones.process:all')
-              or app.has_perm('crm.account.read:own')
-              or app.has_perm('crm.lead.read:own')) then
-        raise exception 'a loan gate is read with inventory.dispatch.write, finance.payment.write or crm.account.read'
-          using errcode = '42501';
-      end if;
-      if not exists (select 1 from public.sales_orders so
-                      where so.id = p_order
-                        and so.entity_id = any (coalesce(app.entity_ids(), '{}'::int[]))) then
-        return null;
-      end if;
-      return pg_catalog.jsonb_build_object(
-        'loanId', null, 'loanState', null, 'dispatch', 'none', 'waived', false, 'reason', null);
-    end
-    $fn$;
-    revoke execute on function app.order_loan_gate(uuid) from public, readonly_reporter;
-    grant execute on function app.order_loan_gate(uuid) to app_user, app_reader;
+  if not (v_operations or v_account_own or v_lead_own) then
+    raise exception 'a loan gate is read with inventory.dispatch.write, finance.payment.write or crm.account.read'
+      using errcode = '42501';
   end if;
+  select so.entity_id, so.account_id into v_entity, v_account
+    from public.sales_orders so
+   where so.id = p_order and so.entity_id = any (v_entities);
+  if not found then
+    return null;
+  end if;
+  if not v_operations
+     and not exists (
+       select 1 from public.account_entities ae
+        where ae.account_id = v_account and ae.entity_id = v_entity
+          and (v_account_entity
+               or (v_account_team and v_team is not null and ae.team_id = v_team)
+               or (v_account_own
+                   and ((not v_agent and ae.owner_id = v_user)
+                        or (ae.account_id = (select b.account_id from app.agent_thread_binding() b)
+                            and ae.entity_id = (select b.entity_id from app.agent_thread_binding() b))))
+               or (v_person
+                   and exists (
+                     select 1 from public.opportunities o
+                      where o.account_id = ae.account_id
+                        and o.entity_id = ae.entity_id
+                        and o.archived_at is null
+                        and (v_lead_entity
+                             or (v_lead_team and v_team is not null and o.team_id = v_team)
+                             or (v_lead_own
+                                 and ((not v_agent and o.owner_id = v_user)
+                                      or o.id = (select b.opportunity_id
+                                                   from app.agent_thread_binding() b)))))))) then
+    return null;
+  end if;
+  -- The order's loan: its one active loan (customer_loans_active_unique), else its newest
+  -- turned-down loan.
+  select cl.id, cl.state, cl.gates_json ->> 'dispatch', cl.gates_waived_at is not null
+    into v_loan, v_state, v_need, v_waived
+    from public.customer_loans cl
+   where cl.sales_order_id = p_order
+   order by cl.state in ('applied', 'sanctioned', 'disbursed') desc, cl.created_at desc, cl.id desc
+   limit 1;
+  if not found then
+    return pg_catalog.jsonb_build_object(
+      'loanId', null, 'loanState', null, 'dispatch', 'none', 'waived', false, 'reason', null);
+  end if;
+  return pg_catalog.jsonb_build_object(
+    'loanId', v_loan,
+    'loanState', v_state,
+    'dispatch',
+    case
+      when v_need = 'none' then 'none'
+      when v_state = 'rejected' and v_waived then 'none'
+      when v_need = 'sanctioned' and v_state in ('sanctioned', 'disbursed') then 'met'
+      when v_need = 'disbursed' and v_state = 'disbursed' then 'met'
+      else 'pending'
+    end,
+    'waived', v_waived,
+    'reason',
+    case
+      when v_state = 'rejected' and not v_waived and v_need is distinct from 'none'
+        then 'loan_rejected'
+    end);
 end
-$do$;
+$$;
+--> statement-breakpoint
+revoke execute on function app.order_loan_gate(uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.order_loan_gate(uuid) to app_user, app_reader;
 --> statement-breakpoint
 
 -- 9. What planning an order's milestones starts from: the order's company, state, total, segment

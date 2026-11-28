@@ -17,7 +17,7 @@ import { entities } from './entities';
 import { principals } from './principals';
 
 const NOTICE_TYPES = sql.raw(
-  "('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached', 'payments_not_planned')",
+  "('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held', 'whatsapp_reply_waiting', 'quote_accepted', 'whatsapp_quote_expired', 'whatsapp_quote_not_sent', 'missed_call', 'enquiry_attached', 'loan_rejected', 'payments_not_planned')",
 );
 
 /**

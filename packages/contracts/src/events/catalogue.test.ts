@@ -61,6 +61,12 @@ describe('the event catalogue', () => {
         // An enquiry that joined a nurtured lead, told to its owner (p2-fixes).
         'crm.lead.attached',
         'crm.lead.created',
+        // J2: a loan turned down, told to the owner of the order's lead or customer.
+        'crm.loan.rejected',
+        // FN1 with J2: a loan's move lets the order's payments it held fall due.
+        'crm.loan.disbursed',
+        'crm.loan.gates_released',
+        'crm.loan.sanctioned',
         'crm.opportunity.assigned',
         'crm.opportunity.stage_moved',
         'files.file.uploaded',

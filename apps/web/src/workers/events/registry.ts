@@ -255,7 +255,19 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'calls.missed.recorded': { ordering: 'every', handle: notify },
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead, told to its owner.
   'crm.lead.attached': { ordering: 'every', handle: notify },
+  // J2: a loan turned down, told to the owner of the order's lead or customer.
+  'crm.loan.rejected': { ordering: 'every', handle: notify },
+  // FN1 with J2: a loan's move lets the order's payments it held fall due (review finding 4).
+  'crm.loan.sanctioned': { ordering: 'every', handle: loanMoved },
+  'crm.loan.disbursed': { ordering: 'every', handle: loanMoved },
+  'crm.loan.gates_released': { ordering: 'every', handle: loanMoved },
 };
+
+/** A customer loan's move: the order's payments its loan no longer holds fall due (FN1). */
+async function loanMoved(event: DeliveredEvent, ctx: EventHandlerContext): Promise<void> {
+  const { handleOrderLoanMoved } = await import('../finance/order-followups');
+  await handleOrderLoanMoved(event, ctx);
+}
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */
 async function notify(event: DeliveredEvent, ctx: EventHandlerContext): Promise<void> {

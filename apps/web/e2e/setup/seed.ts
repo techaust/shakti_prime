@@ -50,6 +50,7 @@ import { ensureConciergeJourneys } from './concierge';
 import { ensureCopilotJourneys } from './copilot';
 import { deliverWaitingEvents } from './deliver-waiting';
 import { ensureFinanceJourneys } from './finance';
+import { ensureLoanJourneys } from './loans';
 import { ensureOrderJourneys } from './orders';
 import { archiveAddedPartners, resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
@@ -913,6 +914,9 @@ const orders = await ensureOrderJourneys(ids.executive ?? '');
 // FN1: the finance journeys' confirmed orders, whose payments the platform plans on delivery.
 progress('the finance journeys');
 const finance = await ensureFinanceJourneys(ids.executive ?? '', ids.converter ?? '');
+// J2 customer loans
+progress('the loan journeys');
+const loans = await ensureLoanJourneys(ids.executive ?? '');
 
 // H1 stock ledger
 progress('the stock journeys');
@@ -1145,6 +1149,7 @@ const seeded: SeededUsers = {
   finance,
   uat,
   recordings,
+  loans,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();

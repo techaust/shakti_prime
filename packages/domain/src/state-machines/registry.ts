@@ -75,6 +75,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   // FN1 proformas and payment milestones
   'proforma',
   'payment_milestone',
+  // J2 customer loans
+  'customer_loan',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */

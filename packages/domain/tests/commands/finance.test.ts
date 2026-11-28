@@ -35,6 +35,8 @@ import {
   publishPaymentTerms,
   waiveMilestone,
 } from '../../src/commands/finance/index';
+import { createCustomerLoan } from '../../src/commands/crm/loans-create';
+import { sanctionCustomerLoan } from '../../src/commands/crm/loans-sanction';
 import { notifyEvent } from '../../src/commands/notifications/notify';
 import { istCalendarDate } from '../../src/numbering/financial-year';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
@@ -56,6 +58,7 @@ const ids = {
   rateModule: fixed(0x0003),
   rateCable: fixed(0x0004),
   rateLater: fixed(0x0005),
+  lender: fixed(0x0006),
 };
 
 let teamId: string;
@@ -96,6 +99,8 @@ async function removeFinanceRows(): Promise<void> {
                          join sales_order_lines l on l.sales_order_id = so.id
                         where l.item_id = ${ids.module}`;
       await tx`delete from payment_milestones where sales_order_id in (${orders})`;
+      await tx`delete from customer_loans where sales_order_id in (${orders})`;
+      await tx`delete from lenders where id = ${ids.lender}`;
       await tx`delete from proforma_lines where proforma_id in
                  (select id from proformas where sales_order_id in (${orders}))`;
       await tx`delete from proformas where sales_order_id in (${orders})`;
@@ -550,7 +555,8 @@ describe('finance.milestone.plan and finance.milestone.plan_confirmed (FIN-01, q
     });
     expect(planned.templateVersion).toBe(2);
     // ₹68,209 less the ₹5,000 booking leaves ₹63,209: 60% is ₹37,925.40, to the rupee ₹37,925,
-    // and the last takes ₹25,284. The loan stand-in holds nothing back, and the invoice has not come.
+    // and the last takes ₹25,284. The order has no loan to hold anything back, and the invoice has
+    // not come.
     expect(planned.milestones.map((m) => [m.key, m.amount, m.state])).toEqual([
       ['booking', '5000.00', 'due'],
       ['material', '37925.00', 'pending'],
@@ -946,7 +952,7 @@ describe('the platform’s follow-ups of an order (the review of 27-11-2026)', (
     expect(
       await failure({ ...workers(), entityIds: [1] }, refreshMilestones, { entityId: E, orderId }),
     ).toMatchObject({ code: 'forbidden' });
-    // The loan stand-in answers that the order has no loan, so nothing holds the advance.
+    // J2's loan gate answers that the order has no loan, so nothing holds the advance.
     expect(await run(workers(), refreshMilestones, { entityId: E, orderId })).toEqual({
       fellDue: 1,
     });
@@ -957,6 +963,81 @@ describe('the platform’s follow-ups of an order (the review of 27-11-2026)', (
     expect(milestones.map((m) => [m.key, m.state, m.dueOn])).toEqual([
       ['advance', 'due', istCalendarDate(new Date())],
       ['balance', 'pending', null],
+    ]);
+  });
+
+  it('holds a loan-gated payment while J2’s loan gate holds the order, and brings it due once the loan is sanctioned', async () => {
+    onTestFinished(removeTerms);
+    await run(exec, publishPaymentTerms, {
+      entityId: E,
+      segment: 'dealer_wholesale',
+      steps: [
+        {
+          key: 'advance',
+          label: 'Advance',
+          percent: '30.00',
+          amount: null,
+          dueRule: 'on_confirmation',
+          dueDays: null,
+          loanGate: 'sanctioned',
+        },
+        {
+          key: 'balance',
+          label: 'Balance',
+          percent: '70.00',
+          amount: null,
+          dueRule: 'before_dispatch',
+          dueDays: null,
+          loanGate: 'none',
+        },
+      ],
+    });
+    await asMigrator(
+      (m) => m`insert into lenders (id, entity_id, name, created_by)
+                 values (${ids.lender}, ${E}, 'Finance test bank', ${exec.id})
+                 on conflict (id) do nothing`,
+    );
+    const orderId = await order();
+    const loan = await run<{ id: string; state: string }>(exec, createCustomerLoan, {
+      entityId: E,
+      orderId,
+      lenderId: ids.lender,
+      amount: '50000.00',
+    });
+    expect(loan.state).toBe('applied');
+    // The platform plans on confirmation through J2's own app.order_loan_gate(): the applied loan
+    // holds the advance, which would otherwise fall due at once.
+    expect(
+      await run<PlanConfirmedOutcome>(workers(), planConfirmedMilestones, { entityId: E, orderId }),
+    ).toEqual({ outcome: 'planned', count: 2 });
+    const states = async () =>
+      (await asPrincipal(accounts, (ctx) => readOrderMilestones(ctx, E, orderId))).map((m) => [
+        m.key,
+        m.state,
+      ]);
+    expect(await states()).toEqual([
+      ['advance', 'pending'],
+      ['balance', 'pending'],
+    ]);
+    expect(await run(workers(), refreshMilestones, { entityId: E, orderId })).toEqual({
+      fellDue: 0,
+    });
+    await run(exec, sanctionCustomerLoan, {
+      entityId: E,
+      loanId: loan.id,
+      sanctionedAmount: '50000.00',
+    });
+    // The sanction's event names the order the platform's refresh is delivered for.
+    expect(await eventsOf(loan.id)).toContainEqual({
+      type: 'crm.loan.sanctioned',
+      payload: expect.objectContaining({ salesOrderId: orderId, state: 'sanctioned' }),
+    });
+    expect(await run(workers(), refreshMilestones, { entityId: E, orderId })).toEqual({
+      fellDue: 1,
+    });
+    expect(await states()).toEqual([
+      ['advance', 'due'],
+      ['balance', 'pending'],
     ]);
   });
 

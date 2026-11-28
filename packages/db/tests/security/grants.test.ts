@@ -204,6 +204,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     proforma_lines: { i: true, u: false },
     payment_milestone_templates: { i: true, u: false },
     payment_milestones: { i: false, u: false },
+    // J2: a lender changes only its name and whether it is active; a loan only its state, the
+    // sanction, the disbursal, the reference and the rejection (column grants).
+    lenders: { i: true, u: false },
+    customer_loans: { i: true, u: false },
   };
 
   /**
@@ -526,12 +530,14 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // Q1: what a sheet of QR labels prints, read by the render worker.
       'app.labels_for_print(text,uuid[])',
       'app.lead_search_ids(text,boolean,text,integer)',
-      // The ⌘K and /orders search's candidate orders (RPT-03).
-      // FN1: whether a reader reads an order's money (the proforma and milestone policies), the
-      // dispatch's payment gate, and the loan gates (J2's, or its stand-in until J2 merges).
+      // FN1: whether a reader reads an order's money (the proforma and milestone policies), and the
+      // dispatch's payment gate.
       'app.order_dispatch_payment_gate(uuid)',
       'app.order_finance_readable(uuid)',
+      // J2: an order's loan gates, read by the order's Loan tab, the dispatch guard (J8) and the
+      // payment milestones (FN1, also by the platform planning them).
       'app.order_loan_gate(uuid)',
+      // The ⌘K and /orders search's candidate orders (RPT-03).
       'app.order_search_ids(text,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       // Which recordings on a timeline page its reader may play (T3, 0171).

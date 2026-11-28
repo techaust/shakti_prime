@@ -81,3 +81,5 @@ export {
 } from './stock';
 // FN1 proformas and payment milestones (docs/03-roadmap-appendix/phase5.md §6.1).
 export { proformas, proformaLines, paymentMilestoneTemplates, paymentMilestones } from './finance';
+// J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
+export { lenders, customerLoans } from './loans';

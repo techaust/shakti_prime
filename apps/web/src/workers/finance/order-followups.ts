@@ -22,8 +22,8 @@ export async function handleOrderCancelledFinance(
 /**
  * A customer loan's move (J2's `crm.loan.sanctioned`, `crm.loan.disbursed` and
  * `crm.loan.gates_released`, whose payload names `salesOrderId`): the order's waiting payments
- * whose loan no longer holds them fall due (finding 4). Subscribed at the merge with J2, one line
- * each in `EVENT_WORKERS`.
+ * whose loan no longer holds them fall due (finding 4). Subscribed in `EVENT_WORKERS`, one line
+ * each.
  */
 export async function handleOrderLoanMoved(
   event: DeliveredEvent,

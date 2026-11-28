@@ -287,6 +287,36 @@ const voiceAgentImports = {
   ],
 };
 
+// TC1 the Tally connector: apps/tally-connector is the Windows service beside Tally. It holds no
+// database credential and reaches the BOS only through /api/v1 with its signed calls, so its code
+// imports the contracts, Node's modules and its own files; its packaging script adds the two build
+// tools it is made with (AGENTS.md §3, docs/03-roadmap-appendix/phase5.md §6.2).
+const tallyConnectorRelative = {
+  // Nor another app's or package's files by a relative path out of its own folder.
+  regex: '^\\.{1,2}/(.*/)?(apps|packages|web|db|domain)(/|$)',
+  message: 'apps/tally-connector reaches the BOS only through /api/v1 (AGENTS.md §3).',
+};
+const tallyConnectorImports = {
+  patterns: [
+    {
+      regex: '^(?!(@shakti/contracts|node:[a-z_/]+|\\.{1,2})(/|$)).+',
+      message:
+        'apps/tally-connector imports only @shakti/contracts, Node modules and its own files (AGENTS.md §3).',
+    },
+    tallyConnectorRelative,
+  ],
+};
+const tallyConnectorPackagingImports = {
+  patterns: [
+    {
+      regex: '^(?!(esbuild|postject|node:[a-z_/]+|\\.{1,2})(/|$)).+',
+      message:
+        'The connector packaging script imports only esbuild, postject and Node modules (AGENTS.md §3).',
+    },
+    tallyConnectorRelative,
+  ],
+};
+
 // Every module of @shakti/contracts loads Zod, about 90 kB (gzip) a phone would download on every
 // screen (BLUEPRINT §11.4, the per-page JavaScript budget in apps/web/js-budget.json). Code that
 // runs in the browser takes only types from the contracts (`import type`, which the build erases);
@@ -508,6 +538,16 @@ export default tseslint.config(
     files: ['apps/voice-agent/**/*.ts'],
     ignores: ['**/*.test.ts', 'apps/voice-agent/vitest.config.ts'],
     rules: { 'no-restricted-imports': ['error', voiceAgentImports] },
+  },
+  // TC1 the Tally connector
+  {
+    files: ['apps/tally-connector/src/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: { 'no-restricted-imports': ['error', tallyConnectorImports] },
+  },
+  {
+    files: ['apps/tally-connector/packaging/**/*.ts'],
+    rules: { 'no-restricted-imports': ['error', tallyConnectorPackagingImports] },
   },
   {
     // Inside the domain, only the batch command reads the import batch settings and only the

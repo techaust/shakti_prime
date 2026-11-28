@@ -13,7 +13,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { insideCallingHours, outsideCallingHours, setServerClock } from './support/clock';
+import { callingHours, setClocks } from './support/clock';
 import { signInThroughScreens } from './support/sign-in';
 import { emailFor } from './support/users';
 
@@ -58,7 +58,7 @@ test.describe('converting as a Lead Converter', () => {
     test.setTimeout(240_000);
     await signInThroughScreens(page, emailFor(converterKey(projectName())));
     // Inside the calling hours, so the call plan in the picture never depends on the wall clock.
-    await setServerClock(context, insideCallingHours());
+    await setClocks(context, callingHours('inside'));
     await page.goto('/converting');
     await expect(page.getByRole('heading', { name: 'Converting', level: 1 })).toBeVisible();
 
@@ -161,15 +161,15 @@ test.describe('converting as a Lead Converter', () => {
     });
 
     // The call, last. Calls may be saved and numbers shown only from 9 AM to 9 PM in India (TRAI),
-    // so the server's clock is set to each side of those hours in turn, whatever the wall clock is
+    // so the clocks are set to each side of those hours in turn, whatever the wall clock is
     // (e2e/support/clock.ts). Outside them, D keeps the number hidden and says why.
-    await setServerClock(context, outsideCallingHours());
+    await setClocks(context, callingHours('outside'));
     await page.keyboard.press('d');
     await expect(page.getByText(HOURS_SENTENCE)).toBeVisible();
     await expect(page.getByText('Number to dial', { exact: true })).toHaveCount(0);
 
     // Inside them, D shows the number and C sets the callback, with the time asked for in a dialog.
-    await setServerClock(context, insideCallingHours());
+    await setClocks(context, callingHours('inside'));
     await page.keyboard.press('d');
     await expect(page.getByText('Number to dial', { exact: true })).toBeVisible();
     await page.keyboard.press('c');
@@ -277,7 +277,7 @@ test.describe('converting: a dialled call as a Lead Converter of company 1', () 
     browser,
   }) => {
     test.setTimeout(180_000);
-    await setServerClock(context, insideCallingHours());
+    await setClocks(context, callingHours('inside'));
     // Her own phone for calls (the same number each run).
     await page.goto('/settings/profile');
     const section = page.locator('#dial-phone');
