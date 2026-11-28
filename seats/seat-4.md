@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 2
-updated: 28-11-2026 08:25 UTC
+updated: 28-11-2026 11:30 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -130,3 +130,19 @@ run_file: docs/runs/phase3/u2-purchase-orders.md
 wait_for: none
 done_when: report: u2-purchase-orders prepped after j2
 note: a second prep: main moved (J2 #300 with 0243 to 0246 and the notification checks widened with loan_rejected; TC1; the axe title wait; the calling-hours fix). Take main in again as the prep prompt says; U2's migrations move after 0246 (F1, J1, HR1, H2, FN1, R3 and TC2 also wait with 0247 onward; whoever merges later renumbers again). U2 redefines app.next_document_no(), document_sequences_doc_type_check, app.platform_only_permissions(), app.file_purpose_grant() and files_purpose_check: each carries every line of main's latest (Q1's label_sheet in 0241 and 0242) plus U2's own. Add a second "Integration prep" entry and commit with the subject "report: u2-purchase-orders prepped after j2".
+
+lane: 117
+role: prep
+branch: feat/h2-reservations
+run_file: docs/runs/phase3/h2-reservations.md
+wait_for: none
+done_when: report: h2-reservations prepped after j1
+note: a full prep after J1 (#307, migrations 0253 to 0259) and F1 (#306, 0247 to 0252): take main in again as the prep prompt says, migrations after 0259 (others wait with 0247 onward: whoever merges later renumbers again), every integrate.sh part, then the journeys and the Linux baselines per project (the readme's prep prompt, owner 28-11-2026). H2 redefines app.stock_move(), app.platform_only_permissions() and the notification checks: each carries every line of main latest (J1 added projects.draft and project_order_cancelled; J2 loan_rejected) plus H2 own. Commit with the subject "report: h2-reservations prepped after j1".
+
+lane: 118
+role: build
+branch: feat/f2-sync
+run_file: docs/runs/phase4/f2-sync.md
+wait_for: docs(runs): f2-sync brief
+done_when: report: f2-sync early check
+note: none

@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 28-11-2026 09:50 UTC
+updated: 28-11-2026 11:30 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 91
@@ -234,3 +234,19 @@ run_file: docs/runs/phase3/h3-stock-counts.md
 wait_for: docs(runs): h3-stock-counts, the lead's triage of the addendum's re-check
 done_when: report: h3-stock-counts addendum fixes
 note: L1 to L4 of the addendum's re-check, as the lead's triage at the end of the Review section says. C1 is the integration's, not yours. Do not take main in.
+
+lane: 119
+role: prep
+branch: feat/fn1-proformas
+run_file: docs/runs/phase5/fn1-proformas.md
+wait_for: none
+done_when: report: fn1-proformas prepped after j1
+note: a full prep after J1 (#307, migrations 0253 to 0259) and F1 (#306, 0247 to 0252): take main in again as the prep prompt says, migrations after 0259 (others wait with 0247 onward: whoever merges later renumbers again), every integrate.sh part, then the journeys and the Linux baselines per project (the readme's prep prompt, owner 28-11-2026). FN1 redefines app.order_loan_gate() (J2 body plus finance.milestones.process:all), app.platform_only_permissions() (now with J1 projects.draft), app.next_document_no() and document_sequences_doc_type_check (now with J1 project series): each carries every line of main latest plus FN1 own. Commit with the subject "report: fn1-proformas prepped after j1".
+
+lane: 120
+role: build
+branch: feat/j5-scheduling
+run_file: docs/runs/phase4/j5-scheduling.md
+wait_for: docs(runs): j5-scheduling brief
+done_when: report: j5-scheduling early check
+note: none

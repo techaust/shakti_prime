@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 5
-updated: 28-11-2026 07:08 UTC
+updated: 28-11-2026 11:30 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -122,3 +122,19 @@ run_file: docs/runs/phase5/fn1-proformas.md
 wait_for: none
 done_when: report: fn1-proformas prepped
 note: the re-check passed. main holds J2 (0243 to 0246: app.order_loan_gate(), customer_loans, the loan events), TC1, the axe title wait and the calling-hours fix. Besides the prep prompt, do the three integration items of the lead's notes in the run file: (1) redefine app.order_loan_gate() from J2's latest on main, with finance.milestones.process:all answering as well, every other line of J2's kept; (2) add review finding 4's three worker-registry lines for J2's loan events; (3) add a test that a milestone is held while J2's real loan gate holds the order. FN1's migrations move after 0246 (F1, J1, TC2, HR1 and H2 also wait with 0247 onward). Check app.platform_only_permissions(), app.next_document_no() and document_sequences_doc_type_check against main's latest.
+
+lane: 115
+role: prep
+branch: feat/hr1-people
+run_file: docs/runs/phase5/hr1-people.md
+wait_for: none
+done_when: report: hr1-people prepped after j1
+note: a full prep after J1 (#307, migrations 0253 to 0259) and F1 (#306, 0247 to 0252): take main in again as the prep prompt says, migrations after 0259 (others wait with 0247 onward: whoever merges later renumbers again), every integrate.sh part, then the journeys and the Linux baselines per project (the readme's prep prompt, owner 28-11-2026). HR1 redefines no shared definer; confirm it against main. Commit with the subject "report: hr1-people prepped after j1".
+
+lane: 116
+role: build
+branch: feat/j6-qc-costs
+run_file: docs/runs/phase4/j6-qc-costs.md
+wait_for: docs(runs): j6-qc-costs brief
+done_when: report: j6-qc-costs early check
+note: none
