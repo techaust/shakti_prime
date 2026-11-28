@@ -50,7 +50,7 @@ export default async function CountReviewPage({
       description={t('intro')}
     >
       {review.ok ? (
-        <ReviewScreen review={review.data} canCount={can('inventory.stock.move', 'entity')} />
+        <ReviewScreen review={review.data} canCount={can('inventory.count.record', 'entity')} />
       ) : (
         <FailureMessage failure={firstFailure(review)} />
       )}

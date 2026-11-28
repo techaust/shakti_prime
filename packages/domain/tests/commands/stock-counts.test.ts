@@ -153,13 +153,13 @@ beforeAll(async () => {
   manager = await createTestPrincipal('inventory_manager', [1]);
   // Someone who counts and does nothing else.
   const permissions: PermissionGrant[] = [
-    { key: 'inventory.stock.move', scope: 'entity' },
+    { key: 'inventory.count.record', scope: 'entity' },
     { key: 'inventory.stock.read', scope: 'entity' },
   ];
   counter = await createTestPrincipal('store_manager', [1], { permissions });
-  // The design's counter: inventory.stock.move alone, reading no stock.
+  // The design's counter: inventory.count.record alone, reading no stock.
   blindCounter = await createTestPrincipal('store_manager', [1], {
-    permissions: [{ key: 'inventory.stock.move', scope: 'entity' }],
+    permissions: [{ key: 'inventory.count.record', scope: 'entity' }],
   });
 });
 
@@ -187,7 +187,7 @@ describe('inventory.count.*: who may', () => {
 
     const count = await run(manager, startStockCount, start);
     const record = { countId: count.id, binId: f.binA, itemId: f.cable, qty: '10' };
-    // Counting needs inventory.stock.move; a reader of stock cannot count.
+    // Counting needs inventory.count.record; a reader of stock cannot count.
     await expect(
       run(principalFor('general_manager', [1]), recordStockCount, record),
     ).rejects.toMatchObject({ code: 'forbidden' });

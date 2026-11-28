@@ -37,19 +37,19 @@ const countId = newId();
 let owner: Principal;
 let manager: Principal;
 
-/** Someone who counts and does nothing else: inventory.stock.move and .read for the company. */
+/** Someone who counts and does nothing else: inventory.count.record and inventory.stock.read for the company. */
 function counter(entityIds: readonly number[] = [1]): Principal {
   const permissions: PermissionGrant[] = [
-    { key: 'inventory.stock.move', scope: 'entity' },
+    { key: 'inventory.count.record', scope: 'entity' },
     { key: 'inventory.stock.read', scope: 'entity' },
   ];
   return principalFor('store_manager', entityIds, { permissions });
 }
 
-/** A counter who does not read stock: inventory.stock.move alone, the design's counter. */
+/** A counter who does not read stock: inventory.count.record alone, the design's counter. */
 function blindCounter(entityIds: readonly number[] = [1]): Principal {
   return principalFor('store_manager', entityIds, {
-    permissions: [{ key: 'inventory.stock.move', scope: 'entity' }],
+    permissions: [{ key: 'inventory.count.record', scope: 'entity' }],
   });
 }
 

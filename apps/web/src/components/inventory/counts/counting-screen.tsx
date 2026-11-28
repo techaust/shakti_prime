@@ -57,7 +57,7 @@ function targetOf(row: StockCountSheetRowDto): Target {
 }
 
 /**
- * The counting screen (`inventory.stock.move`, docs/03-roadmap-appendix/phase3.md §7.3): each bin
+ * The counting screen (`inventory.count.record`, docs/03-roadmap-appendix/phase3.md §7.3): each bin
  * of the count with its items, one form at a time under the item being counted, its buttons at
  * the thumb's reach. It shows what the counter entered, never what the records expect; a recount
  * shows nothing of the first count. Stock found where none was listed is counted by choosing the

@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Inventory › Stock counts (docs/03-roadmap-appendix/phase3.md §7.3): one company's counts,
  * newest first, by status (`?state=`), for a reader of stock or a counter. A counter
- * (`inventory.stock.move`, with or without `inventory.stock.read`) opens a count to count it; the
+ * (`inventory.count.record`, with or without `inventory.stock.read`) opens a count to count it; the
  * Inventory Manager (`inventory.stock.adjust`) starts counts and opens their review.
  */
 export default async function StockCountsPage({
@@ -63,7 +63,7 @@ export default async function StockCountsPage({
           companies={Object.fromEntries(
             principal.entityIds.map((id) => [id, names[id] ?? String(id)]),
           )}
-          canCount={can('inventory.stock.move', 'entity')}
+          canCount={can('inventory.count.record', 'entity')}
           canReview={canStart}
           hubs={
             hubs?.ok === true

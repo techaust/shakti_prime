@@ -4111,6 +4111,7 @@
       "inventory_stock_read": "See stock",
       "inventory_stock_move": "Move stock",
       "inventory_stock_adjust": "Adjust stock with a reason",
+      "inventory_count_record": "Count stock",
       "inventory_dispatch_write": "Create and update dispatches",
       "inventory_eway_write": "Enter e-way bill details",
       "inventory_warranty_write": "Handle warranty claims",

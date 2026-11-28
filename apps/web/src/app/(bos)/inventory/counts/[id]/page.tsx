@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The counting screen (`inventory.stock.move`, docs/03-roadmap-appendix/phase3.md §7.3), made for
+ * The counting screen (`inventory.count.record`, docs/03-roadmap-appendix/phase3.md §7.3), made for
  * a phone held in one hand: each bin's items to count, and what the counter entered, never what
  * the records expect. It reads nothing that needs `inventory.stock.read`: the bins come with the
  * count's sheet. `?company=` names the count's company.
@@ -37,7 +37,7 @@ export default async function CountingPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { principal, activeEntityId, can } = await screenAccess(navRequires('inventory-counts'));
-  if (!can('inventory.stock.move', 'entity')) notFound();
+  if (!can('inventory.count.record', 'entity')) notFound();
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const query = await searchParams;

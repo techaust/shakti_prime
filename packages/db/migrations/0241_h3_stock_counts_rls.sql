@@ -1,11 +1,11 @@
 -- H3 stock counts (docs/03-roadmap-appendix/phase3.md §7.3): row security, grants, the guard of a
 -- count's state and the definers of its lines.
 -- A count belongs to one company and one hub. Its header is read by company with
--- inventory.stock.read or inventory.stock.move, started with inventory.stock.adjust and moved on
+-- inventory.stock.read or inventory.count.record, started with inventory.stock.adjust and moved on
 -- by the count commands. Its lines are blind to the counter: no request role selects
 -- stock_count_lines.expected_qty (column grants), the rows themselves are read only with
 -- inventory.stock.adjust (a serial's line would tell a counter how many serials to look for), and
--- every line is written only by the definers below. A counter (inventory.stock.move) reads the
+-- every line is written only by the definers below. A counter (inventory.count.record) reads the
 -- bins and items to count through app.stock_count_sheet(), which never selects the expected
 -- quantity; the Inventory Manager reads the expected quantities and the variances through
 -- app.stock_count_review(), which checks inventory.stock.adjust.
@@ -20,7 +20,7 @@ create trigger set_updated_at before update on stock_counts
 --> statement-breakpoint
 
 -- 2. stock_counts: by company. Started only with inventory.stock.adjust, as the starter, open;
---    changed by the counter (inventory.stock.move) and the Inventory Manager. Only the state and
+--    changed by the counter (inventory.count.record) and the Inventory Manager. Only the state and
 --    its stamps change (column grants); the guard keeps the machine's moves and their grants.
 alter table stock_counts enable row level security;
 --> statement-breakpoint
@@ -29,7 +29,7 @@ alter table stock_counts force row level security;
 create policy stock_counts_read on stock_counts for select to app_user, app_reader using (
   entity_id = any ((select app.entity_ids())::int[])
   and ((select app.has_perm('inventory.stock.read:entity'))
-       or (select app.has_perm('inventory.stock.move:entity'))));
+       or (select app.has_perm('inventory.count.record:entity'))));
 --> statement-breakpoint
 create policy stock_counts_insert on stock_counts for insert to app_user with check (
   entity_id = any ((select app.entity_ids())::int[])
@@ -39,7 +39,7 @@ create policy stock_counts_insert on stock_counts for insert to app_user with ch
 --> statement-breakpoint
 create policy stock_counts_update on stock_counts for update to app_user
   using (entity_id = any ((select app.entity_ids())::int[])
-         and ((select app.has_perm('inventory.stock.move:entity'))
+         and ((select app.has_perm('inventory.count.record:entity'))
               or (select app.has_perm('inventory.stock.adjust:entity'))))
   with check (entity_id = any ((select app.entity_ids())::int[])
               and updated_by = (select app.user_id()));
@@ -68,8 +68,8 @@ begin
   end if;
   if new.state is distinct from old.state then
     v_ok := case
-      when old.state = 'open' and new.state = 'counting' then app.has_perm('inventory.stock.move:entity')
-      when old.state = 'counting' and new.state = 'review' then app.has_perm('inventory.stock.move:entity')
+      when old.state = 'open' and new.state = 'counting' then app.has_perm('inventory.count.record:entity')
+      when old.state = 'counting' and new.state = 'review' then app.has_perm('inventory.count.record:entity')
       when old.state = 'review' and new.state = 'counting' then app.has_perm('inventory.stock.adjust:entity')
       when old.state = 'review' and new.state = 'posted' then app.has_perm('inventory.stock.adjust:entity')
       when new.state = 'cancelled' then app.has_perm('inventory.stock.adjust:entity')
@@ -226,7 +226,7 @@ grant execute on function app.stock_count_start(uuid) to app_user;
 --    Manager has asked for the item in the bin again, the count is the recount; otherwise it
 --    replaces the earlier one. A serial number is the company's serial of the item (in any case),
 --    and is counted in one bin of the count at a time. Answers nothing. Only with
---    inventory.stock.move for the count's company.
+--    inventory.count.record for the count's company.
 create or replace function app.stock_count_record(p_count uuid, p_bin uuid, p_item uuid,
                                                   p_qty numeric, p_serial_nos text[])
   returns void
@@ -244,7 +244,7 @@ declare
   v_unknown text;
   v_elsewhere record;
 begin
-  select * into v_count from app.stock_count_of(p_count, 'inventory.stock.move:entity');
+  select * into v_count from app.stock_count_of(p_count, 'inventory.count.record:entity');
   if v_count.state not in ('open', 'counting') then
     perform app.stock_count_refuse('stock_count_not_counting');
   end if;
@@ -399,14 +399,14 @@ grant execute on function app.stock_count_recount(uuid, uuid, uuid) to app_user;
 -- 10. app.stock_count_sheet(count): what a counter sees, one row per item in a bin: the bin, the
 --     item, whether it is still to count, counted or asked for again, and what the counter
 --     entered (the quantity, or the serials found), never what the ledger expects. A recount
---     shows nothing of the earlier count. Only with inventory.stock.move for the count's company.
+--     shows nothing of the earlier count. Only with inventory.count.record for the count's company.
 create or replace function app.stock_count_sheet(p_count uuid)
   returns table (bin_id uuid, bin_code text, item_id uuid, sku text, item_name text, unit text,
                  is_serial_tracked boolean, serial_pattern text, line_state text,
                  counted_qty numeric, serial_nos text[])
   language plpgsql stable security definer set search_path = '' as $$
 begin
-  perform 1 from app.stock_count_of(p_count, 'inventory.stock.move:entity');
+  perform 1 from app.stock_count_of(p_count, 'inventory.count.record:entity');
   return query
     with g as (
       select l.bin_id, l.item_id,
@@ -439,13 +439,13 @@ grant execute on function app.stock_count_sheet(uuid) to app_user, app_reader;
 
 -- 11. app.stock_count_progress(count): how many items in bins the count has, how many are still
 --     to count and how many are asked for again, counted per item in a bin and never per serial.
---     With inventory.stock.move or inventory.stock.adjust for the count's company.
+--     With inventory.count.record or inventory.stock.adjust for the count's company.
 create or replace function app.stock_count_progress(p_count uuid)
   returns table (items_in_bins integer, to_count integer, recount_open integer)
   language plpgsql stable security definer set search_path = '' as $$
 begin
   perform 1 from app.stock_count_of(p_count,
-    case when app.has_perm('inventory.stock.move:entity') then 'inventory.stock.move:entity'
+    case when app.has_perm('inventory.count.record:entity') then 'inventory.count.record:entity'
          else 'inventory.stock.adjust:entity' end);
   return query
     select count(*)::int,
@@ -526,7 +526,7 @@ revoke execute on function app.stock_count_review(uuid) from public, readonly_re
 grant execute on function app.stock_count_review(uuid) to app_user, app_reader;
 
 -- 13. app.stock_count_hub(hub): the code and name of a hub that has a count in the request's
---     companies, for every reader of counts (inventory.stock.read or inventory.stock.move): a
+--     companies, for every reader of counts (inventory.stock.read or inventory.count.record): a
 --     counter who does not read stock (H1's hubs need inventory.stock.read) still sees which hub
 --     the count is of. Nothing else of the hub.
 create or replace function app.stock_count_hub(p_hub uuid)
@@ -535,7 +535,7 @@ create or replace function app.stock_count_hub(p_hub uuid)
   select w.code, w.name
     from public.warehouses w
    where w.id = p_hub
-     and (app.has_perm('inventory.stock.read:entity') or app.has_perm('inventory.stock.move:entity'))
+     and (app.has_perm('inventory.stock.read:entity') or app.has_perm('inventory.count.record:entity'))
      and exists (select 1 from public.stock_counts c
                   where c.warehouse_id = p_hub
                     and c.entity_id = any (coalesce(app.entity_ids(), '{}'::int[])))
@@ -548,7 +548,7 @@ grant execute on function app.stock_count_hub(uuid) to app_user, app_reader;
 
 -- 14. app.stock_count_bins(count): the bins a counter may count in, for stock found where none
 --     was listed: the count's chosen bins, or every bin of its hub in use. Codes only, never what
---     a bin holds. With inventory.stock.move for the count's company, so a counter who does not
+--     a bin holds. With inventory.count.record for the count's company, so a counter who does not
 --     read stock needs no hub list.
 create or replace function app.stock_count_bins(p_count uuid)
   returns table (id uuid, code text)
@@ -556,7 +556,7 @@ create or replace function app.stock_count_bins(p_count uuid)
 declare
   v_count record;
 begin
-  select * into v_count from app.stock_count_of(p_count, 'inventory.stock.move:entity');
+  select * into v_count from app.stock_count_of(p_count, 'inventory.count.record:entity');
   return query
     select b.id, b.code
       from public.bins b
@@ -569,3 +569,47 @@ $$;
 revoke execute on function app.stock_count_bins(uuid) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.stock_count_bins(uuid) to app_user, app_reader;
+--> statement-breakpoint
+
+-- 15. Blind counting (owner, 28-11-2026, question B (a)). While a count is live (open, counting
+--     or review), a counter who cannot adjust stock (inventory.count.record without
+--     inventory.stock.adjust) reads no balance, movement or serial of an item in a bin the count
+--     covers: restrictive policies on H1's tables. Nobody else is affected, and the count's own
+--     definers and H1's run as their owner. app.stock_count_hidden(company, bin, item) answers
+--     whether the row is hidden from the caller, through the live-count index
+--     (stock_counts_live_unique on company and hub).
+create or replace function app.stock_count_hidden(p_entity smallint, p_bin uuid, p_item uuid)
+  returns boolean
+  language sql stable security definer set search_path = '' as $$
+  select p_bin is not null
+     and app.has_perm('inventory.count.record:own')
+     and not app.has_perm('inventory.stock.adjust:entity')
+     and exists (
+       select 1
+         from public.bins b
+         join public.stock_counts c on c.entity_id = p_entity and c.warehouse_id = b.warehouse_id
+        where b.id = p_bin
+          and c.state in ('open', 'counting', 'review')
+          and (c.scope_bin_ids is null or p_bin = any (c.scope_bin_ids))
+          and (c.scope_item_ids is null or p_item = any (c.scope_item_ids)))
+$$;
+--> statement-breakpoint
+revoke execute on function app.stock_count_hidden(smallint, uuid, uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.stock_count_hidden(smallint, uuid, uuid) to app_user, app_reader;
+--> statement-breakpoint
+create policy stock_balances_count_blind on stock_balances as restrictive for select to app_user, app_reader
+  using (not (select app.has_perm('inventory.count.record:own')
+                     and not app.has_perm('inventory.stock.adjust:entity'))
+         or not app.stock_count_hidden(entity_id, bin_id, item_id));
+--> statement-breakpoint
+create policy stock_movements_count_blind on stock_movements as restrictive for select to app_user, app_reader
+  using (not (select app.has_perm('inventory.count.record:own')
+                     and not app.has_perm('inventory.stock.adjust:entity'))
+         or not (app.stock_count_hidden(entity_id, from_bin_id, item_id)
+                 or app.stock_count_hidden(entity_id, to_bin_id, item_id)));
+--> statement-breakpoint
+create policy serials_count_blind on serials as restrictive for select to app_user, app_reader
+  using (not (select app.has_perm('inventory.count.record:own')
+                     and not app.has_perm('inventory.stock.adjust:entity'))
+         or not app.stock_count_hidden(entity_id, bin_id, item_id));

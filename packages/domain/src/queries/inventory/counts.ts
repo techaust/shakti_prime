@@ -53,7 +53,7 @@ const COUNT_ROW_SELECT = sql`
 
 /**
  * The hub's code and name come through `app.stock_count_hub()`, so a counter who holds
- * `inventory.stock.move` without `inventory.stock.read` (which H1's hubs need) still sees them.
+ * `inventory.count.record` without `inventory.stock.read` (which H1's hubs need) still sees them.
  */
 const COUNT_ROW_JOINS = sql`
   left join lateral app.stock_count_hub(c.warehouse_id) w on true
@@ -111,7 +111,7 @@ async function readCountRow(ctx: Ctx, countId: string): Promise<StockCountRowDto
 export async function listStockCounts(ctx: Ctx, rawInput: unknown): Promise<StockCountPageDto> {
   const input = parseQueryInput(ListStockCountsInput, rawInput, 'inventory.count.list');
   assertEntityInScope(ctx.entityIds, input.entityId);
-  if (!hasGrant(ctx.principal.permissions, 'inventory.stock.move', 'entity')) {
+  if (!hasGrant(ctx.principal.permissions, 'inventory.count.record', 'entity')) {
     checkPermission(ctx.principal, 'inventory.stock.read', 'entity');
   }
   const where: SQL[] = [sql`c.entity_id = ${input.entityId}`];
@@ -151,14 +151,14 @@ interface SheetRaw {
 }
 
 /**
- * The counting screen (`inventory.stock.move`): each item in each bin, whether it is still to
+ * The counting screen (`inventory.count.record`): each item in each bin, whether it is still to
  * count, counted or asked for again, and what the counter entered, and the bins a counter may
  * count stock found in. Never what the ledger expects, and nothing that needs
  * `inventory.stock.read`.
  */
 export async function getStockCountSheet(ctx: Ctx, rawInput: unknown): Promise<StockCountSheetDto> {
   const input = parseQueryInput(GetStockCountInput, rawInput, 'inventory.count.sheet');
-  checkPermission(ctx.principal, 'inventory.stock.move', 'entity');
+  checkPermission(ctx.principal, 'inventory.count.record', 'entity');
   const count = await readCountRow(ctx, input.countId);
   const rows = (await ctx.tx.execute(sql`
     select bin_id as "binId", bin_code as "binCode", item_id as "itemId", sku,

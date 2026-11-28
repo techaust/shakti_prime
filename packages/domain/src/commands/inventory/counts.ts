@@ -27,7 +27,7 @@ import {
 /**
  * Stock counts (H3, docs/03-roadmap-appendix/phase3.md §7.3): the Inventory Manager starts a
  * count of a hub, chosen bins or chosen items and the expected quantities are frozen; counters
- * (`inventory.stock.move`) count blind, item by item in each bin, and send the count for review;
+ * (`inventory.count.record`) count blind, item by item in each bin, and send the count for review;
  * the Inventory Manager asks for any item in a bin again or cancels the count. Posting is
  * `counts-post.ts`. Every line is written by the count's definers; no command here reads an
  * expected quantity, and no audit row or answer carries one.
@@ -112,12 +112,12 @@ export const startStockCount = defineCommand({
 
 /**
  * `inventory.count.record`: a counter's count of one item in one bin, a quantity or every serial
- * found (`inventory.stock.move`). The first count moves the count to counting. A serial is
+ * found (`inventory.count.record`). The first count moves the count to counting. A serial is
  * checked against the item's pattern before the definer looks it up.
  */
 export const recordStockCount = defineCommand({
   name: 'inventory.count.record',
-  permission: 'inventory.stock.move',
+  permission: 'inventory.count.record',
   minScope: 'entity',
   peopleOnly: true,
   input: RecordStockCountInput,
@@ -218,11 +218,11 @@ export const recountStockCount = defineCommand({
 
 /**
  * `inventory.count.submit`: send the count for review once every item in every bin is counted
- * (`inventory.stock.move`).
+ * (`inventory.count.record`).
  */
 export const submitStockCount = defineCommand({
   name: 'inventory.count.submit',
-  permission: 'inventory.stock.move',
+  permission: 'inventory.count.record',
   minScope: 'entity',
   peopleOnly: true,
   input: SubmitStockCountInput,

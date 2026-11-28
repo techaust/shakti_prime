@@ -50,7 +50,7 @@ async function move(m: Sql, executiveId: string, lines: Record<string, unknown>[
   await m.begin(async (tx) => {
     await tx`select set_config('app.user_id', ${executiveId}, true),
                     set_config('app.entity_ids', ${`{${String(STOCK_COUNT_JOURNEY.entityId)}}`}, true),
-                    set_config('app.permissions', 'inventory.stock.adjust:entity,inventory.stock.move:entity', true)`;
+                    set_config('app.permissions', 'inventory.stock.adjust:entity,inventory.count.record:entity', true)`;
     await tx`select app.stock_move(${tx.json(lines)})`;
   });
 }

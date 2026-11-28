@@ -324,7 +324,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     requires: [],
     anyOf: [
       { key: 'inventory.stock.read', scope: 'entity' },
-      { key: 'inventory.stock.move', scope: 'entity' },
+      { key: 'inventory.count.record', scope: 'entity' },
     ],
   },
   {

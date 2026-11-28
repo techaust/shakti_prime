@@ -140,6 +140,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   },
   'inventory.stock.move': { ...EXEC, inventory_manager: 'entity', field_engineer: 'own' },
   'inventory.stock.adjust': { ...EXEC, inventory_manager: 'entity' },
+  // H3: the counters (owner, 28-11-2026, question A).
+  'inventory.count.record': { ...EXEC, store_manager: 'entity', inventory_manager: 'entity' },
   'inventory.dispatch.write': {
     ...EXEC,
     general_manager: 'entity',

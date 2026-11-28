@@ -28,6 +28,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'inventory.stock.read': 'See stock',
   'inventory.stock.move': 'Move stock',
   'inventory.stock.adjust': 'Adjust stock with a reason',
+  'inventory.count.record': 'Count stock',
   'inventory.dispatch.write': 'Create and update dispatches',
   'inventory.eway.write': 'Enter e-way bill details',
   'inventory.warranty.write': 'Handle warranty claims',

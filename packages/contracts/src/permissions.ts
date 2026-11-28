@@ -31,6 +31,8 @@ export const PERMISSION_KEYS = [
   'inventory.stock.read',
   'inventory.stock.move',
   'inventory.stock.adjust',
+  // H3: counting stock blind, item by item in each bin, without moving it (owner, 28-11-2026).
+  'inventory.count.record',
   'inventory.dispatch.write',
   'inventory.eway.write',
   'inventory.warranty.write',
@@ -342,6 +344,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'inventory.stock.read': ['own', 'entity', 'all'],
   'inventory.stock.move': ['own', 'entity', 'all'],
   'inventory.stock.adjust': ['entity', 'all'],
+  'inventory.count.record': ['own', 'entity', 'all'],
   'inventory.dispatch.write': ['entity', 'all'],
   'inventory.eway.write': ['entity', 'all'],
   'inventory.warranty.write': ['entity', 'all'],

@@ -141,6 +141,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `tax.rates.write` | all | – | – | – | – | – | – | – | – | entity | – |
 | `inventory.stock.read` | all | entity | – | – | entity | entity | entity | entity | own | entity | – |
 | `inventory.stock.move` / `.adjust` | all | – | – | – | – | – | entity | – | own (move) | – | – |
+| `inventory.count.record` | all | – | – | – | – | entity | entity | – | – | – | – |
 | `inventory.dispatch.write` | all | entity | – | – | – | – | entity | entity | – | – | – |
 | `inventory.eway.write` | all | – | – | – | – | – | entity | – | – | entity | – |
 | `inventory.warranty.write` | all | – | – | – | – | – | entity | – | – | – | – |
