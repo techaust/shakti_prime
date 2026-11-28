@@ -35,6 +35,7 @@ import {
   getStockCountSheet,
   listStockCounts,
 } from '../../src/queries/inventory/counts';
+import { getStockCard, listStockBalances } from '../../src/queries/inventory/stock';
 import { stockMove, type StockMoveLine } from '../../src/stock/move';
 
 const ITEMS = 1_000;
@@ -331,6 +332,29 @@ async function main(): Promise<void> {
     manager,
     `select * from app.stock_count_progress('${count.id}'::uuid)`,
   );
+
+  // Blind counting (owner, question B): the stock list and the stock card of the counted hub as
+  // the Store Manager (counts, cannot adjust: the restrictive policies hide the counted bins) and
+  // as the Inventory Manager (not affected), while the count is live.
+  const storeManager = await createTestPrincipal('store_manager', [1]);
+  for (const [who, principal] of [
+    ['Store Manager', storeManager],
+    ['Inventory Manager', manager],
+  ] as const) {
+    const list = await explained(`stock list of the counted hub, ${who}`, principal, (ctx) =>
+      listStockBalances(ctx, { entityId: 1, hubId: hub, limit: 50 }),
+    );
+    out(`\nstock list of the counted hub, ${who}: ${String(list.items.length)} rows\n`);
+    await explained(`stock list of company 1, ${who}`, principal, (ctx) =>
+      listStockBalances(ctx, { entityId: 1, limit: 50 }),
+    );
+    const card = await explained(`stock card of a counted item, ${who}`, principal, (ctx) =>
+      getStockCard(ctx, { entityId: 1, itemId: items[10] ?? '', limit: 50 }),
+    );
+    out(
+      `\nstock card of a counted item, ${who}: ${String(card.byHub.length)} hubs, ${String(card.movements.length)} movements\n`,
+    );
+  }
 
   await run(manager, submitStockCount, { countId: count.id });
   started = performance.now();
