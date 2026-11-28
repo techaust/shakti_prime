@@ -6,8 +6,8 @@
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): identity documents, masking, sensitive files, row security |
 | Usage | briefed 27-11-2026; built from 27-11-2026 on Opus 5.5 at high (a seat's own account; worktree j3-documents, Postgres 54332, app 3032); finished 28-11-2026 on Opus 5.5 at high (lane 92, the lead's VM) |
-| State | done |
-| Next step | review; at integration, after J1 merges, the foreign key to `projects` and `app.project_missing_documents()` (Report, 28-11-2026) |
+| State | fixes |
+| Next step | integration: H2 at the merge with `main`; after J1 merges, the foreign key to `projects` and `app.project_missing_documents()` (Report, 28-11-2026) |
 
 ## Brief
 Build [phase4 §6.3](../../03-roadmap-appendix/phase4.md#63-j3-customer-documents-and-requirements) as written. SECURITY §5 and §11 items 7 and 8 are the heart of this slice. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -147,6 +147,58 @@ Opus 5.5 at high. Skills loaded: none this round (the screens follow the existin
 - Retention of customer documents is still not set: DATABASE §7 names no period (an owner's or client's decision).
 
 **Decisions this round (Assumptions):** the section's upload goes through "Upload a document" with the requirement chosen in the dialog, so a retried journey still finds it; the masked copy of a PDF is checked by its fetch (200, `application/pdf`), since the headless browser saves a PDF rather than showing it.
+
+### 28-11-2026, lane 103 (the lead's VM; worktree `j3-documents`, Postgres 54332, app 3032): fixes
+Opus 5.5 at high. The one fix round: H1 (all four parts), M1, L1, L2, L3 and L4, as the lead's triage says. H2 is left for the merge, and `main` was not taken in. L5 and L6 are follow-ups. No skills were loaded; each fix follows the slice's existing code.
+
+**H1, an identity paper filed under another kind:**
+1. `documents.document.file` (`packages/domain/src/commands/documents/documents.ts`, `fileIsIdentityPaper`) refuses any kind other than `identity_proof` or `bank_proof` with the new reason `document_identity_kind` when either:
+   - the file's `scan_result.lastFour` holds Aadhaar or bank account digits; or
+   - any document, filed or unfiled, ever named the file as sensitive.
+
+   The second test uses the new definer `app.file_is_sensitive(uuid)`, which checks `documents.read` or `documents.write` at any scope, or `files.process:entity`, and sets `search_path = ''`. It is granted to `app_user` and `app_reader` and revoked from `public` and `readonly_reporter`. Its catalogue sentence tells the person to ask someone who may file identity papers. The refusal comes after the file is read and before anything is written.
+2. `files_customer_document_read` (edited in place in the slice's own `0241_j3_documents_rls.sql`, which is not on `main`) changes in two ways:
+   - it reads a file only through a filed document (`d.unfiled_at is null`), or as its uploader while the file is not filed;
+   - a file that `app.file_is_sensitive()` marks is read only with `documents.sensitive.read`, whatever path reaches it.
+
+   `documents.document.view` refuses an unfiled document (`document_missing`), so opening one is neither audited nor signed. The Documents section shows Open only for a filed document.
+3. Tests in `packages/domain/tests/commands/documents.test.ts`, 3 new and 4 changed. The upload helper now defaults to a scan with no digits, and the identity filings carry the Aadhaar scan.
+   - An Aadhaar photo filed as `site_photo` is refused for the Field Engineer and for the Project Manager. A bank passbook filed as `site_photo` is refused, then accepted as `bank_proof` with its last four digits. The Aadhaar photo is then accepted as `identity_proof`.
+   - A file filed as a site photo is read by the GM. Once unfiled, the GM no longer reads it, and opening the unfiled document is refused. Filed again as `identity_proof`, the GM reads neither the old row's file nor the new one. Unfiled again, it cannot be filed as a site photo, and the GM still reads nothing.
+   - `grants.test.ts` lists the new definer.
+4. SECURITY §5 now says what holds of the papers, not only of the two kinds. DATABASE gains the definer's row and the purpose's read rule.
+
+**M1:** `pnpm db:docs` was run after migrating the fresh slot database, and `docs/data/data-dictionary.md` was committed. That covers `files.account_id`'s sentence and the new read policy. The data-docs test passes (db unit 163 passed). It must run again after H2's merge.
+
+**L1:** `customerDocumentName` (`packages/domain/src/commands/files/begin-upload.ts`) now also cuts every run of nine digits or more to its last four. That goes slightly beyond the triage's 9 to 18: a longer run is masked too. New unit test `begin-upload.test.ts` (3 cases): Aadhaar-shaped, bank numbers of 9, 14 and 18 digits, and a short number left alone.
+
+**L2:** each seed requirement's id now comes from its four keys: a SHA-256 of company, flow, step and requirement key, formatted as a valid v7 id (`requirementSeedId` in `packages/db/seeds/document-requirements.ts`). The conflict target stays on the unique key. A requirement inserted anywhere in the list gets an id of its own, and a company seeded earlier keeps its rows.
+
+I chose this over `onConflictDoNothing()` with no target. With index-based ids, a target-less conflict would silently skip a new requirement whose index id another key already holds. No environment holds the old index ids: the slice is not merged, and the slot databases are fresh. New unit test `packages/db/src/document-requirement-seed.test.ts` (2).
+
+**L3:** `documents.requirement.set` names `document_requirements_step_key_unique` in `constraintReasons`, mapped to `document_requirement_taken`. Its sentence tells the Executive that someone just added the requirement and to refresh. It has no test of its own: two Executives saving at the same moment is not reproducible in a test, and `constraintReasons` is already covered by the runner's tests.
+
+**L4:** `app.documents_missing()` now answers in three cases:
+- `documents.read:entity`;
+- `documents.read:own` when the caller owns the customer in the company (`account_entities.owner_id`);
+- `projects.read` or `projects.write` only when a project is named, for J1's guard. J1 narrows that to the project's assignee at its merge.
+
+Test: the Field Engineer is answered for their own customer and refused for another customer of the company, and the GM is answered. DATABASE's definer row is changed to match.
+
+**Checks run** (each through `heavy.sh`, on the slot database migrated and seeded fresh):
+- `pnpm format:check`: "All matched files use Prettier code style";
+- typecheck of domain, db and web, and eslint `--max-warnings 0` of every folder touched: clean; `pnpm copy-lint`: clean; the whole-repository `pnpm typecheck` (10 successful) and `pnpm lint`: clean;
+- unit tests (`turbo run test --force`): contracts 340, db 163, domain 2,809, web 1,244 passed;
+- `pnpm test:security`, with CI's pinned OCR model in `OCR_LANG_PATH`: db 1,834 passed (63 files), domain 1,537 passed (111 files), web 466 passed (40 files). The 5 masking cases ran.
+- `pnpm build`: passed; `pnpm --filter web js-budget`: "Every page is within its budget (66 pages)";
+- journeys `playwright test documents.spec.ts`, with sign-in and the OCR model: 29 passed. The screenshots taken on the host were deleted again, not committed.
+
+**Decisions (Assumptions):**
+- The refusal applies to anyone filing, so even a holder of `documents.sensitive.read` must file a numbered paper as an identity or bank paper.
+- An electricity bill in which the masker took a long consumer number for a bank account number is refused as a bill and must be filed as `bank_proof`. That fails closed. PROJ-1 or the reviewer may want a narrower test.
+- A Field Engineer who uploads an Aadhaar photo cannot file it at all, and nobody else can reach their unfiled upload. That is L5's open question, settled with the retention period.
+
+**Left for the lead:** H2 at the merge (`app.file_purpose_grant()` as `main`'s 0242 plus the `customer_document` writer, `purposes.ts` taken from both sides, `pnpm db:docs` again); the J1 items of the earlier report; and the follow-ups L5 and L6.
 
 ## Review
 
