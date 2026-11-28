@@ -91,8 +91,9 @@ async function insideDefiner(label: string, principal: Principal, call: string):
   });
   await asMigrator(async (m) => {
     const notices: string[] = [];
-    m.options.onnotice = (notice) => {
-      notices.push(String(notice.message));
+    // postgres.js reads the handler from its options at each notice; its types leave it out.
+    (m.options as { onnotice?: (notice: { message: string }) => void }).onnotice = (notice) => {
+      notices.push(notice.message);
     };
     const reserved = await m.reserve();
     try {
