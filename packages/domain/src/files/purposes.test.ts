@@ -52,6 +52,7 @@ describe('file purposes', () => {
         'imports.write',
         'knowledge.vault.write',
         'procurement.rate.read',
+        'projects.write',
         'sales.quote.send',
       ].sort(),
     );

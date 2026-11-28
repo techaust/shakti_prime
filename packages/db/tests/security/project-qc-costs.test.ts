@@ -155,9 +155,9 @@ describe('project_cost_lines: restricted and append-only', () => {
         'row-level security',
       );
     }
-    // Not as someone else, nor in another company.
-    expect(causeOf(await trial(actingAs('executive', 1, newId()), [insertLine(1)]))).toContain(
-      'row-level security',
+    // Not as someone else (here a caller who is no person on record), nor in another company.
+    expect(causeOf(await trial(actingAs('executive', 1, newId()), [insertLine(1)]))).toMatch(
+      /row-level security|only a person/,
     );
     expect(causeOf(await trial(actingAs('executive', 2), [insertLine(1)]))).toContain(
       'row-level security',

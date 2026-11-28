@@ -166,7 +166,7 @@ const submit = async (who: Principal, projectId: string, by: Principal = who) =>
 async function eventsOf(aggregateId: string): Promise<{ type: string; payload: unknown }[]> {
   return asOutboxPublisher(
     (p) => p<{ type: string; payload: unknown }[]>`
-      select type, payload from outbox_events where aggregate_id = ${aggregateId} order by sequence`,
+      select type, payload_json as payload from outbox_events where aggregate_id = ${aggregateId} order by sequence`,
   );
 }
 
@@ -442,6 +442,13 @@ describe('projects.qc.signoff and .reject: decided by someone other than the sub
     const inspection = await submit(engineer, projectId);
     expect(
       await failure(otherManager, signoffQc, { entityId: E, inspectionId: inspection.id }),
+    ).toMatchObject({ code: 'forbidden' });
+    expect(
+      await failure(otherManager, rejectQc, {
+        entityId: E,
+        inspectionId: inspection.id,
+        reason: 'Retake',
+      }),
     ).toMatchObject({ code: 'forbidden' });
     await expect(
       asPrincipal(stranger, (ctx) => projectQc(ctx, { entityId: E, projectId })),
