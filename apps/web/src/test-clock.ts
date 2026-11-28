@@ -5,9 +5,9 @@ import { hostedRuntime, localRuntime } from './auth/deps';
  * The journeys' clock for the calling-hours rule (TRAI, 09:00 to 21:00 IST). The rule itself reads
  * the time it is given; the journeys set this cookie to a number of milliseconds the server adds to
  * its own clock, so a journey exercises the inside and the outside of the hours on any wall clock,
- * instead of choosing a branch from its own. The clock only moves forward (the records a journey
- * made just before are never newer than "now") and keeps running, so a journey's own rows keep
- * their order.
+ * instead of choosing a branch from its own. The clock keeps running, and the journeys hold one
+ * shift for each side of the hours through a whole run (`e2e/support/clock.ts`), so the calls a
+ * journey placed a moment before are never newer than "now" and its own rows keep their order.
  *
  * It is honoured only by a runtime that carries the local marker (`localRuntime()`). Any other
  * runtime ignores it, and a hosted runtime refuses a request that carries it, so a copied cookie

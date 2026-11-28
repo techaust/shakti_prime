@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, expectNoAxeViolations, hydrated, signedInAs, test } from './support/fixtures';
-import { insideCallingHours, outsideCallingHours, setServerClock } from './support/clock';
+import { callingHours, setClocks } from './support/clock';
 
 // E1 Channels and dial rules (docs/03-roadmap-appendix/phase2.md §5.2): an Executive records a
 // company's numbers on Settings › Companies, and the screen says plainly when a calling number is
@@ -107,7 +107,7 @@ test.describe('the call plan as a tele-caller', () => {
     page,
     context,
   }) => {
-    await setServerClock(context, insideCallingHours());
+    await setClocks(context, callingHours('inside'));
     const lead = await addLead(page, 'Kamla Devi Jat');
     await openInWorkspace(page, lead);
     const plan = page.getByRole('region', { name: 'How this call would go out' });
@@ -124,7 +124,7 @@ test.describe('the call plan as a tele-caller', () => {
   });
 
   test('lists every rule a call would break outside calling hours', async ({ page, context }) => {
-    await setServerClock(context, outsideCallingHours());
+    await setClocks(context, callingHours('outside'));
     const lead = await addLead(page, 'Bhanwar Lal Gurjar');
     await openInWorkspace(page, lead);
     const plan = page.getByRole('region', { name: 'How this call would go out' });
