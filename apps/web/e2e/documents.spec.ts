@@ -100,12 +100,17 @@ test.describe('a customer’s documents, for the Project Manager', () => {
     await expect(page.getByText(uploadedAadhaar.slice(0, 9))).toHaveCount(0);
     await expect(page.getByText(uploadedAadhaar.replaceAll(' ', '').slice(0, 8))).toHaveCount(0);
 
-    // Its masked copy opens in a new tab.
+    // Its masked copy, a PDF, opens in a new tab, which the journeys' headless browser saves
+    // rather than shows, so the tab's fetch of it is what is checked.
+    const fetched = page
+      .context()
+      .waitForEvent('response', (r) => r.url().includes('/api/v1/files/local/'));
     const opened = page.waitForEvent('popup');
     await section.getByRole('button', { name: 'Open the Identity proof' }).first().click();
     const tab = await opened;
-    // The journeys' file store serves it from the app itself.
-    await expect.poll(() => tab.url()).toContain('/api/v1/files/local/');
+    const response = await fetched;
+    expect(response.status()).toBe(200);
+    expect(await response.headerValue('content-type')).toBe('application/pdf');
     await tab.close();
   });
 });
