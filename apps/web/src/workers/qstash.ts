@@ -100,6 +100,8 @@ export const EVENT_JOB_ROUTES: Readonly<
   // U2: a purchase order sent is printed by the render route (ADR 0009), and mailed when sent by
   // email, so no other route runs Chromium (review R2).
   'procurement.po.sent': { path: PDF_RENDER_PATH, body: purchaseOrderSentJobOf },
+  // J2 customer loans.
+  'crm.loan.rejected': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {

@@ -62,7 +62,29 @@ export function clock(seconds: number): string {
   return `${String(Math.floor(s / 60))}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** Seconds the call has run, as the bar shows them: on the line since the answer, else since the press. */
+/**
+ * How far the server's clock is ahead of this browser's, in milliseconds, read from a dial's
+ * answer: the call's start is the moment the server took up the dial, at the start of the dial's
+ * action, so it is set against `sentAt`, the browser's moment of sending the dial. The two differ
+ * only by the trip there, a fraction of a second; the answer's arrival would also take in the
+ * whole dial (the checks and the provider's connect), and the bar would count every call short by
+ * it. A device clock set wrong (or the journeys' moved clocks) then never makes the bar's time
+ * count from the wrong moment, nor stop reading a call that is still running.
+ */
+export function serverClockOffset(startedAt: string, sentAt: number): number {
+  return Date.parse(startedAt) - sentAt;
+}
+
+/** Whether the bar still reads a call again, on the server's clock `now`. */
+export function stillReading(call: ProviderCallDto, now: number): boolean {
+  return now - Date.parse(call.startedAt) <= POLL_LIMIT_MS;
+}
+
+/**
+ * Seconds the call has run, as the bar shows them: on the line since the answer, else since the
+ * press. `now` is the server's clock (`Date.now()` plus `serverClockOffset`), which the call's
+ * times are on.
+ */
 export function elapsedSeconds(call: ProviderCallDto, now: number): number {
   if (call.durationS !== null && ENDS.has(call.status)) return call.durationS;
   const from = call.answeredAt ?? call.startedAt;
@@ -99,6 +121,8 @@ export function CallBar({
   const [readiness, setReadiness] = useState<{ entityId: number; dto: DialReadinessDto }>();
   const [call, setCall] = useState<ProviderCallDto>();
   const [refusals, setRefusals] = useState<{ lead: string; reasons: Refusals }>();
+  // The server's clock, which the call's times are on: the browser's plus the dial's offset.
+  const [offset, setOffset] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
   const { entityId, opportunityId } = lead;
@@ -120,7 +144,7 @@ export function CallBar({
   // The provider's reports reach the call on the server; the bar reads it again while it runs.
   useEffect(() => {
     if (shown === undefined || !live) return;
-    if (Date.now() - Date.parse(shown.startedAt) > POLL_LIMIT_MS) return;
+    if (!stillReading(shown, Date.now() + offset)) return;
     const timer = setTimeout(() => {
       void providerCallStatus({ entityId: shown.entityId, providerCallId: shown.id }).then(
         (result) => {
@@ -129,13 +153,13 @@ export function CallBar({
       );
     }, POLL_MS);
     const tick = setInterval(() => {
-      setNow(Date.now());
+      setNow(Date.now() + offset);
     }, 1_000);
     return () => {
       clearTimeout(timer);
       clearInterval(tick);
     };
-  }, [shown, live]);
+  }, [shown, live, offset]);
 
   useEffect(() => {
     if (shown === undefined) return;
@@ -144,10 +168,11 @@ export function CallBar({
       opportunityId: shown.opportunityId,
       providerCallId: shown.id,
       startedAt: shown.startedAt,
-      durationSeconds: shown.durationS ?? (ended ? elapsedSeconds(shown, Date.now()) : undefined),
+      durationSeconds:
+        shown.durationS ?? (ended ? elapsedSeconds(shown, Date.now() + offset) : undefined),
       ended,
     });
-  }, [shown, onCall]);
+  }, [shown, onCall, offset]);
 
   const ok = readiness?.entityId === entityId ? readiness.dto : undefined;
   const offered =
@@ -156,11 +181,15 @@ export function CallBar({
   const press = useCallback(() => {
     if (!offered || !ok.dialPhoneSet || live || dial.pending) return;
     setRefusals(undefined);
+    // The dial leaves now: the server's start of the call is set against this moment.
+    const sentAt = Date.now();
     dial.load(
       () => dialCall({ entityId, opportunityId }),
       (outcome) => {
         if (outcome.kind === 'placed') {
-          setNow(Date.now());
+          const ahead = serverClockOffset(outcome.call.startedAt, sentAt);
+          setOffset(ahead);
+          setNow(Date.now() + ahead);
           setCall(outcome.call);
         } else {
           setRefusals({ lead: opportunityId, reasons: outcome.refusals });

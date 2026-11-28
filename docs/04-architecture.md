@@ -70,7 +70,7 @@ Dotted edges are planned. The domain defines the `KeyValue` port (`packages/doma
 | `apps/web` | Next.js server actions, route handlers, QStash-triggered workers | Vercel, functions pinned to `bom1` beside the database |
 | apps/field (planned, Phase 4) | Expo Android app | Google Play (EAS Build/Update) |
 | apps/voice-agent (planned, Phase 2) | LiveKit Agents worker (Node) | LiveKit Cloud Agents hosting, India region |
-| apps/tally-connector (planned, Phase 5) | Node Windows service | Client PC beside Tally |
+| `apps/tally-connector` (Phase 5) | Node Windows service, a single executable run by WinSW | Client PC beside Tally |
 | Database | Postgres 17 with RLS, pg_trgm, pg_cron, partitions (pgvector with the Knowledge Vault) | Supabase (ADR 0002) |
 | Queue | QStash; Upstash Workflow joins when a flow needs it ([ADR 0005](adr/0005-transactional-outbox-qstash-workflow.md)) | Upstash |
 | Cache, locks, counters | Redis | Upstash |
@@ -357,7 +357,7 @@ ADRs live in `docs/adr/` as `NNNN-title.md`: a header line with the status, date
 | [0010](adr/0010-livekit-cloud-typescript-voice-agent.md) | LiveKit Cloud with a TypeScript agent worker for live voice | Proposed (the voice spike) |
 | [0011](adr/0011-claude-provider-wrapper-voyage-pgvector.md) | Claude Haiku 4.5 and Sonnet 5 behind a provider wrapper; Voyage embeddings in pgvector | Accepted for the wrapper (the Sonnet routing is open) |
 | [0012](adr/0012-expo-watermelondb-offline-field-app.md) | Expo with WatermelonDB for the offline field app | Proposed (the Phase 4 build) |
-| [0013](adr/0013-read-only-tally-connector.md) | Read-only Tally connector with AlterID reads and deletion tombstones | Proposed (the Tally spike) |
+| [0013](adr/0013-read-only-tally-connector.md) | Read-only Tally connector with AlterID reads and deletion tombstones | Accepted (27-11-2026, Phase 5 design) |
 | [0014](adr/0014-english-interface-hinglish-speech.md) | English interface, with Roman-script Hinglish only for caller scripts, voice speech and training | Accepted |
 | [0015](adr/0015-sentry-us-region-scrubbed.md) | Sentry in the group's US-region organisation, personal data removed before sending | Accepted |
 | [0016](adr/0016-catalogue-and-tax-writes-for-all-companies.md) | Catalogue, tax and group-wide price writes only in a request for every company | Accepted |
@@ -367,4 +367,4 @@ ADRs live in `docs/adr/` as `NNNN-title.md`: a header line with the status, date
 | [0020](adr/0020-system-workers-treated-as-agent.md) | `system:workers` follows an agent's customer rules | Proposed (the owner, at T2) |
 | [0021](adr/0021-people-record-sizing.md) | Only people record the sizing a quote relies on; agents only suggest | Accepted |
 
-The review of the Proposed ADRs 0010, 0012 and 0013, and of what stays open in 0007 and 0011, is a deferred Phase 0 gate item ([ROADMAP §2](03-roadmap.md)); the owner's decisions are listed in [11-decisions.md](11-decisions.md).
+The review of the Proposed ADRs 0010 and 0012, and of what stays open in 0007 and 0011, is a deferred Phase 0 gate item ([ROADMAP §2](03-roadmap.md)); the owner's decisions are listed in [11-decisions.md](11-decisions.md).

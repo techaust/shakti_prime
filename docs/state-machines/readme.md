@@ -17,7 +17,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Project, standard install flow | no | 4 | 6 | 9 | [project-standard.md](project-standard.md) |
 | Project, PM Surya Ghar flow | no | 12 | 13 | 3 | [project-surya-ghar.md](project-surya-ghar.md) |
 | Subsidy gate | no | 4 | 5 | 9 | [subsidy-gate.md](subsidy-gate.md) |
-| Customer loan | no | 4 | 4 | 1 | [customer-loan.md](customer-loan.md) |
+| Customer loan | **yes** | 4 | 4 | 1 | [customer-loan.md](customer-loan.md) |
 | Warranty claim | no | 6 | 6 | 7 | [warranty-claim.md](warranty-claim.md) |
 | WhatsApp document filing | no | 5 | 5 | 1 | [document-filing.md](document-filing.md) |
 | File upload | **yes** | 6 | 8 | 0 | [file-upload.md](file-upload.md) |

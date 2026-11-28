@@ -89,3 +89,5 @@ export {
   goodsReceiptLines,
   goodsReceiptLineRates,
 } from './procurement';
+// J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
+export { lenders, customerLoans } from './loans';

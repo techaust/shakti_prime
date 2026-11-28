@@ -263,6 +263,8 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       await handleStockMovedReorder(event, ctx);
     },
   },
+  // J2: a loan turned down, told to the owner of the order's lead or customer.
+  'crm.loan.rejected': { ordering: 'every', handle: notify },
 };
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */

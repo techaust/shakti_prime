@@ -111,6 +111,10 @@ import {
   PURCHASE_ORDER_SENT_VIA,
   PURCHASE_ORDER_SOURCES,
   PURCHASE_ORDER_STATES,
+  // J2 customer loans
+  ACTIVE_LOAN_STATES,
+  CUSTOMER_LOAN_STATES,
+  LOAN_DISPATCH_GATES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -313,6 +317,15 @@ const PAIRS: Record<string, readonly string[]> = {
   purchase_orders_close_check: ['closed'],
   goods_receipts_state_check: GOODS_RECEIPT_STATES,
   goods_receipts_reversed_check: ['reversed'],
+  // J2: a loan's states; which states carry a sanction, a disbursal, a rejection; what the dispatch
+  // waits for (the key it is read by, then its values).
+  customer_loans_state_check: CUSTOMER_LOAN_STATES,
+  customer_loans_sanction_check: ACTIVE_LOAN_STATES,
+  customer_loans_disbursed_check: ['disbursed'],
+  customer_loans_rejected_check: ['rejected'],
+  customer_loans_gates_dispatch_check: ['dispatch', ...LOAN_DISPATCH_GATES],
+  // Only a rejected loan's gates are waived.
+  customer_loans_waiver_check: ['rejected'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {
