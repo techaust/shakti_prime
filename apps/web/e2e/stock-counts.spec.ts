@@ -55,7 +55,7 @@ test.describe('a stock count', () => {
       await page.goto(`/inventory/stock?q=${encodeURIComponent(cable.sku)}`);
       await (await hydrated(page.getByRole('link', { name: cable.name }).first())).click();
       await expect(page.getByRole('heading', { name: cable.name, level: 1 })).toBeVisible();
-      await expect(page.getByText(hub.name).first()).toBeVisible();
+      await expect(page.getByRole('main')).toContainText(hub.name);
       const url = new URL(page.url());
       cardPath = `${url.pathname}${url.search}`;
 
