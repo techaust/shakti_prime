@@ -300,4 +300,38 @@ Not run: typecheck, the whole-repository lint, `pnpm build`, `js-budget` and `co
 - **11:** resolved by H2, which takes `inventory.stock.read` off the Lead Converter (the owner's decision of 27-11-2026). Nothing to do here.
 - **Finding 1 is high, so the reviewer re-checks the fix diff.**
 
+**Re-check (slice-reviewer, 28-11-2026, cloud session), on `ab55157d`:** `git diff cc48e2c8..ab55157d`, four commits (`fadaf6f9`, `65b94681`, `43e2ccb3`, `ab55157d`). The round took no merge of `main`, so every change in the diff is the round's own. `main` (`4338c5e7`) has added no migration since the branch's base `fc42a09f`, so 0243 to 0246 still follow its last (0242). Run on the slot's new database (54331, migrated and seeded first), each through `heavy.sh`:
+- `pnpm --filter @shakti/db test`: 12 files, **161 passed** (`data-docs.test.ts` among them).
+- db security: `warranty.test.ts`, `role-entity-matrix.test.ts` and `stock-reason-moves.test.ts`: 145 passed.
+- domain security: `commands/warranty.test.ts`, `queries/warranty.test.ts` and `commands/import-installed-base.test.ts`: 24 passed.
+- `apps/web/src/screens/warranty.test.ts` 3 passed; domain `src/state-machines` and `src/warranty` 1,363 passed (the machine documents' freshness test among them).
+- `pnpm typecheck` 10 successful; `eslint --max-warnings 0` on every `.ts`/`.tsx` file the round changed clean; `pnpm copy-lint` clean.
+
+Not run: the whole security suite, the whole-repository lint, `pnpm build` and `js-budget` (the builder reports them green on `43e2ccb3`). **Journeys not run:** a cloud session cannot sign in, so `apps/web/e2e/warranty.spec.ts` did not run, nor its three new snapshots (`warranty-identify-dialog` after the out-of-warranty refusal, `warranty-rma-dialog` before the run's reference, `warranty-list` with the grid and state tabs masked). The branch still has no baselines, so no layout was reviewed.
+
+| # | Finding | Re-check |
+|---|---|---|
+| 1 | Stale data dictionary | **Fixed and tested.** `docs/data/data-dictionary.md` now names `app.warranty_claim_record_cost()` and the guard's wording; the db unit tests pass (161). |
+| 2 | The reached step marked "Next" | **Fixed and tested.** `claimSteps(state)` marks each step up to the state done and the one after it current ("Next"); a rejected claim lists "Claim raised" and "Claim rejected" only (new key `warranty.steps.rejected`). The unit test asserts whole lists for `raised` and `serial_identified`, the tail of `rma_raised`, all done for `closed`, and the rejected list. |
+| 3 | Row security does not hold a claim to its steps | **Fixed and tested.** `app.warranty_claims_guard()` now allows only the machine's five transitions, each under its own grant (42501 otherwise), each changing only its own columns, and refuses an update with no state change. The new db case replays the review's probe (settlement's grant alone cannot take a `replacement_issued` claim back: 23514) and checks the RMA under the wrong grant (42501), a change with no step, a step writing another step's column, and the RMA step passing. I read each `writeStep()` call against the guard's lists: identify (`item_id`, `serial_id`), replace (`replacement_serial_id`), RMA (`vendor_id`, `supplier_rma_ref`), settle (`settlement`), reject (`rejected_reason`); `state_changed_at`, `updated_at` and `updated_by` are outside the compared columns, as they should be. No other writer updates the table (the e2e seed and the matrix fixture only insert). |
+| 4 | SECURITY §4 leaves out the side table | **Fixed** (`docs/07-security.md` §4 names `warranty_claim_costs`). |
+| 5 | The machine's note | **Fixed** ("…and the claim is then rejected by hand"); `docs/state-machines/warranty-claim.md` regenerated and its freshness test passes. |
+| 6 | `warrantyUntilFrom()`'s comment | **Fixed as the comment; the rule stays for the client.** I ran the function on the comment's three examples: 10-03-2026 +12 → 09-03-2027, 31-01-2026 +1 → 27-02-2026, 29-02-2028 +12 → 27-02-2029, as it says. The run file records the month-end rule as an assumption for phase3 §12 question 10. |
+| 7 | A warranty end before the delivery | **Fixed and tested.** The preview refuses it `date_invalid` on Warranty until (row 13 of the refusals case), and `app.installed_base_add()` refuses it as `warranty_before_delivery`, mapped to the same finding; the new case alters the stored row after the preview and sees the commit refuse it with no serial added. DATABASE §4.1 and the Built record say so. |
+| 8 | Give a replacement drops the return silently | **Fixed, not tested.** With no quarantine bin the dialog offers only "Still with the customer" and says why under the field; once chosen, the bin is always sent, so an empty one is refused rather than dropped. `back` starts false and cannot become true without the option, so the hidden choice cannot be left set. No component test covers it, and the journey's seed has a quarantine bin. |
+| 9 | Missing snapshots | **Fixed in the spec, not run.** The three `snap()` calls are in place, each on content that is the same on every walk (the expired serial's fixed date, the seeded supplier, the masked grid and tabs). The lead makes the seven baselines at integration. |
+| 10 | The PRD trace | The lead's, at the merge. |
+| 11 | Lead Converters read claims | Resolved by H2, as the triage says. |
+| 12 | The cursor drops microseconds | **Fixed and tested.** The cursor carries `created_at` as text to the microsecond (`to_char(... 'US')`); the cursor schema (`z.iso.datetime({ offset: true })`) takes six digits, and the predicate casts the text in SQL. The new case (two claims 300 µs apart, one per page) fails under the old code, whose cursor at `.000Z` skips the older claim. |
+
+**New in the round:**
+
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 13 | Low | **The cursor test cannot reach its claims on a database holding the EXPLAIN spike's rows (confirmed by reading).** `packages/domain/tests/queries/warranty.test.ts:110` walks company 4's claims from the newest, one per page, at most 500 pages, to reach two claims dated 2001, the oldest. `packages/domain/tests/spike/warranty-explain.ts` leaves 20,000 claims of company 4 in the local database. Scenario: a builder who ran the spike reruns the suite on that database and the case fails, with 500 queries spent first; CI's fresh database is not affected. Fix: start the walk from a cursor just above the two claims (`encodeCursor(['2001-01-01T00:00:01.000000Z', 'ffffffff-ffff-ffff-ffff-ffffffffffff'])`), so it takes two or three pages. | open, follow-up |
+
+**The ledger rows against X4's registry on `main`** (`0240_x4_stock_reasons.sql`): `0246_r3_warranty_ledger.sql`, unchanged by the round, inserts three `app.stock_reason_grants` rows with `reversible` false and three `app.stock_reason_moves` rows on conflict `(reason, direction, reverses_reason)`, with `reverses_reason` taking its default `''`. Each row passes the registry's checks: `warranty_replacement` out from `{in_stock}` to `with_customer`, `return_customer` in from `{with_customer}` to `faulty`, `return_supplier` out from `{faulty}` to `with_supplier`, none `creates`. No reason is reversible, so no reversal rows are owed. The db reason-move suite passes with them.
+
+**Verdict:** findings 1 to 9 and 12 are fixed (8 and 9 without a run test, as said above); the high finding is closed. Nothing the round changed blocks the merge. Finding 13 is a follow-up. Both of the round's migrations (`0244`, `0245`) were edited in place, so any database that applied their earlier text needs a fresh one, as the builder's report says.
+
 ## Integration
