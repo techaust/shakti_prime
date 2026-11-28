@@ -269,3 +269,50 @@ Not checked:
 - Run `pnpm format:check` before the `report: hr1-people fixes` commit.
 
 ## Integration
+
+### 28-11-2026, Integration prep (cloud, worktree `hr1-people`)
+- **Main taken in:** `origin/main` at `994631ae` (#305, the calling-hours fix; with X4, Q1, J2, TC1, the IST demo day and the axe title wait), by the merge commit `20ba8854` over the slice's `40b1a3c9`.
+  - 28 files conflicted. The lists went through `merge-union.py` and were then read by hand: the registries, the testing lists, the fixtures, `audit.ts`, `contract-values`, `activity-details.tsx`, the e2e seed, the events catalogue, the workshop defaults, `reader-parity` and `agent-refusals`. `en.json` went through `merge-json.py`, with no key changed on both sides. `copy-lint.config.json` went through `merge-copylint.py`. `docs/data` and `docs/state-machines` were taken from `main` and generated again.
+  - Two hunks needed hand fixes after the union. In `workshop-defaults.ts`, the `hr` block's closing brace went back, in the type and in the value. In the matrix fixture, the HR loop's closing brace went back too.
+  - `js-budget.json`'s `/catalogue` reason kept J2's sentence and added HR1's.
+  - `pnpm install --offline --frozen-lockfile` failed on a metadata file the cache lacked (`@datastructures-js/deque`, TC1's). `pnpm install --frozen-lockfile` then found everything already installed.
+  - `renumber-migrations.mjs` was run again after the install.
+- **Migrations:** `0240_hr1_people`, `0241_hr1_people_rls` and `0242_hr1_people_manager_name` are now `0247_hr1_people`, `0248_hr1_people_rls` and `0249_hr1_people_manager_name`.
+  - Their journal times come after J2's `0246` (`1795792882017`): 0247 is at `…883017`, 0248 at `…884017` and 0249 at `1795830857500`.
+  - Snapshots 0240 to 0246 are `main`'s, and 0247 to 0249 chain from 0246's id.
+  - `pnpm db:generate`: "No schema changes, nothing to migrate".
+  - `pnpm db:docs` and `machines:docs` were run again.
+  - DATABASE now cites 0247 for the six HR tables, 0248 for `app.hr_manages()` and 0249 for `app.hr_own_manager_name()`.
+- **Redefinitions (§10, Merging with main):** HR1's migrations redefine no shared object.
+  - Its functions are `app.hr_manages()`, `app.leave_requests_guard()` and `app.hr_own_manager_name()`. None of them appears in any of `main`'s migrations.
+  - It does not touch `app.platform_only_permissions()`, `app.stock_move()` or its reason registry, any check constraint of an existing table, or the `activities` type check.
+  - Every constraint, foreign key, policy and trigger it adds is on its own six tables. Its foreign keys point to `users`, `principals` and `entities` with `no action`, as all four of `main`'s keys to `users` do. None points to `accounts` or `leads`, so a customer merge does not reach them.
+  - The `leave_requests_no_overlap` exclusion constraint needs `btree_gist`, which `main` already creates in 0006.
+- **Shared lists, checked for a key used twice:** none was found in any list the merge touched.
+  - The lists checked: the command registry, the events catalogue, the permission seeds, the testing lists, the matrix fixture's maps, the grants and enum-sync maps, the state-machine registry, the nav entries, `reader-parity`, `audit.ts`'s action map, field kinds and code groups, `en.json`, and the copy-lint button keys.
+  - The duplicate keys in `agent-refusals.test.ts`, and `audit.ts`'s `catalogue.pump_curve.set`, sit in separate maps and are the same on `main`.
+  - **One clash with no marker:** the matrix fixture's per-company offsets. J2's lender and loan took `0x90` and `0x91`, which HR1 also used, so HR1's twelve rows move to `0xa0` to `0xab`. Nothing outside the fixture reads those offsets.
+- **Typecheck right after the merge:** `pnpm typecheck` through the lock gave `Tasks: 11 successful, 11 total`.
+- **integrate.sh in parts:** each part ran on a fresh Postgres on 54340, with `urls_not_on_54340=0`, and the e2e step was not run.
+  - `install lint format copylint generated typecheck`: every step `rc=0`, `=== INTEGRATION PARTIAL (install lint format copylint generated typecheck)`.
+  - `unit`: `rc=0`, 11 of 11 tasks, 0 cached, `=== INTEGRATION PARTIAL (unit)`. Counts:
+    - tokens 146, copy-lint 17, ui 107, voice 49, voice-agent 23, contracts 344 and db 162 passed;
+    - tally-connector 68 passed and 1 skipped (69);
+    - domain 2,857 passed;
+    - web 1,275 passed and 1 skipped (1,276).
+  - `security dbverify`: `rc=0`, `=== INTEGRATION PARTIAL (security dbverify)`.
+    - Counts: db 1,926 (66 files), domain 1,593 (114 files), web 466 (40 files), all passed.
+    - `db:verify` printed "every migration is applied as it is on disk".
+  - `audit build jsbudget gitleaks`, first run: `=== INTEGRATION FAILED` on `jsbudget` (`rc=1`). `/price-master` measured 248.3 kB against 248, and `/catalogue` 246.2 kB against 246.
+    - The merge caused this: each slice measured its 1 kB raise without the other's menu entries (J2's Lenders, HR1's five).
+    - Fix in `783814ef`: `/catalogue` goes to 247 and `/price-master` to 249, each with its reason.
+  - `audit build jsbudget gitleaks`, after the fix: every step `rc=0`, `=== INTEGRATION PARTIAL (audit build jsbudget gitleaks)`.
+    - Audit: 3 moderate, already reviewed and ignored.
+    - Build: 2 of 2 tasks, 0 cached.
+    - Budget: "Every page is within its budget (72 pages)".
+    - Gitleaks: 21 commits scanned, no leaks found.
+- **Fixes:** only the matrix fixture's offsets, the two lost closing braces and the two budgets. The merge broke each of them, and nothing else changed.
+- **For the lead:**
+  - `apps/web/js-budget.json` still needs the owner's `checks-ok`.
+  - The Linux baselines are still to make. The five HR menu entries and J2's Lenders entry change every desktop staff picture that shows the menu.
+  - F1, J1 and TC2 also wait with migrations from 0247. Whichever of them merges after HR1 renumbers again.
