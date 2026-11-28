@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 5
-updated: 2026-11-28T03:49Z
+updated: 28-11-2026 04:36 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -82,3 +82,11 @@ run_file: docs/runs/phase5/tc2-tally-ingest.md
 wait_for: none
 done_when: report: tc2-tally-ingest done
 note: continue. The lead read the early check (27-11 20:10 UTC): accepted with two changes. (1) The signing key: store the connector key itself sealed with the app's field encryption (apps/web/src/crypto; KMS on hosted, as bank_json is), never a hash used as the HMAC key; the connector signs with the key as shown (TC1 unchanged); rotation keeps two sealed keys. (2) Snapshots in parts: accept snapshotId plus part n of m (each under the 4.5 MB function limit), keep parts until the last, diff then; an incomplete snapshot older than a day is dropped. The connector side is TC4's (the lead notes it). Then addendum 2 (refused rows, tallyLastAlterId, heldRows), the admin screens, Integration health, the silence alert. finance.read merges with FN1's at integration.
+
+lane: 100
+role: build
+branch: feat/hr1-people
+run_file: docs/runs/phase5/hr1-people.md
+wait_for: none
+done_when: report: hr1-people done
+note: continue. The lead read the early check (27-11 20:55 UTC): accepted, assumptions 1 to 12 included. Go on to the screens (/hr/people, the person's page, /hr/leave, the HR settings), the menu and the journeys. (moved from seat 2 at 04:45 UTC on 28-11: no commit for two hours; go on from the branch as pushed, the wip commits included)

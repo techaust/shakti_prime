@@ -1,6 +1,6 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-28T01:47Z
+updated: 28-11-2026 04:36 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 91
@@ -18,14 +18,6 @@ run_file: docs/runs/phase4/j3-documents.md
 wait_for: none
 done_when: report: j3-documents done
 note: continue. The lead read the early check (27-11 20:35 UTC): accepted, assumptions included. Build the not-done list (actions, the Documents tab, Account 360's section, Settings, the journey, SECURITY and phase4 Built). J1 merges first: when it has, take main in and add the foreign key to projects and app.project_missing_documents() over your definer (your integration note). (moved from seat 3: no commit for two hours)
-
-lane: 93
-role: build
-branch: feat/hr1-people
-run_file: docs/runs/phase5/hr1-people.md
-wait_for: none
-done_when: report: hr1-people done
-note: continue. The lead read the early check (27-11 20:55 UTC): accepted, assumptions 1 to 12 included. Go on to the screens (/hr/people, the person's page, /hr/leave, the HR settings), the menu and the journeys. (moved from seat 3: no commit for two hours)
 
 lane: 94
 role: fix
