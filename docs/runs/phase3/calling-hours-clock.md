@@ -6,8 +6,8 @@
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): telecom hours rules on the calling screen |
 | Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder (lane moved from seat 2) on Opus 5.5 at high, started 27-11-2026 16:55 UTC, done 27-11-2026 21:15 UTC on Opus 5.5 at high; fix round (lane 94, moved from seat 3) on Opus 5.5 at high, done 28-11-2026 03:00 UTC |
-| State | fixed (one fix round) |
-| Next step | the lead reads the diff and integrates |
+| State | integrated |
+| Next step | the pull request merges on green |
 
 ## Brief
 STATUS's open follow-up: the click-to-dial journeys fail in CI before 09:20 IST and after 20:30 IST (#284's runs before 09:20 failed on phone and dark, and passed after). The suspect is the app's clock-shift path outside calling hours, which may also reach real callers. Find the root cause and fix it in code, not only in the journey.
@@ -233,3 +233,16 @@ Opus 5.5 at high. The VM restarted during the round. Both fix commits had been p
 - **No re-check:** the lead reads the diff.
 
 ## Integration
+
+### 28-11-2026, the lead's cloud VM
+- **Diff of the fix round read** (M1, L1 to L3, and M2 recorded as named): accepted.
+- **Main taken in** by merge commits: J2 #300 (`5f5ea1e7`) at `2b530d4e`, then TC1 #303 and the axe title wait #304 (`a9744e83`). The slice has no migration. No conflict.
+- **`integrate.sh` on a fresh Postgres on 54340, in four parts through the lock**, on `main` `5f5ea1e7`:
+  - `install lint format copylint generated typecheck`: every step rc=0.
+  - `unit`: 10 of 10 tasks.
+  - `security dbverify`: db 65 files, 1,893 passed; domain 112 files, 1,559 passed; web 40 files, 466 passed. `db:verify`: every migration is applied as it is on disk.
+  - `audit build jsbudget gitleaks`: every step rc=0.
+  - Each part ended `INTEGRATION PARTIAL`.
+- **The whole journey set in the Linux Playwright image, one project at a time, each on a fresh database:** update with `--update-snapshots=changed`, then verify on another fresh database. desktop-light: 236 and 236 passed. desktop-dark: 223 and 223 passed. phone: 223 and 223 passed. No baseline changed.
+- The second merge (`a9744e83`) brought only the Tally connector's own workspace and the axe helper's title wait, so the suites above stand; CI runs every check again on the pull request.
+
