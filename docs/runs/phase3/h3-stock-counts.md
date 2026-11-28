@@ -5,9 +5,9 @@
 | Branch | `feat/h3-stock-counts` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the ledger, values behind `finance.cost.read`, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account from 27-11-2026 14:35 UTC |
-| State | early check |
-| Next step | the lead reads the early check and answers questions A and B below |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account from 27-11-2026 14:35 UTC; screens finished on seat 2, Opus 5.5 at high, 28-11-2026 01:40 to 06:00 UTC |
+| State | built |
+| Next step | review; the lead makes the Linux baselines of `stock-counts.spec.ts` at integration |
 
 ## Brief
 Build [phase3 §7.3](../../03-roadmap-appendix/phase3.md#73-h3-stock-counts) as written. The exit gate's physical audit runs on this tool (§11). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -143,6 +143,59 @@ Shared registration points take one line or one block each, kept together under 
   - (b) accept it and say so in SECURITY.
 
 **Not done yet:** the screens (`/inventory/counts`, the one-handed counting screen with a plain input in the scan field's `resolve` shape until U2 merges, the review), the count sheet print template, the journeys, `EXPLAIN (ANALYZE)` evidence, the design's Built record, `pnpm build` and `js-budget`, and copy-lint (to run with the screens' copy).
+
+### 28-11-2026, seat 2 (done)
+Builder on Opus 5.5 at high effort, continuing from the branch as seat 3 left it (screens, sheet, journeys, Built record and budgets were committed but unchecked). The VM restarted once during the run; the seat pushed what was left (`34a559e3`) and the run went on from there. Skills: `add-command` and `add-table` were loaded for the early check; none was loaded again for the screens.
+
+**Built (whole slice, since the early check):**
+- Server actions `apps/web/src/actions/stock-counts.ts` (each call narrowed to the count's company); screen helpers `apps/web/src/screens/stock-counts.ts`.
+- Screens under `apps/web/src/app/(bos)/inventory/counts`:
+  - `/inventory/counts`: by status, with Start a count (whole hub, chosen bins or chosen items). Component `counts-screen.tsx`, `item-finder.tsx`.
+  - `/inventory/counts/[id]`: the counting screen for a phone in one hand (`counting-screen.tsx`). One item open at a time; a quantity, or serials typed or scanned into a plain field that resolves in the scan field's `resolve` shape (`resolveSerial`: ok, repeat, pattern, empty) until U2's scan field merges; stock found where none was listed. **Added in this run:** a count of more than 100 items in bins shows one bin at a time (`?bin=`, a Bin to count chooser with the items left per bin; All bins is offered up to 100), so a whole hub's count does not send every row to a phone (5.7 MB for 20,000 lines at the volume below).
+  - `/inventory/counts/[id]/review` (`review-screen.tsx`): differences against the records when each line was counted, what moved in the counted bins during the count, Count again, Post (note, optional reason per missing serial), Cancel; values only with `finance.cost.read`.
+  - `/inventory/counts/[id]/sheet`: the print template `apps/web/src/print/stock-count-template.ts`, shown full size in a sandboxed frame (`count-sheet-frame.tsx`) and printed from the browser.
+- Menu Inventory › Stock counts (`nav.ts`); copy in `en.json` (`inventory.counts.*`, `print.stockCount.*`); JavaScript budgets in `js-budget.json` (a checks file: the owner's `checks-ok`).
+- Journeys `apps/web/e2e/stock-counts.spec.ts` with their seed `e2e/setup/stock-counts.ts` and users in `e2e/support/users.ts`.
+- Plan spike `packages/domain/tests/spike/count-explain.ts` (`pnpm --filter @shakti/domain exec tsx tests/spike/count-explain.ts`, local only).
+- Fixed in this run: the journeys' hub and serial fields found by their exact labels; the review's Count again button named `Count again: {item} in bin {bin}` and the print link given its new-tab words as hidden text (axe `label-content-name-mismatch`); axe on the sheet page runs without its print frame (`removeFrames`, as the design preview does).
+
+**Tests added in this run:** `apps/web/src/screens/stock-counts.test.ts` 8 (links, tones, typed quantities, serial resolution, signed differences, the bins and the bin shown); `apps/web/src/print/templates.test.ts` +2 (the sheet escapes and prints every line in IST on A4; values only for a reader of costs). The early check's tests are unchanged (db security 11, domain commands 9, plan unit 7, machine fixture, reader parity).
+
+**Checks (seat 2, local Postgres on 54331, migrated and seeded after the restart):**
+- `pnpm test:security` (before the restart, on the same code below the web layer): db 1804 passed (63 files); domain 1528 passed (111 files); web 461 passed (39 files). The demo-data failure of the early check no longer occurs.
+- `pnpm typecheck`: 10 successful. `pnpm lint` (whole repository, through the lock): clean. `pnpm format:check`: clean. `pnpm copy-lint`: clean.
+- `pnpm --filter web exec vitest run`: 1251 passed, 1 skipped (168 files). `pnpm --filter @shakti/domain exec vitest run src`: 2866 passed (111 files).
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within its budget (69 pages); `/inventory/counts` 243.3 kB of 256, `/inventory/counts/[id]` 207.5 of 218, `/inventory/counts/[id]/review` 243.2 of 256, `/inventory/counts/[id]/sheet` 190.8 of 201.
+- Journeys: `pnpm --filter web e2e:seed` then `playwright test e2e/stock-counts.spec.ts --ignore-snapshots --retries 0`: **24 passed** (the counter's count, the review with a recount and the post, and the Store Manager, in all three projects, axe included). Sign-in works on this VM. Snapshots were not compared (`--ignore-snapshots`): `count-to-count`, `count-serials` and `count-review` have no Linux baseline yet.
+- One earlier run of the whole journey set (the file filter did not take) also showed screenshot differences on most other specs and `/leads` at 45.3 kB against its 45 kB document budget in the second and third projects only. Both come from this VM's browser and from one database aging across projects (CI gives each project a fresh one), not from this slice; the lead's Linux image run decides.
+
+**`EXPLAIN (ANALYZE)` at volume** (`count-explain.ts`; one godown of 20 bins holding 1,000 items in each, 424,520 movements, 20,015 counts over four companies, 60,060 count lines; as the Inventory Manager under the policies, the definers' inner statements through `auto_explain`):
+
+| Read | Plan | Time |
+|---|---|---|
+| Count list, first page (50) | Bitmap Index Scan `stock_counts_list_idx` (company 1's 5,002 counts), top-N heapsort, hub hashed, principals memoised | 5.1 ms |
+| Count list, next page | the same with the keyset `(started_at, id) <` in the index condition | 4.8 ms |
+| Count list, posted only | `stock_counts_list_idx`, state filtered, top-N heapsort | 4.6 ms |
+| Count list, in review | Index Scan `stock_counts_live_unique` | 0.08 ms |
+| `inventory.count.start`, whole hub | freezes 20,000 lines | 650 ms |
+| Counter's sheet, whole hub (20,000 rows) | inside `app.stock_count_sheet()`: Seq Scan of the lines (a third of the table is this count), grouped per item in a bin, sorted by bin and code | 87 ms in the definer; 150 to 180 ms for the query with progress |
+| Counter's sheet, five items (100 lines) | Index Scan `stock_count_lines_group_idx` on the count | 0.5 ms in the definer |
+| `app.stock_count_progress()`, whole hub | HashAggregate over the count's lines | 12 ms |
+| Review, whole hub | `app.stock_count_review()`: one `app.stock_count_moved()` per line, each an Index Scan `stock_movements_card_idx` (company, item, moved since) at about 0.01 ms; the movements during the count by `stock_movements_card_idx` (6 ms); names and costs by key | 660 to 710 ms (800 ms for the whole query) |
+| Review, five items | lines by `stock_count_lines_group_idx`, balances by `stock_balances_entity_item_idx` and `stock_balances_bin_idx`, serial moves by `stock_movements_serial_idx` | 9.7 ms |
+| `inventory.count.post`, whole hub | one `app.stock_move()` batch of 2,086 `count` movements | 1.6 s |
+
+A whole-hub review of 20,000 lines takes under a second because each line asks the ledger what moved since its count; a count of a few hundred lines, the usual case, is a few milliseconds.
+
+**Decisions taken in this run (the brief did not settle them):**
+9. A count of more than 100 items in bins shows one bin at a time on the counting screen, starting with the first bin that has items left. The counter sees the number of items left per bin, never a quantity.
+10. The count sheet is not a document of the render worker's registry (`DOCUMENT_TYPES`): a worker would need `inventory.stock.adjust` and `finance.cost.read` to read expected quantities and values, which `system:workers` must never hold (ADR 0020). The sheet is the print template rendered on the Inventory Manager's own request, from the review as they may read it, and printed from the browser.
+11. Questions A and B of the early check were not answered. The branch as built takes A (c) and B (b): the counter journey is the Inventory Manager (the only seeded role with `inventory.stock.move` at `entity` besides the Executive); the Store Manager's journey reads the list and cannot start, count or review; SECURITY §4 says a counter who also holds `inventory.stock.read` still reads the balances on the stock screens. Either can change without touching the count's code: (a) is a seed grant, B (a) a restrictive policy on H1's tables.
+
+**Not done or uncertain:**
+- The Linux screenshot baselines (`count-to-count`, `count-serials`, `count-review`) for the lead's integration.
+- `pnpm test:security` was not run again after the restart; nothing below the web layer changed since its green run.
+- U2's scan field: the counting screen uses the plain field; swapping in U2's field is one component once U2 merges.
 
 ## Review
 
