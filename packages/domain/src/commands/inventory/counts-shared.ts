@@ -38,6 +38,7 @@ export const COUNT_CONSTRAINTS = {
   stock_counts_live_unique: 'stock_count_live',
   stock_count_closed: 'stock_count_closed',
   stock_count_transition: 'stock_count_transition',
+  stock_count_stamp: 'stock_count_stamp',
 } as const;
 
 type CountRow = typeof schema.stockCounts.$inferSelect;

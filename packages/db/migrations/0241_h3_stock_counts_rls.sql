@@ -53,6 +53,19 @@ begin
     raise exception 'a closed count does not change'
       using errcode = 'check_violation', constraint = 'stock_count_closed';
   end if;
+  -- Each stamp changes only with its own move: sent for review, posted, cancelled.
+  if ((new.submitted_at, new.submitted_by) is distinct from (old.submitted_at, old.submitted_by)
+      and not (old.state = 'counting' and new.state = 'review'))
+     or ((new.posted_at, new.posted_by, new.post_note)
+           is distinct from (old.posted_at, old.posted_by, old.post_note)
+         and not (old.state = 'review' and new.state = 'posted'))
+     or ((new.cancelled_at, new.cancelled_by, new.cancel_reason)
+           is distinct from (old.cancelled_at, old.cancelled_by, old.cancel_reason)
+         and new.state <> 'cancelled')
+     or (new.state_changed_at is distinct from old.state_changed_at and new.state = old.state) then
+    raise exception 'a count''s stamp changes only with its own step'
+      using errcode = 'check_violation', constraint = 'stock_count_stamp';
+  end if;
   if new.state is distinct from old.state then
     v_ok := case
       when old.state = 'open' and new.state = 'counting' then app.has_perm('inventory.stock.move:entity')
@@ -511,3 +524,48 @@ $$;
 revoke execute on function app.stock_count_review(uuid) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.stock_count_review(uuid) to app_user, app_reader;
+
+-- 13. app.stock_count_hub(hub): the code and name of a hub that has a count in the request's
+--     companies, for every reader of counts (inventory.stock.read or inventory.stock.move): a
+--     counter who does not read stock (H1's hubs need inventory.stock.read) still sees which hub
+--     the count is of. Nothing else of the hub.
+create or replace function app.stock_count_hub(p_hub uuid)
+  returns table (code text, name text)
+  language sql stable security definer set search_path = '' as $$
+  select w.code, w.name
+    from public.warehouses w
+   where w.id = p_hub
+     and (app.has_perm('inventory.stock.read:entity') or app.has_perm('inventory.stock.move:entity'))
+     and exists (select 1 from public.stock_counts c
+                  where c.warehouse_id = p_hub
+                    and c.entity_id = any (coalesce(app.entity_ids(), '{}'::int[])))
+$$;
+--> statement-breakpoint
+revoke execute on function app.stock_count_hub(uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.stock_count_hub(uuid) to app_user, app_reader;
+--> statement-breakpoint
+
+-- 14. app.stock_count_bins(count): the bins a counter may count in, for stock found where none
+--     was listed: the count's chosen bins, or every bin of its hub in use. Codes only, never what
+--     a bin holds. With inventory.stock.move for the count's company, so a counter who does not
+--     read stock needs no hub list.
+create or replace function app.stock_count_bins(p_count uuid)
+  returns table (id uuid, code text)
+  language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_count record;
+begin
+  select * into v_count from app.stock_count_of(p_count, 'inventory.stock.move:entity');
+  return query
+    select b.id, b.code
+      from public.bins b
+     where b.warehouse_id = v_count.warehouse_id and b.archived_at is null
+       and (v_count.scope_bin_ids is null or b.id = any (v_count.scope_bin_ids))
+     order by b.code;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.stock_count_bins(uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.stock_count_bins(uuid) to app_user, app_reader;

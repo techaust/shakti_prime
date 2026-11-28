@@ -60,6 +60,12 @@ export interface NavItem {
    * command run (docs/07-security.md §3.2). Empty: everyone who is signed in.
    */
   requires: readonly PermissionGrant[];
+  /**
+   * When set, the screen also needs at least one of these grants (a screen two kinds of user
+   * open, as the stock counts are for a reader of stock and for a counter). The page checks it
+   * with `navAnyOf()`.
+   */
+  anyOf?: readonly PermissionGrant[];
 }
 
 /**
@@ -312,9 +318,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'inventoryCounts',
     icon: Warehouse,
     group: 'work',
-    // listStockCounts reads a company's counts with inventory.stock.read (or .move) for the
-    // company; counting needs .move and the review .adjust, which their screens ask for.
-    requires: [{ key: 'inventory.stock.read', scope: 'entity' }],
+    // listStockCounts reads a company's counts with inventory.stock.read or .move for the
+    // company, so a counter who does not read stock opens it too; counting needs .move and the
+    // review .adjust, which their screens ask for.
+    requires: [],
+    anyOf: [
+      { key: 'inventory.stock.read', scope: 'entity' },
+      { key: 'inventory.stock.move', scope: 'entity' },
+    ],
   },
   {
     id: 'inventory-valuation',
@@ -435,6 +446,13 @@ export function navRequires(id: string): readonly PermissionGrant[] {
   const item = NAV_ITEMS.find((i) => i.id === id);
   if (item === undefined) throw new Error(`no menu item ${id}`);
   return item.requires;
+}
+
+/** The grants of which a menu screen needs at least one (`NavItem.anyOf`); empty when none. */
+export function navAnyOf(id: string): readonly PermissionGrant[] {
+  const item = NAV_ITEMS.find((i) => i.id === id);
+  if (item === undefined) throw new Error(`no menu item ${id}`);
+  return item.anyOf ?? [];
 }
 
 /** The menu item a path belongs to: the longest matching `href`, so `/leads/new` is not Leads. */

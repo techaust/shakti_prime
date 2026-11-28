@@ -1,4 +1,9 @@
-import { DomainError, type SerialState, type StockReason } from '@shakti/contracts';
+import {
+  DomainError,
+  type SerialState,
+  type StockCountPostRefusal,
+  type StockReason,
+} from '@shakti/contracts';
 import type { SerialEvent, SerialRecord } from '../../state-machines/machines/serial';
 import type { StockMovementLine } from '../../stock/move';
 
@@ -57,9 +62,48 @@ export function varianceMilli(line: Pick<CountLineFacts, 'finalQty' | 'expectedA
   return line.finalQty === null ? null : toMilli(line.finalQty) - toMilli(line.expectedAtCount);
 }
 
-function serialMoved(serialNo: string | null): DomainError {
-  return new DomainError('conflict', 'serial moved since it was counted', {
-    reason: 'stock_count_serial_moved',
+/** The states in which a serial is held in its bin for something else: an order or a claim. */
+function heldFor(state: SerialState | null): StockCountPostRefusal | null {
+  if (state === 'reserved' || state === 'picked') return 'stock_count_serial_reserved';
+  if (state === 'faulty') return 'stock_count_serial_faulty';
+  return null;
+}
+
+/**
+ * Why a serial's line cannot post as it stands, or null (always null for an untracked item, a
+ * line with no difference and one with no count that stands). A serial that moved since its
+ * count is counted again first. A serial missing, or found in another bin than the ledger's, that
+ * is reserved or picked for an order or is a faulty unit in quarantine is settled by that order or
+ * claim first: a count writes off and brings back only stock that is free (`in_stock`), or brings
+ * back one written off. A serial found that the ledger has out of our stock or on its way
+ * (`in_transit`, `with_customer`, `with_supplier`) is checked first.
+ */
+export function serialLineRefusal(
+  line: Pick<
+    CountLineFacts,
+    | 'serialId'
+    | 'finalQty'
+    | 'expectedAtCount'
+    | 'serialMovedSince'
+    | 'serialState'
+    | 'serialBinId'
+    | 'binId'
+  >,
+): StockCountPostRefusal | null {
+  if (line.serialId === null) return null;
+  const v = varianceMilli(line);
+  if (v === null || v === 0) return null;
+  if (line.serialMovedSince) return 'stock_count_serial_moved';
+  const held = heldFor(line.serialState);
+  if (v < 0) return held;
+  if (line.serialState === 'scrapped') return null;
+  if (line.serialState === 'in_stock') return null;
+  return held ?? 'stock_count_serial_elsewhere';
+}
+
+function refused(reason: StockCountPostRefusal, serialNo: string | null): DomainError {
+  return new DomainError('conflict', `a serial line cannot post: ${reason}`, {
+    reason,
     ...(serialNo === null ? {} : { serialNo }),
   });
 }
@@ -84,8 +128,10 @@ export function planCountMoves(
     if (v === null) {
       throw new DomainError('conflict', 'a line has no count', { reason: 'stock_count_uncounted' });
     }
-    if (v === 0 || line.serialId === null || v > 0) continue;
-    if (line.serialMovedSince) throw serialMoved(line.serialNo);
+    if (v === 0 || line.serialId === null) continue;
+    const refusal = serialLineRefusal(line);
+    if (refusal !== null) throw refused(refusal, line.serialNo);
+    if (v > 0) continue;
     leaving.add(line.serialId);
     outs.push({
       line: {
@@ -117,14 +163,8 @@ export function planCountMoves(
       continue;
     }
     if (v < 0) continue;
-    if (line.serialMovedSince) throw serialMoved(line.serialNo);
-    const state = line.serialState;
-    if (state !== 'scrapped' && state !== 'in_stock') {
-      throw new DomainError('conflict', 'serial held elsewhere', {
-        reason: 'stock_count_serial_elsewhere',
-        ...(line.serialNo === null ? {} : { serialNo: line.serialNo }),
-      });
-    }
+    // Refused in the first pass: what is left here is in stock or written off.
+    const state = line.serialState === 'in_stock' ? 'in_stock' : 'scrapped';
     if (state === 'in_stock' && line.serialBinId === line.binId) continue;
     if (state === 'in_stock' && line.serialBinId !== null && !leaving.has(line.serialId)) {
       leaving.add(line.serialId);

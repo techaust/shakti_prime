@@ -57,6 +57,7 @@ export function ReviewScreen({
 }) {
   const t = useTranslations('inventory.counts.review');
   const states = useTranslations('inventory.counts.states');
+  const errors = useTranslations('errors');
   const reason = useReasonText();
   const router = useRouter();
   const { count, lines, movements, progress } = review;
@@ -65,7 +66,9 @@ export function ReviewScreen({
   const cancelButton = useRef<HTMLButtonElement>(null);
   const live = count.state === 'open' || count.state === 'counting' || count.state === 'review';
   const canAskAgain = count.state === 'counting' || count.state === 'review';
-  const ready = count.state === 'review' && progress.toCount === 0 && progress.recountOpen === 0;
+  const blocked = lines.some((l) => l.postRefusal !== null);
+  const ready =
+    count.state === 'review' && progress.toCount === 0 && progress.recountOpen === 0 && !blocked;
 
   function askAgain(line: StockCountReviewLineDto) {
     recount.run(
@@ -87,6 +90,9 @@ export function ReviewScreen({
         <span className="flex flex-col">
           <span>{l.itemName}</span>
           <span className="text-text-muted text-sm">{l.sku}</span>
+          {l.postRefusal === null ? null : (
+            <span className="text-warning text-sm">{errors(l.postRefusal)}</span>
+          )}
         </span>
       ),
     },
@@ -258,7 +264,7 @@ export function ReviewScreen({
           <PostForm review={review} />
         ) : (
           <p role="status" className="text-text-muted">
-            {t('notReady')}
+            {blocked ? t('blocked') : t('notReady')}
           </p>
         )
       ) : null}

@@ -21,6 +21,7 @@ import { checkPermission } from '../../command/run-command';
 import { countProgress } from '../../commands/inventory/counts-shared';
 import {
   fromMilli,
+  serialLineRefusal,
   toMilli,
   varianceMilli,
   type CountLineFacts,
@@ -47,11 +48,15 @@ const COUNT_ROW_SELECT = sql`
   c.scope_bin_ids as "binIds", c.scope_item_ids as "itemIds", c.state,
   c.started_at as "startedAt", c.started_by as "startedBy", c.submitted_at as "submittedAt",
   c.posted_at as "postedAt", c.post_note as "postNote", c.cancelled_at as "cancelledAt",
-  c.cancel_reason as "cancelReason", w.code as "hubCode", w.name as "hubName",
-  coalesce(p.display_name, '') as "startedByName"`;
+  c.cancel_reason as "cancelReason", coalesce(w.code, '') as "hubCode",
+  coalesce(w.name, '') as "hubName", coalesce(p.display_name, '') as "startedByName"`;
 
+/**
+ * The hub's code and name come through `app.stock_count_hub()`, so a counter who holds
+ * `inventory.stock.move` without `inventory.stock.read` (which H1's hubs need) still sees them.
+ */
 const COUNT_ROW_JOINS = sql`
-  join warehouses w on w.id = c.warehouse_id
+  left join lateral app.stock_count_hub(c.warehouse_id) w on true
   left join principals p on p.id = c.started_by`;
 
 type Stamp = string | Date | null;
@@ -147,7 +152,9 @@ interface SheetRaw {
 
 /**
  * The counting screen (`inventory.stock.move`): each item in each bin, whether it is still to
- * count, counted or asked for again, and what the counter entered. Never what the ledger expects.
+ * count, counted or asked for again, and what the counter entered, and the bins a counter may
+ * count stock found in. Never what the ledger expects, and nothing that needs
+ * `inventory.stock.read`.
  */
 export async function getStockCountSheet(ctx: Ctx, rawInput: unknown): Promise<StockCountSheetDto> {
   const input = parseQueryInput(GetStockCountInput, rawInput, 'inventory.count.sheet');
@@ -159,9 +166,15 @@ export async function getStockCountSheet(ctx: Ctx, rawInput: unknown): Promise<S
            serial_pattern as "serialPattern", line_state as state,
            counted_qty::numeric(12, 3)::text as "countedQty", serial_nos as "serialNos"
       from app.stock_count_sheet(${input.countId}::uuid)`)) as unknown as SheetRaw[];
+  const bins = (await ctx.tx.execute(sql`
+    select id, code from app.stock_count_bins(${input.countId}::uuid)`)) as unknown as {
+    id: string;
+    code: string;
+  }[];
   return StockCountSheetDto.parse({
     count,
     rows,
+    bins,
     progress: await countProgress(ctx.tx, input.countId),
   });
 }
@@ -226,6 +239,78 @@ function sumMoney(values: readonly string[]): string {
   return negative ? `-${text}` : text;
 }
 
+type LineValue = (
+  line: Pick<CountLineFacts, 'binId' | 'itemId' | 'serialId'>,
+  varianceMilli: number,
+) => string | null;
+
+/**
+ * A live count's values (`finance.cost.read`, read under the viewer's own grant): each variance
+ * at the item's moving average now; null for an item with no average.
+ */
+async function valuesNow(
+  ctx: Ctx,
+  entityId: number,
+  itemIds: readonly string[],
+): Promise<LineValue> {
+  const rows = (await ctx.tx.execute(sql`
+    select item_id as "itemId", moving_avg_cost::numeric(14, 4)::text as cost
+      from item_costs
+     where entity_id = ${entityId} and moving_avg_cost is not null
+       and item_id = any(${`{${itemIds.join(',')}}`}::uuid[])`)) as unknown as {
+    itemId: string;
+    cost: string;
+  }[];
+  const costs = new Map(rows.map((r) => [r.itemId, r.cost]));
+  return (line, variance) => {
+    const cost = costs.get(line.itemId);
+    return cost === undefined ? null : valueOf(variance, cost);
+  };
+}
+
+/**
+ * A posted count's values, as they were posted: each line's movements of this count (into the
+ * line's bin for more, out of it for less; a serial's by its serial) at the cost each posted with
+ * (`stock_movement_costs`, `finance.cost.read`, read under the viewer's own grants), so a sheet
+ * printed later reads the same. A line with no difference is worth nothing; one whose movements
+ * have no cost the viewer reads has no value.
+ */
+async function postedValues(ctx: Ctx, count: StockCountRowDto): Promise<LineValue> {
+  const rows = (await ctx.tx.execute(sql`
+    select m.item_id as "itemId", m.serial_id as "serialId", m.from_bin_id as "fromBinId",
+           m.to_bin_id as "toBinId", m.qty::numeric(12, 3)::text as qty,
+           c.unit_cost::numeric(14, 4)::text as cost
+      from stock_movements m
+      join stock_movement_costs c on c.movement_id = m.id and c.entity_id = m.entity_id
+     where m.entity_id = ${count.entityId} and m.ref_type = 'stock_count'
+       and m.ref_id = ${count.id}::uuid`)) as unknown as {
+    itemId: string;
+    serialId: string | null;
+    fromBinId: string | null;
+    toBinId: string | null;
+    qty: string;
+    cost: string;
+  }[];
+  const byLine = new Map<string, string[]>();
+  const add = (key: string, value: string) => {
+    byLine.set(key, [...(byLine.get(key) ?? []), value]);
+  };
+  const keyOf = (bin: string, itemId: string, serialId: string | null) =>
+    `${bin}/${itemId}/${serialId ?? ''}`;
+  for (const r of rows) {
+    const milli = toMilli(r.qty);
+    if (r.toBinId !== null) add(keyOf(r.toBinId, r.itemId, r.serialId), valueOf(milli, r.cost));
+    if (r.fromBinId !== null) {
+      add(keyOf(r.fromBinId, r.itemId, r.serialId), valueOf(-milli, r.cost));
+    }
+  }
+  return (line, variance) => {
+    if (variance === 0) return '0.00';
+    const posted = byLine.get(keyOf(line.binId, line.itemId, line.serialId));
+    return posted === undefined ? null : sumMoney(posted);
+  };
+}
+
 interface NamesRaw {
   bins: { id: string; code: string }[] | null;
   items: { id: string; sku: string; name: string; unit: ItemUnit }[] | null;
@@ -234,8 +319,9 @@ interface NamesRaw {
 /**
  * The review and the count's sheet for the record (`inventory.stock.adjust`): every line with
  * what the ledger expected at the start, what moved in the bin until it was counted, what was
- * counted and the variance; the movements into or out of the counted bins since the start; and,
- * only with `finance.cost.read`, each variance's value at the moving average.
+ * counted and the variance, and why a serial's line cannot post as it stands; the movements into
+ * or out of the counted bins since the start; and, only with `finance.cost.read`, each variance's
+ * value (at the moving average while the count is live, at the posted costs once posted).
  */
 export async function getStockCountReview(
   ctx: Ctx,
@@ -256,25 +342,18 @@ export async function getStockCountReview(
   const item = new Map((names?.items ?? []).map((i) => [i.id, i]));
 
   const showsValues = hasGrant(ctx.principal.permissions, 'finance.cost.read', 'entity');
-  const costs = new Map<string, string>();
-  if (showsValues && itemIds.length > 0) {
-    const rows = (await ctx.tx.execute(sql`
-      select item_id as "itemId", coalesce(moving_avg_cost, 0)::numeric(14, 4)::text as cost
-        from item_costs
-       where entity_id = ${count.entityId}
-         and item_id = any(${`{${itemIds.join(',')}}`}::uuid[])`)) as unknown as {
-      itemId: string;
-      cost: string;
-    }[];
-    for (const r of rows) costs.set(r.itemId, r.cost);
-  }
+  const valueOfLine =
+    !showsValues || lines.length === 0
+      ? () => null
+      : count.state === 'posted'
+        ? await postedValues(ctx, count)
+        : await valuesNow(ctx, count.entityId, itemIds);
 
   const values: string[] = [];
   const reviewLines: StockCountReviewLineDto[] = lines.map((l) => {
     const i = item.get(l.itemId);
     const variance = l.recountOpen ? null : varianceMilli(l);
-    const value =
-      showsValues && variance !== null ? valueOf(variance, costs.get(l.itemId) ?? '0') : null;
+    const value = variance === null ? null : valueOfLine(l, variance);
     if (value !== null) values.push(value);
     return {
       lineId: l.lineId,
@@ -295,6 +374,8 @@ export async function getStockCountReview(
       recountOpen: l.recountOpen,
       variance: variance === null ? null : fromMilli(variance),
       value,
+      postRefusal:
+        count.state === 'posted' || count.state === 'cancelled' ? null : serialLineRefusal(l),
     };
   });
 

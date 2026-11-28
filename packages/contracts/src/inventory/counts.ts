@@ -48,6 +48,20 @@ export const STOCK_COUNT_REFUSALS = [
 ] as const;
 export type StockCountRefusal = (typeof STOCK_COUNT_REFUSALS)[number];
 
+/**
+ * Why a serial's line cannot post as it stands, each a catalogue reason: it moved since its
+ * count, it is recorded as out of our stock or on its way, it is reserved or picked for an order,
+ * or it is a faulty unit in quarantine. The review names it on the line; the post refuses it.
+ */
+export const STOCK_COUNT_POST_REFUSALS = [
+  'stock_count_serial_moved',
+  'stock_count_serial_elsewhere',
+  'stock_count_serial_reserved',
+  'stock_count_serial_faulty',
+] as const;
+export const StockCountPostRefusalSchema = z.enum(STOCK_COUNT_POST_REFUSALS);
+export type StockCountPostRefusal = z.infer<typeof StockCountPostRefusalSchema>;
+
 /** Up to 200 ids, each once. */
 const IdList = z
   .array(IdSchema)
@@ -224,11 +238,17 @@ export const StockCountSheetRowDto = z
   .strict();
 export type StockCountSheetRowDto = z.infer<typeof StockCountSheetRowDto>;
 
+/** A bin a counter may count in: its code, never what it holds. */
+export const StockCountBinDto = z.object({ id: IdSchema, code: z.string() }).strict();
+export type StockCountBinDto = z.infer<typeof StockCountBinDto>;
+
 /** The counting screen and the count's sheet for a counter (`inventory.stock.move`). */
 export const StockCountSheetDto = z
   .object({
     count: StockCountRowDto,
     rows: z.array(StockCountSheetRowDto),
+    /** The bins of the count (its chosen bins, or its hub's), for stock found where none was listed. */
+    bins: z.array(StockCountBinDto),
     progress: StockCountProgressDto,
   })
   .strict();
@@ -262,8 +282,13 @@ export const StockCountReviewLineDto = z
     recountOpen: z.boolean(),
     /** Counted less expected; null while uncounted or asked for again. */
     variance: SignedStockQtySchema.nullable(),
-    /** The variance at the moving average; only with `finance.cost.read`, else null. */
+    /**
+     * The variance's value, only with `finance.cost.read`: at the cost each movement posted with
+     * once the count is posted, else at the moving average now; null where no cost is known.
+     */
     value: SignedMoneySchema.nullable(),
+    /** Why the line cannot post as it stands; null when it can. */
+    postRefusal: StockCountPostRefusalSchema.nullable(),
   })
   .strict();
 export type StockCountReviewLineDto = z.infer<typeof StockCountReviewLineDto>;
@@ -295,7 +320,7 @@ export const StockCountReviewDto = z
     progress: StockCountProgressDto,
     /** Whether the caller reads values (`finance.cost.read`); each line's value is null if not. */
     showsValues: z.boolean(),
-    /** The net value of every variance; null without `finance.cost.read`. */
+    /** The net value of every variance valued; null without `finance.cost.read`. */
     netValue: SignedMoneySchema.nullable(),
   })
   .strict();

@@ -2,7 +2,6 @@ import type { StockCountSheetRowDto } from '@shakti/contracts';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { listHubs } from '../../../../../actions/inventory';
 import { getStockCountSheet } from '../../../../../actions/stock-counts';
 import { CountingScreen } from '../../../../../components/inventory/counts/counting-screen';
 import { FailureMessage } from '../../../../../components/screens/failure';
@@ -27,7 +26,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * The counting screen (`inventory.stock.move`, docs/03-roadmap-appendix/phase3.md §7.3), made for
  * a phone held in one hand: each bin's items to count, and what the counter entered, never what
- * the records expect. `?company=` names the count's company.
+ * the records expect. It reads nothing that needs `inventory.stock.read`: the bins come with the
+ * count's sheet. `?company=` names the count's company.
  */
 export default async function CountingPage({
   params,
@@ -46,10 +46,7 @@ export default async function CountingPage({
   if (asked !== undefined && !principal.entityIds.includes(asked)) notFound();
   const entityId = asked ?? activeEntityId ?? principal.entityIds[0];
   if (entityId === undefined) notFound();
-  const [sheet, hubs] = await Promise.all([
-    getStockCountSheet(entityId, { countId: id }),
-    listHubs({}),
-  ]);
+  const sheet = await getStockCountSheet(entityId, { countId: id });
   if (!sheet.ok && sheet.error === 'stock_count_missing') notFound();
   const t = await getTranslations('inventory.counts.sheet');
   return (
@@ -58,21 +55,17 @@ export default async function CountingPage({
       description={t('intro')}
       width="form"
     >
-      {sheet.ok && hubs.ok ? (
+      {sheet.ok ? (
         <CountingScreen
           sheet={{ ...sheet.data, rows: shownRows(sheet.data.rows, askedBin) }}
           binChoices={countBins(sheet.data.rows)}
           shownBin={shownBin(sheet.data.rows, askedBin)}
           allBins={sheet.data.rows.length <= ALL_BINS_UP_TO}
-          bins={(hubs.data.hubs.find((h) => h.id === sheet.data.count.hubId)?.bins ?? []).filter(
-            (b) =>
-              b.archivedAt === null &&
-              (sheet.data.count.binIds === null || sheet.data.count.binIds.includes(b.id)),
-          )}
+          bins={sheet.data.bins}
           canReview={can('inventory.stock.adjust', 'entity')}
         />
       ) : (
-        <FailureMessage failure={firstFailure(sheet, hubs)} />
+        <FailureMessage failure={firstFailure(sheet)} />
       )}
     </Page>
   );

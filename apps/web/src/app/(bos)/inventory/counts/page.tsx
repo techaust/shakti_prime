@@ -6,7 +6,7 @@ import { listStockCounts } from '../../../../actions/stock-counts';
 import { CountsScreen } from '../../../../components/inventory/counts/counts-screen';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
-import { navRequires } from '../../../../nav';
+import { navAnyOf, navRequires } from '../../../../nav';
 import { companyNames, screenAccess, screenTitle } from '../../../../screens/access';
 import { STOCK_COUNT_STATES } from '../../../../screens/contract-values';
 import { companyParam } from '../../../../screens/customers';
@@ -23,8 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Inventory › Stock counts (docs/03-roadmap-appendix/phase3.md §7.3): one company's counts,
- * newest first, by status (`?state=`). A counter (`inventory.stock.move`) opens a count to count
- * it; the Inventory Manager (`inventory.stock.adjust`) starts counts and opens their review.
+ * newest first, by status (`?state=`), for a reader of stock or a counter. A counter
+ * (`inventory.stock.move`, with or without `inventory.stock.read`) opens a count to count it; the
+ * Inventory Manager (`inventory.stock.adjust`) starts counts and opens their review.
  */
 export default async function StockCountsPage({
   searchParams,
@@ -33,6 +34,7 @@ export default async function StockCountsPage({
 }) {
   const guard = screenAccess(navRequires('inventory-counts'));
   const { principal, access, activeEntityId, can } = await guard;
+  if (!navAnyOf('inventory-counts').some((g) => can(g.key, g.scope))) notFound();
   const query = await searchParams;
   const asked = companyParam(query.company);
   if (asked !== undefined && !principal.entityIds.includes(asked)) notFound();

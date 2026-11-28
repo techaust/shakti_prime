@@ -8,7 +8,11 @@ import { PALETTE_ACTIONS, type PaletteAction } from './palette';
 
 /** The screens these grants open, in menu order. */
 export function visibleNav(grants: readonly PermissionGrant[]): NavItem[] {
-  return NAV_ITEMS.filter((item) => item.requires.every((g) => hasGrant(grants, g.key, g.scope)));
+  return NAV_ITEMS.filter(
+    (item) =>
+      item.requires.every((g) => hasGrant(grants, g.key, g.scope)) &&
+      (item.anyOf === undefined || item.anyOf.some((g) => hasGrant(grants, g.key, g.scope))),
+  );
 }
 
 /** The actions these grants allow, in palette order. */

@@ -1,6 +1,11 @@
 'use client';
 
-import type { BinDto, ItemDto, StockCountSheetDto, StockCountSheetRowDto } from '@shakti/contracts';
+import type {
+  ItemDto,
+  StockCountBinDto,
+  StockCountSheetDto,
+  StockCountSheetRowDto,
+} from '@shakti/contracts';
 import { Button, Field, Input, Select, StatusBadge, toast } from '@shakti/ui';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -75,7 +80,7 @@ export function CountingScreen({
   /** Whether the count is small enough to show every bin at once. */
   allBins: boolean;
   /** The bins of the count's hub a counter may count in, for stock found where none was listed. */
-  bins: readonly BinDto[];
+  bins: readonly StockCountBinDto[];
   canReview: boolean;
 }) {
   const t = useTranslations('inventory.counts.sheet');
