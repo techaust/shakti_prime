@@ -82,3 +82,5 @@ export {
 // F1 field app foundation (docs/03-roadmap-appendix/phase4.md §6.4).
 export { mobileDevices } from './mobile-devices';
 export { featureFlags } from './feature-flags';
+// J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
+export { lenders, customerLoans } from './loans';

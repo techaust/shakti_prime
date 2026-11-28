@@ -143,6 +143,9 @@ const ACTIONS = {
   'inventory.stock.transfer': 'stockTransfer',
   'inventory.stock.adjust': 'stockAdjust',
   'inventory.stock.reverse': 'stockReverse',
+  // Q1 labels
+  'inventory.label.print': 'labelPrint',
+  'inventory.label.reprint': 'labelReprint',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -283,6 +286,14 @@ const ACTIONS = {
   'procurement.item_vendor.set': 'itemVendorSet',
   'procurement.quote.record': 'vendorQuoteRecord',
   'procurement.quote.withdraw': 'vendorQuoteWithdraw',
+  // J2 customer loans
+  'crm.loan.create': 'loanCreate',
+  'crm.loan.sanction': 'loanSanction',
+  'crm.loan.disburse': 'loanDisburse',
+  'crm.loan.reject': 'loanReject',
+  'crm.loan.gates.waive': 'loanGatesWaive',
+  'crm.lender.create': 'lenderCreate',
+  'crm.lender.update': 'lenderUpdate',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -338,6 +349,8 @@ const EVENT_NAMES = {
   'platform.probe.requested': 'deliveryCheckRequested',
   'files.file.uploaded': 'fileUploaded',
   'print.document.requested': 'documentRequested',
+  // Q1 labels
+  'print.labels.requested': 'labelsRequested',
   'sales.quote.created': 'quoteCreated',
   'sales.quote.sent': 'quoteSent',
   'sales.quote.superseded': 'quoteSuperseded',
@@ -365,6 +378,12 @@ const EVENT_NAMES = {
   'procurement.vendor.archived': 'vendorArchived',
   'procurement.quote.recorded': 'vendorQuoteRecorded',
   'procurement.quote.withdrawn': 'vendorQuoteWithdrawn',
+  // J2 customer loans
+  'crm.loan.created': 'loanCreated',
+  'crm.loan.sanctioned': 'loanSanctioned',
+  'crm.loan.disbursed': 'loanDisbursed',
+  'crm.loan.rejected': 'loanRejected',
+  'crm.loan.gates_released': 'loanGatesReleased',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -513,6 +532,11 @@ const CODE_GROUPS = [
   'hubKind',
   'binKind',
   'stockReason',
+  // J2 customer loans
+  'loanState',
+  'loanDispatchGate',
+  // Q1 labels
+  'labelKind',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -686,6 +710,10 @@ const FIELD_KINDS = [
   ['quantity', 'number'],
   ['serialNo', 'text'],
   ['adjustNote', 'text'],
+  // QR labels printed (Q1)
+  ['labelKind', 'labelKind'],
+  ['labelCount', 'number'],
+  ['labelNote', 'text'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],
@@ -899,6 +927,15 @@ const FIELD_KINDS = [
   ['quoteValidUntil', 'date'],
   // F1 field app foundation: the app's version at sign-in.
   ['appVersion', 'text'],
+  // J2 customer loans and lenders (a lender's name and state are `name` and `isActive`).
+  ['loanState', 'loanState'],
+  ['loanAmount', 'money'],
+  ['sanctionedAmount', 'money'],
+  ['lenderName', 'text'],
+  ['loanReference', 'text'],
+  ['dispatchGate', 'loanDispatchGate'],
+  ['rejectedReason', 'text'],
+  ['waiverReason', 'text'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

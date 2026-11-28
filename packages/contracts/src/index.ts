@@ -27,6 +27,8 @@ export * from './catalogue/specs';
 // H1 stock ledger
 export * from './inventory/enums';
 export * from './inventory/stock';
+// Q1 labels
+export * from './inventory/labels';
 export * from './catalogue/serial-pattern';
 export * from './numbering/document-no';
 export * from './tax/engine';
@@ -128,3 +130,5 @@ export * from './notifications';
 export * from './commands/webhooks/inbox';
 // U1 vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3).
 export * from './procurement/index';
+// J2 customer loans
+export * from './crm/loans';

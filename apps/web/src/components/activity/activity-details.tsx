@@ -104,6 +104,11 @@ import {
   BIN_KINDS,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // J2 customer loans
+  CUSTOMER_LOAN_STATES,
+  LOAN_DISPATCH_GATES,
+  // Q1 labels
+  LABEL_KINDS,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
@@ -424,6 +429,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const duplicates = useTranslations('duplicates');
   const quotes = useTranslations('quotes');
   const orders = useTranslations('orders');
+  const loans = useTranslations('loans');
   const agents = useTranslations('agents');
   const knowledge = useTranslations('knowledge');
   const playbook = useTranslations('playbook');
@@ -614,6 +620,12 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(BIN_KINDS, value) ? t(`values.binKind.${value}`) : wordsOf(value);
       case 'stockReason':
         return oneOf(STOCK_REASONS, value) ? t(`values.stockReason.${value}`) : wordsOf(value);
+      case 'loanState':
+        return oneOf(CUSTOMER_LOAN_STATES, value) ? loans(`state.${value}`) : wordsOf(value);
+      case 'loanDispatchGate':
+        return oneOf(LOAN_DISPATCH_GATES, value) ? loans(`dispatchGate.${value}`) : wordsOf(value);
+      case 'labelKind':
+        return oneOf(LABEL_KINDS, value) ? t(`values.labelKind.${value}`) : wordsOf(value);
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
       case 'fileStatus':

@@ -87,6 +87,19 @@ const U1_QUOTE_INPUTS: Record<string, unknown> = {
   'procurement.quote.withdraw': { quoteId: newId() },
 };
 
+/** J2: a company's lenders (admin.entities.write), and a customer's loans (crm.account.write). */
+const J2_LENDER_INPUTS: Record<string, unknown> = {
+  'crm.lender.create': { entityId: 1, name: 'Refused lender' },
+  'crm.lender.update': { entityId: 1, lenderId: newId(), isActive: false },
+};
+const J2_LOAN_INPUTS: Record<string, unknown> = {
+  'crm.loan.create': { entityId: 1, orderId: newId(), lenderId: newId(), amount: '1000.00' },
+  'crm.loan.sanction': { entityId: 1, loanId: newId(), sanctionedAmount: '1000.00' },
+  'crm.loan.disburse': { entityId: 1, loanId: newId() },
+  'crm.loan.reject': { entityId: 1, loanId: newId(), reason: 'Refused' },
+  'crm.loan.gates.waive': { entityId: 1, loanId: newId(), reason: 'Paid in cash' },
+};
+
 const INPUTS: Record<string, unknown> = {
   // A customer's price tier decides every price they are quoted (PRICE-1).
   'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
@@ -342,6 +355,8 @@ const INPUTS: Record<string, unknown> = {
   },
   // U1: supplier quotes need procurement.rate.read, which no agent holds.
   ...U1_QUOTE_INPUTS,
+  // J2: a company's lenders are kept by the Executive (admin.entities.write).
+  ...J2_LENDER_INPUTS,
 };
 
 /** The commands only people may call (`peopleOnly`), read from the registry. */
@@ -389,6 +404,14 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   // F1: a feature flag and a person's phone are switched and signed out by people only.
   'admin.flag.set': INPUTS['admin.flag.set'],
   'field.device.revoke': { id: newId() },
+  // Q1 labels: printing a sheet of labels is a person's work at the hub.
+  'inventory.label.print': { entityId: 1, labelKind: 'bin', ids: [newId()] },
+  'inventory.label.reprint': {
+    entityId: 1,
+    labelKind: 'serial',
+    ids: [newId()],
+    note: 'Refused reprint',
+  },
   // The Agent Inbox and agent settings: a person decides, never an agent (SECURITY §3.3).
   ...Object.fromEntries(
     [
@@ -539,6 +562,9 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'procurement.vendor.archive': { vendorId: newId() },
   'procurement.vendor.contact.set': { vendorId: newId(), contacts: [] },
   'procurement.item_vendor.set': { vendorId: newId(), itemId: newId() },
+  // J2: lenders and customer loans are kept by people only.
+  ...J2_LENDER_INPUTS,
+  ...J2_LOAN_INPUTS,
 };
 
 describe('commands for people only', () => {
@@ -729,6 +755,8 @@ const CUSTOMER_INPUTS: Record<string, unknown> = {
   // An import makes customers the way the lead form does.
   'imports.job.commit': { entityId: 1, jobId: newId() },
   'imports.job.commit_batch': { entityId: 1, jobId: newId() },
+  // J2: a customer's loan is recorded and moved on by a person (crm.account.write).
+  ...J2_LOAN_INPUTS,
 };
 
 describe('agent principals never write the customer master (SECURITY §3.3)', () => {
