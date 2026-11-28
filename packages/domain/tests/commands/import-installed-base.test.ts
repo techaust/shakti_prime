@@ -259,14 +259,14 @@ describe('the installed base import', () => {
     await asMigrator(
       (m) => m`update import_rows
         set normalised_json = jsonb_set(normalised_json, '{warrantyUntil}', '"2025-03-09"')
-        where job_id = ${job.id} and row_no = 2`,
+        where job_id = ${job.id} and row_no = 1`,
     );
     expect(await committed(job)).toMatchObject({ state: 'committed', committedRows: 0 });
     const page = await asPrincipal({ ...exec, entityIds: [ENTITY] }, (ctx) =>
       listImportRows(ctx, { entityId: ENTITY, jobId: job.id, limit: 50 }),
     );
     expect(page.rows.map((r) => [r.rowNo, r.state, r.errors])).toEqual([
-      [2, 'invalid', [{ field: 'warrantyUntil', code: 'date_invalid' }]],
+      [1, 'invalid', [{ field: 'warrantyUntil', code: 'date_invalid' }]],
     ]);
     expect(await serial(pump, `IW-${tag}-1`)).toBeUndefined();
   });

@@ -47,6 +47,8 @@ interface ClaimRow {
   state: string;
   stateChangedAt: string | Date;
   createdAt: string | Date;
+  /** `created_at` to the microsecond, as text, for the list's cursor (a `Date` keeps only ms). */
+  createdAtCursor: string;
   accountId: string;
   accountName: string | null;
   siteId: string | null;
@@ -83,6 +85,7 @@ const serialJson = (column: SQL) => sql`
 const CLAIM_SELECT = sql`
   c.id, c.entity_id as "entityId", c.claim_no as "claimNo", c.state,
   c.state_changed_at as "stateChangedAt", c.created_at as "createdAt",
+  pg_catalog.to_char(c.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as "createdAtCursor",
   c.account_id as "accountId", a.name as "accountName",
   c.site_id as "siteId", cs.village as "siteVillage", cs.type as "siteType",
   c.item_id as "itemId", i.sku, i.name as "itemName", c.reported_fault as "reportedFault",
@@ -168,7 +171,7 @@ export async function listWarrantyClaims(
     items: page.map(toClaimDto),
     nextCursor:
       rows.length > input.limit && last !== undefined
-        ? encodeCursor([new Date(last.createdAt).toISOString(), last.id])
+        ? encodeCursor([last.createdAtCursor, last.id])
         : null,
     counts,
   });

@@ -7070,6 +7070,7 @@
       "faultyBack": "The faulty item",
       "faultyNotBack": "Still with the customer",
       "faultyIsBack": "Back with us now",
+      "noQuarantineBin": "No hub has a quarantine bin yet, so the faulty item stays recorded with the customer. Add one on the Hubs and bins page to take it back.",
       "quarantineBin": "Quarantine bin",
       "quarantineBinHelper": "The faulty item comes back into this bin before it goes to the supplier.",
       "replaceSubmit": "Give the replacement",

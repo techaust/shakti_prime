@@ -97,6 +97,27 @@ describe('listWarrantyClaims', () => {
     expect(JSON.stringify(asExec)).not.toMatch(/18500|16250|cost|credit/i);
   });
 
+  it('pages past two claims raised within one millisecond, keeping both', async () => {
+    const [newer, older] = [newId(), newId()];
+    await asMigrator(
+      (m) => m`insert into warranty_claims (id, entity_id, claim_no, account_id, reported_fault, state, created_by, created_at)
+        values (${newer}, 4, ${`CQ${tag}/4`}, ${account}, 'Trips the breaker', 'raised', ${exec.id}, '2001-01-01 00:00:00.000400+00'),
+               (${older}, 4, ${`CQ${tag}/5`}, ${account}, 'Trips the breaker', 'raised', ${exec.id}, '2001-01-01 00:00:00.000100+00')`,
+    );
+    const manager = principalFor('inventory_manager', [4]);
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let pages = 0; pages < 500; pages += 1) {
+      const page = await asPrincipal(manager, (ctx) =>
+        listWarrantyClaims(ctx, { entityId: 4, limit: 1, ...(cursor === undefined ? {} : { cursor }) }),
+      );
+      seen.push(...page.items.map((x) => x.id));
+      if (page.nextCursor === null) break;
+      cursor = page.nextCursor;
+    }
+    expect(seen.filter((id) => id === newer || id === older)).toEqual([newer, older]);
+  });
+
   it('is refused without inventory.stock.read or warranty.write, and for another company', async () => {
     for (const roleKey of ['tele_caller_cc', 'hr_admin'] as const) {
       await expect(

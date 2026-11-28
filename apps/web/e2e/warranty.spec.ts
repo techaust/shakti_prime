@@ -95,6 +95,7 @@ test.describe('as the Inventory Manager, warranty claims', () => {
         'The warranty on this serial ended on 31-01-2025. Reject the claim, or offer a paid repair.',
       ),
     ).toBeVisible();
+    await snap(page, 'warranty-identify-dialog', { element: identify });
     await expectNoAxeViolations(page);
     // The one in warranty the seed left for this run.
     const valid = serial.locator('option', { hasText: `${j.validSerial}-` }).first();
@@ -123,6 +124,8 @@ test.describe('as the Inventory Manager, warranty claims', () => {
     await (await hydrated(page.getByRole('button', { name: 'Send to the supplier' }))).click();
     const rma = page.getByRole('dialog', { name: 'Send the faulty item to the supplier' });
     await rma.getByLabel('Supplier').selectOption({ label: 'Journey pump supplier' });
+    // Pictured before the reference, which names the run.
+    await snap(page, 'warranty-rma-dialog', { element: rma });
     await rma.getByLabel('Supplier’s return reference').fill(`RMA-${run}`);
     await expectNoAxeViolations(page);
     await rma.getByRole('button', { name: 'Send to the supplier' }).click();
@@ -174,6 +177,13 @@ test.describe('as the Inventory Manager, warranty claims', () => {
       ),
     ).toBeVisible();
     await expectNoAxeViolations(page);
+    // The rows and the counts grow with every walk, so only the page around them is pictured.
+    await snap(page, 'warranty-list', {
+      mask: [
+        dataGrid(page, 'Warranty claims, newest first'),
+        page.getByRole('navigation', { name: 'Show claims' }),
+      ],
+    });
   });
 });
 

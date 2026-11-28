@@ -395,14 +395,14 @@ export function ReplaceDialog({
       return;
     }
     setProblem(false);
-    const faultyBinId = formText(data, 'faultyBinId');
     run(
       {
         entityId,
         claimId,
         fromBinId: formText(data, 'fromBinId'),
         replacementSerialNo,
-        ...(back && faultyBinId !== '' ? { faultyBinId } : {}),
+        // Never dropped when chosen: an empty bin is refused, not taken as "not back".
+        ...(back ? { faultyBinId: formText(data, 'faultyBinId') } : {}),
       },
       (claim) => {
         toast.success(t('replaced'));
@@ -435,7 +435,12 @@ export function ReplaceDialog({
         >
           <Input name="replacementSerialNo" autoComplete="off" spellCheck={false} maxLength={100} />
         </Field>
-        <Field id="claim-faulty-back" label={t('faultyBack')}>
+        {/* The faulty item can come back only into a quarantine bin; with none, it stays out. */}
+        <Field
+          id="claim-faulty-back"
+          label={t('faultyBack')}
+          helper={quarantine.length === 0 ? t('noQuarantineBin') : undefined}
+        >
           <Select
             value={back ? 'yes' : 'no'}
             onChange={(e) => {
@@ -443,7 +448,7 @@ export function ReplaceDialog({
             }}
           >
             <option value="no">{t('faultyNotBack')}</option>
-            <option value="yes">{t('faultyIsBack')}</option>
+            {quarantine.length === 0 ? null : <option value="yes">{t('faultyIsBack')}</option>}
           </Select>
         </Field>
         {back ? (
