@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 2
-updated: 2026-11-28T00:46Z
+updated: 28-11-2026 05:00 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -98,3 +98,11 @@ run_file: docs/runs/phase4/j1-projects.md
 wait_for: none
 done_when: report: j1-projects prepped
 note: prep for the lead's integration: readme's prep prompt (moved from seat 2: no commit for three hours after the lead's Prettier fix at 21:43). Diff against main's latest: app.platform_only_permissions(), app.next_document_no(), notifications_type_check and notification_preferences_type_check, app.status_summary(), document_sequences_doc_type_check.
+
+lane: 101
+role: prep
+branch: feat/f1-field-foundation
+run_file: docs/runs/phase4/f1-field-foundation.md
+wait_for: none
+done_when: report: f1-field-foundation prepped after j2
+note: a second prep: main moved (J2 #300 merged with migrations 0243 to 0246, then possibly TC1 #303 and the calling-hours fix). Take main in again as the prep prompt says; F1's migrations move after main's last one with journal times after main's. Diff app.platform_only_permissions(), the notification checks and anything else F1 redefines against main's latest. Add a second "Integration prep" entry, and commit with the subject "report: f1-field-foundation prepped after j2" (not "prepped").

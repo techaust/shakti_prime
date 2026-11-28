@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 5
-updated: 28-11-2026 04:36 UTC
+updated: 28-11-2026 05:00 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -90,3 +90,11 @@ run_file: docs/runs/phase5/hr1-people.md
 wait_for: none
 done_when: report: hr1-people done
 note: continue. The lead read the early check (27-11 20:55 UTC): accepted, assumptions 1 to 12 included. Go on to the screens (/hr/people, the person's page, /hr/leave, the HR settings), the menu and the journeys. (moved from seat 2 at 04:45 UTC on 28-11: no commit for two hours; go on from the branch as pushed, the wip commits included)
+
+lane: 102
+role: prep
+branch: feat/j1-projects
+run_file: docs/runs/phase4/j1-projects.md
+wait_for: none
+done_when: report: j1-projects prepped after j2
+note: a second prep: main moved (J2 #300 merged with migrations 0243 to 0246 and widened notifications_type_check, notification_preferences_type_check and app.order_loan_gate()). Take main in again as the prep prompt says; J1's migrations move after 0246 with journal times after main's. J1 redefines app.status_summary(), app.next_document_no(), app.platform_only_permissions(), notifications_subject_type_check and the notification checks: each must carry every line of main's latest plus J1's own. Add a second "Integration prep" entry, and commit with the subject "report: j1-projects prepped after j2" (not "prepped").
