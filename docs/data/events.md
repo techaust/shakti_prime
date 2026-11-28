@@ -52,7 +52,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-75 types, 25 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+78 types, 25 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -218,6 +218,9 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`projects.project.completed`](#projectsprojectcompleted) | A project was completed with every step of its checklist done. | `projects.project.complete` | none |
 | [`projects.project.cancelled`](#projectsprojectcancelled) | A project was cancelled, by a Project Manager or by the platform because its order was cancelled before any step was done; the reason stays on the project. | `projects.project.cancel`, `projects.project.cancel_for_order` | none |
 | [`projects.project.order_cancelled`](#projectsprojectorder_cancelled) | The order of a project was cancelled after a step of the project was done, so the platform kept the project; the notify worker tells its owner, or the Project Managers of its company when it has none. | `projects.project.cancel_for_order` | `POST /api/v1/workers/outbox/projects.project.order_cancelled` (QStash URL group `evt-projects.project.order_cancelled`) |
+| [`projects.qc.submitted`](#projectsqcsubmitted) | A project's quality checklist for a step was filled and submitted for sign-off. | `projects.qc.submit` | none |
+| [`projects.qc.signed_off`](#projectsqcsigned_off) | A project's submitted quality check was signed off by someone other than its submitter, so its step may be marked done. | `projects.qc.signoff` | none |
+| [`projects.qc.rejected`](#projectsqcrejected) | A project's submitted quality check was turned down with what to put right; a new one is submitted for the step. | `projects.qc.reject` | none |
 
 ## Payloads
 
@@ -770,3 +773,24 @@ No fields apart from `v`.
 | `salesOrderId` | id |
 | `state` | one of `sanctioned`, `disbursed`, `rejected` |
 | `dispatch` | true or false |
+
+### projects.qc.submitted
+
+| Field | Type |
+|---|---|
+| `projectId` | id |
+| `milestoneId` | id |
+
+### projects.qc.signed_off
+
+| Field | Type |
+|---|---|
+| `projectId` | id |
+| `milestoneId` | id |
+
+### projects.qc.rejected
+
+| Field | Type |
+|---|---|
+| `projectId` | id |
+| `milestoneId` | id |
