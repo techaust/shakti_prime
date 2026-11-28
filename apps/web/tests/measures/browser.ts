@@ -14,7 +14,7 @@ import {
   passthruNumber,
   popCallerKey,
 } from '../../e2e/screen-pop-fixtures';
-import { insideCallingHours } from '../../e2e/support/clock';
+import { INSIDE_CALLING_HOURS_MINUTE, shiftToIstMinute } from '../../e2e/support/clock';
 import { standInForTurnstile } from '../../e2e/support/turnstile';
 import { E2E_PASSWORD, emailFor } from '../../e2e/support/users';
 import { dialLeadPhone } from '../../scripts/measures/safety';
@@ -187,9 +187,12 @@ export async function measureDial(options: {
   try {
     const context = await newContext(browser, options.baseUrl);
     if (options.serverStartedHere) {
-      // The journeys' clock, which only a local production run honours: inside calling hours.
+      // The journeys' clock, which only a local production run honours: inside calling hours,
+      // moved on every run (never by the wall clock's choice) and once for all its rounds, so it
+      // runs forward from round to round.
+      const shift = shiftToIstMinute(INSIDE_CALLING_HOURS_MINUTE);
       await context.addCookies([
-        { name: TEST_CLOCK_COOKIE, value: String(insideCallingHours()), url: options.baseUrl },
+        { name: TEST_CLOCK_COOKIE, value: String(shift), url: options.baseUrl },
       ]);
     }
     const page = await context.newPage();

@@ -52,20 +52,30 @@ describe('the call bar on the server’s clock, whatever the device’s clock sa
   const pressed = Date.parse(call.startedAt);
   const hour = 3_600_000;
 
-  it('reads the offset from the dial’s answer, ahead or behind', () => {
-    expect(serverClockOffset(call.startedAt, pressed + 200)).toBe(-200);
-    // The device runs eleven hours behind (the journeys move the server's clock forward so).
+  it('reads the offset from the moment the dial was sent, ahead or behind', () => {
+    // A device whose clock is right: the dial reached the server 200 ms after it was sent.
+    expect(serverClockOffset(call.startedAt, pressed - 200)).toBe(200);
+    // The device runs eleven hours behind.
     expect(serverClockOffset(call.startedAt, pressed - 11 * hour)).toBe(11 * hour);
     // The device runs five hours ahead.
     expect(serverClockOffset(call.startedAt, pressed + 5 * hour)).toBe(-5 * hour);
   });
 
+  it('counts a call in full on a device whose clock is right, however long the dial took', () => {
+    // The dial left at 05:29:59.8 by the device, the server took it up at 05:30:00 and its answer
+    // came back three seconds later, after the provider's connect. Ten seconds after it was sent
+    // the call has run (nearly) ten seconds, not seven.
+    const sentAt = pressed - 200;
+    const offset = serverClockOffset(call.startedAt, sentAt);
+    expect(elapsedSeconds(call, sentAt + 10_000 + offset)).toBe(10);
+  });
+
   it('counts the call from the press on a device whose clock is hours out', () => {
     for (const skew of [-11 * hour, -5 * 60_000, 0, 5 * hour]) {
-      const receivedAt = pressed + skew;
-      const offset = serverClockOffset(call.startedAt, receivedAt);
-      // Twelve seconds after the answer arrived, by the device's own clock.
-      const serverNow = receivedAt + 12_000 + offset;
+      const sentAt = pressed + skew;
+      const offset = serverClockOffset(call.startedAt, sentAt);
+      // Twelve seconds after the dial was sent, by the device's own clock.
+      const serverNow = sentAt + 12_000 + offset;
       expect(elapsedSeconds(call, serverNow)).toBe(12);
       expect(
         elapsedSeconds(
@@ -78,10 +88,10 @@ describe('the call bar on the server’s clock, whatever the device’s clock sa
 
   it('keeps reading a running call for three hours from the press, then stops', () => {
     // A device five hours ahead: on its own clock the call looks older than three hours.
-    const receivedAt = pressed + 5 * hour;
-    const offset = serverClockOffset(call.startedAt, receivedAt);
-    expect(stillReading(call, receivedAt + offset)).toBe(true);
-    expect(stillReading(call, receivedAt + 2 * hour + offset)).toBe(true);
-    expect(stillReading(call, receivedAt + 3 * hour + 1 + offset)).toBe(false);
+    const sentAt = pressed + 5 * hour;
+    const offset = serverClockOffset(call.startedAt, sentAt);
+    expect(stillReading(call, sentAt + offset)).toBe(true);
+    expect(stillReading(call, sentAt + 2 * hour + offset)).toBe(true);
+    expect(stillReading(call, sentAt + 3 * hour + 1 + offset)).toBe(false);
   });
 });

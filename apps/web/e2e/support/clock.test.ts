@@ -1,58 +1,85 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
-  insideCallingHours,
+  callingHoursShift,
   INSIDE_CALLING_HOURS_MINUTE,
-  outsideCallingHours,
   OUTSIDE_CALLING_HOURS_MINUTE,
+  runStart,
   shiftToIstMinute,
 } from './clock';
 
 const IST_OFFSET_MS = 330 * 60_000;
 const MINUTE_MS = 60_000;
+const HOUR_MS = 3_600_000;
 
 /** Minutes since midnight in India. */
 function istMinute(at: number): number {
   return Math.floor(((((at + IST_OFFSET_MS) % 86_400_000) + 86_400_000) % 86_400_000) / MINUTE_MS);
 }
 
-describe('the journeys’ calling-hours clock', () => {
-  it('puts the server inside the hours for the next ten minutes, whatever the wall clock says', () => {
-    const start = Date.UTC(2031, 0, 15, 0, 0, 17);
-    for (let at = start; at < start + 2 * 86_400_000; at += 7 * MINUTE_MS) {
-      const shift = insideCallingHours(new Date(at));
-      expect(shift).toBeGreaterThanOrEqual(0);
-      for (const later of [0, 5 * MINUTE_MS, 10 * MINUTE_MS]) {
-        const minute = istMinute(at + shift + later);
-        expect(
-          minute,
-          `at ${new Date(at).toISOString()} + ${String(later)}`,
-        ).toBeGreaterThanOrEqual(9 * 60);
-        expect(minute).toBeLessThan(21 * 60);
+describe('the run’s start (runStart)', () => {
+  const folders: string[] = [];
+  const folder = () => {
+    const made = mkdtempSync(join(tmpdir(), 'calling-hours-'));
+    folders.push(made);
+    return made;
+  };
+  afterEach(() => {
+    for (const made of folders.splice(0)) rmSync(made, { recursive: true, force: true });
+  });
+
+  it('is the first asker’s moment for every later worker and retry of the run', () => {
+    const out = join(folder(), 'test-results');
+    const first = Date.UTC(2031, 0, 15, 3, 0, 17);
+    expect(runStart(out, first)).toBe(first);
+    expect(runStart(out, first + 90_000)).toBe(first);
+    expect(runStart(out, first + 3 * HOUR_MS)).toBe(first);
+  });
+
+  it('starts afresh from a folder kept from a run four hours old, or from an unreadable one', () => {
+    const out = folder();
+    const first = Date.UTC(2031, 0, 15, 3, 0, 17);
+    runStart(out, first);
+    const later = first + 4 * HOUR_MS;
+    expect(runStart(out, later)).toBe(later);
+    expect(runStart(out, later + MINUTE_MS)).toBe(later);
+    const spoilt = folder();
+    writeFileSync(join(spoilt, 'calling-hours-run-start'), '');
+    expect(runStart(spoilt, first)).toBe(first);
+    expect(runStart(spoilt, first + MINUTE_MS)).toBe(first);
+  });
+});
+
+describe('the run’s lines on each side of the hours (callingHoursShift)', () => {
+  it('holds each side of the hours for four hours of a run, whatever the hour it started', () => {
+    const begin = Date.UTC(2031, 0, 15, 0, 0, 17);
+    for (let start = begin; start < begin + 2 * 86_400_000; start += 7 * MINUTE_MS) {
+      const inside = callingHoursShift('inside', start);
+      const outside = callingHoursShift('outside', start);
+      for (const shift of [inside, outside]) {
+        expect(shift).toBeGreaterThan(0);
+        expect(shift).toBeLessThanOrEqual(86_400_000);
+      }
+      for (const later of [0, HOUR_MS, 4 * HOUR_MS - 1]) {
+        const m = istMinute(start + inside + later);
+        expect(m >= 9 * 60 && m < 21 * 60, new Date(start).toISOString()).toBe(true);
+        const o = istMinute(start + outside + later);
+        expect(o < 9 * 60 || o >= 21 * 60, new Date(start).toISOString()).toBe(true);
       }
     }
   });
 
-  it('puts the server outside the hours for the next ten minutes, whatever the wall clock says', () => {
-    const start = Date.UTC(2031, 0, 15, 0, 0, 17);
-    for (let at = start; at < start + 2 * 86_400_000; at += 7 * MINUTE_MS) {
-      const shift = outsideCallingHours(new Date(at));
-      expect(shift).toBeGreaterThanOrEqual(0);
-      for (const later of [0, 5 * MINUTE_MS, 10 * MINUTE_MS]) {
-        const minute = istMinute(at + shift + later);
-        expect(minute < 9 * 60 || minute >= 21 * 60, `at ${new Date(at).toISOString()}`).toBe(true);
-      }
-    }
-  });
-
-  it('keeps an inside shift short enough that the proposed callback is still ahead', () => {
-    // The workspace proposes 10 AM on the next day of the wall clock.
-    const start = Date.UTC(2031, 0, 15, 0, 0, 0);
-    for (let at = start; at < start + 86_400_000; at += 13 * MINUTE_MS) {
-      const shifted = at + insideCallingHours(new Date(at));
-      const nextDay = Math.floor((at + IST_OFFSET_MS) / 86_400_000) + 1;
-      const proposed = nextDay * 86_400_000 + 10 * 3_600_000 - IST_OFFSET_MS;
-      expect(proposed - shifted).toBeGreaterThan(20 * MINUTE_MS);
-    }
+  it('is one shift for the whole run, so its moved clock runs forward from test to test', () => {
+    const start = Date.UTC(2031, 0, 15, 15, 40, 0);
+    const shift = callingHoursShift('inside', start);
+    // A test, then a retry of it twenty minutes on: the second starts later on the moved clock,
+    // where a shift taken again from each test's own moment would start both at 11 AM.
+    const first = start + 5 * MINUTE_MS + shift;
+    const retry = start + 25 * MINUTE_MS + shift;
+    expect(retry - first).toBe(20 * MINUTE_MS);
+    expect(new Date(start + shift)).toEqual(new Date('2031-01-16T11:00:00+05:30'));
   });
 });
 

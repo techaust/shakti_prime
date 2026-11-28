@@ -64,12 +64,15 @@ export function clock(seconds: number): string {
 
 /**
  * How far the server's clock is ahead of this browser's, in milliseconds, read from a dial's
- * answer: the call's start is the server's moment of the press, and the answer arrived just after
- * it. A device clock set wrong (or the journeys' moved server clock) then never makes the bar's
- * time count from the wrong moment, nor stop reading a call that is still running.
+ * answer: the call's start is the moment the server took up the dial, at the start of the dial's
+ * action, so it is set against `sentAt`, the browser's moment of sending the dial. The two differ
+ * only by the trip there, a fraction of a second; the answer's arrival would also take in the
+ * whole dial (the checks and the provider's connect), and the bar would count every call short by
+ * it. A device clock set wrong (or the journeys' moved clocks) then never makes the bar's time
+ * count from the wrong moment, nor stop reading a call that is still running.
  */
-export function serverClockOffset(startedAt: string, receivedAt: number): number {
-  return Date.parse(startedAt) - receivedAt;
+export function serverClockOffset(startedAt: string, sentAt: number): number {
+  return Date.parse(startedAt) - sentAt;
 }
 
 /** Whether the bar still reads a call again, on the server's clock `now`. */
@@ -178,14 +181,15 @@ export function CallBar({
   const press = useCallback(() => {
     if (!offered || !ok.dialPhoneSet || live || dial.pending) return;
     setRefusals(undefined);
+    // The dial leaves now: the server's start of the call is set against this moment.
+    const sentAt = Date.now();
     dial.load(
       () => dialCall({ entityId, opportunityId }),
       (outcome) => {
         if (outcome.kind === 'placed') {
-          const receivedAt = Date.now();
-          const ahead = serverClockOffset(outcome.call.startedAt, receivedAt);
+          const ahead = serverClockOffset(outcome.call.startedAt, sentAt);
           setOffset(ahead);
-          setNow(receivedAt + ahead);
+          setNow(Date.now() + ahead);
           setCall(outcome.call);
         } else {
           setRefusals({ lead: opportunityId, reasons: outcome.refusals });
