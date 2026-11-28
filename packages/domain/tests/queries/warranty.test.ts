@@ -100,7 +100,9 @@ describe('listWarrantyClaims', () => {
   it('pages past two claims raised within one millisecond, keeping both', async () => {
     const [newer, older] = [newId(), newId()];
     await asMigrator(
-      (m) => m`insert into warranty_claims (id, entity_id, claim_no, account_id, reported_fault, state, created_by, created_at)
+      (
+        m,
+      ) => m`insert into warranty_claims (id, entity_id, claim_no, account_id, reported_fault, state, created_by, created_at)
         values (${newer}, 4, ${`CQ${tag}/4`}, ${account}, 'Trips the breaker', 'raised', ${exec.id}, '2001-01-01 00:00:00.000400+00'),
                (${older}, 4, ${`CQ${tag}/5`}, ${account}, 'Trips the breaker', 'raised', ${exec.id}, '2001-01-01 00:00:00.000100+00')`,
     );
@@ -109,7 +111,11 @@ describe('listWarrantyClaims', () => {
     let cursor: string | undefined;
     for (let pages = 0; pages < 500; pages += 1) {
       const page = await asPrincipal(manager, (ctx) =>
-        listWarrantyClaims(ctx, { entityId: 4, limit: 1, ...(cursor === undefined ? {} : { cursor }) }),
+        listWarrantyClaims(ctx, {
+          entityId: 4,
+          limit: 1,
+          ...(cursor === undefined ? {} : { cursor }),
+        }),
       );
       seen.push(...page.items.map((x) => x.id));
       if (page.nextCursor === null) break;
