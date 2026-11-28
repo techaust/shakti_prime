@@ -130,6 +130,9 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   tally_snapshots: 'x.id::text',
   tally_voucher_tombstones: 'x.id::text',
   tally_refused_rows: 'x.id::text',
+  // J2 customer loans.
+  lenders: 'x.id::text',
+  customer_loans: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -189,6 +192,11 @@ export async function removeEntityMatrixFixture(): Promise<void> {
   const like = `${P}%`;
   await asMigrator((m) =>
     m.begin(async (tx) => {
+      // J2: a loan names its order and the company's lender.
+      await tx`alter table customer_loans disable trigger customer_loans_guard`;
+      await tx`delete from customer_loans where id::text like ${like}`;
+      await tx`alter table customer_loans enable trigger customer_loans_guard`;
+      await tx`delete from lenders where id::text like ${like}`;
       // Orders and their commission first: they name a quote, a lead and a commission rule.
       await tx`alter table commission_accruals disable trigger commission_accruals_guard`;
       await tx`delete from commission_accruals where id::text like ${like}`;
@@ -442,6 +450,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     tally_snapshots: [],
     tally_voucher_tombstones: [],
     tally_refused_rows: [],
+    // J2 customer loans.
+    lenders: [],
+    customer_loans: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -591,6 +602,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['print_proof', per(e, 0x19), 'application/pdf'],
           // U1: a supplier's quote document, read with procurement.rate.read.
           ['vendor_quote', per(e, 0x82), 'application/pdf'],
+          // Q1: a sheet of QR labels, read with inventory.stock.move.
+          ['label_sheet', per(e, 0x90), 'application/pdf'],
         ] as const;
         // The company's vault file (staff knowledge) on its vault upload, with one chunk.
         const vaultFile = per(e, 0x42);
@@ -1011,13 +1024,13 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const company = `MX Tally ${e.toString()}`;
         const guid = (n: number) =>
           `5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-${(e * 16 + n).toString(16)}`;
-        const cursor = per(e, 0x90);
-        const sale = per(e, 0x91);
-        const purchase = per(e, 0x92);
-        const ledger = per(e, 0x93);
-        const snapshot = per(e, 0x94);
-        const tombstone = per(e, 0x95);
-        const refused = per(e, 0x96);
+        const cursor = per(e, 0xa0);
+        const sale = per(e, 0xa1);
+        const purchase = per(e, 0xa2);
+        const ledger = per(e, 0xa3);
+        const snapshot = per(e, 0xa4);
+        const tombstone = per(e, 0xa5);
+        const refused = per(e, 0xa6);
         await tx`insert into tally_connector_companies (connector_id, tally_company, entity_id, created_by)
           values (${connector}, ${company}, ${e}, ${ownerId})`;
         await tx`insert into tally_cursors (id, entity_id, tally_company, last_alter_id, connector_id)
@@ -1052,6 +1065,18 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.tally_ledgers.push({ key: ledger, entities: only });
         rows.tally_snapshots.push({ key: snapshot, entities: only });
         rows.tally_voucher_tombstones.push({ key: tombstone, entities: only });
+      }
+
+      // J2: each company's lender, and a loan on its dealer order, read with the customer there.
+      for (const e of ALL_ENTITY_IDS) {
+        const lender = per(e, 0x90);
+        const loan = per(e, 0x91);
+        await tx`insert into lenders (id, entity_id, name, created_by)
+          values (${lender}, ${e}, ${`matrix lender ${e.toString()}`}, ${ownerId})`;
+        await tx`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, created_by)
+          values (${loan}, ${e}, ${per(e, 0x02)}, ${per(e, 0x32)}, ${lender}, 1.00, ${ownerId})`;
+        rows.lenders.push({ key: lender, entities: [e] });
+        rows.customer_loans.push({ key: loan, entities: [e], leadIn: [e] });
       }
 
       // The shared customer: one account, contact and site, related to companies 1 and 2.

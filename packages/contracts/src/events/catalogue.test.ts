@@ -61,6 +61,8 @@ describe('the event catalogue', () => {
         // An enquiry that joined a nurtured lead, told to its owner (p2-fixes).
         'crm.lead.attached',
         'crm.lead.created',
+        // J2: a loan turned down, told to the owner of the order's lead or customer.
+        'crm.loan.rejected',
         'crm.opportunity.assigned',
         'crm.opportunity.stage_moved',
         'files.file.uploaded',
@@ -72,6 +74,8 @@ describe('the event catalogue', () => {
         'messaging.message.received',
         'platform.probe.requested',
         'print.document.requested',
+        // A sheet of QR labels (Q1).
+        'print.labels.requested',
         'sales.order.confirmed',
         'sales.order.credit_held',
         'sales.quote.accepted',

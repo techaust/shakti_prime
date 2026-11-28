@@ -27,6 +27,8 @@ export * from './catalogue/specs';
 // H1 stock ledger
 export * from './inventory/enums';
 export * from './inventory/stock';
+// Q1 labels
+export * from './inventory/labels';
 export * from './catalogue/serial-pattern';
 export * from './numbering/document-no';
 export * from './tax/engine';
@@ -128,3 +130,5 @@ export * from './procurement/index';
 // TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3).
 export * from './commands/tally/ingest';
 export * from './commands/tally/connectors';
+// J2 customer loans
+export * from './crm/loans';

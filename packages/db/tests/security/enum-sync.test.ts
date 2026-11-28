@@ -115,6 +115,10 @@ import {
   TALLY_SNAPSHOT_STATES,
   TALLY_VOUCHER_STATES,
   TALLY_VOUCHER_TYPES,
+  // J2 customer loans
+  ACTIVE_LOAN_STATES,
+  CUSTOMER_LOAN_STATES,
+  LOAN_DISPATCH_GATES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -321,6 +325,15 @@ const PAIRS: Record<string, readonly string[]> = {
   tally_refused_rows_kind_check: ['voucher', 'ledger'],
   tally_refused_rows_reason_check: TALLY_REVIEW_REASONS,
   tally_snapshots_compared_check: ['receiving'],
+  // J2: a loan's states; which states carry a sanction, a disbursal, a rejection; what the dispatch
+  // waits for (the key it is read by, then its values).
+  customer_loans_state_check: CUSTOMER_LOAN_STATES,
+  customer_loans_sanction_check: ACTIVE_LOAN_STATES,
+  customer_loans_disbursed_check: ['disbursed'],
+  customer_loans_rejected_check: ['rejected'],
+  customer_loans_gates_dispatch_check: ['dispatch', ...LOAN_DISPATCH_GATES],
+  // Only a rejected loan's gates are waived.
+  customer_loans_waiver_check: ['rejected'],
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

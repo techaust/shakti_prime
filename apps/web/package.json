@@ -27,8 +27,7 @@
     "realtime-spike": "tsx scripts/realtime-spike.ts",
     "spike:exotel": "tsx scripts/spike/exotel-dial.ts",
     "spike:whatsapp": "tsx scripts/spike/whatsapp.ts",
-    "spike:voice": "tsx scripts/spike/voice-latency.ts",
-    "spike:tally": "tsx scripts/spike/tally-read.ts"
+    "spike:voice": "tsx scripts/spike/voice-latency.ts"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1173.0",

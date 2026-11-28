@@ -418,6 +418,10 @@ export const ENTITY_TABLES = [
   'tally_snapshots',
   'tally_voucher_tombstones',
   'tally_refused_rows',
+  // J2: a company's lenders, read by every principal acting in it; a customer's loan, read with
+  // the customer's relationship in the loan's company (docs/03-roadmap-appendix/phase4.md §6.2)
+  'lenders',
+  'customer_loans',
 ] as const;
 
 /**

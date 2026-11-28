@@ -159,6 +159,8 @@ import {
   updateHub,
 } from '../commands/inventory/hubs';
 import { adjustStock, reverseStock, transferStock } from '../commands/inventory/stock';
+// Q1 labels
+import { printLabels, reprintLabels } from '../commands/inventory/labels';
 import {
   approvePriceList,
   archivePriceList,
@@ -219,6 +221,13 @@ import {
   rotateTallyConnectorKey,
   unmapTallyCompany,
 } from '../commands/tally/connectors';
+// J2 customer loans.
+import { createCustomerLoan } from '../commands/crm/loans-create';
+import { sanctionCustomerLoan } from '../commands/crm/loans-sanction';
+import { disburseCustomerLoan } from '../commands/crm/loans-disburse';
+import { rejectCustomerLoan } from '../commands/crm/loans-reject';
+import { waiveLoanGates } from '../commands/crm/loans-waive';
+import { createLender, updateLender } from '../commands/crm/loans-lenders';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -328,6 +337,9 @@ export const commands = Object.freeze({
   [transferStock.name]: transferStock,
   [adjustStock.name]: adjustStock,
   [reverseStock.name]: reverseStock,
+  // Q1 labels
+  [printLabels.name]: printLabels,
+  [reprintLabels.name]: reprintLabels,
   [updateItem.name]: updateItem,
   [archiveItem.name]: archiveItem,
   [createKit.name]: createKit,
@@ -451,6 +463,14 @@ export const commands = Object.freeze({
   [rotateTallyConnectorKey.name]: rotateTallyConnectorKey,
   [retireTallyConnectorKey.name]: retireTallyConnectorKey,
   [revokeTallyConnector.name]: revokeTallyConnector,
+  // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
+  [createCustomerLoan.name]: createCustomerLoan,
+  [sanctionCustomerLoan.name]: sanctionCustomerLoan,
+  [disburseCustomerLoan.name]: disburseCustomerLoan,
+  [rejectCustomerLoan.name]: rejectCustomerLoan,
+  [waiveLoanGates.name]: waiveLoanGates,
+  [createLender.name]: createLender,
+  [updateLender.name]: updateLender,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

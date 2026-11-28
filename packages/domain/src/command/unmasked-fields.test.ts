@@ -155,6 +155,10 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   // TC2: a connector key's hash.
   'tally.connector.register': { key: TALLY_KEY },
   'tally.connector.rotate': { key: TALLY_KEY },
+  // J2: a lender's reference for a loan application or account is a long number by design.
+  'crm.loan.create': { reference: AADHAAR },
+  'crm.loan.sanction': { reference: AADHAAR },
+  'crm.loan.disburse': { reference: AADHAAR },
 };
 
 /** What a person might type into a text field: never valid in a field left whole. */

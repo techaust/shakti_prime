@@ -400,6 +400,8 @@ export const ConnectorAnswers = {
   }),
   snapshot: z.object(snapshotResponseShape),
 };
+/** A batch's answer as the connector reads it: `held` rows with any kind and reason. */
+export type ConnectorBatchAnswer = z.infer<typeof ConnectorAnswers.batch>;
 
 /**
  * `GET /connector/tally/release`: the latest release manifest, signed by CI. The connector installs an

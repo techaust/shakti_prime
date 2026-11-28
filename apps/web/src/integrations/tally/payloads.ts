@@ -2,7 +2,6 @@ import {
   ConnectorBatchRequest,
   ConnectorHeartbeatRequest,
   ConnectorSnapshotRequest,
-  TallyVoucherTypeSchema,
   type TallyVoucherType,
 } from '@shakti/contracts';
 
@@ -64,15 +63,4 @@ export function parseSnapshot(body: unknown): Parsed<ConnectorSnapshotRequest> {
 /** Purchase and debit-note vouchers land in the restricted table behind `procurement.rate.read`. */
 export function isRestrictedVoucher(type: TallyVoucherType): boolean {
   return type === 'purchase' || type === 'debit_note';
-}
-
-/**
- * The BOS voucher type for Tally's type name, or undefined for a type the BOS does not read
- * (journals, contra, payments). A company may rename its types; the discovery visit confirms the
- * names, and a renamed type is mapped here.
- */
-export function voucherTypeOf(typeName: string): TallyVoucherType | undefined {
-  const key = typeName.trim().toLowerCase().replaceAll(/\s+/g, '_');
-  const result = TallyVoucherTypeSchema.safeParse(key);
-  return result.success ? result.data : undefined;
 }

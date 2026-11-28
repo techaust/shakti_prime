@@ -49,6 +49,7 @@ import { ensureConvertingJourneys } from './converting';
 import { ensureConciergeJourneys } from './concierge';
 import { ensureCopilotJourneys } from './copilot';
 import { deliverWaitingEvents } from './deliver-waiting';
+import { ensureLoanJourneys } from './loans';
 import { ensureOrderJourneys } from './orders';
 import { archiveAddedPartners, resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
@@ -57,6 +58,8 @@ import { ensureProcurementJourneys } from './procurement';
 import { ensureScreenPopJourneys } from './screen-pop';
 import { ensureShadowPackJourney } from './shadow-pack';
 import { ensureStockJourneys } from './stock';
+// Q1 labels
+import { ensureLabelJourneys } from './labels';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
@@ -907,9 +910,17 @@ const whatsappQuotes = await ensureWhatsAppQuoteJourneys(ids.executive ?? '');
 progress('the orders and dealers');
 const orders = await ensureOrderJourneys(ids.executive ?? '');
 
+// J2 customer loans
+progress('the loan journeys');
+const loans = await ensureLoanJourneys(ids.executive ?? '');
+
 // H1 stock ledger
 progress('the stock journeys');
 await ensureStockJourneys(ids.executive ?? '');
+
+// Q1 labels: a serial per project, in the stock journeys' first bin.
+progress('the labels journeys');
+await ensureLabelJourneys(ids.executive ?? '');
 
 progress('the Lead Converter workspace');
 // One converter of company 2 per project, none of them a handover target, each with three leads
@@ -1133,6 +1144,7 @@ const seeded: SeededUsers = {
   orders,
   uat,
   recordings,
+  loans,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();
