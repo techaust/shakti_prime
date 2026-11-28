@@ -4696,8 +4696,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
-**Row-level security:** enabled and forced; 1 policy.
+**Row-level security:** enabled and forced; 2 policies.
 
+- `serials_count_blind` (select, restrictive, to app_user, app_reader): using `not (select app.has_perm('inventory.count.record:own') and not app.has_perm('inventory.stock.adjust:entity')) or not app.stock_count_hidden(entity_id, bin_id, item_id)`
 - `serials_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('inventory.stock.read:entity'))`
 
 ### stock_balances
@@ -4746,8 +4747,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `set_updated_at`: before update, runs `app.set_updated_at()`
 
-**Row-level security:** enabled and forced; 1 policy.
+**Row-level security:** enabled and forced; 2 policies.
 
+- `stock_balances_count_blind` (select, restrictive, to app_user, app_reader): using `not (select app.has_perm('inventory.count.record:own') and not app.has_perm('inventory.stock.adjust:entity')) or not app.stock_count_hidden(entity_id, bin_id, item_id)`
 - `stock_balances_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('inventory.stock.read:entity'))`
 
 ### stock_count_lines
@@ -4876,8 +4878,8 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 3 policies.
 
 - `stock_counts_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('inventory.stock.adjust:entity')) and started_by = (select app.user_id()) and state = 'open'`
-- `stock_counts_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('inventory.stock.read:entity')) or (select app.has_perm('inventory.stock.move:entity')))`
-- `stock_counts_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('inventory.stock.move:entity')) or (select app.has_perm('inventory.stock.adjust:entity')))`; with check `entity_id = any ((select app.entity_ids())::int[]) and updated_by = (select app.user_id())`
+- `stock_counts_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('inventory.stock.read:entity')) or (select app.has_perm('inventory.count.record:entity')))`
+- `stock_counts_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('inventory.count.record:entity')) or (select app.has_perm('inventory.stock.adjust:entity')))`; with check `entity_id = any ((select app.entity_ids())::int[]) and updated_by = (select app.user_id())`
 
 ### stock_movement_costs
 
@@ -4977,8 +4979,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `stock_movements_append_only`: before update or delete, runs `app.raise_append_only()`
 
-**Row-level security:** enabled and forced; 1 policy.
+**Row-level security:** enabled and forced; 2 policies.
 
+- `stock_movements_count_blind` (select, restrictive, to app_user, app_reader): using `not (select app.has_perm('inventory.count.record:own') and not app.has_perm('inventory.stock.adjust:entity')) or not (app.stock_count_hidden(entity_id, from_bin_id, item_id) or app.stock_count_hidden(entity_id, to_bin_id, item_id))`
 - `stock_movements_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('inventory.stock.read:entity'))`
 
 ### vendor_contacts

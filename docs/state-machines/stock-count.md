@@ -23,8 +23,8 @@ Every state and transition comes from the governing documents.
 | Event | From → To | Permitted actor | Guard | Effects |
 |---|---|---|---|---|
 | `start` | (new) → `open` | `inventory.stock.adjust` at entity scope or wider | – | `freeze_expected`: `app.stock_count_start()` lists each item and serial in the scope's bins |
-| `begin` | `open` → `counting` | `inventory.stock.move` at entity scope or wider | – | – |
-| `submit` | `counting` → `review` | `inventory.stock.move` at entity scope or wider | every item in every bin is counted and no recount is open | – |
+| `begin` | `open` → `counting` | `inventory.count.record` at entity scope or wider | – | – |
+| `submit` | `counting` → `review` | `inventory.count.record` at entity scope or wider | every item in every bin is counted and no recount is open | – |
 | `recount` | `counting`, `review` → `counting` | `inventory.stock.adjust` at entity scope or wider | – | `ask_again`: `app.stock_count_recount()` marks the item's lines |
 | `post` | `review` → `posted` | `inventory.stock.adjust` at entity scope or wider | every item in every bin is counted and no recount is open | `post_variances`: each variance becomes a `count` movement through `app.stock_move()` in one batch: a serial found is reinstated, a serial missing is written off with its reason |
 | `cancel` | `open`, `counting`, `review` → `cancelled` | `inventory.stock.adjust` at entity scope or wider | – | – |
