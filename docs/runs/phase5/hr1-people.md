@@ -164,5 +164,68 @@ The staff list scans and sorts in memory, because the policy's `entity_id = any(
 - J5's `unavailability` is still not on main. The seam is the event `hr.leave.approved` (assumption 10).
 
 ## Review
+Reviewed in the lead's cloud VM (Tier B lane, 28-11-2026) on `89862d6d`, against `origin/main` at `5f5ea1e7`. No critical or high finding: nothing blocks the merge. Medium findings 1 to 3 should be fixed before the merge if the lead takes the one-round option, since each is small.
+
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 1 | Medium | HR's edit form silently wipes a person's archived shift or departed manager. `getHrChoices` offers only shifts in use (`packages/domain/src/queries/hr/hr.ts:259`) and managers still on the staff (`:265`). The edit form's selects (`apps/web/src/components/hr/employee-form.tsx:196-221`) use the saved id as `defaultValue`, so when that id is not among the options the browser shows the first option, "No shift" or "No manager", and the save sends `null`. Scenario: HR archives the shift "Six-day week" (Sunday off), which the design says a person keeps until HR moves them. HR then corrects a person's phone number, and the person loses their shift without being told. From then on `countLeaveDays()` counts every Sunday as a leave day, so a week of leave takes 7 days off the balance, not 6. The manager case: once a team lead leaves, any edit to the people they managed clears the manager, and the team lead's successor never sees their leave. `updateEmployee` also checks an unchanged manager again (`packages/domain/src/commands/hr/employees.ts:203`), unlike `userId` and `shiftId`, which it checks only when they change. So even a form that kept the manager would be refused with `employee_manager_missing`. Fix: add the saved shift and manager to the options when they are missing (labelled as archived or left, as `currentSignIn` is done for the sign-in), and call `checkManager` only when `input.managerId !== before.managerId`. *Confirmed* (code path read end to end). | open |
+| 2 | Medium | The employee form tells HR "Only HR can see the phone number." (`apps/web/messages/en.json:7011`, `hr.form.intro`). That is not true. The `employees` read policy gives the whole row to the GM (`hr.leave.approve:entity`) and to a team lead for the people they manage. `getEmployee` returns `EmployeeDto` with `phone`, and the person's page shows it to anyone who can open it (`apps/web/src/components/hr/person-screen.tsx:99`). Scenario: a team lead opens a tele-caller's page from Leave › Waiting and sees her mobile number, which HR was told only HR could see. Fix: either remove `phone` from what `getEmployee` returns unless the caller holds `hr.employee.write:all` (and hide the row on screen), or change the sentence to say who sees the number. *Confirmed*. | open |
+| 3 | Medium | Two of the six new screens have no journey, no axe check and no screenshot: HR › Shifts (`/hr/shifts`) and HR › Leave types (`/hr/leave-types`). HR's Add a person and Change details form, and the person page's Change leave balance and Mark as left dialogs, are not tested in any journey either. `apps/web/e2e/hr.spec.ts` covers Leave, Holidays, People and a person's page (AGENTS §10: "New or changed screens: an end-to-end journey with axe"). Scenario: an accessibility fault in the weekday checkboxes of the shift form, or in the balance dialog, reaches `main` without any check catching it. Fix: one HR journey that adds a shift (or archives one), adds a leave type and gives a balance, each step with `expectNoAxeViolations`, plus `snap()` pictures of the Shifts and Leave types lists. *Confirmed*. | open |
+| 4 | Low | A holder of `hr.employee.write` (HR, the Executive) can approve their own leave in two steps. First they remove the sign-in from their own staff record (`hr.employee.update` with `userId: null`; nothing refuses changing the link on one's own record, `employees.ts:209`). Then, as "staff with no sign-in", they ask for leave and approve it themselves. `notOwnLeave` and `app.leave_requests_guard()` compare only `employees.user_id`. The audit trail records the unlink, which limits the harm. Fix: in `hr.employee.update`, refuse to change `userId` on a record whose current `userId` is the caller, under a new reason. *Confirmed* (path read; not run). | open |
+| 5 | Low | The brief asks that each command be "audited with no phone digits in values". `after_json` holds only `phoneOnRecord`, but the runner's `input_json` keeps the phone's last four digits. Read back here: `audit_logs.input_json->>'phone'` = `********3210` for `hr.employee.create`. The test (`packages/domain/tests/commands/hr.test.ts:182-195`) checks only `after_json`. This is the codebase's general rule for phones, so whether to tighten it is the lead's call. Fix, if wanted: give `hr.employee.create` and `.update` an `auditInput` that puts `phoneOnRecord` in place of `phone`, and make the test check `input_json` too. *Confirmed*. | open |
+| 6 | Low | The check against a manager loop (`checkManager`, `employees.ts:101-129`) reads the chain without locking it. Scenario: two HR people at once set A's manager to B and B's manager to A. Each check passes, and A and B now manage each other. Nothing reads the chain recursively today, but every later manager change below them is refused with `employee_manager_cycle`. Fix: lock each manager row read in the walk (`for update`), or take a per-company advisory lock in the employee commands. *Plausible* (needs two writes at the same moment). | open |
+| 7 | Low | Two paths the commands support are missing from the screens, both under accepted assumptions. HR cannot ask for leave for a person with no sign-in from any screen (assumption 7; `hr.leave.request` accepts it). An approved leave can never be taken back (assumption 6). Because of `leave_requests_no_overlap`, a leave approved by mistake also blocks those days from any new request, and once J5 subscribes it will keep the person unavailable. Fix: a follow-up for HR-2 (an "Ask for leave for this person" action on a person's page, and a decision on cancelling approved leave). *Confirmed*. | open |
+
+Checked and sound:
+- **Data isolation:**
+  - Each of the six tables enables and forces row security. Each is in `ENTITY_TABLES`, has fixture rows per company (own, managed and unmanaged, plus group rows for the settings) and has a matrix rule (`HR_ROW`).
+  - Every read policy names `app_user` and `app_reader`, and denies when `app.entity_ids` is empty or null. Requests and balance movements are scoped through their employee.
+  - Updates are granted column by column. `entity_id`, `employee_id` and `created_by` cannot be updated, and the test checks that moving a record to another company is refused.
+  - `leave_balances` has only select and insert grants, plus the append-only trigger, and DATABASE §5 lists it.
+  - A `use` movement can be inserted only by the approver of an approved request, for minus its days and once (the partial unique index). Grants and adjustments need `hr.employee.write:all` and a reason.
+- **Definers:**
+  - `app.hr_manages()` checks `hr.leave.approve:team` in its body.
+  - `app.hr_own_manager_name()` answers only for the caller's own record in a company of the request, and is listed in DATABASE §4.1 as "any caller".
+  - Both set `search_path = ''`, revoke execute from `public` and `readonly_reporter`, and grant it to `app_user` and `app_reader`. Both are in the grants test's list of reader definers.
+  - `app.leave_requests_guard()` is an invoker trigger with an empty search path. It refuses deciding one's own leave, deciding outside one's scope, changing a decided request, decision fields changed without a state change, a decision recorded under someone else's id, and a cancel by anyone other than the person who asked or the person whose leave it is.
+- **Commands:**
+  - All eleven are `peopleOnly` and in the people-only refusal sweep. Each has denied, other-company and happy-path tests on real Postgres.
+  - `auditFields` are labelled, and `ctx.audit()` runs once per changed aggregate (the request and the `use` movement on an approval).
+  - `hr.leave.approved` is in the catalogue with a strict payload of ids and dates, `subscribed: false`.
+  - Overlap, the second approval and the two unique names map through `constraintReasons`. Every form sends an idempotency key through `commandOptions`.
+  - Approval locks the request (`for update`), so of two approvals at once the second meets the machine's `leave_request_transition_not_allowed`.
+  - No cost permission is touched, and no money is involved.
+- **Brief checklist:**
+  - Nobody approves their own leave: the machine, the command and the trigger all refuse it, apart from finding 4.
+  - Balances move only by movements and are never stored.
+  - Scopes per role match SECURITY §3.2 and the seed. The new `hr.leave.request` is own scope for all eleven staff roles and is held by no agent.
+  - No leave rule is invented: no balance check, no yearly grant, no half days, and no leave type or holiday is seeded.
+  - `WORKSHOP_DEFAULTS.hr` matches design §10.
+- **Web:**
+  - Reads go through `executeQuery()`, each named, and writes through `executeCommand()`.
+  - Each menu page calls `screenAccess(navRequires(...))`. The person's page uses Leave's guard, and row security shows anyone else the not-found screen.
+  - Browser components import only types from `@shakti/contracts`, and nothing reads a secret at import time.
+  - `/hr` is in `BOS_PREFIXES` and `CLIENT_SCOPES`.
+  - `getHrChoices` has no permission check, but it shows a caller nothing they could not already read: principals' names, role rows of their own companies, and employee rows filtered by row security. `app_reader` has select on `user_entity_roles`; checked in the database.
+- **Shared functions:** the migrations redefine none of `app.platform_only_permissions()`, `app.file_purpose_grant()`, `files_purpose_check`, the notification type checks or `app.next_document_no()`. `btree_gist`, which the exclusion constraint needs, comes from 0006.
+- **Documents:** DATABASE §4.1, §5, §6.1 and §6.8, the SECURITY §3.2 row and the design's §6.4 Built record match the code. `docs/data` and `docs/state-machines` are current (`data-docs` and machine tests pass).
+- **Checks re-run here** (slot Postgres 54331, freshly migrated and seeded):
+  - The whole db security suite: 63 files, 1818 passed.
+  - Domain security: `commands/hr`, `queries/hr`, `reader-parity` and `agent-refusals`, 99 passed.
+  - db `src/docs`: 23 passed. Domain units (`state-machines`, `hr`, `workshop-defaults`, `command`): 1551 passed.
+  - Web units (`audit`, `contract-values`, `nav`, `query-names`, `errors-catalogue`, `lint-fences`, `i18n`): 92 passed.
+  - On its own, `fail-closed.test.ts` failed once on `pin_codes`: an empty table on a new database, not this slice. It passed in the full run.
+
+Not checked:
+- **Journeys:** not run, since this session cannot sign in. Read but not run in `apps/web/e2e/hr.spec.ts`:
+  - the tele-caller asks for a day of leave, her team lead approves it and her balance falls (axe, `leave-approve-dialog`);
+  - HR sets and removes an RCREF holiday (axe, `holiday-add-dialog`);
+  - the snapshot Executive's staff list and a person's page (axe, `hr-people`).
+- **Screenshots:** no Linux baselines are committed, so the layout check (item 7) is still to do. At integration the lead should check the approve dialog's description line and the person page's details list at phone width.
+- **Not re-run:** `pnpm typecheck`, the whole-repository lint, `pnpm build`, `js-budget`, `copy-lint`, the domain and web security suites in full, and the `EXPLAIN (ANALYZE)` timings, which are taken from the report.
+- **For the lead at the merge:**
+  - `main` now holds 0240 to 0246, so this slice's 0240 to 0242 move to 0247 to 0249, with journal times after J2's. The three numbers DATABASE cites move with them.
+  - A trial `git merge-tree` against `main` conflicts in 28 files, all shared registration points or generated files (`en.json`, `js-budget.json`, the registries, the testing lists, `docs/data`, the snapshots and the journal).
+  - `apps/web/js-budget.json` needs the owner's `checks-ok`.
 
 ## Integration
