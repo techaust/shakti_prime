@@ -66,6 +66,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'playbook_directive',
   // H1 stock ledger
   'serial',
+  // J1 projects
+  'project_standard',
   // J2 customer loans
   'customer_loan',
 ]);

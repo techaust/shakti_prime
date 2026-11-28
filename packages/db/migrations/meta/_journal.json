@@ -1772,6 +1772,55 @@
       "when": 1795804526540,
       "tag": "0252_f1_enrolment_phones",
       "breakpoints": true
+    },
+    {
+      "idx": 253,
+      "version": "7",
+      "when": 1795804527540,
+      "tag": "0253_j1_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 254,
+      "version": "7",
+      "when": 1795804528540,
+      "tag": "0254_j1_projects_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 255,
+      "version": "7",
+      "when": 1795804529540,
+      "tag": "0255_j1_status_summary",
+      "breakpoints": true
+    },
+    {
+      "idx": 256,
+      "version": "7",
+      "when": 1795804530540,
+      "tag": "0256_j1_project_customers",
+      "breakpoints": true
+    },
+    {
+      "idx": 257,
+      "version": "7",
+      "when": 1795804531540,
+      "tag": "0257_j1_projects_list_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 258,
+      "version": "7",
+      "when": 1795808129572,
+      "tag": "0258_j1_order_cancelled_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 259,
+      "version": "7",
+      "when": 1795808159502,
+      "tag": "0259_j1_review_fixes",
+      "breakpoints": true
     }
   ]
 }

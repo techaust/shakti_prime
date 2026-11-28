@@ -121,6 +121,22 @@ export const SIGNED_IN_ROLES = [
     entityIds: [1],
     twoFactor: false,
   },
+  // J1: the Project Manager of company 1, who runs the journeys' projects, and a Field Engineer
+  // there, who is on one project per journey project and on no other (projects.spec.ts).
+  {
+    key: 'projectManager',
+    name: 'Deepak Bhardwaj',
+    roleKey: 'project_manager',
+    entityIds: [1],
+    twoFactor: false,
+  },
+  {
+    key: 'fieldEngineer',
+    name: 'Ravi Meena',
+    roleKey: 'field_engineer',
+    entityIds: [1],
+    twoFactor: false,
+  },
 ] as const;
 export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
 
@@ -561,6 +577,67 @@ export const SNAPSHOT_VENDORS = {
   search: 'Marudhar',
   cables: 'Marudhar Cables and Wires',
   solar: 'Marudhar Solar Traders',
+} as const;
+
+/**
+ * J1's project journeys (projects.spec.ts), written by the seed (`e2e/setup/projects.ts`) afresh
+ * each run: per journey project, in company 1, two confirmed orders of the journeys' customer with
+ * its site, each with its project of the five standard steps, all open, run by the Project
+ * Manager. The first the Project Manager moves; on the second the Field Engineer is named, and
+ * nobody moves it. A third order, of a customer of its own, has no project until the Project
+ * Manager starts one. Every name here is a test value for these journeys alone.
+ */
+export const PROJECT_JOURNEY = {
+  entityId: 1,
+  /** The Project Manager's project of each journey project, which the journey moves. */
+  managed: {
+    'desktop-light': 'JRN/PRJ/2098-99/0001',
+    'desktop-dark': 'JRN/PRJ/2098-99/0002',
+    phone: 'JRN/PRJ/2098-99/0003',
+  },
+  /** The Field Engineer's project of each journey project, which nobody moves. */
+  engineered: {
+    'desktop-light': 'JRN/PRJ/2098-99/0011',
+    'desktop-dark': 'JRN/PRJ/2098-99/0012',
+    phone: 'JRN/PRJ/2098-99/0013',
+  },
+  /** The projects' ids, as the seed writes them. */
+  ids: {
+    managed: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00110',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00111',
+      phone: '01990000-0000-7000-8000-0000e2e00112',
+    },
+    engineered: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00210',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00211',
+      phone: '01990000-0000-7000-8000-0000e2e00212',
+    },
+  },
+  /**
+   * Per journey project, a confirmed order with no project, of a customer of its own, which the
+   * Project Manager starts a project for from the order page and then finds on Account 360.
+   */
+  start: {
+    soNo: {
+      'desktop-light': 'JRN/SO/2098-99/0021',
+      'desktop-dark': 'JRN/SO/2098-99/0022',
+      phone: 'JRN/SO/2098-99/0023',
+    },
+    orderIds: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00300',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00301',
+      phone: '01990000-0000-7000-8000-0000e2e00302',
+    },
+    accountIds: {
+      'desktop-light': '01990000-0000-7000-8000-0000e2e00030',
+      'desktop-dark': '01990000-0000-7000-8000-0000e2e00031',
+      phone: '01990000-0000-7000-8000-0000e2e00032',
+    },
+    customer: 'Journey new project customer',
+  },
+  customer: 'Journey project customer',
+  village: 'Journey village',
 } as const;
 
 /**

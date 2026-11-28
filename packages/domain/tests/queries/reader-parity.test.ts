@@ -191,6 +191,16 @@ import {
 } from '../../src/queries/messaging/milestones';
 import { readQuoteWhatsAppReadiness } from '../../src/sales/quote-whatsapp';
 import { readScreenPop } from '../../src/queries/calls/screen-pop';
+// J1 projects
+import {
+  accountProjects,
+  getProject,
+  listProjectFilters,
+  listProjectPeople,
+  listProjects,
+  listProjectTemplates,
+  orderProject,
+} from '../../src/queries/projects/list-projects';
 
 /** A ringing call as the key-value store holds it, the same for both pools (T4's screen-pop). */
 const RINGING = {
@@ -422,6 +432,12 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
   getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
+  // J1 projects
+  listProjects: (ctx) => listProjects(ctx, { entityId: 1, limit: 20 }),
+  listProjectFilters: (ctx) => listProjectFilters(ctx, { entityId: 1 }),
+  getProject: (ctx) => getProject(ctx, { entityId: 1, projectId: newId() }),
+  listProjectTemplates: (ctx) => listProjectTemplates(ctx, { entityId: 1 }),
+  listProjectPeople: (ctx) => listProjectPeople(ctx, { entityId: 1 }),
   // J2 customer loans
   readCustomerLoan: (ctx) => readCustomerLoan(ctx, 1, newId()),
   getOrderLoans: (ctx) => getOrderLoans(ctx, { entityId: 1, orderId: newId() }),
@@ -473,6 +489,9 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   homeCredit: (ctx) => homeCredit(ctx),
   accountQuotes: (ctx) => accountQuotes(ctx, newId(), 1, QUOTES_AT),
   accountSalesOrders: (ctx) => accountSalesOrders(ctx, newId(), 1),
+  // J1: Account 360's projects and the order page's link.
+  accountProjects: (ctx) => accountProjects(ctx, { entityId: 1, accountId: newId() }),
+  orderProject: (ctx) => orderProject(ctx, { entityId: 1, orderId: newId() }),
   // The answer names the dealer asked for, so both pools are asked for the same one.
   dealerCreditHistory: (ctx) => dealerCreditHistory(ctx, { entityId: 1, accountId: NO_DEALER }),
   previewSalesOrder: (ctx) =>

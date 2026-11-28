@@ -424,6 +424,13 @@ export const ENTITY_TABLES = [
   'stock_movements',
   'stock_movement_costs',
   'stock_balances',
+  // J1: a company's projects, read with projects.read for the company or at `own` scope when the
+  // caller is on one; their steps and people read with them; the company's checklists read by any
+  // holder of projects.read (docs/03-roadmap-appendix/phase4.md §5)
+  'projects',
+  'project_assignments',
+  'project_milestones',
+  'project_flow_templates',
   // J2: a company's lenders, read by every principal acting in it; a customer's loan, read with
   // the customer's relationship in the loan's company (docs/03-roadmap-appendix/phase4.md §6.2)
   'lenders',

@@ -582,7 +582,10 @@ export { salesOrderMachine } from './state-machines/machines/sales-order';
 export type { SalesOrderParams, SalesOrderRecord } from './state-machines/machines/sales-order';
 export { dispatchMachine, needsEwayBill } from './state-machines/machines/dispatch';
 export type { DispatchParams, DispatchRecord } from './state-machines/machines/dispatch';
-export { projectStandardMachine } from './state-machines/machines/project-standard';
+export {
+  projectStandardMachine,
+  STANDARD_MILESTONES,
+} from './state-machines/machines/project-standard';
 export { projectSuryaGharMachine } from './state-machines/machines/project-surya-ghar';
 export { subsidyGateMachine } from './state-machines/machines/subsidy-gate';
 export { customerLoanMachine } from './state-machines/machines/customer-loan';
@@ -958,3 +961,25 @@ export {
   recordQuality,
   tierLimit,
 } from './messaging/budget';
+// J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §6.1).
+export { createProject, draftProject } from './commands/projects/create-project';
+export {
+  cancelProject,
+  completeMilestone,
+  completeProject,
+  holdProject,
+  resumeProject,
+} from './commands/projects/move-project';
+export { assignProject } from './commands/projects/assign-project';
+export { cancelForOrder } from './commands/projects/cancel-for-order';
+export { publishProjectTemplate } from './commands/projects/publish-template';
+export {
+  accountProjects,
+  getProject,
+  listProjectFilters,
+  listProjectPeople,
+  listProjects,
+  listProjectTemplates,
+  orderProject,
+  projectListQuery,
+} from './queries/projects/list-projects';

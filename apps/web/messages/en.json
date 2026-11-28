@@ -574,6 +574,17 @@
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
     "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "project_missing": "We couldn't find this project. It may belong to another company, or you may not be on it.",
+    "project_exists": "This order already has a project. Open it from the order page.",
+    "project_order_not_confirmed": "Only a confirmed order can have a project. Confirm the order first.",
+    "project_segment_missing": "Choose the business line for this project before you start it.",
+    "project_subsidy_flow": "This project follows the PM Surya Ghar subsidy steps, so it can't be changed here.",
+    "milestone_missing": "We couldn't find this step on the project. Refresh the page to see its steps.",
+    "project_person_outside": "Everyone on a project must work for its company. Choose people from this company.",
+    "project_template_changed": "Someone published these steps a moment ago. Refresh the page and try again.",
+    "stock_serial_state": "That serial number can't be moved this way from where it is now. Check where it is and try again.",
+    "stock_customer_missing": "We couldn't find that customer or site. Choose the customer again, then try again.",
+    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again.",
     "loan_active_exists": "This order already has a loan in progress. Record the lender's answer on that loan before you add another.",
     "loan_missing": "We couldn't find this loan. It may belong to another company or a colleague's customer.",
     "loan_order_cancelled": "This order is cancelled, so its loan can't be recorded or moved on.",
@@ -582,10 +593,7 @@
     "loan_lender_missing": "This lender is no longer on the company's list. Choose another lender.",
     "loan_lender_from_list": "Choose the lender from the list. Ask an Executive to add a lender that is missing.",
     "lender_name_taken": "This company already has a lender with this name.",
-    "lender_missing": "We couldn't find this lender. Refresh the page and try again.",
-    "stock_serial_state": "That serial number can't be moved this way from where it is now. Check where it is and try again.",
-    "stock_customer_missing": "We couldn't find that customer or site. Choose the customer again, then try again.",
-    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again."
+    "lender_missing": "We couldn't find this lender. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -693,6 +701,8 @@
     "inventoryStock": "Stock",
     "inventoryHubs": "Hubs and bins",
     "inventoryValuation": "Stock valuation",
+    "projects": "Projects",
+    "settingsProjectSteps": "Project steps",
     "settingsLenders": "Lenders"
   },
   "shell": {
@@ -794,6 +804,8 @@
       "inventoryStock": "See what each hub and bin holds, and adjust or move stock.",
       "inventoryHubs": "See the hubs and their bins, and set them up.",
       "inventoryValuation": "See what the stock is worth at a date.",
+      "projects": "Installation projects and where each one stands",
+      "settingsProjectSteps": "The steps new projects follow",
       "settingsLenders": "Keep each company's list of banks and schemes that customers borrow from."
     },
     "progress": {
@@ -2046,15 +2058,25 @@
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
       "stockReverse": "Stock movement reversed",
+      "projectDraft": "Project started from an order",
+      "projectCreate": "Project started",
+      "milestoneComplete": "Project step done",
+      "projectHold": "Project put on hold",
+      "projectResume": "Project resumed",
+      "projectComplete": "Project completed",
+      "projectCancel": "Project cancelled",
+      "projectCancelForOrder": "Project closed with its cancelled order",
+      "projectAssign": "Project people changed",
+      "projectStepsPublish": "Project steps published",
+      "labelPrint": "Labels printed",
+      "labelReprint": "Label printed again",
       "loanCreate": "Loan recorded",
       "loanSanction": "Loan sanctioned",
       "loanDisburse": "Loan paid out",
       "loanReject": "Loan turned down",
       "loanGatesWaive": "Order stopped waiting for a loan",
       "lenderCreate": "Lender added",
-      "lenderUpdate": "Lender changed",
-      "labelPrint": "Labels printed",
-      "labelReprint": "Label printed again"
+      "lenderUpdate": "Lender changed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2120,12 +2142,18 @@
       "vendorQuoteRecorded": "Supplier quote recorded",
       "vendorQuoteWithdrawn": "Supplier quote withdrawn",
       "stockMoved": "Stock moved",
+      "projectDrafted": "Project started",
+      "milestoneCompleted": "Project step done",
+      "projectHeld": "Project put on hold",
+      "projectCompleted": "Project completed",
+      "projectCancelled": "Project cancelled",
+      "projectOrderCancelled": "A project's order was cancelled",
+      "labelsRequested": "Labels sent for printing",
       "loanCreated": "Loan recorded",
       "loanSanctioned": "Loan sanctioned",
       "loanDisbursed": "Loan paid out",
       "loanRejected": "Loan turned down",
-      "loanGatesReleased": "Loan let the order go ahead",
-      "labelsRequested": "Labels sent for printing"
+      "loanGatesReleased": "Loan let the order go ahead"
     },
     "sheet": {
       "title": "{action}",
@@ -2471,6 +2499,21 @@
       "purchaseUnitFactor": "Stock units in one bought unit",
       "serialPattern": "Shape of its serial numbers",
       "isStocked": "Kept in stock",
+      "projectNo": "Project number",
+      "projectState": "Project status",
+      "scheme": "Subsidy scheme",
+      "flow": "Steps followed",
+      "templateVersionId": "From the published steps",
+      "milestones": "Steps",
+      "holdReason": "Why it is on hold",
+      "milestoneKey": "Step",
+      "milestoneState": "Step status",
+      "ownerId": "Project manager named",
+      "assigneeIds": "People on the project",
+      "steps": "Steps",
+      "labelKind": "Kind of label",
+      "labelCount": "Labels on the sheet",
+      "labelNote": "Why it was printed again",
       "loanState": "Loan status",
       "loanAmount": "Loan amount",
       "sanctionedAmount": "Sanctioned amount",
@@ -2478,10 +2521,7 @@
       "loanReference": "Lender's reference",
       "dispatchGate": "Dispatch waits for",
       "rejectedReason": "Why the lender turned it down",
-      "waiverReason": "Why the order no longer waits for a loan",
-      "labelKind": "Kind of label",
-      "labelCount": "Labels on the sheet",
-      "labelNote": "Why it was printed again"
+      "waiverReason": "Why the order no longer waits for a loan"
     },
     "values": {
       "percent": "{value}%",
@@ -2668,6 +2708,26 @@
         "surplus_in": "Into surplus",
         "surplus_out": "Out of surplus",
         "reversal": "Reversed"
+      },
+      "projectState": {
+        "active": "In progress",
+        "on_hold": "On hold",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "projectFlow": {
+        "standard": "Standard steps",
+        "surya_ghar": "PM Surya Ghar subsidy steps"
+      },
+      "milestoneState": {
+        "open": "To do",
+        "done": "Done",
+        "skipped": "Skipped"
+      },
+      "subsidyScheme": {
+        "none": "No subsidy",
+        "pm_surya_ghar": "PM Surya Ghar",
+        "pm_kusum": "PM-KUSUM"
       },
       "labelKind": {
         "serial": "Serial number",
@@ -4215,7 +4275,8 @@
       "agents_note_write": "Write call briefs and call summaries",
       "sales_quote_accept_remote": "Accept a quote the customer accepted on WhatsApp",
       "voice_session_record": "Record how long a Talk to Shakti session lasted and what it cost",
-      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept"
+      "messaging_media_expire": "Remove WhatsApp photos and files after the time they are kept",
+      "projects_draft": "Start a project when an order that needs installing is confirmed"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -5449,6 +5510,7 @@
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
       "missed_call": "A customer gave you a missed call",
       "enquiry_attached": "A customer of your lead in nurture asked again",
+      "project_order_cancelled": "The order of your project was cancelled",
       "loan_rejected": "A lender turned down a loan for your customer"
     },
     "settings": {
@@ -5629,6 +5691,10 @@
       "title": "A customer asked again",
       "body": "A customer of your lead in nurture made a new enquiry, and it was added to that lead. Tap to open the customer."
     },
+    "project_order_cancelled": {
+      "title": "A project's order was cancelled",
+      "body": "Work on the project was already recorded, so it was left open for you to close. Tap to open the project."
+    },
     "loan_rejected": {
       "title": "A loan was turned down",
       "body": "The lender turned down your customer's loan for an order. Tap to open the order and offer another way to pay."
@@ -5757,127 +5823,6 @@
     "emptySearch": "No orders have a number like this. Check the number and try again.",
     "searchTooShort": "Type at least 2 characters of the order number.",
     "searchCapped": "Only the 200 newest orders with a number like this are shown. Type more of the number to find an older one."
-  },
-  "loans": {
-    "state": {
-      "applied": "Applied",
-      "sanctioned": "Sanctioned",
-      "disbursed": "Paid out",
-      "rejected": "Turned down"
-    },
-    "dispatchGate": {
-      "disbursed": "The loan to be paid out",
-      "sanctioned": "The loan to be sanctioned",
-      "none": "Nothing, it can go any time"
-    },
-    "tab": {
-      "title": "Loan",
-      "empty": "No loan is recorded for this order.",
-      "recordLoan": "Record a loan",
-      "lender": "Lender",
-      "amount": "Amount applied for",
-      "sanctionedAmount": "Sanctioned amount",
-      "reference": "Lender's reference",
-      "recordedOn": "Recorded on",
-      "sanctionedOn": "Sanctioned on",
-      "paidOutOn": "Paid out on",
-      "dispatchWaitsFor": "Dispatch waits for",
-      "turnedDownBecause": "Turned down because: {reason}",
-      "waivedBecause": "The order no longer waits for this loan: {reason}",
-      "earlier": "Earlier loans",
-      "recordSanction": "Record sanction",
-      "recordPayout": "Record payout",
-      "recordTurnDown": "Record turn-down",
-      "stopWaiting": "Stop waiting for a loan",
-      "readOnly": "Only a person who looks after this customer can record or update its loan.",
-      "turnedDownHelp": "The lender turned this order's loan down, so its dispatch still waits. Record a new loan, or record that the order no longer waits for one."
-    },
-    "gate": {
-      "pendingNote": "Dispatch waits for this loan",
-      "metNote": "The loan lets the dispatch go",
-      "noneNote": "Dispatch does not wait for a loan",
-      "turnedDownNote": "Dispatch waits: the loan was turned down"
-    },
-    "create": {
-      "title": "Record a loan",
-      "intro": "Record the loan the customer applied for to pay for this order.",
-      "lender": "Lender",
-      "chooseLender": "Choose a lender",
-      "lenderMissing": "Choose the lender.",
-      "lenderName": "Lender's name",
-      "lenderNameHelper": "No lenders are listed for this company yet, so type the lender's name.",
-      "lenderNameInvalid": "Enter the lender's name, at least 2 letters.",
-      "amount": "Amount applied for",
-      "amountHelper": "In rupees.",
-      "amountInvalid": "Enter the amount in rupees, more than zero.",
-      "reference": "Lender's reference",
-      "referenceHelper": "If the lender gave an application or loan number, enter it without spaces.",
-      "referenceInvalid": "Use only letters, numbers and the signs / - _ . with no spaces.",
-      "dispatch": "Dispatch waits for",
-      "dispatchHelper": "The order's material leaves only once the loan reaches this stage.",
-      "submit": "Record loan",
-      "saved": "Loan recorded"
-    },
-    "sanction": {
-      "title": "Record the sanction",
-      "intro": "Record the amount the lender sanctioned.",
-      "amount": "Sanctioned amount",
-      "submit": "Record sanction",
-      "saved": "Sanction recorded"
-    },
-    "disburse": {
-      "title": "Record the payout",
-      "intro": "Record that the lender has paid the loan out. A dispatch that waits for the payout can then leave.",
-      "submit": "Record payout",
-      "saved": "Payout recorded"
-    },
-    "reject": {
-      "title": "Record a turn-down",
-      "intro": "Record that the lender turned the loan down, and the reason they gave. The dispatch keeps waiting until another loan is recorded, or someone records that the order no longer waits for one.",
-      "reason": "Reason the lender gave",
-      "submit": "Record turn-down",
-      "saved": "Turn-down recorded"
-    },
-    "waive": {
-      "title": "Stop waiting for a loan",
-      "intro": "Record that this order's dispatch no longer waits for a loan, and why. Do this only when the customer pays another way.",
-      "reason": "Why the order no longer waits",
-      "submit": "Stop waiting",
-      "saved": "The order no longer waits for a loan"
-    },
-    "account": {
-      "sectionTitle": "Loans",
-      "empty": "No loans are recorded for this customer in this company.",
-      "summary": "{lender} · {amount}",
-      "order": "Order {number}",
-      "orderHidden": "An order you cannot open"
-    },
-    "lenders": {
-      "title": "Lenders",
-      "intro": "The banks and schemes customers borrow from, for each company. People choose from this list when they record a loan.",
-      "company": "Company",
-      "add": "Add lender",
-      "empty": "No lenders are listed for this company yet. Until one is added, people type the lender's name when they record a loan.",
-      "caption": "This company's lenders",
-      "active": "In use",
-      "inactive": "Switched off",
-      "renameLender": "Rename",
-      "switchOff": "Switch off",
-      "switchOn": "Switch on",
-      "addTitle": "Add a lender",
-      "renameTitle": "Rename the lender",
-      "nameLabel": "Lender's name",
-      "nameInvalid": "Enter a name of 2 to 120 characters.",
-      "submitAdd": "Add lender",
-      "save": "Save name",
-      "added": "Lender added",
-      "renamed": "Lender renamed",
-      "switchedOff": "Lender switched off. It is no longer offered for new loans.",
-      "switchedOn": "Lender switched on",
-      "renameAria": "Rename {name}",
-      "switchOffAria": "Switch off {name}",
-      "switchOnAria": "Switch on {name}"
-    }
   },
   "dealerCredit": {
     "title": "Dealer credit",
@@ -6529,8 +6474,8 @@
     "codeWrong": "That code does not match. You can try {left, plural, one {once more} other {# more times}}.",
     "codeLocked": "That code did not match {tries} times. Press Accept on the quote again for a new code.",
     "codeExpired": "That code is no longer valid. Press Accept on the quote again for a new code.",
-    "statusHeading": "Your quotes and orders with us:",
-    "statusNone": "We found no quotes or orders for this number. Write your question here and our team will help.",
+    "statusHeading": "Your quotes, orders and projects with us:",
+    "statusNone": "We found no quotes, orders or projects for this number. Write your question here and our team will help.",
     "statusQuoteOpen": "Quote {ref}: {state}, {total}, valid until {date}",
     "statusQuote": "Quote {ref}: {state}, {total}",
     "statusOrder": "Order {ref}: {state}, {total}",
@@ -6548,6 +6493,21 @@
       "invoiced": "invoiced",
       "closed": "complete",
       "cancelled": "cancelled"
+    },
+    "statusProject": "Project {ref}: {state}",
+    "statusProjectStep": "Project {ref}: {state}, next step {step}",
+    "unknownStep": "the next step",
+    "projectStates": {
+      "active": "in progress",
+      "on_hold": "on hold",
+      "completed": "complete"
+    },
+    "defaultSteps": {
+      "survey": "site survey",
+      "dispatch": "dispatch of the material",
+      "install": "installation",
+      "commission": "commissioning",
+      "handover": "handover"
     }
   },
   "voice": {
@@ -7099,6 +7059,281 @@
       "ready": "{count, plural, one {The label is} other {The labels are}} ready to print.",
       "slow": "The labels are taking longer than usual. Close this and try again in a minute.",
       "openLabels": "Open the labels"
+    }
+  },
+  "projects": {
+    "title": "Projects",
+    "intro": "Installation work started from confirmed orders, with where each project stands.",
+    "caption": "Projects",
+    "empty": "No projects match. A project starts when an order that needs installing is confirmed.",
+    "emptyOwn": "No projects for you yet. A project shows here once you are named on it.",
+    "noCustomer": "Customer details removed",
+    "noStep": "All steps done",
+    "suryaGharStep": "Tracked in the PM Surya Ghar steps",
+    "columns": {
+      "project": "Project",
+      "customer": "Customer",
+      "segment": "Business line",
+      "step": "Current step",
+      "owner": "Project manager",
+      "state": "Status",
+      "updated": "Last change"
+    },
+    "filters": {
+      "label": "Filter projects",
+      "company": "Company",
+      "state": "Status",
+      "anyState": "Any status",
+      "segment": "Business line",
+      "anySegment": "Any business line",
+      "owner": "Project manager",
+      "anyOwner": "Anyone",
+      "step": "Current step",
+      "anyStep": "Any step",
+      "apply": "Show projects",
+      "clearFilters": "Clear filters"
+    },
+    "states": {
+      "active": "In progress",
+      "on_hold": "On hold",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "segments": {
+      "farmer_pumps": "Farmer pumps",
+      "residential_rooftop": "Home rooftop solar",
+      "commercial_epc": "Commercial solar projects"
+    },
+    "schemes": {
+      "none": "No subsidy",
+      "pm_surya_ghar": "PM Surya Ghar",
+      "pm_kusum": "PM-KUSUM"
+    },
+    "defaultSteps": {
+      "survey": "Site survey",
+      "dispatch": "Material dispatched",
+      "install": "Installation",
+      "commission": "Commissioning",
+      "handover": "Handover"
+    },
+    "page": {
+      "back": "All projects",
+      "place": "{village}, {district}",
+      "segment": "Business line",
+      "scheme": "Subsidy scheme",
+      "owner": "Project manager",
+      "ownerNone": "Not named yet",
+      "people": "People on this project",
+      "peopleNone": "Nobody named yet",
+      "holdReason": "On hold because: {reason}",
+      "cancelReason": "Cancelled because: {reason}",
+      "cancelledWithOrder": "Cancelled because its order was cancelled.",
+      "suryaGhar": "This project follows the PM Surya Ghar subsidy steps, which are tracked apart from this checklist.",
+      "orderLabel": "Order"
+    },
+    "tabs": {
+      "label": "Project sections",
+      "milestones": "Steps"
+    },
+    "milestones": {
+      "intro": "Each step is marked done in order.",
+      "done": "Done on {date} by {name}",
+      "doneNoName": "Done on {date}",
+      "skipped": "Skipped",
+      "open": "To do",
+      "next": "Next step",
+      "markDone": "Mark done",
+      "markedDone": "Step marked done.",
+      "empty": "This project has no steps.",
+      "doneBadge": "Done"
+    },
+    "actions": {
+      "hold": "Put on hold",
+      "resume": "Resume",
+      "complete": "Complete project",
+      "cancel": "Cancel project",
+      "assign": "Change people",
+      "resumed": "Project resumed.",
+      "held": "Project put on hold.",
+      "completed": "Project completed.",
+      "cancelled": "Project cancelled.",
+      "assigned": "People saved."
+    },
+    "dialogs": {
+      "holdTitle": "Put {projectNo} on hold",
+      "holdIntro": "Say why the work is waiting. Everyone on the project sees it.",
+      "reason": "Reason",
+      "reasonHelper": "Up to 300 characters.",
+      "reasonMissing": "Write the reason.",
+      "holdSubmit": "Put on hold",
+      "cancelTitle": "Cancel {projectNo}",
+      "cancelIntro": "A cancelled project can't be opened again. Its order can get a new project.",
+      "cancelSubmit": "Cancel project",
+      "completeTitle": "Complete {projectNo}",
+      "completeIntro": "Every step is done. Completing the project closes it.",
+      "completeSubmit": "Complete project",
+      "assignTitle": "People on {projectNo}",
+      "assignIntro": "Name the project manager and the people who work on this project. Each person sees it in their list.",
+      "owner": "Project manager",
+      "ownerNone": "Nobody yet",
+      "people": "People on the project",
+      "assignSubmit": "Save people",
+      "keep": "Keep the project"
+    },
+    "account": {
+      "sectionTitle": "Projects",
+      "empty": "No projects with this company yet."
+    },
+    "order": {
+      "link": "Project {projectNo}",
+      "startProject": "Start project",
+      "startTitle": "Start a project for {soNo}",
+      "startIntro": "The project copies this company's current steps for its business line, and you become its project manager.",
+      "segment": "Business line",
+      "segmentFromLead": "The lead's business line",
+      "startSubmit": "Start project",
+      "started": "Project started."
+    }
+  },
+  "projectSteps": {
+    "title": "Project steps",
+    "intro": "The steps each new project follows, for each business line. A new version changes new projects only; running projects keep the steps they started with.",
+    "company": "Company",
+    "version": "Version {version}, published on {date}",
+    "none": "Nothing published yet. New projects follow the standard steps: site survey, material dispatched, installation, commissioning and handover.",
+    "edit": "Change steps",
+    "editTitle": "Steps for {segment}",
+    "editIntro": "Name each step in the order the work is done. Publishing makes these the steps of every new project of this business line.",
+    "stepName": "Step {number}",
+    "add": "Add a step",
+    "remove": "Remove",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "publish": "Publish steps",
+    "published": "Steps published.",
+    "nameMissing": "Give every step a name.",
+    "tooMany": "A project can have at most 30 steps.",
+    "tooFew": "Keep at least one step."
+  },
+  "loans": {
+    "state": {
+      "applied": "Applied",
+      "sanctioned": "Sanctioned",
+      "disbursed": "Paid out",
+      "rejected": "Turned down"
+    },
+    "dispatchGate": {
+      "disbursed": "The loan to be paid out",
+      "sanctioned": "The loan to be sanctioned",
+      "none": "Nothing, it can go any time"
+    },
+    "tab": {
+      "title": "Loan",
+      "empty": "No loan is recorded for this order.",
+      "recordLoan": "Record a loan",
+      "lender": "Lender",
+      "amount": "Amount applied for",
+      "sanctionedAmount": "Sanctioned amount",
+      "reference": "Lender's reference",
+      "recordedOn": "Recorded on",
+      "sanctionedOn": "Sanctioned on",
+      "paidOutOn": "Paid out on",
+      "dispatchWaitsFor": "Dispatch waits for",
+      "turnedDownBecause": "Turned down because: {reason}",
+      "waivedBecause": "The order no longer waits for this loan: {reason}",
+      "earlier": "Earlier loans",
+      "recordSanction": "Record sanction",
+      "recordPayout": "Record payout",
+      "recordTurnDown": "Record turn-down",
+      "stopWaiting": "Stop waiting for a loan",
+      "readOnly": "Only a person who looks after this customer can record or update its loan.",
+      "turnedDownHelp": "The lender turned this order's loan down, so its dispatch still waits. Record a new loan, or record that the order no longer waits for one."
+    },
+    "gate": {
+      "pendingNote": "Dispatch waits for this loan",
+      "metNote": "The loan lets the dispatch go",
+      "noneNote": "Dispatch does not wait for a loan",
+      "turnedDownNote": "Dispatch waits: the loan was turned down"
+    },
+    "create": {
+      "title": "Record a loan",
+      "intro": "Record the loan the customer applied for to pay for this order.",
+      "lender": "Lender",
+      "chooseLender": "Choose a lender",
+      "lenderMissing": "Choose the lender.",
+      "lenderName": "Lender's name",
+      "lenderNameHelper": "No lenders are listed for this company yet, so type the lender's name.",
+      "lenderNameInvalid": "Enter the lender's name, at least 2 letters.",
+      "amount": "Amount applied for",
+      "amountHelper": "In rupees.",
+      "amountInvalid": "Enter the amount in rupees, more than zero.",
+      "reference": "Lender's reference",
+      "referenceHelper": "If the lender gave an application or loan number, enter it without spaces.",
+      "referenceInvalid": "Use only letters, numbers and the signs / - _ . with no spaces.",
+      "dispatch": "Dispatch waits for",
+      "dispatchHelper": "The order's material leaves only once the loan reaches this stage.",
+      "submit": "Record loan",
+      "saved": "Loan recorded"
+    },
+    "sanction": {
+      "title": "Record the sanction",
+      "intro": "Record the amount the lender sanctioned.",
+      "amount": "Sanctioned amount",
+      "submit": "Record sanction",
+      "saved": "Sanction recorded"
+    },
+    "disburse": {
+      "title": "Record the payout",
+      "intro": "Record that the lender has paid the loan out. A dispatch that waits for the payout can then leave.",
+      "submit": "Record payout",
+      "saved": "Payout recorded"
+    },
+    "reject": {
+      "title": "Record a turn-down",
+      "intro": "Record that the lender turned the loan down, and the reason they gave. The dispatch keeps waiting until another loan is recorded, or someone records that the order no longer waits for one.",
+      "reason": "Reason the lender gave",
+      "submit": "Record turn-down",
+      "saved": "Turn-down recorded"
+    },
+    "waive": {
+      "title": "Stop waiting for a loan",
+      "intro": "Record that this order's dispatch no longer waits for a loan, and why. Do this only when the customer pays another way.",
+      "reason": "Why the order no longer waits",
+      "submit": "Stop waiting",
+      "saved": "The order no longer waits for a loan"
+    },
+    "account": {
+      "sectionTitle": "Loans",
+      "empty": "No loans are recorded for this customer in this company.",
+      "summary": "{lender} · {amount}",
+      "order": "Order {number}",
+      "orderHidden": "An order you cannot open"
+    },
+    "lenders": {
+      "title": "Lenders",
+      "intro": "The banks and schemes customers borrow from, for each company. People choose from this list when they record a loan.",
+      "company": "Company",
+      "add": "Add lender",
+      "empty": "No lenders are listed for this company yet. Until one is added, people type the lender's name when they record a loan.",
+      "caption": "This company's lenders",
+      "active": "In use",
+      "inactive": "Switched off",
+      "renameLender": "Rename",
+      "switchOff": "Switch off",
+      "switchOn": "Switch on",
+      "addTitle": "Add a lender",
+      "renameTitle": "Rename the lender",
+      "nameLabel": "Lender's name",
+      "nameInvalid": "Enter a name of 2 to 120 characters.",
+      "submitAdd": "Add lender",
+      "save": "Save name",
+      "added": "Lender added",
+      "renamed": "Lender renamed",
+      "switchedOff": "Lender switched off. It is no longer offered for new loans.",
+      "switchedOn": "Lender switched on",
+      "renameAria": "Rename {name}",
+      "switchOffAria": "Switch off {name}",
+      "switchOnAria": "Switch on {name}"
     }
   }
 }

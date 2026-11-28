@@ -130,5 +130,7 @@ export * from './notifications';
 export * from './commands/webhooks/inbox';
 // U1 vendors and supplier quotes (docs/03-roadmap-appendix/phase3.md §6.3).
 export * from './procurement/index';
+// J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §5, §6.1).
+export * from './projects/index';
 // J2 customer loans
 export * from './crm/loans';

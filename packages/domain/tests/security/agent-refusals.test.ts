@@ -562,6 +562,20 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'procurement.vendor.archive': { vendorId: newId() },
   'procurement.vendor.contact.set': { vendorId: newId(), contacts: [] },
   'procurement.item_vendor.set': { vendorId: newId(), itemId: newId() },
+  // J1: projects are made, moved and staffed by people only in Phase 4; the Project Orchestrator's
+  // declared grants wait for Phase 6, and no agent drafts a project.
+  'projects.project.create': { entityId: 1, orderId: newId() },
+  'projects.milestone.complete': { entityId: 1, projectId: newId(), milestoneKey: 'survey' },
+  'projects.project.hold': { entityId: 1, projectId: newId(), reason: 'rain' },
+  'projects.project.resume': { entityId: 1, projectId: newId() },
+  'projects.project.complete': { entityId: 1, projectId: newId() },
+  'projects.project.cancel': { entityId: 1, projectId: newId(), reason: 'withdrawn' },
+  'projects.project.assign': { entityId: 1, projectId: newId(), ownerId: null, assigneeIds: [] },
+  'projects.template.publish': {
+    entityId: 1,
+    segment: 'farmer_pumps',
+    steps: [{ key: 'survey', title: 'Survey', requires: [] }],
+  },
   // J2: lenders and customer loans are kept by people only.
   ...J2_LENDER_INPUTS,
   ...J2_LOAN_INPUTS,
@@ -1075,6 +1089,10 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       removed: 0,
       failed: 0,
     },
+    // J1: a project drafted from a confirmed order, the platform's alone.
+    'projects.project.draft': { entityId: 1, orderId: newId() },
+    // J1: the project of a cancelled order, closed or kept by the platform alone.
+    'projects.project.cancel_for_order': { entityId: 1, orderId: newId() },
   };
 
   it('the Concierge holds exactly its own-scope grants: no cost, price, sales or platform-only grant', () => {

@@ -9,7 +9,7 @@ import { milestoneValues } from './milestones';
 const at = (iso: string) => new Date(iso);
 
 describe('the STATUS answer (WA-03)', () => {
-  it('lists the quotes and orders it is given, newest first as given, in plain words', () => {
+  it('lists the quotes, orders and projects it is given, newest first as given, in plain words', () => {
     expect(
       statusAnswer([
         {
@@ -19,6 +19,7 @@ describe('the STATUS answer (WA-03)', () => {
           grandTotal: '67200.00',
           validUntil: at('2026-12-01T18:29:59Z'),
           createdAt: at('2026-11-17T05:00:00Z'),
+          step: null,
         },
         {
           kind: 'quote',
@@ -27,6 +28,7 @@ describe('the STATUS answer (WA-03)', () => {
           grandTotal: '125000.5',
           validUntil: at('2026-10-01T18:29:59Z'),
           createdAt: at('2026-09-17T05:00:00Z'),
+          step: null,
         },
         {
           kind: 'order',
@@ -35,21 +37,52 @@ describe('the STATUS answer (WA-03)', () => {
           grandTotal: '268800.00',
           validUntil: null,
           createdAt: at('2026-11-10T05:00:00Z'),
+          step: null,
+        },
+        {
+          kind: 'project',
+          ref: 'SMP/PRJ/2026-27/0004',
+          state: 'active',
+          grandTotal: null,
+          validUntil: null,
+          createdAt: at('2026-11-11T05:00:00Z'),
+          step: { key: 'install', title: null },
+        },
+        {
+          kind: 'project',
+          ref: 'SMP/PRJ/2026-27/0002',
+          state: 'on_hold',
+          grandTotal: null,
+          validUntil: null,
+          createdAt: at('2026-10-11T05:00:00Z'),
+          step: { key: 'net_meter', title: 'Net meter fitted' },
+        },
+        {
+          kind: 'project',
+          ref: 'SMP/PRJ/2026-27/0001',
+          state: 'active',
+          grandTotal: null,
+          validUntil: null,
+          createdAt: at('2026-09-11T05:00:00Z'),
+          step: { key: 'net_meter', title: 'Net meter fitted' },
         },
       ]),
     ).toBe(
       [
-        'Your quotes and orders with us:',
+        'Your quotes, orders and projects with us:',
         'Quote SMP/Q/2026-27/0007: waiting for your answer, ₹67,200.00, valid until 01-12-2026',
         'Quote SMP/Q/2026-27/0003: no longer valid, ₹1,25,000.50',
         'Order SMP/SO/2026-27/0002: confirmed, ₹2,68,800.00',
+        'Project SMP/PRJ/2026-27/0004: in progress, next step installation',
+        'Project SMP/PRJ/2026-27/0002: on hold',
+        'Project SMP/PRJ/2026-27/0001: in progress, next step Net meter fitted',
       ].join('\n'),
     );
   });
 
   it('says plainly when the number has nothing', () => {
     expect(statusAnswer([])).toBe(
-      'We found no quotes or orders for this number. Write your question here and our team will help.',
+      'We found no quotes, orders or projects for this number. Write your question here and our team will help.',
     );
   });
 });

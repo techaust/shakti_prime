@@ -200,6 +200,22 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
         },
       ];
     }
+    case 'projects.project.order_cancelled': {
+      // J1: a project kept for its cancelled order: its owner, else the company's Project
+      // Managers (`app.notice_project_people()`); once per project.
+      const people = (await ctx.tx.execute(
+        sql`select user_id, account_id
+              from app.notice_project_people(${input.entityId}::smallint, ${input.projectId}::uuid)`,
+      )) as unknown as { user_id: string; account_id: string }[];
+      return people.map((p) => ({
+        userId: p.user_id,
+        type: 'project_order_cancelled',
+        subjectType: 'project',
+        subjectId: input.projectId,
+        payload: { accountId: p.account_id },
+        dedupeKey: `project_order_cancelled:${input.projectId}`,
+      }));
+    }
     case 'crm.loan.rejected': {
       // J2 `notify_owner`: the owner of the order's lead, or of the customer in the company where
       // the order has no lead, unless they recorded the rejection themselves; once a loan.
@@ -262,8 +278,8 @@ async function quoteLead(
 /**
  * `notifications.event.notify`: the notices one event stands for (`crm.opportunity.assigned`,
  * `crm.duplicate.found`, `crm.enquiry.routed`, `sales.order.credit_held`, `sales.quote.accepted`,
- * `calls.missed.recorded`, `crm.loan.rejected`, a quote marked sent on WhatsApp that did not go, and an Accept pressed
- * on WhatsApp on a lapsed quote), each for the person who acts on it in the event's company and
+ * `calls.missed.recorded`, `crm.loan.rejected`, a quote marked sent on WhatsApp that did not go, an Accept pressed
+ * on WhatsApp on a lapsed quote, and J1's `projects.project.order_cancelled`), each for the person who acts on it in the event's company and
  * once per person however often the event is delivered.
  */
 export const notifyEvent = defineCommand({

@@ -19,20 +19,22 @@ Items marked *proposed* are not named in the governing documents; they were chos
 
 ## Transitions
 
-| Event | From → To | Permitted actor | Guard | Effects |
-|---|---|---|---|---|
-| `create` | (new) → `active` | `projects.write` or the platform | – | `copy_checklist`: copy the milestones from the flow template |
-| `milestone.complete` *(proposed)* | `active` → `active` | `projects.write` | the milestone is the next open one in checklist order; the milestone's required documents are in the vault (PRJ-03) | `mark_milestone`: set the milestone done with `done_at`; `emit`: event for the milestone WhatsApp message |
-| `hold` *(proposed)* | `active` → `on_hold` | `projects.write` | a reason is given | – |
-| `resume` *(proposed)* | `on_hold` → `active` | `projects.write` | – | – |
-| `complete` *(proposed)* | `active` → `completed` | `projects.write` | every milestone is done | `handover_kit`: send the handover kit on WhatsApp; `register_warranty`: register warranty per serial |
-| `cancel` *(proposed)* | `active`, `on_hold` → `cancelled` | `projects.write` at entity scope or wider | a reason is given | – |
+| Event | From → To | Permitted actor | Guard | Effects | Emits |
+|---|---|---|---|---|---|
+| `create` | (new) → `active` | `projects.write` at entity scope or wider or the platform | – | `copy_checklist`: copy the steps of the company's newest flow template for the segment, else the default steps | `projects.project.drafted` |
+| `milestone.complete` *(proposed)* | `active` → `active` | `projects.write` | the milestone is the next open one in checklist order; the milestone's required documents are in the vault (PRJ-03) | `mark_milestone`: set the milestone done with `done_at`; `emit`: event for the milestone WhatsApp message | `projects.project.milestone_completed` |
+| `hold` *(proposed)* | `active` → `on_hold` | `projects.write` at entity scope or wider | a reason is given | – | `projects.project.held` |
+| `resume` *(proposed)* | `on_hold` → `active` | `projects.write` at entity scope or wider | – | – | – |
+| `complete` *(proposed)* | `active` → `completed` | `projects.write` at entity scope or wider | every milestone is done | `handover_kit` *(proposed)*: send the handover kit on WhatsApp (J11); `register_warranty` *(proposed)*: register warranty per serial (J11) | `projects.project.completed` |
+| `cancel` *(proposed)* | `active`, `on_hold` → `cancelled` | `projects.write` at entity scope or wider or the platform | a reason is given | – | `projects.project.cancelled` |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `project_standard_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `project_standard_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `projects.state` and the time to `projects.state_changed_at` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/events.md)).
 
 ## Notes
 
-- `create`: The platform creates the project from a confirmed sales order of an install segment.
+- `create`: The platform drafts the project from a confirmed sales order of an install segment with a site (`projects.draft`); a Project Manager or General Manager makes one by hand for any confirmed order.
+- `milestone.complete`: A Field Engineer completes the steps of a project they are on (`own`).
+- `cancel`: The platform cancels the project of a cancelled order while none of its steps is done (`projects.draft`, on `sales.order.cancelled`); with a step done it keeps the project and tells its Project Manager.
 
 ## Diagram
 

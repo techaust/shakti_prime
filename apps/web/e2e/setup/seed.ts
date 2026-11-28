@@ -58,6 +58,8 @@ import { ensureProcurementJourneys } from './procurement';
 import { ensureScreenPopJourneys } from './screen-pop';
 import { ensureShadowPackJourney } from './shadow-pack';
 import { ensureStockJourneys } from './stock';
+// J1 projects
+import { ensureProjectJourneys } from './projects';
 // F1 field app foundation.
 import { ensureFieldPhones } from './field';
 // Q1 labels
@@ -922,6 +924,13 @@ const loans = await ensureLoanJourneys(ids.executive ?? '');
 progress('the stock journeys');
 await ensureStockJourneys(ids.executive ?? '');
 
+// J1 projects
+progress('the project journeys');
+await ensureProjectJourneys({
+  executive: ids.executive ?? '',
+  projectManager: ids.projectManager ?? '',
+  fieldEngineer: ids.fieldEngineer ?? '',
+});
 // F1: the phones of Team members › Phones, one owner per project in company 1.
 progress('the field app phones');
 const phoneOwners = {} as Record<ProjectName, string>;

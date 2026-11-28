@@ -152,6 +152,18 @@ import {
 import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
 import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
+// J1 projects
+import { assignProject } from '../commands/projects/assign-project';
+import { cancelForOrder } from '../commands/projects/cancel-for-order';
+import { createProject, draftProject } from '../commands/projects/create-project';
+import {
+  cancelProject,
+  completeMilestone,
+  completeProject,
+  holdProject,
+  resumeProject,
+} from '../commands/projects/move-project';
+import { publishProjectTemplate } from '../commands/projects/publish-template';
 // H1 stock ledger
 import {
   archiveBin,
@@ -438,6 +450,17 @@ export const commands = Object.freeze({
   [setItemVendor.name]: setItemVendor,
   [recordVendorQuote.name]: recordVendorQuote,
   [withdrawVendorQuote.name]: withdrawVendorQuote,
+  // J1 projects
+  [draftProject.name]: draftProject,
+  [createProject.name]: createProject,
+  [completeMilestone.name]: completeMilestone,
+  [holdProject.name]: holdProject,
+  [resumeProject.name]: resumeProject,
+  [completeProject.name]: completeProject,
+  [cancelProject.name]: cancelProject,
+  [assignProject.name]: assignProject,
+  [publishProjectTemplate.name]: publishProjectTemplate,
+  [cancelForOrder.name]: cancelForOrder,
   // F1 field app foundation.
   [setFeatureFlag.name]: setFeatureFlag,
   [revokeMobileDevice.name]: revokeMobileDevice,
