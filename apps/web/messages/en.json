@@ -2424,6 +2424,7 @@
       "tallyCompany": "Tally company",
       "nextKeyHint": "New key ends with",
       "refused": "Tally records the connector could not send",
+      "held": "Tally records held back for Accounts",
       "alert": "Alert",
       "restored": "Vendors put back as they were",
       "hubCode": "Hub code",

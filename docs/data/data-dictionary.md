@@ -5354,7 +5354,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tally_refused_rows
 
-**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `kind` (`voucher`, `ledger`), `guid` (unique with the company and kind: the latest refusal), `alter_id`, `field` (the first the contract refused), `refused_at`, `resolved_at` (a later version arrived); Accounts' review queue as "refused by the connector" (TC3 reads it); read with `finance.read:entity`; written only by the connector's definers
+**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `kind` (`voucher`, `ledger`), `guid` (unique with the company and kind: the latest refusal), `alter_id`, `reason` (`connector_refused`: the contract could not carry it; or held back by the BOS so the rest of its batch applied: `other_company`, its GUID held by another company or Tally company; `type_changed`, a voucher moved between a purchase and a sale; `not_debtor`, a ledger under one of Tally's own groups other than Sundry Debtors), `field` (the first the contract refused, or `company`, `type` or `parent`), `refused_at`, `resolved_at` (a later version was stored); Accounts' review queue (TC3 reads it); read with `finance.read:entity`; written only by the connector's definers
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5365,6 +5365,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `kind` | text | no |  |  |
 | `guid` | text | no |  |  |
 | `alter_id` | bigint | no |  |  |
+| `reason` | text | no |  |  |
 | `field` | text | no |  |  |
 | `refused_at` | timestamp with time zone | no |  |  |
 | `resolved_at` | timestamp with time zone | yes |  |  |
@@ -5386,6 +5387,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `tally_refused_rows_alter_id_check`: `"tally_refused_rows"."alter_id" >= 0`
 - `tally_refused_rows_kind_check`: `"tally_refused_rows"."kind" in ('voucher', 'ledger')`
+- `tally_refused_rows_reason_check`: `"tally_refused_rows"."reason" in ('connector_refused', 'other_company', 'type_changed', 'not_debtor')`
 
 **Indexes**
 
@@ -5398,7 +5400,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tally_snapshots
 
-**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `as_of`, `from_date`, `guid_count`, `live`, `tombstoned`, `missing`, `reappeared`, `state` (`receiving` while it comes in parts, `applied`, `held` over `diffSnapshot`'s limits until Accounts confirm it with `finance.recon.write`, `confirmed`, `superseded` by a newer snapshot), `parts_of` (the connector's id of a snapshot in parts, unique per connector), `parts`, `parts_received` and `received_guids` (only while receiving; one still receiving a day after it began is dropped, `app.tally_snapshot_part()`), `held_guids` (only while held), `missing_guids` (the first thousand GUIDs Tally holds and the BOS lacks, for the review queue), `confirmed_at` and `confirmed_by`; read with `finance.read:entity`
+**Catalogue entry** (05-database.md §6.7; created in 0240): `entity_id`, `tally_company`, `connector_id`, `as_of`, `from_date`, `guid_count`, `live`, `tombstoned`, `missing`, `reappeared`, `state` (`receiving` while it comes in parts, `applied`, `held` over `diffSnapshot`'s limits until Accounts confirm it with `finance.recon.write`, `confirmed`, `superseded` by a newer snapshot), `parts_of` (the connector's id of a snapshot in parts, unique per connector), `parts`, `parts_received` and `received_guids` (only while receiving; one still receiving a day after it began is dropped, `app.tally_snapshot_part()`), `held_guids` (only while held), `missing_guids` (the first thousand GUIDs Tally holds and the BOS lacks, for the review queue), `compared_at` (when the whole snapshot was compared, null only while receiving; the connector tombstones only for the snapshot it compared in the same transaction), `confirmed_at` and `confirmed_by`; read with `finance.read:entity`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5420,6 +5422,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `received_guids` | text[] | no | `'{}'::text[]` |  |
 | `held_guids` | text[] | no | `'{}'::text[]` |  |
 | `missing_guids` | text[] | no | `'{}'::text[]` |  |
+| `compared_at` | timestamp with time zone | yes |  |  |
 | `confirmed_at` | timestamp with time zone | yes |  |  |
 | `confirmed_by` | uuid | yes |  | → `principals.id` |
 | `created_at` | timestamp with time zone | no | `now()` |  |
@@ -5440,6 +5443,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Check constraints**
 
+- `tally_snapshots_compared_check`: `("tally_snapshots"."compared_at" is null) = ("tally_snapshots"."state" = 'receiving')`
 - `tally_snapshots_confirmed_check`: `("tally_snapshots"."confirmed_at" is null) = ("tally_snapshots"."confirmed_by" is null) and ("tally_snapshots"."confirmed_at" is null) = ("tally_snapshots"."state" <> 'confirmed')`
 - `tally_snapshots_counts_check`: `"tally_snapshots"."guid_count" >= 0 and "tally_snapshots"."live" >= 0 and "tally_snapshots"."tombstoned" >= 0 and "tally_snapshots"."missing" >= 0 and "tally_snapshots"."reappeared" >= 0`
 - `tally_snapshots_held_check`: `"tally_snapshots"."state" = 'held' or cardinality("tally_snapshots"."held_guids") = 0`

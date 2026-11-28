@@ -284,14 +284,17 @@ const batchResponseShape = {
   company: TallyCompanySchema,
   /** The cursor after this batch; the connector's next `fromAlterId`. */
   lastAlterId: AlterIdSchema,
-  /**
-   * TC2: rows the BOS held back for Accounts (the batch applied without them); the connector
-   * need not send them again. The BOS always answers it; absent, none.
-   */
-  held: z.array(TallyHeldRow).max(CONNECTOR_BATCH_MAX_REFUSED).optional(),
 };
 export const ConnectorBatchResponse = z
-  .object({ ...batchResponseShape, accepted: z.object(batchAcceptedShape).strict() })
+  .object({
+    ...batchResponseShape,
+    accepted: z.object(batchAcceptedShape).strict(),
+    /**
+     * TC2: rows the BOS held back for Accounts (the batch applied without them); the connector
+     * need not send them again. The BOS always answers it; absent, none.
+     */
+    held: z.array(TallyHeldRow).max(CONNECTOR_BATCH_MAX_REFUSED).optional(),
+  })
   .strict();
 export type ConnectorBatchResponse = z.infer<typeof ConnectorBatchResponse>;
 
@@ -389,7 +392,12 @@ export type ConnectorCursorResponse = z.infer<typeof ConnectorCursorResponse>;
 export const ConnectorAnswers = {
   cursor: z.object(cursorResponseShape),
   heartbeat: z.object(heartbeatResponseShape),
-  batch: z.object({ ...batchResponseShape, accepted: z.object(batchAcceptedShape) }),
+  batch: z.object({
+    ...batchResponseShape,
+    accepted: z.object(batchAcceptedShape),
+    // A reason added later still reads.
+    held: z.array(z.object({ kind: z.string(), guid: z.string(), reason: z.string() })).optional(),
+  }),
   snapshot: z.object(snapshotResponseShape),
 };
 

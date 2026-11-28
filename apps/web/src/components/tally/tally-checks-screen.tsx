@@ -147,10 +147,7 @@ function HeldRecords({ check, company }: { check: HeldTallySnapshotDto; company:
   const [page, setPage] = useState<HeldTallyVoucherPageDto | undefined>();
 
   useEffect(() => {
-    load(
-      () => listHeldTallyVouchers({ snapshotId: check.snapshotId, limit: PAGE_SIZE }),
-      setPage,
-    );
+    load(() => listHeldTallyVouchers({ snapshotId: check.snapshotId, limit: PAGE_SIZE }), setPage);
   }, [load, check.snapshotId]);
 
   function loadMore() {

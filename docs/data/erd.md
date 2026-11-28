@@ -1619,6 +1619,7 @@ erDiagram
     text kind
     text guid
     bigint alter_id
+    text reason
     text field
     timestamptz refused_at
     timestamptz resolved_at "null"
@@ -1642,6 +1643,7 @@ erDiagram
     text received_guids "array"
     text held_guids "array"
     text missing_guids "array"
+    timestamptz compared_at "null"
     timestamptz confirmed_at "null"
     uuid confirmed_by FK "null"
     timestamptz created_at

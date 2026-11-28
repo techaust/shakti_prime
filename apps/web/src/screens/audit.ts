@@ -919,6 +919,7 @@ const FIELD_KINDS = [
   ['tallyCompany', 'text'],
   ['nextKeyHint', 'text'],
   ['refused', 'number'],
+  ['held', 'number'],
   ['alert', 'tallyAlert'],
 ] as const;
 

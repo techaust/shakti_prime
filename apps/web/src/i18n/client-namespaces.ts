@@ -113,7 +113,7 @@ export const CLIENT_SCOPES = {
   ],
   '/targets': ['targets'],
   // TC2 Tally checks.
-  '/tally-checks': ['tallyChecks'],
+  '/tally-checks': ['common', 'tallyChecks'],
 } as const satisfies Record<string, readonly Namespace[]>;
 
 export type ClientScope = keyof typeof CLIENT_SCOPES;

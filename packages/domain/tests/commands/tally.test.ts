@@ -482,10 +482,15 @@ describe('tally.snapshot.record and tally.snapshot.confirm', () => {
     const first = await pageOf(accounts);
     expect(first.total).toBe(32);
     expect(first.items).toHaveLength(20);
-    expect(first.items[0]).toEqual({
-      guid: expect.any(String),
-      type: expect.any(String),
-      voucherNo: expect.any(String),
+    // Its number, date, party and type, and nothing else: no amount.
+    expect(Object.keys(first.items[0] ?? {}).sort()).toEqual([
+      'guid',
+      'partyName',
+      'type',
+      'voucherDate',
+      'voucherNo',
+    ]);
+    expect(first.items[0]).toMatchObject({
       voucherDate: '2026-09-27',
       partyName: 'Kisan Agro Traders',
     });
@@ -608,7 +613,12 @@ describe('rows held back from a batch', () => {
       tallyCompany: NEXT_YEAR,
       entityId: 1,
     });
-    const nextYear = (from: number, max: number, vouchers: TallyVoucher[], ledgers: TallyLedger[]) => ({
+    const nextYear = (
+      from: number,
+      max: number,
+      vouchers: TallyVoucher[],
+      ledgers: TallyLedger[],
+    ) => ({
       entityId: 1,
       batch: { ...batch(from, max, vouchers, ledgers).batch, company: NEXT_YEAR },
     });
@@ -616,10 +626,12 @@ describe('rows held back from a batch', () => {
       connectorPrincipal(),
       { entityIds: [1] },
       ingestTallyBatch,
-      nextYear(0, 10, [voucher(1, 4), voucher(300, 5)], [
-        ledger(100, 6),
-        ledger(102, 7, 'Sundry Creditors'),
-      ]),
+      nextYear(
+        0,
+        10,
+        [voucher(1, 4), voucher(300, 5)],
+        [ledger(100, 6), ledger(102, 7, 'Sundry Creditors')],
+      ),
       { idempotencyKey: newId() },
     );
     expect(out).toEqual({

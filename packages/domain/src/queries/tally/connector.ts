@@ -246,9 +246,7 @@ export async function listHeldTallySnapshots(ctx: Ctx): Promise<HeldTallySnapsho
 }
 
 /** The position after a page's last record: its date and its GUID. */
-const HeldCursorBody = z
-  .object({ date: z.iso.date(), guid: z.string().min(1).max(100) })
-  .strict();
+const HeldCursorBody = z.object({ date: z.iso.date(), guid: z.string().min(1).max(100) }).strict();
 
 /** The records a held snapshot would mark removed that the viewer's policies let it read. */
 const heldVouchers = (snapshotId: string) => sql`
@@ -279,8 +277,7 @@ export async function listHeldTallyVouchers(
   raw: unknown,
 ): Promise<HeldTallyVoucherPageDto> {
   const input = parseQueryInput(HeldTallyVouchersQuery, raw, 'listHeldTallyVouchers');
-  const after =
-    input.cursor === undefined ? undefined : decodeCursor(HeldCursorBody, input.cursor);
+  const after = input.cursor === undefined ? undefined : decodeCursor(HeldCursorBody, input.cursor);
   const [snapshot] = (await ctx.tx.execute(sql`
     select id from tally_snapshots
      where id = ${input.snapshotId}::uuid and state = 'held'
