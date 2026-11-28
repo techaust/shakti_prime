@@ -459,6 +459,9 @@ describe('blind counting (owner, question B)', () => {
         await tx`insert into stock_movements (id, entity_id, item_id, to_bin_id, qty, reason, batch_id, moved_by) values
           (${ids.move}, 1, ${cable}, ${ids.counted}, 7, 'adjust_gain', ${ids.move}, ${owner.id}),
           (${ids.outsideMove}, 1, ${cable}, ${ids.outside}, 3, 'adjust_gain', ${ids.outsideMove}, ${owner.id})`;
+        // Every movement has its cost, as app.stock_move() writes it.
+        await tx`insert into stock_movement_costs (movement_id, entity_id, unit_cost) values
+          (${ids.move}, 1, 10), (${ids.outsideMove}, 1, 10)`;
         await tx`insert into stock_balances (id, entity_id, warehouse_id, bin_id, item_id, qty_on_hand) values
           (${newId()}, 1, ${ids.hub}, ${ids.counted}, ${cable}, 7),
           (${newId()}, 1, ${ids.hub}, ${ids.outside}, ${cable}, 3),

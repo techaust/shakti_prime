@@ -4638,7 +4638,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### serials
 
-**Catalogue entry** (05-database.md §6.5; created in 0230): `entity_id`, `item_id`, `serial_no` (unique per item in any case, trimmed), `state` (the `serial` machine), `state_changed_at`, `bin_id` (set while the company holds it, null once it has left), `account_id`, `site_id`, `vendor_id` and `receipt_line_id` (their foreign keys come with U1 and U2), `delivered_at`, `warranty_until`, `supplier_warranty_until`, `dcr_validated_at`; read by company with `inventory.stock.read` for the company; state and bin written only by `app.stock_move()`
+**Catalogue entry** (05-database.md §6.5; created in 0230): `entity_id`, `item_id`, `serial_no` (unique per item in any case, trimmed), `state` (the `serial` machine), `state_changed_at`, `bin_id` (set while the company holds it, null once it has left), `account_id`, `site_id`, `vendor_id` and `receipt_line_id` (their foreign keys come with U1 and U2), `delivered_at`, `warranty_until`, `supplier_warranty_until`, `dcr_validated_at`; read by company with `inventory.stock.read` for the company, less a counted bin's serials for a counter who cannot adjust while the count is live (`serials_count_blind`, 0241); state and bin written only by `app.stock_move()`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -4703,7 +4703,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### stock_balances
 
-**Catalogue entry** (05-database.md §6.5; created in 0230): `entity_id`, `warehouse_id`, `bin_id` (with the hub, a composite foreign key to the bin), `item_id`, `qty_on_hand` and `qty_reserved` (never below zero), `last_moved_at`; one row per company, bin and item, kept by `app.stock_move()` in the movement's transaction rather than by a trigger (phase3 §14), so the lock order lives in one place; read by company with `inventory.stock.read` for the company; `app.stock_balance_check()` answers any balance that differs from its movements
+**Catalogue entry** (05-database.md §6.5; created in 0230): `entity_id`, `warehouse_id`, `bin_id` (with the hub, a composite foreign key to the bin), `item_id`, `qty_on_hand` and `qty_reserved` (never below zero), `last_moved_at`; one row per company, bin and item, kept by `app.stock_move()` in the movement's transaction rather than by a trigger (phase3 §14), so the lock order lives in one place; read by company with `inventory.stock.read` for the company, less a counted bin's rows for a counter who cannot adjust while the count is live (`stock_balances_count_blind`, 0241); `app.stock_balance_check()` answers any balance that differs from its movements
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -4915,7 +4915,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### stock_movements
 
-**Catalogue entry** (05-database.md §6.5; created in 0230; append-only): `entity_id`, `item_id`, `serial_id` (a composite foreign key to the serial's `(id, entity_id, item_id)`; one serial per movement, quantity 1), `from_bin_id`, `to_bin_id` (one of them null for stock coming in or going out), `qty` (`numeric(12,3)`, above zero), `reason` (the fifteen of phase3 §5), `ref_type` and `ref_id` (together or neither), `reverses_id` (exactly for a reversal; a movement is reversed at most once), `batch_id` (one per `app.stock_move()` call), `moved_at`, `moved_by`, `request_id`; indexed for the stock card `(entity_id, item_id, moved_at desc)`, by bin, serial, reference and batch. Read by company with `inventory.stock.read` for the company; written only by `app.stock_move()`
+**Catalogue entry** (05-database.md §6.5; created in 0230; append-only): `entity_id`, `item_id`, `serial_id` (a composite foreign key to the serial's `(id, entity_id, item_id)`; one serial per movement, quantity 1), `from_bin_id`, `to_bin_id` (one of them null for stock coming in or going out), `qty` (`numeric(12,3)`, above zero), `reason` (the fifteen of phase3 §5), `ref_type` and `ref_id` (together or neither), `reverses_id` (exactly for a reversal; a movement is reversed at most once), `batch_id` (one per `app.stock_move()` call), `moved_at`, `moved_by`, `request_id`; indexed for the stock card `(entity_id, item_id, moved_at desc)`, by bin, serial, reference and batch. Read by company with `inventory.stock.read` for the company, less a counted bin's rows for a counter who cannot adjust while the count is live (`stock_movements_count_blind`, 0241); written only by `app.stock_move()`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|

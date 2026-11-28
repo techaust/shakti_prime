@@ -43,7 +43,9 @@ describe('visibleNav', () => {
   it('shows a screen with a choice of grants to a holder of any one of them', () => {
     expect(ids([{ key: 'inventory.count.record', scope: 'entity' }])).toContain('inventory-counts');
     expect(ids([{ key: 'inventory.stock.read', scope: 'entity' }])).toContain('inventory-counts');
-    expect(ids([{ key: 'inventory.count.record', scope: 'own' }])).not.toContain('inventory-counts');
+    expect(ids([{ key: 'inventory.count.record', scope: 'own' }])).not.toContain(
+      'inventory-counts',
+    );
     expect(ids([{ key: 'inventory.stock.adjust', scope: 'all' }])).not.toContain(
       'inventory-counts',
     );
