@@ -11,11 +11,12 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { loadCustomerDocuments } from '../../actions/documents';
-import { DOCUMENT_FLOWS, DOCUMENT_STEP_KEYS } from '../../screens/document-values';
+import { DOCUMENT_STEP_KEYS } from '../../screens/document-values';
 import { formatDate } from '../../screens/format';
 import type { UploadLimitView } from '../companies/branding-dialog';
 import { FailureMessage } from '../screens/failure';
 import { useQuery } from '../screens/use-command';
+import { FlowChoice } from './flow-choice';
 import { useOpenDocument } from './use-open-document';
 import type { DocumentDialogKind } from './documents-dialogs';
 
@@ -156,26 +157,7 @@ function Requirements({
 
   return (
     <div className="flex flex-col gap-3">
-      <div
-        className="flex flex-wrap items-center gap-2"
-        role="group"
-        aria-label={t('section.flowLabel')}
-      >
-        <span className="text-text-muted text-sm">{t('section.flowLabel')}</span>
-        {DOCUMENT_FLOWS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            aria-pressed={f === flow}
-            className="border-border h-control aria-pressed:border-accent rounded-md border px-3 text-sm"
-            onClick={() => {
-              onFlow(f);
-            }}
-          >
-            {t(`flow.${f}`)}
-          </button>
-        ))}
-      </div>
+      <FlowChoice flow={flow} onFlow={onFlow} label={t('section.flowLabel')} showLabel />
       {steps.length === 0 ? (
         <EmptyState message={t('section.noRequirements')} />
       ) : (

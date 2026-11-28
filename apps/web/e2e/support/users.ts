@@ -551,6 +551,12 @@ export const DOCUMENTS_JOURNEY = {
     name: 'Journey documents customer',
     lastFour: '4821',
   },
+  /**
+   * The made-up Aadhaar number on the identity paper the Project Manager uploads, with a valid
+   * check digit (`pdf.test.ts`), so the masking step finds and hides it; only its last four digits
+   * may show afterwards.
+   */
+  uploadedAadhaar: '2345 6789 0124',
   uploads: {
     'desktop-light': {
       accountId: '0199e2e0-0000-7000-8000-0000000d0011',

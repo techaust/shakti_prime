@@ -25,7 +25,6 @@ import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
 import { listDocumentRequirements, setDocumentRequirement } from '../../actions/documents';
 import {
-  DOCUMENT_FLOWS,
   DOCUMENT_KINDS,
   DOCUMENT_REQUIREMENT_KEYS,
   DOCUMENT_STEP_KEYS,
@@ -33,6 +32,7 @@ import {
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
+import { FlowChoice } from './flow-choice';
 
 type Editing =
   { kind: 'edit'; requirement: DocumentRequirementDto } | { kind: 'add'; flow: DocumentFlow };
@@ -89,21 +89,7 @@ export function RequirementsScreen({
         </Field>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('flow')}>
-          {DOCUMENT_FLOWS.map((f) => (
-            <button
-              key={f}
-              type="button"
-              aria-pressed={f === flow}
-              className="border-border h-control aria-pressed:border-accent rounded-md border px-3 text-sm"
-              onClick={() => {
-                setFlow(f);
-              }}
-            >
-              {docs(`flow.${f}`)}
-            </button>
-          ))}
-        </div>
+        <FlowChoice flow={flow} onFlow={setFlow} label={t('flow')} />
         <Button
           onClick={() => {
             setEditing({ kind: 'add', flow });

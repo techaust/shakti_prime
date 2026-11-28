@@ -7,6 +7,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
+import { pdfOf } from './support/pdf';
 import { solidPng } from './support/png';
 import { DOCUMENTS_JOURNEY } from './support/users';
 
@@ -15,7 +16,7 @@ import { DOCUMENTS_JOURNEY } from './support/users';
 // and uploads documents that are checked, masked and filed; the Field Engineer who looks after the
 // customer sees the bill and no identity paper; the Executive keeps the requirements.
 
-const { entityId, filed, uploads } = DOCUMENTS_JOURNEY;
+const { entityId, filed, uploads, uploadedAadhaar } = DOCUMENTS_JOURNEY;
 const customerPage = (accountId: string) => `/customers/${accountId}?company=${String(entityId)}`;
 
 test.describe('a customer’s documents, for the Project Manager', () => {
@@ -50,32 +51,60 @@ test.describe('a customer’s documents, for the Project Manager', () => {
       (process.env.OCR_LANG_PATH ?? '') === '',
       'the journeys’ server has no masking step here',
     );
+    // Two uploads, each checked and masked page by page before it is filed.
+    test.setTimeout(180_000);
     const customer = uploads[projectName()];
     await page.goto(customerPage(customer.accountId));
     const section = page.getByRole('region', { name: 'Documents' });
-    for (const [requirement, kind] of [
-      ['Electricity bill', 'Electricity bill'],
-      ['Identity proof', 'Identity proof'],
-    ] as const) {
-      await (
-        await hydrated(section.getByRole('button', { name: `Upload ${requirement}` }))
-      ).click();
-      const dialog = page.getByRole('dialog');
-      await expect(dialog.getByRole('heading', { name: 'Upload a document' })).toBeVisible();
-      await expect(dialog.getByLabel('What it is')).toHaveValue(
-        kind === 'Electricity bill' ? 'electricity_bill' : 'identity_proof',
-      );
-      await expectNoAxeViolations(page);
-      await dialog.locator('input[type="file"]').setInputFiles({
-        name: `${kind}.png`,
+    const papers = [
+      {
+        requirement: 'Electricity bill',
+        kind: 'electricity_bill',
+        name: 'Electricity bill.png',
         mimeType: 'image/png',
         buffer: solidPng(400, 240),
+      },
+      {
+        requirement: 'Identity proof',
+        kind: 'identity_proof',
+        name: 'Identity proof.pdf',
+        mimeType: 'application/pdf',
+        buffer: Buffer.from(await pdfOf([`Aadhaar No ${uploadedAadhaar}`])),
+      },
+    ] as const;
+    for (const paper of papers) {
+      // The section's own Upload, so a second try finds it whatever the first one filed.
+      await (await hydrated(section.getByRole('button', { name: 'Upload a document' }))).click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog.getByRole('heading', { name: 'Upload a document' })).toBeVisible();
+      await dialog.getByLabel('Requirement it meets').selectOption({ label: paper.requirement });
+      // A requirement that takes one kind of document chooses it.
+      await expect(dialog.getByLabel('What it is')).toHaveValue(paper.kind);
+      await expectNoAxeViolations(page);
+      await dialog.locator('input[type="file"]').setInputFiles({
+        name: paper.name,
+        mimeType: paper.mimeType,
+        buffer: paper.buffer,
       });
-      await expect(page.getByText('Document filed.')).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText('Document filed.')).toBeVisible({ timeout: 90_000 });
       await expect(dialog).toBeHidden();
     }
-    await expect(section.getByRole('button', { name: 'Open the Identity proof' })).toBeVisible();
-    await expect(section.getByRole('button', { name: 'Open the Electricity bill' })).toBeVisible();
+    await expect(
+      section.getByRole('button', { name: 'Open the Electricity bill' }).first(),
+    ).toBeVisible();
+    // The identity paper's number shows only as its last four digits.
+    await expect(
+      section.getByText(`Aadhaar number ending ${uploadedAadhaar.slice(-4)}`).first(),
+    ).toBeVisible();
+    await expect(page.getByText(uploadedAadhaar.slice(0, 9))).toHaveCount(0);
+    await expect(page.getByText(uploadedAadhaar.replaceAll(' ', '').slice(0, 8))).toHaveCount(0);
+
+    // Its masked copy opens in a new tab.
+    const opened = page.waitForEvent('popup');
+    await section.getByRole('button', { name: 'Open the Identity proof' }).first().click();
+    const tab = await opened;
+    await expect.poll(() => tab.url()).toContain('customer_document');
+    await tab.close();
   });
 });
 

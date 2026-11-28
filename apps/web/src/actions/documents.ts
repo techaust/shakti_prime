@@ -43,29 +43,19 @@ export async function loadCustomerDocuments(
     const principal = await signedIn();
     const input = parseInput(ListCustomerDocumentsInput, rawInput);
     const { requestId } = await requestMeta();
-    const scope = { entityIds: [input.entityId], requestId };
-    const [documents, requirements] = await Promise.all([
-      executeQuery(principal, scope, (ctx) => listCustomerDocuments(ctx, input), {
-        name: 'loadCustomerDocuments',
-      }),
-      executeQuery(
-        principal,
-        scope,
-        (ctx) => listDocumentRequirementsQuery(ctx, { entityId: input.entityId }),
-        { name: 'loadCustomerDocuments' },
-      ),
-    ]);
-    const active = requirements.filter((r) => r.active);
-    // One answer per step that has a requirement, counting what the caller may not read.
-    const steps = [...new Map(active.map((r) => [`${r.flow}/${r.stepKey}`, r])).values()];
-    const missing = await executeQuery(
+    // One transaction, so the documents, the requirements and what is missing agree.
+    const { documents, requirements, missing } = await executeQuery(
       principal,
-      scope,
+      { entityIds: [input.entityId], requestId },
       async (ctx) => {
-        // One after another: the reads share the request's one transaction.
-        const answers = [];
+        const documents = await listCustomerDocuments(ctx, input);
+        const all = await listDocumentRequirementsQuery(ctx, { entityId: input.entityId });
+        const requirements = all.filter((r) => r.active);
+        // One answer per step that has a requirement, counting what the caller may not read.
+        const steps = [...new Map(requirements.map((r) => [`${r.flow}/${r.stepKey}`, r])).values()];
+        const missing = [];
         for (const r of steps) {
-          answers.push({
+          missing.push({
             flow: r.flow,
             stepKey: r.stepKey,
             requirementKeys: await missingDocuments(ctx.tx, {
@@ -77,7 +67,7 @@ export async function loadCustomerDocuments(
             }),
           });
         }
-        return answers;
+        return { documents, requirements, missing };
       },
       { name: 'loadCustomerDocuments' },
     );
@@ -85,7 +75,7 @@ export async function loadCustomerDocuments(
       entityId: input.entityId,
       accountId: input.accountId,
       documents,
-      requirements: active,
+      requirements,
       missing,
       canFile: hasGrant(principal.permissions, 'documents.write', 'own'),
       canFileSensitive: hasGrant(principal.permissions, 'documents.sensitive.read', 'entity'),
