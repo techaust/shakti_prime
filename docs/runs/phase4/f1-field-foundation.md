@@ -6,8 +6,8 @@
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): authentication, tokens, device revocation |
 | Usage | briefed 27-11-2026; built by the slice builder on Opus 5.5 at high effort (27-11-2026, early check and done; the fix rounds 1 and 2, 27-11-2026, Opus 5.5 at high) |
-| State | prepped for integration (main `bdf82df4` taken in, every `integrate.sh` part but e2e passed on 54340) |
-| Next step | the lead reads the second round's diff (`5fd64d1f..`), then integration on a fresh database (the journey and the Linux baselines of `field-phones.spec.ts`) |
+| State | integrated |
+| Next step | the owner's `checks-ok`, then the pull request merges on green |
 
 ## Brief
 Build [phase4 §6.4](../../03-roadmap-appendix/phase4.md#64-f1-field-app-foundation-and-mobile-sign-in) as written, with question 7 (a): ADR 0012 accepted. Change its status line to "Accepted (27-11-2026, Phase 4 design)", with one correction if you find one (WatermelonDB uses its own SQLite adapter, not expo-sqlite: say which the app uses). Follow [AGENTS §5](../../../AGENTS.md#5-domain-commands) and [AGENTS §6](../../../AGENTS.md#6-database-changes). Points the design leaves to you, settled here:
@@ -464,3 +464,17 @@ Findings 9 and 11 of the re-check, as the lead's triage asks; finding 10 recorde
 - **Left for the lead:**
   - The e2e step (`field-phones.spec.ts`, on a fresh database) and the Linux baselines. J2's Lenders menu entry and Q1's screens are on `main` now, so the baselines F1 remakes for its Phones screen take them.
   - If TC1 (#303) or the calling-hours fix merges first and brings migrations, the slice takes `main` again and moves after them.
+
+### 28-11-2026, the lead's cloud VM: integrated
+- **Main taken in again** after the second prep: TC1 #303 and the axe title wait #304 (`a9744e83`), by `7e59f73b`. Only `pnpm-lock.yaml` conflicted: F1's side taken, then `pnpm install --lockfile-only` added TC1's importer and `postject`, and a frozen install passed. No migration on `main` since 0246, so 0247 to 0252 stand. `db:generate`: no changes. Then the calling-hours fix #305 (`994631ae`), with no conflict.
+- **Fixed at integration:** the unit step failed once on `apps/field`'s first screen test, which passed Jest's 5-second default while every workspace's tests ran at once. It passed alone twice. The test now has 20 seconds, with the reason (`026a7120`, `99c595b9`).
+- **`integrate.sh` on a fresh Postgres on 54340, in four parts through the lock**, on `main` `a9744e83`:
+  - `install lint format copylint generated typecheck`: every step rc=0.
+  - `unit`: every task.
+  - `security dbverify`: db 67 files, 1,910 passed; domain 114 files, 1,570 passed; web 41 files, 496 passed. `db:verify`: every migration is applied as it is on disk.
+  - `audit build jsbudget gitleaks`: every step rc=0.
+  - Each part ended `INTEGRATION PARTIAL`.
+- **The whole journey set in the Linux Playwright image, one project at a time, each on a fresh database**, update then verify: desktop-light 237 and 237 passed; desktop-dark 224 and 224; phone 224 and 224. New baselines: `team-member-phones` (three projects). Changed: `roles` (three projects; the roles screen lists F1's field permissions). Pictures looked at: the panel's layout is sound at desktop and phone width.
+  - Picture follow-up: the panel's picture masks timestamps of the table behind it, so masks show over the panel. Scope the snapshot to the dialog in a later slice.
+- **Checks files in this pull request** (the owner's `checks-ok`): `.github/workflows/ci.yml` (the native Android build job), `turbo.json`, `pnpm-workspace.yaml` and `apps/web/js-budget.json` (`/price-master` 247 to 248 kB, the merge's sum).
+
