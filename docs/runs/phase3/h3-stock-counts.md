@@ -243,4 +243,14 @@ A whole-hub review of 20,000 lines takes under a second because each line asks t
 - The migrations `0240_h3_stock_counts` and `0241_h3_stock_counts_rls` collide with `main`'s `0240_x4_stock_reasons` and `0241_q1_label_sheet_files`. Renumber them after `main`'s last (0246), and update DATABASE §4.1 and §6.5, which cite 0240 and 0241.
 - Regenerate `docs/data/`.
 
+### 28-11-2026, the lead's triage
+- **Fix in the one fix round:**
+  - **H1, parts (1) and (3), with no role change:** the counting page and the count list open for a holder of `inventory.stock.move:entity` without `inventory.stock.read`. The counting page takes the count's bins from the count (its scope, through a count definer that checks the grant and the company, `search_path = ''`), never `listHubs`. Tests: a principal with `inventory.stock.move` only opens the sheet, counts and submits, and reads no balance, movement or serial bin. SECURITY's H3 line says plainly that blind counting holds for a counter without `inventory.stock.read`, and that a counter who also holds it reads the balances until the owner decides question B.
+  - **M1:** a missing or misplaced serial that is `reserved`, `picked` or `faulty` is refused at review and at post with a named reason and a catalogue sentence ("release the reservation first", "return the faulty unit first"), before any movement. Correct the `_elsewhere` sentence. Add a test with a faulty serial missing (made through the serial machine in the test).
+  - **L1:** snapshot each line's unit cost at post time behind `finance.cost.read` (in `stock_movement_costs`, which the post already writes), value posted counts from it, and show no value where there is no cost.
+  - **L2:** as written: in the guard, a stamp changes only with its own transition and never afterwards, with a test.
+- **Accepted, not changed:** **L3** (decision 10: a browser print of the live render; no worker may hold `inventory.stock.adjust` or `finance.cost.read`, ADR 0020).
+- **Waiting on the owner (asked 28-11 06:20 UTC):** question A (who counts: the Store Manager given `inventory.stock.move`, or a counting-only permission) and B (hide balances of bins under a live count, or accept). The answer comes as a separate small change after this round. Do not grant any role a new permission in this round.
+- Run `pnpm format:check` before the `report: h3-stock-counts fixes` commit. Do not take main in (the prep renumbers after 0246).
+
 ## Integration
