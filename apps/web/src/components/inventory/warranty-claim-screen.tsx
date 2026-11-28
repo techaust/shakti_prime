@@ -16,12 +16,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { customerHref } from '../../screens/customers';
 import { formatDate, formatRupees } from '../../screens/format';
 import { serialHref } from '../../screens/inventory';
-import {
-  CLAIM_STATE_TONE,
-  CLAIM_STEPS,
-  claimStepStatus,
-  warrantyListHref,
-} from '../../screens/warranty';
+import { CLAIM_STATE_TONE, claimSteps, warrantyListHref } from '../../screens/warranty';
 import { Page } from '../shell/page';
 import { useClaimStateText, useSerialStateText } from './use-inventory-text';
 
@@ -223,21 +218,18 @@ export function WarrantyClaimScreen({
           {t('steps.title')}
         </h2>
         <ol className="flex list-decimal flex-col gap-1 ps-6">
-          {CLAIM_STEPS.map((step) => {
-            const status = claimStepStatus(step, claim.state);
-            return (
-              <li
-                key={step}
-                aria-current={status === 'current' ? 'step' : undefined}
-                className={status === 'next' ? 'text-text-muted' : undefined}
-              >
-                <span>{t(`steps.${step}`)}</span>
-                {status === 'next' ? null : (
-                  <span className="text-text-muted ms-2 text-sm">{t(`stepStatus.${status}`)}</span>
-                )}
-              </li>
-            );
-          })}
+          {claimSteps(claim.state).map(({ step, status }) => (
+            <li
+              key={step}
+              aria-current={status === 'current' ? 'step' : undefined}
+              className={status === 'next' ? 'text-text-muted' : undefined}
+            >
+              <span>{t(`steps.${step}`)}</span>
+              {status === 'next' ? null : (
+                <span className="text-text-muted ms-2 text-sm">{t(`stepStatus.${status}`)}</span>
+              )}
+            </li>
+          ))}
         </ol>
       </section>
       {costs === undefined ? null : (

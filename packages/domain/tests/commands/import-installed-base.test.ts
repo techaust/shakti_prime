@@ -184,7 +184,8 @@ describe('the installed base import', () => {
       `IM-${tag},IB-${tag}-3,0${phone},chomu,01/04/2024,31-03-2026,`,
       // Refused: an unknown code, an item without serials, a serial another company holds, a
       // serial twice in the file, an unknown mobile, a village none of the sites is in, a
-      // delivery ahead of today, no warranty months and no end, another company.
+      // delivery ahead of today, no warranty months and no end, another company, a warranty that
+      // ends before its delivery (the two date columns swapped).
       `IX-${tag},IB-${tag}-4,${phone},,10-03-2025,,`,
       `IC-${tag},IB-${tag}-5,${phone},,10-03-2025,,`,
       `IP-${tag},ib-${tag}-old,${phone},,10-03-2025,,`,
@@ -194,10 +195,11 @@ describe('the installed base import', () => {
       `IP-${tag},IB-${tag}-8,${phone},,01-01-2099,,`,
       `IM-${tag},IB-${tag}-9,${phone},,10-03-2025,,`,
       `IP-${tag},IB-${tag}-10,${phone},,10-03-2025,,ANOTHER`,
+      `IP-${tag},IB-${tag}-11,${phone},,10-03-2025,09-03-2025,`,
     ].join('\n');
     const job = await previewed(csv);
     // The serial company 1 holds is out of this request's sight until the row is added.
-    expect(job).toMatchObject({ state: 'previewed', validRows: 4, invalidRows: 8 });
+    expect(job).toMatchObject({ state: 'previewed', validRows: 4, invalidRows: 9 });
     const refusals = async () => {
       const page = await asPrincipal({ ...exec, entityIds: [ENTITY] }, (ctx) =>
         listImportRows(ctx, { entityId: ENTITY, jobId: job.id, limit: 50 }),
@@ -215,6 +217,7 @@ describe('the installed base import', () => {
       [10, 'date_invalid'],
       [11, 'warranty_unknown'],
       [12, 'company_mismatch'],
+      [13, 'date_invalid'],
     ];
     expect(await refusals()).toEqual(found);
 
@@ -245,6 +248,27 @@ describe('the installed base import', () => {
       delivered: '2024-04-01',
       until: '2026-03-31',
     });
+  });
+
+  it('is refused by the database a warranty end before its delivery that reaches the commit', async () => {
+    const job = await previewed(
+      ['SKU,Serial,Mobile,Delivered', `IP-${tag},IW-${tag}-1,${phone},10-03-2025`].join('\n'),
+    );
+    expect(job).toMatchObject({ state: 'previewed', validRows: 1 });
+    // The stored row changed after the preview: only app.installed_base_add() is left to check it.
+    await asMigrator(
+      (m) => m`update import_rows
+        set normalised_json = jsonb_set(normalised_json, '{warrantyUntil}', '"2025-03-09"')
+        where job_id = ${job.id} and row_no = 2`,
+    );
+    expect(await committed(job)).toMatchObject({ state: 'committed', committedRows: 0 });
+    const page = await asPrincipal({ ...exec, entityIds: [ENTITY] }, (ctx) =>
+      listImportRows(ctx, { entityId: ENTITY, jobId: job.id, limit: 50 }),
+    );
+    expect(page.rows.map((r) => [r.rowNo, r.state, r.errors])).toEqual([
+      [2, 'invalid', [{ field: 'warrantyUntil', code: 'date_invalid' }]],
+    ]);
+    expect(await serial(pump, `IW-${tag}-1`)).toBeUndefined();
   });
 
   it('rolls back the serials no claim has used since, and keeps the others', async () => {

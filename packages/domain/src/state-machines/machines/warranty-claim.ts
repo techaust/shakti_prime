@@ -123,7 +123,7 @@ export const warrantyClaimMachine = defineMachine<
       scope: 'entity',
       guard: allOf(serialGiven, underWarranty),
       emits: 'inventory.warranty.serial_identified',
-      note: "The serial is the company's, with the claim's customer; out of warranty it is refused with its date, and the claim is rejected.",
+      note: "The serial is the company's, with the claim's customer; out of warranty it is refused with its date, and the claim is then rejected by hand.",
       effects: [{ key: 'set_serial', description: 'record the failed serial on the claim' }],
     },
     {

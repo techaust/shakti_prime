@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { claimStepStatus, warrantyClaimHref, warrantyListHref } from './warranty';
+import { claimSteps, warrantyClaimHref, warrantyListHref } from './warranty';
 
 describe('the warranty screens', () => {
   it('address the list by company and state, and a claim by company', () => {
@@ -10,12 +10,31 @@ describe('the warranty screens', () => {
     expect(warrantyClaimHref(1, 'c1')).toBe('/inventory/warranty/c1?company=1');
   });
 
-  it('mark each step done, current or still to come', () => {
-    expect(claimStepStatus('raised', 'serial_identified')).toBe('done');
-    expect(claimStepStatus('serial_identified', 'serial_identified')).toBe('current');
-    expect(claimStepStatus('closed', 'rma_raised')).toBe('next');
-    expect(claimStepStatus('closed', 'closed')).toBe('done');
-    expect(claimStepStatus('raised', 'rejected')).toBe('done');
-    expect(claimStepStatus('serial_identified', 'rejected')).toBe('next');
+  it('mark each step up to the claim done and the one after it next', () => {
+    const statuses = (state: Parameters<typeof claimSteps>[0]) =>
+      claimSteps(state).map(({ step, status }) => `${step}:${status}`);
+    expect(statuses('raised')).toEqual([
+      'raised:done',
+      'serial_identified:current',
+      'replacement_issued:next',
+      'rma_raised:next',
+      'closed:next',
+    ]);
+    expect(statuses('serial_identified')).toEqual([
+      'raised:done',
+      'serial_identified:done',
+      'replacement_issued:current',
+      'rma_raised:next',
+      'closed:next',
+    ]);
+    expect(statuses('rma_raised').slice(3)).toEqual(['rma_raised:done', 'closed:current']);
+    expect(statuses('closed').every((s) => s.endsWith(':done'))).toBe(true);
+  });
+
+  it('end a rejected claim at its rejection, with no step still to come', () => {
+    expect(claimSteps('rejected')).toEqual([
+      { step: 'raised', status: 'done' },
+      { step: 'rejected', status: 'done' },
+    ]);
   });
 });

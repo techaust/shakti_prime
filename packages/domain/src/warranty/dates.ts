@@ -30,9 +30,10 @@ export function parseSheetDate(text: string): string | undefined {
 
 /**
  * The last day of a warranty of `months` months from delivery: the day before the same date
- * `months` months later, or the last day of that month when it has no such date (a 12-month
- * warranty from 10-03-2026 runs to 09-03-2027; from 31-01-2026 a one-month warranty runs to
- * 27-02-2026, the day before 28-02).
+ * `months` months later; when that month has no such date, the day before its last day. A
+ * 12-month warranty from 10-03-2026 runs to 09-03-2027; a one-month warranty from 31-01-2026 runs
+ * to 27-02-2026, and a 12-month one from 29-02-2028 to 27-02-2029. The client confirms the rule,
+ * the month-end case with it (phase3 §12 question 10).
  */
 export function warrantyUntilFrom(deliveredOn: string, months: number): string {
   const m = ISO.exec(deliveredOn);

@@ -35,14 +35,26 @@ export const CLAIM_STEPS = [
   'closed',
 ] as const satisfies readonly WarrantyClaimState[];
 
-/** Whether a step is behind the claim, where it stands, or still to come; none once rejected. */
-export function claimStepStatus(
-  step: (typeof CLAIM_STEPS)[number],
+/** A step of a claim's sheet: one of the five, or the rejection that ends a claim early. */
+export type ClaimStepKey = (typeof CLAIM_STEPS)[number] | 'rejected';
+
+/**
+ * A claim's steps as its sheet lists them: each step up to the claim's state done, the one after
+ * it next, the rest still to come. A rejected claim lists its raising and its rejection, both done,
+ * since the later steps never come (and its state does not say whether it was identified first).
+ */
+export function claimSteps(
   state: WarrantyClaimState,
-): 'done' | 'current' | 'next' {
-  if (state === 'rejected') return step === 'raised' ? 'done' : 'next';
+): { step: ClaimStepKey; status: 'done' | 'current' | 'next' }[] {
+  if (state === 'rejected') {
+    return [
+      { step: 'raised', status: 'done' },
+      { step: 'rejected', status: 'done' },
+    ];
+  }
   const at = CLAIM_STEPS.indexOf(state);
-  const index = CLAIM_STEPS.indexOf(step);
-  if (index < at || (state === 'closed' && index === at)) return 'done';
-  return index === at ? 'current' : 'next';
+  return CLAIM_STEPS.map((step, index) => ({
+    step,
+    status: index <= at ? 'done' : index === at + 1 ? 'current' : 'next',
+  }));
 }

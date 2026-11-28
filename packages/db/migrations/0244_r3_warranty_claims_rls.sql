@@ -6,7 +6,8 @@
 -- are) or inventory.warranty.write, raised with inventory.warranty.write, and moved on by its step's
 -- grant: inventory.warranty.write (identify, replace, reject), procurement.po.write (the supplier
 -- RMA) or procurement.grn.write (settlement; phase3 §14). Only the step columns change after it is
--- raised (column grants).
+-- raised (column grants), and the guard holds each update to one transition of the machine, its
+-- grant and its own columns.
 -- The costs follow the house pattern for a restricted column, the side table of
 -- stock_movement_costs (DATABASE §4.3): warranty_claim_costs holds the replacement's cost and the
 -- supplier's credit, read only with finance.cost.read for the company (the cost_gate) and written
@@ -61,17 +62,59 @@ grant update (item_id, serial_id, state, state_changed_at, replacement_serial_id
 grant select on warranty_claims to app_reader;
 --> statement-breakpoint
 
--- 3. A closed or rejected claim is final, and a claim keeps its serial once identified, whoever
---    writes.
+-- 3. Each update is one step of the warranty_claim machine, whoever writes: a closed or rejected
+--    claim is final; the state moves only along the machine's transitions, each under its own
+--    grant (the policy above lets in a holder of any of the three); and a step changes only its
+--    own columns, so a claim keeps its serial once identified and never goes back a step.
 create or replace function app.warranty_claims_guard() returns trigger
   language plpgsql set search_path = '' as $$
+declare
+  v_perm text;
+  v_allowed text[];
+  v_changed text[];
 begin
   if old.state in ('closed', 'rejected') then
     raise exception 'warranty claim % is %', old.id, old.state
       using errcode = 'check_violation', constraint = 'warranty_claim_transition_not_allowed';
   end if;
-  if old.state <> 'raised' and new.serial_id is distinct from old.serial_id then
-    raise exception 'warranty claim % keeps its serial', old.id
+  case
+    when old.state = 'raised' and new.state = 'serial_identified' then
+      v_perm := 'inventory.warranty.write:entity';
+      v_allowed := array['item_id', 'serial_id'];
+    when old.state = 'serial_identified' and new.state = 'replacement_issued' then
+      v_perm := 'inventory.warranty.write:entity';
+      v_allowed := array['replacement_serial_id'];
+    when old.state = 'replacement_issued' and new.state = 'rma_raised' then
+      v_perm := 'procurement.po.write:entity';
+      v_allowed := array['vendor_id', 'supplier_rma_ref'];
+    when old.state = 'rma_raised' and new.state = 'closed' then
+      v_perm := 'procurement.grn.write:entity';
+      v_allowed := array['settlement', 'supplier_serial_id'];
+    when old.state in ('raised', 'serial_identified') and new.state = 'rejected' then
+      v_perm := 'inventory.warranty.write:entity';
+      v_allowed := array['rejected_reason'];
+    else
+      raise exception 'warranty claim % cannot go from % to %', old.id, old.state, new.state
+        using errcode = 'check_violation', constraint = 'warranty_claim_transition_not_allowed';
+  end case;
+  if not app.has_perm(v_perm) then
+    raise exception 'permission % required for this step of warranty claim %', v_perm, old.id
+      using errcode = 'insufficient_privilege';
+  end if;
+  v_changed := array_remove(array[
+    case when new.item_id is distinct from old.item_id then 'item_id' end,
+    case when new.serial_id is distinct from old.serial_id then 'serial_id' end,
+    case when new.replacement_serial_id is distinct from old.replacement_serial_id
+         then 'replacement_serial_id' end,
+    case when new.vendor_id is distinct from old.vendor_id then 'vendor_id' end,
+    case when new.supplier_rma_ref is distinct from old.supplier_rma_ref then 'supplier_rma_ref' end,
+    case when new.settlement is distinct from old.settlement then 'settlement' end,
+    case when new.supplier_serial_id is distinct from old.supplier_serial_id
+         then 'supplier_serial_id' end,
+    case when new.rejected_reason is distinct from old.rejected_reason then 'rejected_reason' end
+  ], null);
+  if not (v_changed <@ v_allowed) then
+    raise exception 'warranty claim %: the step to % changes only its own columns', old.id, new.state
       using errcode = 'check_violation', constraint = 'warranty_claim_transition_not_allowed';
   end if;
   return new;

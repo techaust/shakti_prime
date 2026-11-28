@@ -7004,7 +7004,8 @@
       "serial_identified": "Faulty serial identified, in warranty",
       "replacement_issued": "Replacement given from stock",
       "rma_raised": "Faulty item sent back to the supplier",
-      "closed": "Supplier's credit or replacement received"
+      "closed": "Supplier's credit or replacement received",
+      "rejected": "Claim rejected"
     },
     "stepStatus": {
       "done": "Done",

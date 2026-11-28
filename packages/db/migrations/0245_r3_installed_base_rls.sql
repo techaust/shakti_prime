@@ -13,7 +13,8 @@ create index serials_account_idx on serials (account_id, entity_id) where accoun
 --    null, delivered_on, warranty_until}, in order, for the job's company; answers the new serials'
 --    ids in the rows' order. The caller holds imports.write and inventory.warranty.write for the
 --    company, the job is an installed base job of that company being added, each item is tracked
---    by serial, each customer deals with the company and each site is the customer's; a serial
+--    by serial, each customer deals with the company and each site is the customer's, each
+--    delivery is today or earlier and each warranty ends on or after its delivery; a serial
 --    number the item has already is refused by serials_item_serial_no_unique.
 create or replace function app.installed_base_add(p_job uuid, p_rows jsonb)
   returns uuid[]
@@ -65,6 +66,10 @@ begin
     if (v_row ->> 'delivered_on')::date > v_today then
       raise exception 'a delivery date ahead of today'
         using errcode = 'check_violation', constraint = 'date_invalid';
+    end if;
+    if (v_row ->> 'warranty_until')::date < (v_row ->> 'delivered_on')::date then
+      raise exception 'a warranty that ends before its delivery'
+        using errcode = 'check_violation', constraint = 'warranty_before_delivery';
     end if;
     v_id := app.uuid_v7();
     insert into public.serials (id, entity_id, item_id, serial_no, state, account_id, site_id,

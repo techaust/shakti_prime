@@ -1,5 +1,5 @@
 import { newId, ROLE_KEYS, STAFF_ROLE_KEYS, type Principal } from '@shakti/contracts';
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { withRequestContext } from '../../src/context';
 import {
@@ -223,6 +223,51 @@ describe('warranty claims, written', () => {
     const gm = await createTestPrincipal('general_manager', [1]);
     expect(await move(gm, identified, 'rejected')).toBe(0);
     expect((await failure(move(manager, rejected, 'rejected'))).message).toMatch(/is rejected/);
+  });
+
+  it('holds each update to one step of the machine, under that step’s grant, changing only its own columns', async () => {
+    const failed = newId();
+    const spare = newId();
+    const issued = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into serials (id, entity_id, item_id, serial_no, state, account_id, warranty_until, created_by) values
+          (${failed}, 1, ${item}, ${`WF-${tag}`}, 'with_customer', ${account}, '2099-12-31', ${owner.id}),
+          (${spare}, 1, ${item}, ${`WG-${tag}`}, 'with_customer', ${account}, '2099-12-31', ${owner.id})`;
+        await tx`insert into warranty_claims (id, entity_id, claim_no, account_id, item_id, serial_id, reported_fault, state,
+                   replacement_serial_id, created_by)
+          values (${issued}, 1, ${`WT${tag}/4`}, ${account}, ${item}, ${failed}, 'Trips the breaker',
+                  'replacement_issued', ${spare}, ${owner.id})`;
+      }),
+    );
+    const write = (who: Principal, changes: SQL) =>
+      asPrincipal(who, async ({ tx }) => {
+        const rows = (await tx.execute(
+          sql`update warranty_claims set ${changes}, updated_by = ${who.id} where id = ${issued} returning id`,
+        )) as unknown as unknown[];
+        return rows.length;
+      });
+    const rma = sql`state = 'rma_raised', vendor_id = ${vendor}, supplier_rma_ref = 'RMA-4'`;
+    const manager = await createTestPrincipal('inventory_manager', [1]);
+    // The review's probe: settlement's grant alone may not take a claim back a step.
+    const receiver = await createTestPrincipal('inventory_manager', [1], {
+      permissions: manager.permissions.filter(
+        (g) => g.key === 'inventory.stock.read' || g.key === 'procurement.grn.write',
+      ),
+    });
+    const back = await failure(write(receiver, sql`state = 'serial_identified'`));
+    expect(back.code).toBe('23514');
+    expect(back.message).toMatch(/cannot go from replacement_issued to serial_identified/);
+    // The RMA is procurement.po.write's step, not settlement's.
+    expect((await failure(write(receiver, rma))).code).toBe('42501');
+    // No change without a step, and no step writes another step's columns.
+    expect((await failure(write(manager, sql`supplier_rma_ref = 'RMA-4'`))).message).toMatch(
+      /cannot go from replacement_issued to replacement_issued/,
+    );
+    expect(
+      (await failure(write(manager, sql`${rma}, rejected_reason = 'Not a fault'`))).message,
+    ).toMatch(/changes only its own columns/);
+    expect(await write(manager, rma)).toBe(1);
   });
 
   it('costs take no direct write, even from an Executive holding every grant', async () => {

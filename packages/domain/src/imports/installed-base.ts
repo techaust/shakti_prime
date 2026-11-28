@@ -191,7 +191,13 @@ export async function previewInstalledBase(
     let warrantyUntil: string | undefined;
     if (untilCell !== '') {
       warrantyUntil = parseSheetDate(untilCell);
-      if (warrantyUntil === undefined) add({ field: 'warrantyUntil', code: 'date_invalid' });
+      // A warranty ends on or after its delivery (two date columns swapped end before it).
+      if (
+        warrantyUntil === undefined ||
+        (deliveredOn !== undefined && warrantyUntil < deliveredOn)
+      ) {
+        add({ field: 'warrantyUntil', code: 'date_invalid' });
+      }
     } else if (deliveredOn !== undefined && item?.tracked === true && item.active) {
       if (item.months === null) add({ field: 'warrantyUntil', code: 'warranty_unknown' });
       else warrantyUntil = warrantyUntilFrom(deliveredOn, item.months);
@@ -241,6 +247,7 @@ const REFUSED_BY: Readonly<Record<string, ImportRowErrorDto>> = {
   customer_unknown: { field: 'phone', code: 'customer_unknown' },
   site_unknown: { field: 'village', code: 'site_unknown' },
   date_invalid: { field: 'deliveredOn', code: 'date_invalid' },
+  warranty_before_delivery: { field: 'warrantyUntil', code: 'date_invalid' },
 };
 
 function refusalOf(error: unknown): ImportRowErrorDto | undefined {
