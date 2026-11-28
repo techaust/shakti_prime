@@ -623,7 +623,9 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'stockReason':
         return oneOf(STOCK_REASONS, value) ? t(`values.stockReason.${value}`) : wordsOf(value);
       case 'tallyAlert':
-        return oneOf(TALLY_CONNECTOR_ALERTS, value) ? t(`values.tallyAlert.${value}`) : wordsOf(value);
+        return oneOf(TALLY_CONNECTOR_ALERTS, value)
+          ? t(`values.tallyAlert.${value}`)
+          : wordsOf(value);
       case 'tallySnapshotState':
         return oneOf(TALLY_SNAPSHOT_STATES, value)
           ? t(`values.tallySnapshotState.${value}`)
