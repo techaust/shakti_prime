@@ -505,4 +505,13 @@ I read the diff from my review `788c4bd6` to `9eb3e8fc`. It contains no merge of
 - I ran none of the journeys in `apps/web/e2e/stock-counts.spec.ts`, since this session cannot sign in. That covers the Inventory Manager's start, the Store Manager's blind count with the stock card check and the snapshots `count-to-count` and `count-serials`, and the Inventory Manager's review and post with `count-review`. They still need their Linux baselines.
 - I did not run the whole `test:security`, typecheck, lint or build (the builder's are green), nor the M1, L1 and L2 fixes beyond the files above (out of scope for this re-check).
 
+### 28-11-2026, the lead's triage of the addendum's re-check
+- **Fix now, one short lane:**
+  - **L1:** when the caller is blinded for any bin of the item (`app.stock_count_hidden()`), H1's stock card and stock list say that some of this item's stock is being counted and shows again once the count is posted. They never say the company holds none. Add a catalogue sentence and update the journey's assertion.
+  - **L2:** add the three cases (`open`, a movement out of the counted bin, Accounts).
+  - **L3:** correct the comment.
+  - **L4:** check `p_entity` against `app.entity_ids()`.
+- **At integration (whichever of H2 and H3 merges second), C1:** H2's `app.line_availability()` treats a holder of `inventory.count.record` without `inventory.stock.adjust` as not reading counts while a live count covers the item's bins. Covered and short statuses stay. One H2 test with a live count.
+- Run `pnpm format:check`, then commit `report: h3-stock-counts addendum fixes`. Do not take main in.
+
 ## Integration
