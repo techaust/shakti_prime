@@ -10,7 +10,13 @@ import {
   snap,
   test,
 } from './support/fixtures';
-import { HR_JOURNEY, seededUsers, storageStatePath, type SignedInRole } from './support/users';
+import {
+  HR_JOURNEY,
+  SNAPSHOT_COMPANY,
+  seededUsers,
+  storageStatePath,
+  type SignedInRole,
+} from './support/users';
 
 // HR1's screens (docs/03-roadmap-appendix/phase5.md §5, PRD HR-01 and HR-02). The seed puts the
 // tele-caller on company 1's staff, reporting to the team lead, with a leave type of each project's
@@ -203,5 +209,107 @@ test.describe('as the snapshot company’s Executive, the staff list', () => {
     await expect(page.getByRole('heading', { name: helper.name, level: 1 })).toBeVisible();
     await expect(page.getByText(lead.name).first()).toBeVisible();
     await expectNoAxeViolations(page);
+  });
+});
+
+test.describe('as HR, shifts, leave types and a balance', () => {
+  test.use(signedInAs('hrAdmin'));
+
+  // Review finding 3: HR's settings and the person page's balance dialog, each with axe. The shift
+  // and the leave type are the snapshot company's, which no leave journey asks in, and carry a word
+  // of this run's own; both are archived again at the end, so a later run's lists stay the same.
+  test('adds a shift and archives it, adds a leave type and gives a person days of it', async ({
+    page,
+  }) => {
+    const word = String(Date.now()).slice(-8);
+    const shift = `Journey shift ${word}`;
+    const leaveType = `Journey leave type ${word}`;
+    const reason = `Opening days ${word}`;
+    const { helper } = HR_JOURNEY.snapshot;
+
+    // Shifts: add one with two days off, then archive it.
+    await page.goto('/hr/shifts');
+    await expect(page.getByRole('heading', { name: 'Shifts', level: 1 })).toBeVisible();
+    await expectNoAxeViolations(page);
+    await (await hydrated(page.getByRole('button', { name: 'Add a shift' }))).click();
+    const add = page.getByRole('dialog', { name: 'Add a shift' });
+    await add.getByLabel('For').selectOption({ label: SNAPSHOT_COMPANY.name });
+    await add.getByLabel('Name', { exact: true }).fill(shift);
+    await add.getByLabel('Starts at').fill('08:00');
+    await add.getByLabel('Ends at').fill('16:30');
+    await add.getByLabel('Saturday').check();
+    await add.getByLabel('Sunday').check();
+    await expectNoAxeViolations(page);
+    await add.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Shift saved.')).toBeVisible();
+    const shifts = dataGrid(page, 'Shifts');
+    const shiftRow = rowOf(shifts, shift);
+    await expect(shiftRow).toContainText('08:00 to 16:30');
+    await expect(shiftRow).toContainText('Saturday, Sunday');
+    await expect(shiftRow).toContainText(SNAPSHOT_COMPANY.name);
+    await expectNoAxeViolations(page);
+    // The shift's name carries this run's word.
+    await snap(page, 'hr-shifts', { mask: [shiftRow.getByRole('cell').first()] });
+    await shiftRow.getByRole('button', { name: `Change the shift ${shift}` }).click();
+    const change = page.getByRole('dialog', { name: `Change the shift ${shift}` });
+    await change.getByLabel('Archived: no longer offered for new people').check();
+    await expectNoAxeViolations(page);
+    await change.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Shift saved.')).toBeVisible();
+    await expect(rowOf(shifts, shift)).toHaveCount(0);
+
+    // Leave types: add one for the snapshot company.
+    await page.goto('/hr/leave-types');
+    await expect(page.getByRole('heading', { name: 'Leave types', level: 1 })).toBeVisible();
+    await expectNoAxeViolations(page);
+    await (await hydrated(page.getByRole('button', { name: 'Add a leave type' }))).click();
+    const addType = page.getByRole('dialog', { name: 'Add a leave type' });
+    await addType.getByLabel('For').selectOption({ label: SNAPSHOT_COMPANY.name });
+    await addType.getByLabel('Name', { exact: true }).fill(leaveType);
+    await addType.getByLabel('Days a year').fill('12');
+    await addType.getByLabel('Paid leave').check();
+    await expectNoAxeViolations(page);
+    await addType.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Leave type saved.')).toBeVisible();
+    const types = dataGrid(page, 'Leave types');
+    const typeRow = rowOf(types, leaveType);
+    await expect(typeRow).toContainText('12 days');
+    await expectNoAxeViolations(page);
+    await snap(page, 'hr-leave-types', { mask: [typeRow.getByRole('cell').first()] });
+
+    // A person's page: give the snapshot company's helper two days of it.
+    await page.goto('/hr/people');
+    await (await hydrated(page.getByLabel('Search by name'))).fill(helper.name);
+    await rowOf(dataGrid(page, 'Staff'), helper.name)
+      .getByRole('link', { name: helper.name })
+      .click();
+    await expect(page.getByRole('heading', { name: helper.name, level: 1 })).toBeVisible();
+    await expectNoAxeViolations(page);
+    await (await hydrated(page.getByRole('button', { name: 'Change leave balance' }))).click();
+    const balance = page.getByRole('dialog', { name: `Change ${helper.name}'s leave balance` });
+    await balance.getByLabel('Leave type').selectOption({ label: leaveType });
+    await balance.getByLabel('Days', { exact: true }).fill('2');
+    await balance.getByLabel('Why').fill(reason);
+    await expectNoAxeViolations(page);
+    await balance.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Leave balance changed.')).toBeVisible();
+    await expect(rowOf(dataGrid(page, 'Days of each leave type'), leaveType)).toContainText(
+      '2 days',
+    );
+    await expect(
+      rowOf(dataGrid(page, 'Changes to the leave balance, newest first'), reason),
+    ).toContainText('Days given');
+    await expectNoAxeViolations(page);
+
+    // The leave type is archived again, so it is offered to no one after this run.
+    await page.goto('/hr/leave-types');
+    await rowOf(dataGrid(page, 'Leave types'), leaveType)
+      .getByRole('button', { name: `Change the leave type ${leaveType}` })
+      .click();
+    const changeType = page.getByRole('dialog', { name: `Change the leave type ${leaveType}` });
+    await changeType.getByLabel('Archived: no longer offered for new leave').check();
+    await changeType.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Leave type saved.')).toBeVisible();
+    await expect(rowOf(dataGrid(page, 'Leave types'), leaveType)).toHaveCount(0);
   });
 });

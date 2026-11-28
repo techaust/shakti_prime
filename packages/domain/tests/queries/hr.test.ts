@@ -234,6 +234,16 @@ describe('getEmployee', () => {
     expect(leadSheet.shift?.name).toBe(`Reads day ${TAG}`);
   });
 
+  it('gives the phone to HR alone: a team lead and the GM read the record without it', async () => {
+    const withPhone = await employee('Esha', { managerId: leadEmployee.id, phone: '98111 22334' });
+    const asHr = await asPrincipal(hr, (ctx) => getEmployee(ctx, { id: withPhone.id }));
+    expect(asHr).toMatchObject({ phoneShown: true, employee: { phone: '+919811122334' } });
+    for (const reader of [lead, gm]) {
+      const sheet = await asPrincipal(reader, (ctx) => getEmployee(ctx, { id: withPhone.id }));
+      expect(sheet).toMatchObject({ phoneShown: false, employee: { phone: null } });
+    }
+  });
+
   it('is not found to someone who may not read the record', async () => {
     const error: unknown = await asPrincipal(callerB, (ctx) =>
       getEmployee(ctx, { id: aEmployee.id }),

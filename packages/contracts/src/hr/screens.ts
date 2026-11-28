@@ -67,7 +67,9 @@ export type GetEmployeeInput = z.input<typeof GetEmployeeInput>;
 /** A person's page: the record, their manager and shift, balances, requests and movements. */
 export const EmployeeSheetDto = z
   .object({
+    /** `phone` is null unless `phoneShown`: only HR (`hr.employee.write`) reads the number. */
     employee: EmployeeDto,
+    phoneShown: z.boolean(),
     managerName: z.string().nullable(),
     shift: ShiftDto.nullable(),
     balances: z.array(LeaveBalanceDto),

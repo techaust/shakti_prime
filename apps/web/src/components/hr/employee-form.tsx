@@ -33,12 +33,18 @@ const NONE = '';
  */
 export function EmployeeFormDialog({
   employee,
+  saved,
   companies,
   returnFocusTo,
   onClose,
   onSaved,
 }: {
   employee: EmployeeDto | undefined;
+  /**
+   * The names of the person's saved shift and manager, so an edit keeps a shift since archived or
+   * a manager who has left, which the company's choices no longer list (review finding 1).
+   */
+  saved?: { shiftName: string | null; managerName: string | null };
   companies: readonly CompanyOption[];
   returnFocusTo: ReturnFocusTo;
   onClose: () => void;
@@ -112,6 +118,15 @@ export function EmployeeFormDialog({
   }
 
   const managers = (choices?.managers ?? []).filter((m) => m.id !== employee?.id);
+  const shifts = choices?.shifts ?? [];
+  const savedManager =
+    employee?.managerId == null || managers.some((m) => m.id === employee.managerId)
+      ? undefined
+      : { id: employee.managerId, name: saved?.managerName ?? '' };
+  const savedShift =
+    employee?.shiftId == null || shifts.some((s) => s.id === employee.shiftId)
+      ? undefined
+      : { id: employee.shiftId, name: saved?.shiftName ?? '' };
   return (
     <Dialog
       open
@@ -199,6 +214,11 @@ export function EmployeeFormDialog({
               defaultValue={employee?.managerId ?? NONE}
             >
               <option value={NONE}>{t('noManager')}</option>
+              {savedManager === undefined ? null : (
+                <option value={savedManager.id}>
+                  {t('leftManager', { name: savedManager.name })}
+                </option>
+              )}
               {managers.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -213,7 +233,12 @@ export function EmployeeFormDialog({
               defaultValue={employee?.shiftId ?? NONE}
             >
               <option value={NONE}>{t('noShift')}</option>
-              {(choices?.shifts ?? []).map((s) => (
+              {savedShift === undefined ? null : (
+                <option value={savedShift.id}>
+                  {t('archivedShift', { name: savedShift.name })}
+                </option>
+              )}
+              {shifts.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>

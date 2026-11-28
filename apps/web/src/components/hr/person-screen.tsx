@@ -87,6 +87,15 @@ export function PersonScreen({
   const returnFocusTo: ReturnFocusTo = () => [opener.current];
 
   const details: [string, ReactNode][] = [
+    // The phone is HR's alone: the page shows it only when the read carries it (review finding 2).
+    ...(sheet.phoneShown
+      ? [
+          [t('phone'), employee.phone === null ? hr('none') : formatPhone(employee.phone)] as [
+            string,
+            ReactNode,
+          ],
+        ]
+      : []),
     [t('company'), companyName(companies, employee.entityId)],
     [
       t('status'),
@@ -96,7 +105,6 @@ export function PersonScreen({
           : t('leftOn', { date: formatDate(employee.leftOn ?? employee.joinedOn) })}
       </StatusBadge>,
     ],
-    [t('phone'), employee.phone === null ? hr('none') : formatPhone(employee.phone)],
     [t('manager'), sheet.managerName ?? hr('none')],
     [
       t('shift'),
@@ -239,6 +247,7 @@ export function PersonScreen({
       {open === 'edit' ? (
         <EmployeeFormDialog
           employee={employee}
+          saved={{ shiftName: shift?.name ?? null, managerName: sheet.managerName }}
           companies={companies}
           returnFocusTo={returnFocusTo}
           onClose={close}

@@ -590,7 +590,8 @@
     "leave_request_decided": "This leave was already decided. Refresh the page to see it.",
     "leave_own_decision": "You cannot decide your own leave. Someone else must approve it.",
     "leave_cancel_not_yours": "Only the person who asked for this leave can take it back.",
-    "leave_request_transition_not_allowed": "This leave was already decided or taken back. Refresh the page to see it."
+    "leave_request_transition_not_allowed": "This leave was already decided or taken back. Refresh the page to see it.",
+    "employee_own_sign_in": "You cannot change the sign-in on your own staff record. Ask another HR person to change it."
   },
   "auth": {
     "signIn": {
@@ -7027,7 +7028,9 @@
       "dateHelper": "As DD-MM-YYYY.",
       "joinedOnMissing": "Type the day the person joined.",
       "submit": "Save",
-      "saved": "Details saved."
+      "saved": "Details saved.",
+      "archivedShift": "{name} (archived)",
+      "leftManager": "{name} (has left)"
     },
     "person": {
       "title": "Person",

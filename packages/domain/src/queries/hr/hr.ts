@@ -193,6 +193,7 @@ export async function getEmployee(ctx: QueryContext, rawInput: unknown): Promise
     });
   }
   const managerName = await managerNameOf(ctx.tx, row);
+  const phoneShown = hasGrant(ctx.principal.permissions, 'hr.employee.write', 'all');
   const [shift] =
     row.shiftId === null
       ? []
@@ -229,7 +230,9 @@ export async function getEmployee(ctx: QueryContext, rawInput: unknown): Promise
     .orderBy(desc(b.createdAt), desc(b.id))
     .limit(EMPLOYEE_SHEET_ROWS);
   return EmployeeSheetDto.parse({
-    employee: toEmployeeDto(row),
+    // The phone is HR's alone; a manager or the GM reads the record without it (review finding 2).
+    employee: { ...toEmployeeDto(row), phone: phoneShown ? row.phone : null },
+    phoneShown,
     managerName,
     shift: shift === undefined ? null : toShiftDto(shift),
     balances,

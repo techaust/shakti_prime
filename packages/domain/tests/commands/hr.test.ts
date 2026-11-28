@@ -184,14 +184,95 @@ describe('hr.employee.create, .update and .deactivate', () => {
       exec,
       async ({ tx }) =>
         (await tx.execute(sql`
-        select after_json::text as after from audit_logs
+        select after_json::text as after, input_json::text as input from audit_logs
          where command = 'hr.employee.create' and aggregate_id = ${aEmployee.id}`)) as unknown as {
           after: string;
+          input: string;
         }[],
     );
     expect(rows).toHaveLength(1);
     expect(rows[0]?.after).toContain('"phoneOnRecord": true');
     expect(rows[0]?.after).not.toMatch(/3210|98765/);
+    // What the call was given keeps only whether a phone came, never its last digits (finding 5).
+    expect(rows[0]?.input).toContain('"phoneOnRecord": true');
+    expect(rows[0]?.input).not.toMatch(/3210|98765|"phone"/);
+  });
+
+  it('an edit keeps a shift since archived and a manager who has left (review finding 1)', async () => {
+    const oldShift = await run<ShiftDto>(hr, setShift, {
+      entityId: E,
+      name: `Six-day ${TAG}`,
+      startTime: '09:00',
+      endTime: '17:30',
+      lunchMinutes: 30,
+      graceMinutes: 10,
+      weeklyOffDays: [7],
+    });
+    const boss = await run<EmployeeDto>(hr, createEmployee, employeeInput({ name: `Boss ${TAG}` }));
+    const worker = await run<EmployeeDto>(
+      hr,
+      createEmployee,
+      employeeInput({ name: `Worker ${TAG}`, managerId: boss.id, shiftId: oldShift.id }),
+    );
+    await run(hr, setShift, { ...oldShift, archived: true });
+    await run(hr, deactivateEmployee, { id: boss.id, leftOn: '2031-01-31' });
+    const edited = await run<EmployeeDto>(hr, updateEmployee, {
+      id: worker.id,
+      userId: null,
+      name: `Worker ${TAG}`,
+      phone: '+919812300000',
+      managerId: boss.id,
+      shiftId: oldShift.id,
+      office: null,
+      joinedOn: '2030-01-01',
+    });
+    expect(edited).toMatchObject({ managerId: boss.id, shiftId: oldShift.id });
+    // A manager who has left is still refused as a new choice.
+    expect(
+      await failure(hr, updateEmployee, {
+        id: aEmployee.id,
+        userId: callerA.id,
+        name: 'HR Caller A',
+        phone: null,
+        managerId: boss.id,
+        shiftId: shift.id,
+        office: null,
+        joinedOn: '2030-01-01',
+      }),
+    ).toMatchObject({ code: 'validation_failed', reason: 'employee_manager_missing' });
+  });
+
+  it('nobody changes the sign-in on their own record: forbidden (review finding 4)', async () => {
+    const own = await run<EmployeeDto>(
+      hr,
+      createEmployee,
+      employeeInput({ userId: hr.id, name: `HR self ${TAG}` }),
+    );
+    expect(
+      await failure(hr, updateEmployee, {
+        id: own.id,
+        userId: null,
+        name: `HR self ${TAG}`,
+        phone: null,
+        managerId: null,
+        shiftId: null,
+        office: null,
+        joinedOn: '2030-01-01',
+      }),
+    ).toMatchObject({ code: 'forbidden', reason: 'employee_own_sign_in' });
+    // Another HR person may change it.
+    await expect(
+      run(exec, updateEmployee, {
+        id: own.id,
+        userId: null,
+        name: `HR self ${TAG}`,
+        phone: null,
+        managerId: null,
+        shiftId: null,
+        office: null,
+        joinedOn: '2030-01-01',
+      }),
+    ).resolves.toMatchObject({ userId: null });
   });
 
   it('is refused to a GM, a team lead and an agent: forbidden', async () => {

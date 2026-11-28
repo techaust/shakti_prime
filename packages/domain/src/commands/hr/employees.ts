@@ -7,7 +7,7 @@ import {
   UpdateEmployeeInput,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { type EmployeeRow, toEmployeeDto } from '../../hr/rows';
@@ -40,6 +40,24 @@ function audited(row: EmployeeRow) {
     active: row.active,
     leftOn: row.leftOn,
   };
+}
+
+/**
+ * Serialises the manager changes of one company for the rest of the transaction, so two people
+ * setting each other's manager at once cannot both pass the loop check (review finding 6).
+ */
+async function lockManagerChain(ctx: CommandContext, entityId: number): Promise<void> {
+  await ctx.tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`hr.employee.manager:${String(entityId)}`}, 0))`,
+  );
+}
+
+/**
+ * What the audit row keeps of an employee's input: whether a phone was given, never its digits
+ * (the brief's "no phone digits in values").
+ */
+function auditedInput<I extends { phone: string | null }>({ phone, ...rest }: I) {
+  return { ...rest, phoneOnRecord: phone !== null };
 }
 
 /** The employee, locked for a change, or `employee_missing`. */
@@ -139,6 +157,7 @@ export const createEmployee = defineCommand({
   input: CreateEmployeeInput,
   output: EmployeeDto,
   auditFields: EMPLOYEE_AUDIT_FIELDS,
+  auditInput: auditedInput,
   constraintReasons: { employees_user_entity_unique: 'employee_user_taken' },
   async handler(ctx, input) {
     if (!ctx.entityIds.includes(input.entityId)) {
@@ -149,7 +168,10 @@ export const createEmployee = defineCommand({
     const id = newId();
     if (input.userId !== null) await checkSignIn(ctx, input.userId, input.entityId);
     if (input.shiftId !== null) await checkShift(ctx, input.shiftId, input.entityId);
-    if (input.managerId !== null) await checkManager(ctx, input.managerId, input.entityId, id);
+    if (input.managerId !== null) {
+      await lockManagerChain(ctx, input.entityId);
+      await checkManager(ctx, input.managerId, input.entityId, id);
+    }
     const [row] = await ctx.tx
       .insert(schema.employees)
       .values({
@@ -186,6 +208,7 @@ export const updateEmployee = defineCommand({
   input: UpdateEmployeeInput,
   output: EmployeeDto,
   auditFields: EMPLOYEE_AUDIT_FIELDS,
+  auditInput: auditedInput,
   constraintReasons: { employees_user_entity_unique: 'employee_user_taken' },
   async handler(ctx, input) {
     const before = await lockEmployee(ctx, input.id);
@@ -194,13 +217,27 @@ export const updateEmployee = defineCommand({
         reason: 'employee_inactive',
       });
     }
+    // Unlinking one's own sign-in would make one's own leave look like that of staff with no
+    // sign-in, which one could then approve oneself (review finding 4).
+    if (input.userId !== before.userId && before.userId === ctx.principal.id) {
+      throw new DomainError(
+        'forbidden',
+        'a person does not change the sign-in of their own record',
+        {
+          reason: 'employee_own_sign_in',
+        },
+      );
+    }
     if (input.userId !== null && input.userId !== before.userId) {
       await checkSignIn(ctx, input.userId, before.entityId);
     }
     if (input.shiftId !== null && input.shiftId !== before.shiftId) {
       await checkShift(ctx, input.shiftId, before.entityId);
     }
-    if (input.managerId !== null) {
+    // A manager kept as it was is not checked again: one who has since left stays until HR
+    // chooses another (review finding 1).
+    if (input.managerId !== null && input.managerId !== before.managerId) {
+      await lockManagerChain(ctx, before.entityId);
       await checkManager(ctx, input.managerId, before.entityId, before.id);
     }
     const [row] = await ctx.tx
