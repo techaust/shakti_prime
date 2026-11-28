@@ -22,7 +22,12 @@ import { sql, type SQL } from 'drizzle-orm';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
-import { startStockCount, submitStockCount } from '../../src/commands/inventory/counts';
+import {
+  cancelStockCount,
+  recordStockCount,
+  startStockCount,
+  submitStockCount,
+} from '../../src/commands/inventory/counts';
 import { postStockCount } from '../../src/commands/inventory/counts-post';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import {
@@ -203,11 +208,6 @@ async function seed(createdBy: string): Promise<{ hub: string; bins: string[]; i
                now() - make_interval(hours => 398 + g), ${createdBy}, 'Earlier count'
           from generate_series(${past?.n ?? 0}::int, ${PAST_COUNTS - 1}::int) g`;
     }
-    // Cancel what an earlier run left live.
-    await m`
-      update stock_counts set state = 'cancelled', cancelled_at = now(), cancelled_by = ${createdBy},
-             cancel_reason = 'Plan run ended', updated_by = ${createdBy}
-       where warehouse_id = ${hub.id} and state in ('open', 'counting', 'review')`;
     for (const table of [
       'items',
       'bins',
@@ -235,6 +235,15 @@ async function main(): Promise<void> {
   const { hub, bins, items } = await seed(exec.id);
   const [first, second] = bins;
   if (first === undefined || second === undefined) throw new Error('no bins');
+  // Cancel what an earlier run left live.
+  const live = await asMigrator(
+    (m) => m<{ id: string }[]>`
+      select id from stock_counts
+       where warehouse_id = ${hub} and state in ('open', 'counting', 'review')`,
+  );
+  for (const { id } of live) {
+    await run(manager, cancelStockCount, { countId: id, cancelReason: 'Plan run ended' });
+  }
 
   let started = performance.now();
   const count = await run<{ id: string }>(manager, startStockCount, {
@@ -255,14 +264,21 @@ async function main(): Promise<void> {
       qty: '1',
     }));
   await asPrincipal(manager, ({ tx }) => stockMove(tx, transfer(first, second, 50)));
-  // Every line counted, every tenth one short by one, as the record definer would leave it.
+  // The first item in the first bin counted through the command (the count moves to counting),
+  // then every other line, every tenth one short by one, as the record definer would leave it.
+  await run(manager, recordStockCount, {
+    countId: count.id,
+    binId: first,
+    itemId: items[0],
+    qty: '50',
+  });
   await asMigrator(
     (m) => m`
       update stock_count_lines
          set counted_qty = expected_qty - case when row_n % 10 = 0 then 1 else 0 end,
              counted_by = ${manager.id}, counted_at = now()
         from (select id, row_number() over (order by id) as row_n
-                from stock_count_lines where count_id = ${count.id}) n
+                from stock_count_lines where count_id = ${count.id} and counted_at is null) n
        where n.id = stock_count_lines.id`,
   );
   // After the count: 50 more transfers back, left alone by the post.
