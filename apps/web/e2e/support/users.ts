@@ -112,6 +112,14 @@ export const SIGNED_IN_ROLES = [
     entityIds: [1],
     twoFactor: false,
   },
+  // HR1 people and leave: HR of every company, who sets holidays (hr.spec.ts).
+  {
+    key: 'hrAdmin',
+    name: 'Kavita Rawat',
+    roleKey: 'hr_admin',
+    entityIds: [1, 2, 3, 4],
+    twoFactor: false,
+  },
 ] as const;
 export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
 
@@ -442,6 +450,45 @@ export function emailFor(key: string): string {
 }
 
 /** What the seed hands the specs. */
+// HR1 people and leave
+/**
+ * HR1's journeys (hr.spec.ts), written by the seed (`e2e/setup/hr.ts`): the tele-caller on company
+ * 1's staff, reporting to the team lead, who asks for leave that the team lead approves; per
+ * project a leave type of company 1 with the tele-caller's balance topped up to `startingDays`, so
+ * each project's balance is its own; HR's holiday for RCREF, a company no leave journey asks in,
+ * on a day of each project's own; and the snapshot company's staff, which only the seed writes,
+ * for the directory's picture. Every name, day and figure is a test value for these journeys
+ * alone, never a leave rule.
+ */
+export const HR_JOURNEY = {
+  entityId: 1,
+  asker: { name: 'Neha Saini', office: 'Journey office', joinedOn: '2025-04-01' },
+  lead: { name: 'Rakesh Choudhary', office: 'Journey office', joinedOn: '2024-04-01' },
+  leaveTypes: {
+    'desktop-light': 'Journey leave, light',
+    'desktop-dark': 'Journey leave, dark',
+    phone: 'Journey leave, phone',
+  },
+  startingDays: 30,
+  grantReason: 'Days for the journeys',
+  /** Each project asks for leave in a decade of its own, from these days on. */
+  firstLeaveDays: {
+    'desktop-light': '2040-01-02',
+    'desktop-dark': '2050-01-03',
+    phone: '2060-01-05',
+  },
+  holiday: {
+    company: 'RCREF',
+    /** Month and day of next year, per project, so two projects never name the same day. */
+    days: { 'desktop-light': '03-02', 'desktop-dark': '03-03', phone: '03-04' },
+  },
+  snapshot: {
+    lead: { name: 'Snapshot Team Lead', office: 'Snapshot office', joinedOn: '2024-04-01' },
+    caller: { name: 'Snapshot Tracked Caller', office: 'Snapshot office', joinedOn: '2025-04-01' },
+    helper: { name: 'Snapshot Field Helper', office: 'Snapshot godown', joinedOn: '2025-06-02' },
+  },
+} as const;
+
 export interface SeededUsers {
   /** Authenticator secrets (base32) of the enrolled roles, keyed by role key. */
   totpSecrets: Record<string, string>;
@@ -471,6 +518,8 @@ export interface SeededUsers {
    * later files push them.
    */
   recordings: { snapshot: string; reader: string };
+  /** HR1: per project, the first day its leave journey may ask for (`e2e/setup/hr.ts`). */
+  hr: { leaveDays: Record<ProjectName, string> };
 }
 
 export const AUTH_DIR = join(import.meta.dirname, '..', '.auth');

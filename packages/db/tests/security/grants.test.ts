@@ -521,6 +521,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.entity_bank_envelope(smallint)',
       // HR1: whether an employee's manager is the caller, for the employees policy.
       'app.hr_manages(uuid)',
+      // HR1: a person's own manager's name, for their own page.
+      'app.hr_own_manager_name(uuid)',
       // The ingest lookups of a form, its sealed Page token and a website key, which the lead
       // handlers and the website route ask as queries (I1).
       'app.ingest_key_find(text)',

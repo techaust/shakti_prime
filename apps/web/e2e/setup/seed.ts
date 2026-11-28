@@ -57,6 +57,8 @@ import { ensureProcurementJourneys } from './procurement';
 import { ensureScreenPopJourneys } from './screen-pop';
 import { ensureShadowPackJourney } from './shadow-pack';
 import { ensureStockJourneys } from './stock';
+// HR1 people and leave
+import { ensureHrJourneys } from './hr';
 import { suggestFollowUp } from './stand-in-agent';
 import { ensureTriageJourney } from './triage';
 import { ensureUatJourneys } from './uat';
@@ -911,6 +913,16 @@ const orders = await ensureOrderJourneys(ids.executive ?? '');
 progress('the stock journeys');
 await ensureStockJourneys(ids.executive ?? '');
 
+// HR1 people and leave
+progress('the staff and leave journeys');
+const hr = await ensureHrJourneys({
+  executive: ids.executive ?? '',
+  teleCaller: ids.teleCaller ?? '',
+  teamLead: ids.teamLead ?? '',
+  snapshotLead: ids.snapshotLead ?? '',
+  snapshotTracker: ids.snapshotTracker ?? '',
+});
+
 progress('the Lead Converter workspace');
 // One converter of company 2 per project, none of them a handover target, each with three leads
 // of their own (converting.spec.ts).
@@ -1133,6 +1145,7 @@ const seeded: SeededUsers = {
   orders,
   uat,
   recordings,
+  hr,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();

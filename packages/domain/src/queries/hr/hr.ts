@@ -67,7 +67,9 @@ export async function listEmployees(
       office: e.office,
       joinedOn: e.joinedOn,
       active: e.active,
-      managerName: m.name,
+      // The caller's own row: their manager's record is not theirs to read (managerNameOf).
+      managerName: sql<string | null>`coalesce(${m.name}, case when ${e.userId} = app.user_id()
+        then app.hr_own_manager_name(${e.id}) end)`,
       shiftName: s.name,
       signsIn: sql<boolean>`${e.userId} is not null`,
     })
@@ -147,6 +149,28 @@ async function requestRows(
 }
 
 /**
+ * The name of a person's manager. HR, the GM and the manager read the manager's record; a person
+ * reads only their own, so for them the name comes from the one definer that answers it.
+ */
+async function managerNameOf(
+  tx: RequestTx,
+  row: { id: string; managerId: string | null },
+): Promise<string | null> {
+  if (row.managerId === null) return null;
+  const e = schema.employees;
+  const [readable] = await tx
+    .select({ name: e.name })
+    .from(e)
+    .where(eq(e.id, row.managerId))
+    .limit(1);
+  if (readable) return readable.name;
+  const rows = (await tx.execute(
+    sql`select app.hr_own_manager_name(${row.id}::uuid) as name`,
+  )) as unknown as { name: string | null }[];
+  return rows[0]?.name ?? null;
+}
+
+/**
  * A person's page: their record, manager and shift; their balance of each leave type offered to
  * their company, and of any other type they hold days of; their newest requests and movements.
  */
@@ -159,10 +183,7 @@ export async function getEmployee(ctx: QueryContext, rawInput: unknown): Promise
       reason: 'employee_missing',
     });
   }
-  const [manager] =
-    row.managerId === null
-      ? []
-      : await ctx.tx.select({ name: e.name }).from(e).where(eq(e.id, row.managerId)).limit(1);
+  const managerName = await managerNameOf(ctx.tx, row);
   const [shift] =
     row.shiftId === null
       ? []
@@ -200,7 +221,7 @@ export async function getEmployee(ctx: QueryContext, rawInput: unknown): Promise
     .limit(EMPLOYEE_SHEET_ROWS);
   return EmployeeSheetDto.parse({
     employee: toEmployeeDto(row),
-    managerName: manager?.name ?? null,
+    managerName,
     shift: shift === undefined ? null : toShiftDto(shift),
     balances,
     requests,
@@ -234,21 +255,23 @@ export async function getHrChoices(ctx: QueryContext, rawInput: unknown): Promis
     .from(e)
     .where(and(eq(e.entityId, input.entityId), eq(e.active, true)))
     .orderBy(sql`lower(${e.name})`, asc(e.id));
+  // Other people's users rows are an admin's to read: names come from `principals` and whether
+  // a person is active from `app.user_is_active()`, as the lead assignees' choice does.
   const uer = schema.userEntityRoles;
-  const u = schema.users;
+  const p = schema.principals;
   const people = await ctx.tx
-    .select({ id: u.id, name: u.name })
+    .selectDistinct({ id: p.id, name: p.displayName })
     .from(uer)
-    .innerJoin(u, eq(u.id, uer.userId))
+    .innerJoin(p, and(eq(p.id, uer.userId), eq(p.kind, 'user'), isNull(p.archivedAt)))
     .where(
       and(
         eq(uer.entityId, input.entityId),
-        inArray(u.status, ['invited', 'active']),
+        sql`app.user_is_active(${p.id})`,
         sql`not exists (select 1 from employees x
                          where x.user_id = ${uer.userId} and x.entity_id = ${input.entityId})`,
       ),
     )
-    .orderBy(asc(u.name), asc(u.id));
+    .orderBy(asc(p.displayName), asc(p.id));
   return HrChoicesDto.parse({ shifts, managers, people });
 }
 
