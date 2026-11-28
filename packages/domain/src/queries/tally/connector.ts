@@ -298,7 +298,7 @@ export async function listHeldTallyVouchers(
       from (${heldVouchers(input.snapshotId)}) held
      where ${after?.date ?? null}::date is null
         or (voucher_date, guid) < (${after?.date ?? null}::date, ${after?.guid ?? null}::text)
-     order by voucher_date desc, guid desc
+     order by held.voucher_date desc, held.guid desc
      limit ${input.limit + 1}`)) as unknown as {
     guid: string;
     type: string;

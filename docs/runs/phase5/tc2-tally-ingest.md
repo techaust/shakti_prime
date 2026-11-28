@@ -209,6 +209,85 @@ Shared registration points take one line or one block each, kept together under 
 
 **Skills loaded:** `add-table`, `add-command`.
 
+### 28-11-2026, fixes (slot worktree `tc2-tally-ingest` in the lead's cloud VM, Postgres 54334; moved from seat 3)
+The one fix round: M1, M2, M3, M5, L1 to L5, L7 and L8, as the lead's triage says. The schema changes are folded into this branch's own two migrations (not on `main`), so the lead's renumbering is unchanged. Skills loaded: `add-table`, `add-command` (for the earlier rounds; this round follows the same recipes).
+
+**M1, a row in conflict held for Accounts, the batch applied:**
+- `tally_refused_rows.reason` (new, `connector_refused`, `other_company`, `type_changed`, `not_debtor`; check `tally_refused_rows_reason_check`, paired in `enum-sync` with the contract's `TALLY_REVIEW_REASONS`). `field` is the contract's field, or `company`, `type` or `parent` for a held row.
+- `tally.batch.ingest` asks the new definer `app.tally_guids_elsewhere()` which of the batch's voucher and ledger GUIDs another company or Tally company holds, and holds those back (`other_company`), with a voucher that moved between a purchase and a sale (`type_changed`) and a ledger refused by L3 (`not_debtor`). They go to `tally_refused_rows` through `app.tally_refused_write()` with the connector's refused rows (one per GUID); the rest applies, the cursor moves on, and the answer lists them.
+- Contract: `TallyHeldRow` and `TALLY_HELD_REASONS` in `connector.ts`, and `held` on `ConnectorBatchResponse` (optional in the shape, always answered). `ConnectorAnswers.batch` reads `held` loosely (`reason` as text), so a later reason never stops an installed connector. **`connector.ts` is TC1's file: the lead merges these additions with TC1's.**
+- The audit row counts `held`; the Activity log labels it.
+
+**M2:** `UnmapTallyCompanyInput` gains `tallyCompany`; `app.tally_connector_unmap(connector, entity, company)` deletes that one mapping; the audit row's `before` names that Tally company only. The Unlink button sends it, and its label names it ("Unlink {tally} from {company}").
+
+**M3:** Tally checks: each held check has "See records", which lists the records it would mark removed, newest first, 50 a page with "Load more": number, date, party and type, never an amount (`listHeldTallyVouchers`, `HeldTallyVouchersQuery`, `HeldTallyVoucherDto`, `HeldTallyVoucherPageDto`). It reads under the viewer's own policies (no definer), so a purchase or debit note shows only to those who also read supplier rates, and the screen says how many more there are. A check no longer held answers `tally_snapshot_missing`.
+
+**M5:** DATABASE §4.1's definer register has the slice's definers (13 rows, each with what it checks, its search path and the roles that may run it). SECURITY §3.3's connector paragraph now says the route runs one lookup, `app.tally_connector_auth()`, as the unverified principal the header names before the signature is checked, and that the definer answers only that connector's own row; with the new order of checks (L5). The design's Built record says the same, and names M1, M3 and M2. The `CONNECTOR_TABLES` comment and the security test's header say "sealed keys".
+
+**L1:** each `on conflict (guid) do update` also requires the same company and Tally company. The other-company check of `app.tally_vouchers_write()` and `app.tally_ledgers_write()` now runs after the writes, in a new statement, so a row another company's batch committed at the same moment is seen and the call refused (`tally_vouchers_guid_unique`, `tally_ledgers_guid_unique`). The voucher definer also refuses a GUID that ends up in both tables (`tally_voucher_type_changed`). A ledger batch keeps rows the newest AlterID already holds, so a row count would not tell; the check after the writes covers both.
+
+**L2:** `app.tally_tombstone()`: a person marks only the GUIDs the held snapshot holds, whatever the call names; the connector only for the snapshot it compared in the same transaction. The new `tally_snapshots.compared_at` (set by `app.tally_snapshot_write()`, null only while receiving, check `tally_snapshots_compared_check`) must equal `now()`.
+
+**L3:** `isDebtorLedgerParent()` (`packages/domain/src/tally/ledger-groups.ts`, unit-tested). See the decision below.
+
+**L4:** Set up connector and Make a new key make the key in the action, so a retry under the same form key reaches the command with other input. The action turns that `idempotency_mismatch` into `tally_key_not_shown`: "This was done, but its key did not reach your screen. Make a new key for the connector in the list below." No key that was never stored is shown.
+
+**L5:** the routes, in order:
+1. The three headers well formed and the timestamp within five minutes, before the body is read or the database asked.
+2. The caps with the existing limiter (`countRequest` in the shared store): `TALLY_CAPS`, 240 a minute per connector id and 600 per address, then 429 with `Retry-After`; TC1 honours it.
+3. An id the database did not know, not looked up again for a minute.
+4. The body within its cap.
+5. The HMAC over the headers and the body's digest under the keys this instance read of the connector in the last minute (`apps/web/src/integrations/tally/connector-cache.ts`), so a call verifies before any transaction.
+
+The connector is read again (one lookup, `app.tally_connector_auth()`) when the instance has no reading of it, during a rotation (read again on every call, so a retired key stops at once), or after a refused signature once the reading is ten seconds old. The Admin actions forget a connector on their own instance. A definer refusal (42501) forgets it too and answers 403, and the next call reads it again (a revoked connector is then 401).
+
+**L7:** "This connector has been turned off. Set up a new connector instead."
+
+**L8:** journey "shows a new key once, and the connector, in every layout": every project sets up a connector of its own, checks axe with the key shown and with its card, pictures both (`tally-connector-key`, `tally-connector-card`, the number and key `data-dynamic`, the name and key hint masked) and turns it off. The lifecycle journey's Unlink label follows M2.
+
+**L6:** API §3.5 says the silence alert comes 30 to 90 minutes after the last heartbeat (the hourly check), as accepted. API §3.5 also gives the caps, the order of checks, the held rows and `held` in the answer.
+
+**Tests:**
+- `packages/db/tests/security/tally.test.ts`: 82 with its per-role cases (4 new):
+  - `app.tally_guids_elsewhere()` answers only the company's connector, and a person is refused;
+  - a voucher sent into both tables and a ledger of another company are refused after the writes, and the other company's row is untouched;
+  - a person confirming marks only the held GUIDs;
+  - the connector tombstones only for the snapshot it compared in the same transaction, and one compared an hour earlier is refused.
+- `packages/domain/tests/commands/tally.test.ts`: 20 (2 new):
+  - the next year's Tally company holds a voucher and a party ledger of the current year's (`other_company`) and a creditor's ledger (`not_debtor`), applies the rest, and its next batch applies;
+  - a voucher moved from a receipt to a purchase is held (`type_changed`) and its stored version marked not current, with every reason and field in the review rows.
+  - Changed: the held snapshot's records paged 20 and 12 for Accounts (32, with the purchase; only number, date, party and type), 31 for a GM, then `tally_snapshot_missing` once confirmed; unmap removes one Tally company (the next year's stays, the audit row names one), a second unmap answers `tally_company_not_mapped`.
+- `apps/web/tests/tally-connector.test.ts`: 19 (3 new):
+  - a warm instance verifies, and refuses a wrong key, with no cipher, so before any lookup;
+  - a stale or unsigned call is refused with its body unread;
+  - each cap answers 429 with `Retry-After`.
+  - Changed: the batch's answer has `held: []`; the revoked connector is 403 on a warm instance, then 401.
+- `packages/domain/src/tally/ledger-groups.test.ts` 3 (unit). Updated: `agent-refusals` (unmap's input), `reader-parity` (`listHeldTallyVouchers`), `enum-sync` (2 pairs), the role × company fixture (the two new columns).
+
+**Checks** (each through `tools/integration/heavy.sh`, on this worktree's database, migrated and seeded fresh first):
+- typecheck of contracts, db, domain and web: 5 tasks successful;
+- folder lint of every folder touched: clean after one fix (3 `no-unsafe-assignment` in the domain test);
+- `pnpm copy-lint`: clean;
+- unit tests: domain `src/tally` and `src/command` 13 files, 184 passed; contracts 25 files, 340 passed; web `src/i18n`, `src/screens` and `nav` 34 files, 286 passed;
+- security suites: db 63 files, 1,916 passed; domain 111 files, 1,542 passed (the first run had 21 failures, from unmap's missing input in the refusal sweep, the audit column's name and a GUID shared with the parts test, all in the tests); web: FIXME;
+- `pnpm lint` (the whole repository): clean;
+- FIXME build, js-budget, journeys;
+- `pnpm db:docs`: regenerated (the two columns).
+
+**`EXPLAIN (ANALYZE)` under RLS** (as `app_user` with an Accounts' settings, 20,000 sales and 2,000 purchases stored, a held check of 5,500, removed afterwards): `listHeldTallyVouchers`'s page uses an Index Scan on `tally_vouchers_guid_unique` (`guid = ANY (held_guids)`), 5,000 rows, and one on `tally_purchase_vouchers_guid_unique`, 500 rows, then a top-N heapsort for the 51 rows; 19.5 ms. The count reads the same two index scans. The held check's records are sorted in memory, since only its GUIDs select them; a check holds at most the company's live vouchers.
+
+**Decisions the brief and the triage did not settle:**
+- **L3, which ledgers are "under Sundry Debtors":** TC1 reads ledgers with Tally's `IsBelongsTo: Sundry Debtors`, which takes a group a company made under Sundry Debtors too, and sends only the immediate group as `parent`. Refusing every `parent` but "Sundry Debtors" would hold back every dealer under a company's own group (dealers by area). So the BOS refuses a ledger whose group is one of the 27 other groups Tally starts every company with (Sundry Creditors, Purchase Accounts, Bank Accounts and the rest), and keeps Sundry Debtors and a company's own groups. A connector sending a creditor under the company's own group would still pass; the full check needs TC1 to send the primary group (a follow-up for TC1 or TC4). A ledger stored before and later sent under another group keeps its stored row; it is not deleted.
+- **L5, the cache:** keyed by connector id for a minute in each instance. A key retired within a minute of the rotation on an instance that read the connector before the rotation may verify there for the rest of that minute; with the rotation under way read on every call, this is the only window. A revoked or unlinked connector within the minute is refused by the definers (403), and that instance then reads it again.
+- **M1:** a held voucher of another company does not mark anything not current in that other company; a held `type_changed` voucher marks this company's stored version not current, as a refused row does.
+- **L4:** the reason is turned in the action rather than leaving the key out of the runner's hash, which would have needed a change to the shared runner.
+- **M3:** no confirm dialog or "Not right" action, and no journey with a held check: the triage named the list alone.
+
+**For the lead:**
+- `connector.ts`'s additions (`TALLY_HELD_REASONS`, `TallyHeldRow`, `held` on the batch answer and in `ConnectorAnswers.batch`) merge with TC1's file.
+- New screenshots for the Linux baselines: `tally-connector-key` and `tally-connector-card` in every project, beside `tally-checks-empty`.
+- `copy-lint.config.json` gains the button key `seeRecords`.
+
 ## Review
 
 ### 27-11-2026, review of `add5048e` (slice reviewer, Opus 5.5 at high, worktree `tc2-tally-ingest`, Postgres 54331)

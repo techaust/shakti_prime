@@ -13,6 +13,8 @@ import {
   rotateTallyConnectorKey,
 } from '@shakti/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { clientMeta } from '../src/auth/client-address';
+import { addressKey } from '../src/auth/request-cap';
 import { forgetTallyConnector } from '../src/integrations/tally/connector-cache';
 import {
   TALLY_CAPS,
@@ -385,9 +387,10 @@ describe('the release route and a runtime with no cipher', () => {
   });
 
   it('caps the calls per connector and per address, answering when to try again', async () => {
+    const address = addressKey(clientMeta(signed('GET', cursorPath()).headers).ip ?? undefined);
     for (const [key, rule] of [
       [`tally:connector:${connectorId}`, TALLY_CAPS.perConnector],
-      [`tally:address:no-address`, TALLY_CAPS.perAddress],
+      [`tally:address:${address}`, TALLY_CAPS.perAddress],
     ] as const) {
       const store = memoryKeyValue();
       for (let i = 0; i < rule.max; i += 1) await store.incr(`cap:${key}`, rule.window);
