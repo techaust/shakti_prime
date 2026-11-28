@@ -150,4 +150,71 @@ Opus 5.5 at high. Skills loaded: none this round (the screens follow the existin
 
 ## Review
 
+### 28-11-2026, slice reviewer (Opus 5.5 at high; worktree `j3-documents`, Postgres 54331): reviewed `8f1ab2f4`
+Verdict: **two high findings block the merge** (H1 in the slice, H2 at the merge with `main`); M1 makes CI fail and is one command.
+
+| # | Severity | Where | What is wrong | Failure scenario | Fix | Status |
+|---|---|---|---|---|---|---|
+| H1 | high | `packages/domain/src/commands/documents/documents.ts:133` (`sensitive = isSensitiveKind(input.kind)`), `:161-179`; `packages/db/migrations/0241_j3_documents_rls.sql:78-85` (`files_customer_document_read`); `apps/web/src/components/documents/documents-dialogs.tsx:85-89`; `customer-documents.tsx:241-250` | Whether a paper is sensitive depends only on the kind the person picks. The masking step's own evidence (`scan_result.lastFour.aadhaar` / `.bankAccount`, kept on the file by `mark_ready`) is ignored unless the kind is `identity_proof` or `bank_proof`. The upload dialog never offers those kinds to someone without `documents.sensitive.read`, so they can only file such a paper under another kind. The file then stays readable through any document that names it, including an unfiled, non-sensitive one. | A Field Engineer photographs the customer's Aadhaar card at the survey. "Identity proof" is not in their list, so they choose "Site photos". The masker finds the number, masks it and keeps `0124`. The filing writes `sensitive = false` and no `identity_documents` row. The GM (`documents.read:entity`, no sensitive grant) and the tele-caller and store manager who own the customer then see the card under Open: name, photo, date of birth, address and last four digits. Nothing is audited. Unfiling does not help: the unfiled non-sensitive row still names the file, Open is still shown for unfiled rows, and the row still passes `files_customer_document_read`. If the same file is filed again as `identity_proof` (the `fileDocument` action takes any file id), the old row keeps it open to everyone. SECURITY §5's sentence "identity and bank papers are always `sensitive`" is therefore not true of the papers, only of the two kinds. | (1) In `fileDocument`, a file whose `scan_result.lastFour` holds any Aadhaar or bank account digits is filed only as `identity_proof` or `bank_proof`. Anything else is refused with a new reason, for example `document_identity_kind`, with a sentence telling the person to ask someone who may file identity papers. The alternative is to force `sensitive = true` and require the grant. Do the same when any earlier document of the file was sensitive. (2) In `files_customer_document_read`, read a file only through a filed document (`d.unfiled_at is null`), or treat the file as sensitive when any document naming it is (a small definer). (3) Tests: a masked Aadhaar photo filed as `site_photo` is refused for the Field Engineer and the Project Manager, and after unfile and refile the GM reads neither the old row's file nor the new one. (4) Change the SECURITY §5 sentence to match. | confirmed (code path read end to end: masker, then `mark_ready`, then `fileDocument`, then the policies, then the section's Open button) |
+| H2 | high (at the merge) | `packages/db/migrations/0241_j3_documents_rls.sql:28-57` | The migration redefines `app.file_purpose_grant()` "from its latest definition (0235)". `main` has since redefined it in `0242_q1_labels_rls.sql` (Q1), adding `label_sheet` to both write (`files.process:entity`) and read (`inventory.stock.move`). When this migration is renumbered after `main`'s last, it drops `label_sheet`. Git shows no conflict here, because the two files differ. | Once merged, a stock handler cannot open a label sheet and the render worker cannot store one (the general `files_read`/`files_insert` see a null grant), and Q1's purpose test fails. | At the merge, write the function as `main`'s 0242 plus the `customer_document` writer, and take `purposes.ts` from both sides (slice-integration §10). | confirmed (`git show origin/main:packages/db/migrations/0242_q1_labels_rls.sql`) |
+| M1 | medium (CI fails) | `docs/data/data-dictionary.md` | The data docs are stale. The committed `files` catalogue entry lacks the `account_id` sentence that `docs/05-database.md` gained in `66bcad00`, after `db:docs` last ran. | `pnpm --filter @shakti/db test` fails in `src/docs/data-docs.test.ts` ("run pnpm db:docs when not"), and so does CI's unit job. I reproduced it here: 1 failed, 160 passed. | `pnpm db:docs` and commit (also after H2's merge). | confirmed (run) |
+| L1 | low | `packages/domain/src/commands/files/begin-upload.ts:16` (`customerDocumentName`) | An uploaded file's name keeps only the last four digits of Aadhaar- and phone-shaped numbers. A bank account number stays whole, although the upload dialog says "any identity or bank account number is hidden". | `SBI acct 12345678901234.pdf` is kept and shown as written (probed). | Mask any run of 9 to 18 digits in a customer document's name to its last four, or narrow the copy. | confirmed (probe) |
+| L2 | low | `packages/db/seeds/index.ts:166-178`, `seeds/document-requirements.ts:11` | Each seed row's id comes from its index in `WORKSHOP_DOCUMENT_REQUIREMENTS`. `onConflictDoNothing` names only the unique key, so a clash on the primary key is not absorbed. | When PROJ-1's answer inserts a requirement mid-list, an already-seeded company's row at that index has another key. `pnpm db:seed` then stops with a primary key violation on every environment. | `onConflictDoNothing()` with no target, or an id derived from the four keys. | plausible (read; no current list change triggers it) |
+| L3 | low | `documents.ts:328-366` (`setDocumentRequirement`) | `for('update')` on a row that does not exist locks nothing, and `document_requirements_step_key_unique` is not in `constraintReasons`. | Two Executives add the same requirement at once. The second gets a generic failure rather than a sentence. | `constraintReasons: { document_requirements_step_key_unique: '<a reason with a sentence>' }`. | confirmed (read) |
+| L4 | low | `0241_j3_documents_rls.sql:229-236` (`app.documents_missing`) | The definer checks the company and a permission at any scope, but not that the caller may read the customer. | A tele-caller (`documents.read:own`) asks about any customer of the company and learns which mandatory papers, an identity proof included, that customer has filed. | When `documents.read` is held only at `own`, also require the customer's owner (or, once J1 is in, the project's assignee). Or accept this and write it in DATABASE's definer row. | confirmed (read) |
+| L5 | low | `apps/web/src/workers/files/sweep-uploads.ts` (unchanged); `documents-dialogs.tsx:164-170` | A customer document that passed its checks but was never filed has no owner. This happens when the dialog closes while the check runs, or when the filing is refused (a kind not accepted, a sensitive kind). Only its uploader can read it, no screen lists it, the sweep takes only `pending` uploads, and no retention applies (DATABASE §7 has none yet). | Masked copies of identity papers stay in the store with no way to file or delete them. | List a person's unfiled uploads in the section (File it / discard), or sweep unfiled customer documents after a set time. Decide this with the retention period. | confirmed (read) |
+| L6 | low | `apps/web/next.config.ts` | `tesseract.js` is now external. Its worker script and `tesseract.js-core`'s WebAssembly may not be traced into a Vercel function (the builder says so too). | When hosted OCR is turned on, the masking step may throw `MODULE_NOT_FOUND` outside the timed path. An upload then waits in its checks with the original bytes still under the upload key until it is delivered again. It fails closed today, because a hosted runtime has no masker and refuses at once. | Before hosted OCR goes on, check the traced files of the file-check route (`outputFileTracingIncludes`) and add a smoke test on a preview. | plausible |
+
+**Checked and sound:**
+- **Data isolation:**
+  - The three tables are in `ENTITY_TABLES`, with fixture rows per company (a bill and an identity paper, each from its own file, an identity row, a requirement) and matrix rules (`all` for sensitive rows).
+  - Row security is forced, every policy fails closed on a null context, and `app_reader` is named on every select policy.
+  - `identity_documents` is scoped through its document and only while it is filed, with no update or delete grant.
+  - A customer is reached through `account_entities`. The restrictive `files_customer_document_insert` holds an upload to a customer of the company within the uploader's scope.
+  - `files.account_id` has no update grant, and `files_account_check` lets only this purpose name a customer.
+  - The general `files_read` returns nothing for this purpose (a null grant).
+  - `readonly_reporter` reads none of it: no policy, and `nobypassrls`.
+- **Definers:** `app.file_is_filed()` and `app.documents_missing()` check a permission in their bodies, set `search_path = ''`, and revoke execute from `public` and `readonly_reporter`. Both are granted to `app_reader` and listed in DATABASE and in `grants.test.ts`.
+- **Commands:**
+  - Denied, wrong-company, agent and happy-path tests exist for the four commands.
+  - All four are `peopleOnly`, and so is `files.upload.begin` (with `voiceSession`).
+  - All five inputs are in the people-only sweep.
+  - `auditFields` carry labels.
+  - Opening a sensitive document is audited. The audit carries ids, kinds and counts only.
+  - `file_customer_mismatch` is checked against `files.account_id` before anything is written, and the test shows no row is written.
+  - A file that is unclean, not ready, unscanned on a hosted runtime or unmasked is refused.
+  - The partial unique index settles a double filing (`constraintReasons`).
+  - The runner's `maskInputIdentity` also covers an Aadhaar number typed into an unfile reason or a file name.
+  - Cost permissions are untouched, and there is no money in this slice.
+- **Identity digits:**
+  - The store key is `<company>/customer_document/<id>`, with no name in it.
+  - The name keeps only the last four digits of Aadhaar- and phone-shaped numbers (probed; see L1 for bank numbers).
+  - `scan_result` keeps only four-digit strings, filtered twice (`fours()`, the contract regex, and the command's regex).
+  - `last4` has a check constraint, and no column can hold more.
+  - The original bytes are deleted after the checks. The paged PDF keeps only masked page pictures. With no masker, the upload is refused at once.
+  - The worker's log lines carry ids and reasons only.
+  - The item 8 test reads rows, audit, outbox, the memory logger, the console, mocked Sentry and the store keys. It OCRs the kept copy and was shown to fail when masking is off (builder's evidence).
+- **Web layer:**
+  - Reads go through `executeQuery()` with a name, and writes through `executeCommand()`.
+  - Settings › Document requirements uses `screenAccess(navRequires(...))`.
+  - Browser code imports only types from `@shakti/contracts`, with the value lists in `screens/document-values.ts`.
+  - `openFile` refuses this purpose, so a sensitive opening always goes through the audited command.
+  - Nothing reads a secret or connects at import time.
+- **Copy:** in `en.json`, plain and final.
+
+**Runs (each through `heavy.sh`, on 54331 after `db:migrate` and `db:seed`):**
+- db security: 1,834 passed (63 files);
+- domain security: 1,534 passed (111 files);
+- web security: 464 passed, 2 skipped (40 files);
+- contracts unit: 340 passed;
+- db unit: 1 failed (M1), 160 passed.
+
+**Not checked:**
+- The two masking cases of SECURITY §11 item 8 (`customer-documents.test.ts`) were skipped here. This VM has no OCR model (`OCR_LANG_PATH` is empty), and fetching one is outside a reviewer's remit, so I rely on the builder's run with CI's pinned model.
+- No journey was run, because this session cannot sign in. That covers all of `apps/web/e2e/documents.spec.ts`: the Project Manager's view and opening, the Project Manager's upload of a bill and an identity paper, the Field Engineer's view, and the Executive's requirements.
+- The upload case skips in CI's journeys job, because it has no OCR model.
+- No Linux screenshot baselines are on the branch (`customer-documents`, `document-requirements`; the host-made ones were removed), so I could not do the layout check. The lead makes and looks at them at integration.
+- I did not rerun web unit tests, typecheck, lint, the build or the JavaScript budget; the builder's results stand.
+- The EXPLAIN figures are the builder's (the same queries).
+
 ## Integration
