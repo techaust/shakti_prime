@@ -3736,7 +3736,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### notifications
 
-**Catalogue entry** (05-database.md §6.10; created in 0118, 0228, 0252): `user_id`, `entity_id`, `type` (`lead_assigned`, `duplicate_found`, `call_due`, `quote_expiring`, `first_call_late`, `enquiry_routed`, `order_credit_held`, `whatsapp_reply_waiting`, `quote_accepted`, `whatsapp_quote_expired`, `whatsapp_quote_not_sent`, `missed_call`: a missed call on a lead of the person's, once per call, T4; `enquiry_attached`: an enquiry joined a lead of the person's in nurture that they did not add, once per enquiry; `loan_rejected`: a lender turned down a loan of the person's customer, once per loan, J2; `project_order_cancelled`: the order of a project the person runs was cancelled after a step was done, once per project, J1; 0184, 0202, 0204, 0195), `subject_type` (`opportunity`, `duplicate_candidate`, `task`, `quote`, `inbox_item`, `sales_order`, `whatsapp_thread`, `project`), `subject_id`, `payload_json` (the ids the notice's link is made from: `accountId`, `opportunityId`, `quoteId`; never a name, a number or free text), `dedupe_key` (the reason it was told, unique per person, so a repeated delivery or scan makes one notice), `created_at`, `read_at`, `channel_sent_json` (`inApp`, and `push`: `sent`, `held`, `off`, `none`, `failed` or `pending`); a person's own, in the request's companies; written only by the notify worker (§4.4)
+**Catalogue entry** (05-database.md §6.10; created in 0118, 0228, 0258): `user_id`, `entity_id`, `type` (`lead_assigned`, `duplicate_found`, `call_due`, `quote_expiring`, `first_call_late`, `enquiry_routed`, `order_credit_held`, `whatsapp_reply_waiting`, `quote_accepted`, `whatsapp_quote_expired`, `whatsapp_quote_not_sent`, `missed_call`: a missed call on a lead of the person's, once per call, T4; `enquiry_attached`: an enquiry joined a lead of the person's in nurture that they did not add, once per enquiry; `loan_rejected`: a lender turned down a loan of the person's customer, once per loan, J2; `project_order_cancelled`: the order of a project the person runs was cancelled after a step was done, once per project, J1; 0184, 0202, 0204, 0195), `subject_type` (`opportunity`, `duplicate_candidate`, `task`, `quote`, `inbox_item`, `sales_order`, `whatsapp_thread`, `project`), `subject_id`, `payload_json` (the ids the notice's link is made from: `accountId`, `opportunityId`, `quoteId`; never a name, a number or free text), `dedupe_key` (the reason it was told, unique per person, so a repeated delivery or scan makes one notice), `created_at`, `read_at`, `channel_sent_json` (`inApp`, and `push`: `sent`, `held`, `off`, `none`, `failed` or `pending`); a person's own, in the request's companies; written only by the notify worker (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5857,7 +5857,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### project_assignments
 
-**Catalogue entry** (05-database.md §6.6; created in 0247): `entity_id`, `project_id` (composite foreign key, removed with the project), `person_id`, one row per person and project; read with the project, written with `projects.write:entity`; the `own` predicate's index `(person_id, project_id)`
+**Catalogue entry** (05-database.md §6.6; created in 0253): `entity_id`, `project_id` (composite foreign key, removed with the project), `person_id`, one row per person and project; read with the project, written with `projects.write:entity`; the `own` predicate's index `(person_id, project_id)`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5895,7 +5895,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### project_flow_templates
 
-**Catalogue entry** (05-database.md §6.6; created in 0247; append-only): `entity_id`, `segment` (the three install segments), `version` (one per company and segment, from 1), `steps_json` (1 to 30 steps `{ key, title, requires }`, `ProjectStepsSchema`), `published_at`, `published_by`; read by any holder of `projects.read` in the company, published by the Executive (`projects.write:all`); the newest version is the one a new project copies
+**Catalogue entry** (05-database.md §6.6; created in 0253; append-only): `entity_id`, `segment` (the three install segments), `version` (one per company and segment, from 1), `steps_json` (1 to 30 steps `{ key, title, requires }`, `ProjectStepsSchema`), `published_at`, `published_by`; read by any holder of `projects.read` in the company, published by the Executive (`projects.write:all`); the newest version is the one a new project copies
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5938,7 +5938,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### project_milestones
 
-**Catalogue entry** (05-database.md §6.6; created in 0247): `entity_id`, `project_id` (composite foreign key), `position`, `key`, `title null` (null for a default step, named from the catalogue), `state` (`open`, `done`, `skipped`), `skip_reason`, `requires` (document requirement keys), `done_at`, `done_by`; copied by `app.create_project()`, read with the project, a step marked done by whoever writes the project
+**Catalogue entry** (05-database.md §6.6; created in 0253): `entity_id`, `project_id` (composite foreign key), `position`, `key`, `title null` (null for a default step, named from the catalogue), `state` (`open`, `done`, `skipped`), `skip_reason`, `requires` (document requirement keys), `done_at`, `done_by`; copied by `app.create_project()`, read with the project, a step marked done by whoever writes the project
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -5990,7 +5990,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### projects
 
-**Catalogue entry** (05-database.md §6.6; created in 0247): `entity_id`, `project_no` (series `project`, `PRJ`), `fy`, `sales_order_id` (a composite foreign key to the order's `(id, entity_id)`; one project not cancelled per order), `account_id`, `site_id null`, `segment` (`farmer_pumps`, `residential_rooftop`, `commercial_epc`), `scheme` (`none`, `pm_surya_ghar`, `pm_kusum`), `flow` (`standard`, or `surya_ghar` exactly for PM Surya Ghar), `template_version_id null` (the checklist copied; null for the default steps or none), `state` (the `project_standard` machine), `state_changed_at`, `owner_id null` (the Project Manager), `sanctioned_load_kw null`, `hold_reason` (exactly when on hold), `cancel_reason` (exactly when cancelled), `handed_over_at`; read with `projects.read` for the company or at `own` scope through `app.project_is_mine()`; made only by `app.create_project()`; updated in its state, reasons and owner only (column grants)
+**Catalogue entry** (05-database.md §6.6; created in 0253): `entity_id`, `project_no` (series `project`, `PRJ`), `fy`, `sales_order_id` (a composite foreign key to the order's `(id, entity_id)`; one project not cancelled per order), `account_id`, `site_id null`, `segment` (`farmer_pumps`, `residential_rooftop`, `commercial_epc`), `scheme` (`none`, `pm_surya_ghar`, `pm_kusum`), `flow` (`standard`, or `surya_ghar` exactly for PM Surya Ghar), `template_version_id null` (the checklist copied; null for the default steps or none), `state` (the `project_standard` machine), `state_changed_at`, `owner_id null` (the Project Manager), `sanctioned_load_kw null`, `hold_reason` (exactly when on hold), `cancel_reason` (exactly when cancelled), `handed_over_at`; read with `projects.read` for the company or at `own` scope through `app.project_is_mine()`; made only by `app.create_project()`; updated in its state, reasons and owner only (column grants)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
