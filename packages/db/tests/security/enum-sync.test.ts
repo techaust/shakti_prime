@@ -112,6 +112,8 @@ import {
   SERIAL_STATES_OUT,
   STOCK_REASONS,
   WAREHOUSE_KINDS,
+  // F1 field app foundation
+  MOBILE_DEVICE_REVOKE_REASONS,
   // J2 customer loans
   ACTIVE_LOAN_STATES,
   CUSTOMER_LOAN_STATES,
@@ -319,6 +321,10 @@ const PAIRS: Record<string, readonly string[]> = {
   project_milestones_state_check: MilestoneStateSchema.options,
   project_milestones_done_check: ['done'],
   project_milestones_skip_check: ['skipped'],
+  // F1: the field app's phones run Android only (`MobileDevice.platform`), and are signed out by
+  // the app, from the web or for a refresh token presented twice.
+  mobile_devices_platform_check: ['android'],
+  mobile_devices_revoked_reason_check: MOBILE_DEVICE_REVOKE_REASONS,
   // J2: a loan's states; which states carry a sanction, a disbursal, a rejection; what the dispatch
   // waits for (the key it is read by, then its values).
   customer_loans_state_check: CUSTOMER_LOAN_STATES,

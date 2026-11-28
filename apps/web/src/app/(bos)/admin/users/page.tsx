@@ -1,4 +1,4 @@
-import { STAFF_ROLE_KEYS } from '@shakti/contracts';
+import { hasGrant, STAFF_ROLE_KEYS } from '@shakti/contracts';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { listUsers } from '../../../../actions/admin';
@@ -43,6 +43,7 @@ export default async function TeamMembersPage({
           companyNames={companyNames(access)}
           roleKeys={[...STAFF_ROLE_KEYS]}
           startInviting={invite === '1'}
+          canRevokePhones={hasGrant(principal.permissions, 'field.device.revoke', 'entity')}
         />
       ) : (
         <FailureMessage failure={firstFailure(page)} />

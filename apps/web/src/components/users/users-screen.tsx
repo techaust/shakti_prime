@@ -33,6 +33,7 @@ import { sortInput, toListSort } from '../screens/list-sort';
 import { useQuery } from '../screens/use-command';
 import { useGridView } from '../screens/use-grid-view';
 import { ViewsMenu } from '../screens/views-menu';
+import { PhonesSheet } from './phones-sheet';
 import { SessionsSheet } from './sessions-sheet';
 import {
   InviteForm,
@@ -61,7 +62,15 @@ const INVITE = 'invite';
 type Open =
   | { kind: 'invite' }
   | {
-      kind: 'roles' | 'suspend' | 'reactivate' | 'reset' | 'liftLock' | 'sessions' | 'moveLeads';
+      kind:
+        | 'roles'
+        | 'suspend'
+        | 'reactivate'
+        | 'reset'
+        | 'liftLock'
+        | 'sessions'
+        | 'phones'
+        | 'moveLeads';
       user: UserDto;
     };
 
@@ -76,6 +85,7 @@ export function UsersScreen({
   companyNames,
   roleKeys,
   startInviting = false,
+  canRevokePhones = false,
 }: {
   initial: UserPageDto;
   selfId: string;
@@ -84,6 +94,8 @@ export function UsersScreen({
   roleKeys: string[];
   /** Opens the invite dialog on arrival, for the palette's "Invite a person". */
   startInviting?: boolean;
+  /** The viewer may sign a person's phones out of the field app (`field.device.revoke`). */
+  canRevokePhones?: boolean;
 }) {
   const t = useTranslations('users');
   const common = useTranslations('common');
@@ -202,11 +214,20 @@ export function UsersScreen({
       id: 'actions',
       header: <span className="sr-only">{t('columns.actions')}</span>,
       align: 'end',
-      cell: (u) => <RowMenu user={u} selfId={selfId} focusTargets={places} onOpen={setOpen} />,
+      cell: (u) => (
+        <RowMenu
+          user={u}
+          selfId={selfId}
+          canRevokePhones={canRevokePhones}
+          focusTargets={places}
+          onOpen={setOpen}
+        />
+      ),
     },
   ];
 
-  const dialog = open === undefined || open.kind === 'sessions' ? undefined : open;
+  const dialog =
+    open === undefined || open.kind === 'sessions' || open.kind === 'phones' ? undefined : open;
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex justify-end">
@@ -353,6 +374,19 @@ export function UsersScreen({
           </SheetContent>
         ) : null}
       </Sheet>
+
+      <Sheet
+        open={open?.kind === 'phones'}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) close();
+        }}
+      >
+        {open?.kind === 'phones' ? (
+          <SheetContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
+            <PhonesSheet user={open.user} />
+          </SheetContent>
+        ) : null}
+      </Sheet>
     </div>
   );
 }
@@ -361,11 +395,13 @@ export function UsersScreen({
 function RowMenu({
   user,
   selfId,
+  canRevokePhones,
   focusTargets,
   onOpen,
 }: {
   user: UserDto;
   selfId: string;
+  canRevokePhones: boolean;
   /** Files the Actions button, so focus comes back to it when the dialog closes. */
   focusTargets: FocusTargets<string>;
   onOpen: (open: Open) => void;
@@ -397,6 +433,7 @@ function RowMenu({
       <DropdownMenuContent align="end">
         {can.changeRoles ? item('roles', t('changeRoles')) : null}
         {item('sessions', t('sessions'))}
+        {canRevokePhones ? item('phones', t('phones')) : null}
         {can.liftLock ? item('liftLock', t('liftLock')) : null}
         {can.moveLeads ? item('moveLeads', t('moveLeads')) : null}
         {can.resetAuthenticator || can.suspend || can.reactivate ? <DropdownMenuSeparator /> : null}

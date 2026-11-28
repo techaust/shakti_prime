@@ -81,6 +81,9 @@ export * from './commands/catalogue/items';
 export * from './commands/tax/set-tax';
 export * from './commands/admin/users';
 export * from './commands/admin/roles';
+// F1 field app foundation.
+export * from './commands/admin/feature-flags';
+export * from './commands/field/devices';
 export * from './commands/profile/set-theme';
 export * from './commands/profile/set-contrast';
 export * from './commands/profile/saved-views';

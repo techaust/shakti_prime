@@ -39,6 +39,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'projects.gate.approve': 'Approve subsidy and project gates',
   'projects.qc.signoff': 'Sign off quality checks',
   'projects.schedule.write': 'Schedule engineer visits',
+  // F1 (phase4 §4).
+  'field.device.revoke': "Sign a person's phone out of the field app",
   'documents.read': 'See documents',
   'documents.write': 'Add documents',
   'documents.sensitive.read': 'See identity documents',

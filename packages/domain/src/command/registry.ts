@@ -14,6 +14,9 @@ import { requestCopilotBrief } from '../commands/agents/brief-request';
 import { attachCallTranscript, reserveCallTranscript } from '../commands/calls/call-transcript';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
+// F1 field app foundation.
+import { setFeatureFlag } from '../commands/admin/set-feature-flag';
+import { revokeMobileDevice } from '../commands/field/revoke-device';
 import { setRolePermissions } from '../commands/admin/set-role-permissions';
 import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
@@ -458,6 +461,9 @@ export const commands = Object.freeze({
   [assignProject.name]: assignProject,
   [publishProjectTemplate.name]: publishProjectTemplate,
   [cancelForOrder.name]: cancelForOrder,
+  // F1 field app foundation.
+  [setFeatureFlag.name]: setFeatureFlag,
+  [revokeMobileDevice.name]: revokeMobileDevice,
   // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
   [createCustomerLoan.name]: createCustomerLoan,
   [sanctionCustomerLoan.name]: sanctionCustomerLoan,

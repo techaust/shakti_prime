@@ -1,6 +1,6 @@
 {
-  "id": "7065e70e-a9a4-4af7-ae44-a67ff64acea0",
-  "prevId": "10616119-fc91-4981-a898-fba5fe32f35e",
+  "id": "9e682bb3-9e00-4484-b518-fc7c2b5e748e",
+  "prevId": "9453cb31-3f5b-4a0a-a1de-53a4a5e2b77b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7035,6 +7035,139 @@
       },
       "isRLSEnabled": false
     },
+    "public.feature_flags": {
+      "name": "feature_flags",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "feature_flags_entity_idx": {
+          "name": "feature_flags_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "feature_flags_entity_id_entities_id_fk": {
+          "name": "feature_flags_entity_id_entities_id_fk",
+          "tableFrom": "feature_flags",
+          "tableTo": "entities",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "feature_flags_created_by_principals_id_fk": {
+          "name": "feature_flags_created_by_principals_id_fk",
+          "tableFrom": "feature_flags",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "feature_flags_updated_by_principals_id_fk": {
+          "name": "feature_flags_updated_by_principals_id_fk",
+          "tableFrom": "feature_flags",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "feature_flags_key_entity_unique": {
+          "name": "feature_flags_key_entity_unique",
+          "nullsNotDistinct": true,
+          "columns": [
+            "key",
+            "entity_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "feature_flags_key_check": {
+          "name": "feature_flags_key_check",
+          "value": "\"feature_flags\".\"key\" ~ '^[a-z][a-z0-9_.]{1,63}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.files": {
       "name": "files",
       "schema": "",
@@ -10850,6 +10983,258 @@
         "lenders_name_check": {
           "name": "lenders_name_check",
           "value": "length(btrim(\"lenders\".\"name\")) between 2 and 120"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.mobile_devices": {
+      "name": "mobile_devices",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "platform": {
+          "name": "platform",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'android'"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "os_version": {
+          "name": "os_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "app_version": {
+          "name": "app_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "refresh_token_hash": {
+          "name": "refresh_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_refresh_token_hash": {
+          "name": "previous_refresh_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_rotated_at": {
+          "name": "refresh_rotated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_family_id": {
+          "name": "refresh_family_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "refresh_expires_at": {
+          "name": "refresh_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_in_at": {
+          "name": "signed_in_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "push_token": {
+          "name": "push_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_reason": {
+          "name": "revoked_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_by": {
+          "name": "revoked_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "mobile_devices_live_device_idx": {
+          "name": "mobile_devices_live_device_idx",
+          "columns": [
+            {
+              "expression": "device_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"mobile_devices\".\"revoked_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mobile_devices_revoked_by_idx": {
+          "name": "mobile_devices_revoked_by_idx",
+          "columns": [
+            {
+              "expression": "revoked_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "mobile_devices_user_id_users_id_fk": {
+          "name": "mobile_devices_user_id_users_id_fk",
+          "tableFrom": "mobile_devices",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "mobile_devices_revoked_by_principals_id_fk": {
+          "name": "mobile_devices_revoked_by_principals_id_fk",
+          "tableFrom": "mobile_devices",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "revoked_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "mobile_devices_user_device_unique": {
+          "name": "mobile_devices_user_device_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "device_id"
+          ]
+        },
+        "mobile_devices_refresh_token_hash_unique": {
+          "name": "mobile_devices_refresh_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "refresh_token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "mobile_devices_platform_check": {
+          "name": "mobile_devices_platform_check",
+          "value": "\"mobile_devices\".\"platform\" in ('android')"
+        },
+        "mobile_devices_name_length_check": {
+          "name": "mobile_devices_name_length_check",
+          "value": "char_length(\"mobile_devices\".\"name\") between 1 and 80"
+        },
+        "mobile_devices_os_version_length_check": {
+          "name": "mobile_devices_os_version_length_check",
+          "value": "char_length(\"mobile_devices\".\"os_version\") between 1 and 20"
+        },
+        "mobile_devices_app_version_check": {
+          "name": "mobile_devices_app_version_check",
+          "value": "\"mobile_devices\".\"app_version\" ~ '^[0-9]{1,4}\\.[0-9]{1,4}\\.[0-9]{1,6}$'"
+        },
+        "mobile_devices_refresh_token_hash_check": {
+          "name": "mobile_devices_refresh_token_hash_check",
+          "value": "\"mobile_devices\".\"refresh_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "mobile_devices_previous_hash_check": {
+          "name": "mobile_devices_previous_hash_check",
+          "value": "\"mobile_devices\".\"previous_refresh_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "mobile_devices_rotation_pair_check": {
+          "name": "mobile_devices_rotation_pair_check",
+          "value": "(\"mobile_devices\".\"previous_refresh_token_hash\" is null) = (\"mobile_devices\".\"refresh_rotated_at\" is null)"
+        },
+        "mobile_devices_push_token_length_check": {
+          "name": "mobile_devices_push_token_length_check",
+          "value": "char_length(\"mobile_devices\".\"push_token\") between 1 and 4096"
+        },
+        "mobile_devices_revoked_reason_check": {
+          "name": "mobile_devices_revoked_reason_check",
+          "value": "\"mobile_devices\".\"revoked_reason\" in ('signed_out', 'revoked', 'refresh_reused', 'password_changed', 'role_changed', 'suspended', 'totp_reset', 'totp_enrolled')"
+        },
+        "mobile_devices_revoked_pair_check": {
+          "name": "mobile_devices_revoked_pair_check",
+          "value": "(\"mobile_devices\".\"revoked_at\" is null) = (\"mobile_devices\".\"revoked_reason\" is null)"
         }
       },
       "isRLSEnabled": false

@@ -639,3 +639,35 @@ export const PROJECT_JOURNEY = {
   customer: 'Journey project customer',
   village: 'Journey village',
 } as const;
+ * F1: the phones of Admin › Team members › Phones (field-phones.spec.ts), written by the seed
+ * (`e2e/setup/field.ts`) as the auth module would: for the screenshot, a phone of the snapshot
+ * company's tele-caller at fixed times, only ever shown; and per project, a field engineer of
+ * company 1 whose phone the Executive signs out, signed in again by every seed run.
+ */
+export const FIELD_PHONES = {
+  snapshot: {
+    deviceId: '0199e2e0-0000-4000-8000-00000000f001',
+    model: 'Galaxy M14',
+    appVersion: '1.0.0',
+    signedInAt: '2026-11-20T04:30:00Z',
+    lastSeenAt: '2026-11-26T06:45:00Z',
+  },
+  owners: {
+    'desktop-light': {
+      name: 'E2E phone owner desktop-light',
+      deviceId: '0199e2e0-0000-4000-8000-00000000f011',
+    },
+    'desktop-dark': {
+      name: 'E2E phone owner desktop-dark',
+      deviceId: '0199e2e0-0000-4000-8000-00000000f012',
+    },
+    phone: { name: 'E2E phone owner phone', deviceId: '0199e2e0-0000-4000-8000-00000000f013' },
+  },
+  ownerModel: 'Redmi Note 13',
+} as const satisfies {
+  owners: Record<ProjectName, { name: string; deviceId: string }>;
+  [key: string]: unknown;
+};
+
+/** The sign-in email of a project's phone owner. */
+export const fieldPhoneOwnerKey = (project: ProjectName) => `fieldPhoneOwner-${project}`;

@@ -45,6 +45,8 @@ export const PERMISSION_KEYS = [
   'documents.read',
   'documents.write',
   'documents.sensitive.read',
+  // F1 (docs/03-roadmap-appendix/phase4.md §4): signing a person's phone out of the field app.
+  'field.device.revoke',
   'finance.proforma.write',
   'finance.payment.write',
   'finance.recon.write',
@@ -363,6 +365,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'documents.read': ['own', 'entity', 'all'],
   'documents.write': ['own', 'entity', 'all'],
   'documents.sensitive.read': ['entity', 'all'],
+  // F1 (phase4 §4).
+  'field.device.revoke': ['entity', 'all'],
   'finance.proforma.write': ['entity', 'all'],
   'finance.payment.write': ['entity', 'all'],
   'finance.recon.write': ['entity', 'all'],

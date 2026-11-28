@@ -4,6 +4,7 @@ import { EntityIdSchema, IdSchema } from '../ids';
 import { PermissionGrantSchema } from '../permissions';
 import { PrincipalKindSchema } from '../principal';
 import { RoleKeySchema } from '../roles';
+import { FeatureFlagKeySchema } from '../commands/admin/feature-flags';
 import { SemverSchema } from './common';
 
 /**
@@ -35,8 +36,11 @@ export const MeResponse = z
     roles: z.array(MeRole).min(1),
     /** The effective grants for the whole session, narrowest role wins (docs/07-security.md §3). */
     permissions: z.array(PermissionGrantSchema),
-    /** Flags resolved for this user from `feature_flags` and its per-entity and per-role overrides. */
-    featureFlags: z.record(z.string().regex(/^[a-z][a-z0-9_.]{1,63}$/), z.boolean()),
+    /**
+     * Flags resolved for this person from `feature_flags`: a flag is on when it is on in any of
+     * their companies, a company's own row winning over the group's.
+     */
+    featureFlags: z.record(FeatureFlagKeySchema, z.boolean()),
     minimumAppVersion: SemverSchema,
     latestAppVersion: SemverSchema,
     serverTime: z.iso.datetime(),
