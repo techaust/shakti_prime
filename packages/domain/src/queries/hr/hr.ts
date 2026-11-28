@@ -24,7 +24,6 @@ import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm
 import { alias } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import {
-  type LeaveRequestRow,
   toEmployeeDto,
   toLeaveMovementDto,
   toLeaveRequestDto,
@@ -90,7 +89,17 @@ export async function listEmployees(
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   return EmployeePageDto.parse({
-    items: page.map(({ sortName: _sortName, ...row }) => row),
+    items: page.map((r) => ({
+      id: r.id,
+      entityId: r.entityId,
+      name: r.name,
+      office: r.office,
+      joinedOn: r.joinedOn,
+      active: r.active,
+      managerName: r.managerName,
+      shiftName: r.shiftName,
+      signsIn: r.signsIn,
+    })),
     nextCursor:
       rows.length > input.limit && last !== undefined
         ? encodeCursor({ name: last.sortName, id: last.id })
@@ -142,7 +151,7 @@ async function requestRows(
     )
     .limit(limit);
   return rows.map((row) => ({
-    ...toLeaveRequestDto(row.request as LeaveRequestRow),
+    ...toLeaveRequestDto(row.request),
     employeeName: row.employeeName,
     leaveTypeName: row.leaveTypeName,
   }));
@@ -203,7 +212,7 @@ export async function getEmployee(ctx: QueryContext, rawInput: unknown): Promise
     })),
     ...held
       .filter((h) => !offered.some((o) => o.id === h.leaveTypeId))
-      .map(({ employeeId: _employeeId, ...h }) => h),
+      .map((h) => ({ leaveTypeId: h.leaveTypeId, leaveTypeName: h.leaveTypeName, days: h.days })),
   ];
   const requests = await requestRows(
     ctx.tx,
@@ -315,7 +324,7 @@ export async function getLeaveScreen(ctx: QueryContext): Promise<LeaveScreenDto>
     : [];
   const waitingBalances = await balancesOf(ctx.tx, [...new Set(waiting.map((w) => w.employeeId))]);
   return LeaveScreenDto.parse({
-    own: own.filter((o) => o.active).map(({ active: _active, ...o }) => o),
+    own: own.filter((o) => o.active).map((o) => ({ id: o.id, entityId: o.entityId, name: o.name })),
     leaveTypes,
     balances,
     requests,

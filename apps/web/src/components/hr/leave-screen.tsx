@@ -37,7 +37,10 @@ import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
 import { companyName, LEAVE_STATE_TONE, useLeaveStateText, type CompanyOption } from './hr-text';
 
-type Decision = { kind: 'approve' | 'reject'; request: LeaveToDecideDto };
+interface Decision {
+  kind: 'approve' | 'reject';
+  request: LeaveToDecideDto;
+}
 
 /**
  * HR › Leave (docs/03-roadmap-appendix/phase5.md §5, PRD HR-02): a person asks for leave, sees
