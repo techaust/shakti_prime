@@ -240,6 +240,8 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'calls.missed.recorded': { ordering: 'every', handle: notify },
   // p2-fixes (I1 re-check N2): an enquiry that joined a nurtured lead, told to its owner.
   'crm.lead.attached': { ordering: 'every', handle: notify },
+  // J2: a loan turned down, told to the owner of the order's lead or customer.
+  'crm.loan.rejected': { ordering: 'every', handle: notify },
 };
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */

@@ -1702,6 +1702,34 @@
       "when": 1795789695023,
       "tag": "0242_q1_labels_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1795789970707,
+      "tag": "0243_j2_customer_loans",
+      "breakpoints": true
+    },
+    {
+      "idx": 244,
+      "version": "7",
+      "when": 1795789987756,
+      "tag": "0244_j2_customer_loans_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 245,
+      "version": "7",
+      "when": 1795792875141,
+      "tag": "0245_j2_loan_rejected_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 246,
+      "version": "7",
+      "when": 1795792882017,
+      "tag": "0246_j2_loan_rejected_notice_owner",
+      "breakpoints": true
     }
   ]
 }

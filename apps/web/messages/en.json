@@ -548,8 +548,6 @@
     "stock_serial_exists": "That serial number is already in stock. Check the number and try again.",
     "stock_serial_unknown": "We couldn't find that serial number for this item. Check the number and try again.",
     "stock_serial_not_in_bin": "That serial number is not in the bin you chose. Check where it is and try again.",
-    "stock_serial_state": "That serial number can't be moved this way from where it is now. Check where it is and try again.",
-    "stock_customer_missing": "We couldn't find that customer or site. Choose the customer again, then try again.",
     "stock_insufficient": "There isn't enough of this item in that bin. Check the stock and enter a smaller quantity.",
     "opening_stock_posted": "Opening stock has already been entered for this company. Reverse the earlier entry first if it was wrong.",
     "serial_transition_not_allowed": "This serial number can't be moved that way from where it is now. Refresh the page to see where it stands.",
@@ -567,6 +565,17 @@
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
     "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "loan_active_exists": "This order already has a loan in progress. Record the lender's answer on that loan before you add another.",
+    "loan_missing": "We couldn't find this loan. It may belong to another company or a colleague's customer.",
+    "loan_order_cancelled": "This order is cancelled, so its loan can't be recorded or moved on.",
+    "loan_gates_not_held": "This order is not waiting for this loan any more. Refresh the page to see where it stands.",
+    "loan_rejected": "The lender turned down this order's loan, so its dispatch still waits. Record a new loan, or record that the order no longer waits for one.",
+    "loan_lender_missing": "This lender is no longer on the company's list. Choose another lender.",
+    "loan_lender_from_list": "Choose the lender from the list. Ask an Executive to add a lender that is missing.",
+    "lender_name_taken": "This company already has a lender with this name.",
+    "lender_missing": "We couldn't find this lender. Refresh the page and try again.",
+    "stock_serial_state": "That serial number can't be moved this way from where it is now. Check where it is and try again.",
+    "stock_customer_missing": "We couldn't find that customer or site. Choose the customer again, then try again.",
     "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again."
   },
   "auth": {
@@ -674,7 +683,8 @@
     "procurement": "Procurement",
     "inventoryStock": "Stock",
     "inventoryHubs": "Hubs and bins",
-    "inventoryValuation": "Stock valuation"
+    "inventoryValuation": "Stock valuation",
+    "settingsLenders": "Lenders"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -774,7 +784,8 @@
       "procurement": "See the vendors the group buys from, their people, items and quotes.",
       "inventoryStock": "See what each hub and bin holds, and adjust or move stock.",
       "inventoryHubs": "See the hubs and their bins, and set them up.",
-      "inventoryValuation": "See what the stock is worth at a date."
+      "inventoryValuation": "See what the stock is worth at a date.",
+      "settingsLenders": "Keep each company's list of banks and schemes that customers borrow from."
     },
     "progress": {
       "period": {
@@ -1995,6 +2006,13 @@
       "stockTransfer": "Stock moved between bins",
       "stockAdjust": "Stock adjusted",
       "stockReverse": "Stock movement reversed",
+      "loanCreate": "Loan recorded",
+      "loanSanction": "Loan sanctioned",
+      "loanDisburse": "Loan paid out",
+      "loanReject": "Loan turned down",
+      "loanGatesWaive": "Order stopped waiting for a loan",
+      "lenderCreate": "Lender added",
+      "lenderUpdate": "Lender changed",
       "labelPrint": "Labels printed",
       "labelReprint": "Label printed again"
     },
@@ -2031,7 +2049,6 @@
       "priceListArchived": "Price list withdrawn",
       "rolePermissionsChanged": "Role permissions changed",
       "documentRequested": "Document sent for printing",
-      "labelsRequested": "Labels sent for printing",
       "sizingRecorded": "Lead sized",
       "leadAttached": "Repeat enquiry added to an open lead",
       "duplicateFound": "Possible duplicate found",
@@ -2062,7 +2079,13 @@
       "vendorArchived": "Vendor archived",
       "vendorQuoteRecorded": "Supplier quote recorded",
       "vendorQuoteWithdrawn": "Supplier quote withdrawn",
-      "stockMoved": "Stock moved"
+      "stockMoved": "Stock moved",
+      "loanCreated": "Loan recorded",
+      "loanSanctioned": "Loan sanctioned",
+      "loanDisbursed": "Loan paid out",
+      "loanRejected": "Loan turned down",
+      "loanGatesReleased": "Loan let the order go ahead",
+      "labelsRequested": "Labels sent for printing"
     },
     "sheet": {
       "title": "{action}",
@@ -2400,16 +2423,24 @@
       "quantity": "Quantity",
       "serialNo": "Serial number",
       "adjustNote": "Reason given",
-      "labelKind": "Kind of label",
-      "labelCount": "Labels on the sheet",
-      "labelNote": "Why it was printed again",
       "warrantyMonths": "Months of warranty to the customer",
       "supplierWarrantyMonths": "Months of the supplier's warranty",
       "barcode": "Barcode",
       "purchaseUnit": "Unit it is bought in",
       "purchaseUnitFactor": "Stock units in one bought unit",
       "serialPattern": "Shape of its serial numbers",
-      "isStocked": "Kept in stock"
+      "isStocked": "Kept in stock",
+      "loanState": "Loan status",
+      "loanAmount": "Loan amount",
+      "sanctionedAmount": "Sanctioned amount",
+      "lenderName": "Lender",
+      "loanReference": "Lender's reference",
+      "dispatchGate": "Dispatch waits for",
+      "rejectedReason": "Why the lender turned it down",
+      "waiverReason": "Why the order no longer waits for a loan",
+      "labelKind": "Kind of label",
+      "labelCount": "Labels on the sheet",
+      "labelNote": "Why it was printed again"
     },
     "values": {
       "percent": "{value}%",
@@ -5374,7 +5405,8 @@
       "whatsapp_quote_expired": "A customer tried to accept a quote that is no longer valid",
       "whatsapp_quote_not_sent": "A quote you sent did not reach the customer on WhatsApp",
       "missed_call": "A customer gave you a missed call",
-      "enquiry_attached": "A customer of your lead in nurture asked again"
+      "enquiry_attached": "A customer of your lead in nurture asked again",
+      "loan_rejected": "A lender turned down a loan for your customer"
     },
     "settings": {
       "title": "Notification settings",
@@ -5553,6 +5585,10 @@
     "enquiry_attached": {
       "title": "A customer asked again",
       "body": "A customer of your lead in nurture made a new enquiry, and it was added to that lead. Tap to open the customer."
+    },
+    "loan_rejected": {
+      "title": "A loan was turned down",
+      "body": "The lender turned down your customer's loan for an order. Tap to open the order and offer another way to pay."
     }
   },
   "orders": {
@@ -5678,6 +5714,127 @@
     "emptySearch": "No orders have a number like this. Check the number and try again.",
     "searchTooShort": "Type at least 2 characters of the order number.",
     "searchCapped": "Only the 200 newest orders with a number like this are shown. Type more of the number to find an older one."
+  },
+  "loans": {
+    "state": {
+      "applied": "Applied",
+      "sanctioned": "Sanctioned",
+      "disbursed": "Paid out",
+      "rejected": "Turned down"
+    },
+    "dispatchGate": {
+      "disbursed": "The loan to be paid out",
+      "sanctioned": "The loan to be sanctioned",
+      "none": "Nothing, it can go any time"
+    },
+    "tab": {
+      "title": "Loan",
+      "empty": "No loan is recorded for this order.",
+      "recordLoan": "Record a loan",
+      "lender": "Lender",
+      "amount": "Amount applied for",
+      "sanctionedAmount": "Sanctioned amount",
+      "reference": "Lender's reference",
+      "recordedOn": "Recorded on",
+      "sanctionedOn": "Sanctioned on",
+      "paidOutOn": "Paid out on",
+      "dispatchWaitsFor": "Dispatch waits for",
+      "turnedDownBecause": "Turned down because: {reason}",
+      "waivedBecause": "The order no longer waits for this loan: {reason}",
+      "earlier": "Earlier loans",
+      "recordSanction": "Record sanction",
+      "recordPayout": "Record payout",
+      "recordTurnDown": "Record turn-down",
+      "stopWaiting": "Stop waiting for a loan",
+      "readOnly": "Only a person who looks after this customer can record or update its loan.",
+      "turnedDownHelp": "The lender turned this order's loan down, so its dispatch still waits. Record a new loan, or record that the order no longer waits for one."
+    },
+    "gate": {
+      "pendingNote": "Dispatch waits for this loan",
+      "metNote": "The loan lets the dispatch go",
+      "noneNote": "Dispatch does not wait for a loan",
+      "turnedDownNote": "Dispatch waits: the loan was turned down"
+    },
+    "create": {
+      "title": "Record a loan",
+      "intro": "Record the loan the customer applied for to pay for this order.",
+      "lender": "Lender",
+      "chooseLender": "Choose a lender",
+      "lenderMissing": "Choose the lender.",
+      "lenderName": "Lender's name",
+      "lenderNameHelper": "No lenders are listed for this company yet, so type the lender's name.",
+      "lenderNameInvalid": "Enter the lender's name, at least 2 letters.",
+      "amount": "Amount applied for",
+      "amountHelper": "In rupees.",
+      "amountInvalid": "Enter the amount in rupees, more than zero.",
+      "reference": "Lender's reference",
+      "referenceHelper": "If the lender gave an application or loan number, enter it without spaces.",
+      "referenceInvalid": "Use only letters, numbers and the signs / - _ . with no spaces.",
+      "dispatch": "Dispatch waits for",
+      "dispatchHelper": "The order's material leaves only once the loan reaches this stage.",
+      "submit": "Record loan",
+      "saved": "Loan recorded"
+    },
+    "sanction": {
+      "title": "Record the sanction",
+      "intro": "Record the amount the lender sanctioned.",
+      "amount": "Sanctioned amount",
+      "submit": "Record sanction",
+      "saved": "Sanction recorded"
+    },
+    "disburse": {
+      "title": "Record the payout",
+      "intro": "Record that the lender has paid the loan out. A dispatch that waits for the payout can then leave.",
+      "submit": "Record payout",
+      "saved": "Payout recorded"
+    },
+    "reject": {
+      "title": "Record a turn-down",
+      "intro": "Record that the lender turned the loan down, and the reason they gave. The dispatch keeps waiting until another loan is recorded, or someone records that the order no longer waits for one.",
+      "reason": "Reason the lender gave",
+      "submit": "Record turn-down",
+      "saved": "Turn-down recorded"
+    },
+    "waive": {
+      "title": "Stop waiting for a loan",
+      "intro": "Record that this order's dispatch no longer waits for a loan, and why. Do this only when the customer pays another way.",
+      "reason": "Why the order no longer waits",
+      "submit": "Stop waiting",
+      "saved": "The order no longer waits for a loan"
+    },
+    "account": {
+      "sectionTitle": "Loans",
+      "empty": "No loans are recorded for this customer in this company.",
+      "summary": "{lender} · {amount}",
+      "order": "Order {number}",
+      "orderHidden": "An order you cannot open"
+    },
+    "lenders": {
+      "title": "Lenders",
+      "intro": "The banks and schemes customers borrow from, for each company. People choose from this list when they record a loan.",
+      "company": "Company",
+      "add": "Add lender",
+      "empty": "No lenders are listed for this company yet. Until one is added, people type the lender's name when they record a loan.",
+      "caption": "This company's lenders",
+      "active": "In use",
+      "inactive": "Switched off",
+      "renameLender": "Rename",
+      "switchOff": "Switch off",
+      "switchOn": "Switch on",
+      "addTitle": "Add a lender",
+      "renameTitle": "Rename the lender",
+      "nameLabel": "Lender's name",
+      "nameInvalid": "Enter a name of 2 to 120 characters.",
+      "submitAdd": "Add lender",
+      "save": "Save name",
+      "added": "Lender added",
+      "renamed": "Lender renamed",
+      "switchedOff": "Lender switched off. It is no longer offered for new loans.",
+      "switchedOn": "Lender switched on",
+      "renameAria": "Rename {name}",
+      "switchOffAria": "Switch off {name}",
+      "switchOnAria": "Switch on {name}"
+    }
   },
   "dealerCredit": {
     "title": "Dealer credit",
