@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 3
-updated: 2026-11-27T23:01Z
+updated: 2026-11-28T01:47Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -67,14 +67,6 @@ wait_for: none
 done_when: report: calling-hours-clock done
 note: moved from seat 2 (lane 5 made no commit in an hour). A fix: no early check. Commit every 20 minutes even while reproducing; now (after 20:30 IST) is inside the failing window, so reproduce first.
 
-lane: 52
-role: build
-branch: feat/h3-stock-counts
-run_file: docs/runs/phase3/h3-stock-counts.md
-wait_for: none
-done_when: report: h3-stock-counts done
-note: continue. The lead read the early check (27-11 17:05 UTC): accepted, decisions 1 to 7 included. Go on to the screens (list, the one-hand counting screen, the review), the count sheet and the journeys; a plain input for serials until U2's scan field merges.
-
 lane: 68
 role: build
 branch: feat/r3-warranty
@@ -90,43 +82,3 @@ run_file: docs/runs/phase5/tc2-tally-ingest.md
 wait_for: none
 done_when: report: tc2-tally-ingest done
 note: continue. The lead read the early check (27-11 20:10 UTC): accepted with two changes. (1) The signing key: store the connector key itself sealed with the app's field encryption (apps/web/src/crypto; KMS on hosted, as bank_json is), never a hash used as the HMAC key; the connector signs with the key as shown (TC1 unchanged); rotation keeps two sealed keys. (2) Snapshots in parts: accept snapshotId plus part n of m (each under the 4.5 MB function limit), keep parts until the last, diff then; an incomplete snapshot older than a day is dropped. The connector side is TC4's (the lead notes it). Then addendum 2 (refused rows, tallyLastAlterId, heldRows), the admin screens, Integration health, the silence alert. finance.read merges with FN1's at integration.
-
-lane: 72
-role: build
-branch: feat/j3-documents
-run_file: docs/runs/phase4/j3-documents.md
-wait_for: none
-done_when: report: j3-documents done
-note: continue. The lead read the early check (27-11 20:35 UTC): accepted, assumptions included. Build the not-done list (actions, the Documents tab, Account 360's section, Settings, the journey, SECURITY and phase4 Built). J1 merges first: when it has, take main in and add the foreign key to projects and app.project_missing_documents() over your definer (your integration note).
-
-lane: 77
-role: build
-branch: feat/hr1-people
-run_file: docs/runs/phase5/hr1-people.md
-wait_for: none
-done_when: report: hr1-people done
-note: continue. The lead read the early check (27-11 20:55 UTC): accepted, assumptions 1 to 12 included. Go on to the screens (/hr/people, the person's page, /hr/leave, the HR settings), the menu and the journeys.
-
-lane: 79
-role: fix
-branch: fix/calling-hours-clock
-run_file: docs/runs/phase3/calling-hours-clock.md
-wait_for: none
-done_when: report: calling-hours-clock fixes
-note: the one fix round: M1, L1, L2, L3 as the lead's triage at the end of the Review section says; record M2 as the lead named it.
-
-lane: 81
-role: fix
-branch: feat/r3-warranty
-run_file: docs/runs/phase3/r3-warranty.md
-wait_for: none
-done_when: report: r3-warranty fixes
-note: the one fix round: findings 1 to 9 and 12 as the lead's triage at the end of the Review section says. Finding 1 (high) first.
-
-lane: 85
-role: fix
-branch: feat/tc2-tally-ingest
-run_file: docs/runs/phase5/tc2-tally-ingest.md
-wait_for: none
-done_when: report: tc2-tally-ingest fixes
-note: the one fix round: M1, M2, M3, M5, L1 to L5, L7, L8 as the lead's triage at the end of the Review section says.

@@ -1,7 +1,55 @@
 seat: 2
 max_agents: 5
-updated: 2026-11-28T00:46Z
+updated: 2026-11-28T01:47Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
+
+lane: 91
+role: build
+branch: feat/h3-stock-counts
+run_file: docs/runs/phase3/h3-stock-counts.md
+wait_for: none
+done_when: report: h3-stock-counts done
+note: continue. The lead read the early check (27-11 17:05 UTC): accepted, decisions 1 to 7 included. Go on to the screens (list, the one-hand counting screen, the review), the count sheet and the journeys; a plain input for serials until U2's scan field merges. (moved from seat 3: no commit for two hours)
+
+lane: 92
+role: build
+branch: feat/j3-documents
+run_file: docs/runs/phase4/j3-documents.md
+wait_for: none
+done_when: report: j3-documents done
+note: continue. The lead read the early check (27-11 20:35 UTC): accepted, assumptions included. Build the not-done list (actions, the Documents tab, Account 360's section, Settings, the journey, SECURITY and phase4 Built). J1 merges first: when it has, take main in and add the foreign key to projects and app.project_missing_documents() over your definer (your integration note). (moved from seat 3: no commit for two hours)
+
+lane: 93
+role: build
+branch: feat/hr1-people
+run_file: docs/runs/phase5/hr1-people.md
+wait_for: none
+done_when: report: hr1-people done
+note: continue. The lead read the early check (27-11 20:55 UTC): accepted, assumptions 1 to 12 included. Go on to the screens (/hr/people, the person's page, /hr/leave, the HR settings), the menu and the journeys. (moved from seat 3: no commit for two hours)
+
+lane: 94
+role: fix
+branch: fix/calling-hours-clock
+run_file: docs/runs/phase3/calling-hours-clock.md
+wait_for: none
+done_when: report: calling-hours-clock fixes
+note: the one fix round: M1, L1, L2, L3 as the lead's triage at the end of the Review section says; record M2 as the lead named it. (moved from seat 3: no commit for two hours)
+
+lane: 95
+role: fix
+branch: feat/r3-warranty
+run_file: docs/runs/phase3/r3-warranty.md
+wait_for: none
+done_when: report: r3-warranty fixes
+note: the one fix round: findings 1 to 9 and 12 as the lead's triage at the end of the Review section says. Finding 1 (high) first. (moved from seat 3: no commit for two hours)
+
+lane: 96
+role: fix
+branch: feat/tc2-tally-ingest
+run_file: docs/runs/phase5/tc2-tally-ingest.md
+wait_for: none
+done_when: report: tc2-tally-ingest fixes
+note: the one fix round: M1, M2, M3, M5, L1 to L5, L7, L8 as the lead's triage at the end of the Review section says. (moved from seat 3: no commit for two hours)
 
 lane: 4
 role: build
@@ -43,14 +91,6 @@ wait_for: none
 done_when: report: tc1-tally-connector early check
 note: Tier A; stop at the early check. The owner approved postject and WinSW: see the brief addendum; install nothing yourself.
 
-lane: 34
-role: review
-branch: feat/hr1-people
-run_file: docs/runs/phase5/hr1-people.md
-wait_for: report: hr1-people done
-done_when: review: hr1-people done
-note: Tier B
-
 lane: 35
 role: review
 branch: feat/x4-stock-reasons
@@ -59,14 +99,6 @@ wait_for: report: x4-stock-reasons done
 done_when: review: x4-stock-reasons done
 note: Tier A. Confirm the redefinition of app.stock_move() differs from migration 0231 only in the brief's points (the grant mapping, the serial moves, the line's customer fields, and addendum 2's reversible flag; mark addendum 2 a finding if missing); run H1's ledger suite.
 
-lane: 37
-role: review
-branch: feat/h3-stock-counts
-run_file: docs/runs/phase3/h3-stock-counts.md
-wait_for: report: h3-stock-counts done
-done_when: review: h3-stock-counts done
-note: Tier A. Attack blind counting: the expected quantity by any path.
-
 lane: 38
 role: review
 branch: feat/r3-warranty
@@ -74,14 +106,6 @@ run_file: docs/runs/phase3/r3-warranty.md
 wait_for: report: r3-warranty done
 done_when: review: r3-warranty done
 note: Tier A. Attack cost columns per role, serial state and bin in step, IST warranty dates.
-
-lane: 39
-role: review
-branch: feat/j3-documents
-run_file: docs/runs/phase4/j3-documents.md
-wait_for: report: j3-documents done
-done_when: review: j3-documents done
-note: Tier A. Attack identity digits surviving anywhere (storage, rows, audit, logs, Sentry, model payloads), sensitive rows by grant, filing against another customer.
 
 lane: 45
 role: build

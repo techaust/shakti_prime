@@ -1,6 +1,6 @@
 seat: 1
 max_agents: 5
-updated: 2026-11-27T23:57Z
+updated: 2026-11-28T01:47Z
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 51
@@ -202,3 +202,27 @@ run_file: docs/runs/phase3/u2-purchase-orders.md
 wait_for: none
 done_when: report: u2-purchase-orders prepped
 note: prep for the lead's integration: readme's prep prompt (after H2's: one prep at a time). Diff app.next_document_no(), document_sequences_doc_type_check, app.platform_only_permissions(), app.file_purpose_grant() and files_purpose_check against main's latest (Q1's label_sheet must stay).
+
+lane: 97
+role: review
+branch: feat/hr1-people
+run_file: docs/runs/phase5/hr1-people.md
+wait_for: report: hr1-people done
+done_when: review: hr1-people done
+note: Tier B (moved from seat 3: no commit for two hours)
+
+lane: 98
+role: review
+branch: feat/h3-stock-counts
+run_file: docs/runs/phase3/h3-stock-counts.md
+wait_for: report: h3-stock-counts done
+done_when: review: h3-stock-counts done
+note: Tier A. Attack blind counting: the expected quantity by any path. (moved from seat 3: no commit for two hours)
+
+lane: 99
+role: review
+branch: feat/j3-documents
+run_file: docs/runs/phase4/j3-documents.md
+wait_for: report: j3-documents done
+done_when: review: j3-documents done
+note: Tier A. Attack identity digits surviving anywhere (storage, rows, audit, logs, Sentry, model payloads), sensitive rows by grant, filing against another customer. (moved from seat 3: no commit for two hours)
