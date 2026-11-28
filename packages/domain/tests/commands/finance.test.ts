@@ -1028,10 +1028,8 @@ describe('the platform’s follow-ups of an order (the review of 27-11-2026)', (
       sanctionedAmount: '50000.00',
     });
     // The sanction's event names the order the platform's refresh is delivered for.
-    expect(await eventsOf(loan.id)).toContainEqual({
-      type: 'crm.loan.sanctioned',
-      payload: expect.objectContaining({ salesOrderId: orderId, state: 'sanctioned' }),
-    });
+    const sanctioned = (await eventsOf(loan.id)).find((e) => e.type === 'crm.loan.sanctioned');
+    expect(sanctioned?.payload).toMatchObject({ salesOrderId: orderId, state: 'sanctioned' });
     expect(await run(workers(), refreshMilestones, { entityId: E, orderId })).toEqual({
       fellDue: 1,
     });
