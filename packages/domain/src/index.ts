@@ -983,3 +983,9 @@ export {
   orderProject,
   projectListQuery,
 } from './queries/projects/list-projects';
+// J6 QC checklists, inspections and cost lines (docs/03-roadmap-appendix/phase4.md §7.3).
+export { publishChecklist } from './commands/projects/qc-checklist';
+export { rejectQc, signoffQc, submitQc } from './commands/projects/qc-inspections';
+export { addCostLine, reverseCostLine } from './commands/projects/cost-lines';
+export { listChecklists, projectQc } from './queries/projects/qc-queries';
+export { listContractors, projectCosts } from './queries/projects/cost-queries';

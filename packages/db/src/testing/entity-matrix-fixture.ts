@@ -129,6 +129,10 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   // J2 customer loans.
   lenders: 'x.id::text',
   customer_loans: 'x.id::text',
+  // J6 QC and cost lines.
+  checklists: 'x.id::text',
+  qc_inspections: 'x.id::text',
+  project_cost_lines: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -194,6 +198,17 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`alter table customer_loans enable trigger customer_loans_guard`;
       await tx`delete from lenders where id::text like ${like}`;
       // Orders and their commission first: they name a quote, a lead and a commission rule.
+      // J6: an inspection and a cost line name the project; neither, nor a published checklist,
+      // is ever removed by a request, so their triggers are set aside for the fixture's own rows.
+      await tx`alter table project_cost_lines disable trigger project_cost_lines_append_only`;
+      await tx`delete from project_cost_lines where id::text like ${like}`;
+      await tx`alter table project_cost_lines enable trigger project_cost_lines_append_only`;
+      await tx`alter table qc_inspections disable trigger qc_inspections_no_delete`;
+      await tx`delete from qc_inspections where id::text like ${like}`;
+      await tx`alter table qc_inspections enable trigger qc_inspections_no_delete`;
+      await tx`alter table checklists disable trigger checklists_append_only`;
+      await tx`delete from checklists where id::text like ${like}`;
+      await tx`alter table checklists enable trigger checklists_append_only`;
       // J1: a project names its order and its checklist; published checklists never change, so
       // their trigger is set aside for the fixture's own rows.
       await tx`delete from project_assignments where id::text like ${like}`;
@@ -440,6 +455,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     // J2 customer loans.
     lenders: [],
     customer_loans: [],
+    // J6 QC and cost lines.
+    checklists: [],
+    qc_inspections: [],
+    project_cost_lines: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -857,6 +876,21 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${projectStep}, ${e}, ${project}, 1, 'survey', 'matrix step')`;
         await tx`insert into project_assignments (id, entity_id, project_id, person_id, created_by)
           values (${projectPerson}, ${e}, ${project}, ${otherUserId}, ${ownerId})`;
+        // J6: the step's checklist of a version no suite publishes, an inspection the second
+        // person submitted, and a labour charge on the project.
+        const checklist = per(e, 0xa0);
+        const inspection = per(e, 0xa1);
+        const costLine = per(e, 0xa2);
+        await tx`insert into checklists (id, entity_id, segment, step_key, version, items_json, published_by)
+          values (${checklist}, ${e}, 'commercial_epc', 'survey', 9000,
+                  '[{"key": "earthing", "label": "matrix item", "kind": "yes_no", "min": null, "max": null}]'::jsonb,
+                  ${ownerId})`;
+        await tx`insert into qc_inspections (id, entity_id, project_id, milestone_id, checklist_id, answers_json,
+                   submitted_at, submitted_by)
+          values (${inspection}, ${e}, ${project}, ${projectStep}, ${checklist},
+                  '[{"key": "earthing", "value": true}]'::jsonb, now(), ${otherUserId})`;
+        await tx`insert into project_cost_lines (id, entity_id, project_id, kind, quantity, rate, amount, created_by)
+          values (${costLine}, ${e}, ${project}, 'labour', 1, 100.00, 100.00, ${ownerId})`;
         await tx`insert into accounts (id, type, name, created_by) values (${twin}, 'farm', ${`matrix account ${e}`}, ${ownerId})`;
         await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
           values (${twinLink}, ${twin}, ${e}, ${ownerId}, ${team}, ${ownerId})`;
@@ -913,6 +947,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.project_assignments.push({ key: projectPerson, entities: only });
         rows.project_milestones.push({ key: projectStep, entities: only });
         rows.project_flow_templates.push({ key: projectTemplate, entities: only });
+        rows.checklists.push({ key: checklist, entities: only });
+        rows.qc_inspections.push({ key: inspection, entities: only });
+        rows.project_cost_lines.push({ key: costLine, entities: only });
         rows.consents.push({ key: consent, entities: only, leadIn: only });
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });

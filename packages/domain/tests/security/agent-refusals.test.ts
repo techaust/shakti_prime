@@ -100,6 +100,18 @@ const J2_LOAN_INPUTS: Record<string, unknown> = {
   'crm.loan.gates.waive': { entityId: 1, loanId: newId(), reason: 'Paid in cash' },
 };
 
+/** J6: a project's cost lines need finance.cost.read, which no agent holds. */
+const J6_COST_INPUTS: Record<string, unknown> = {
+  'projects.cost.add': {
+    entityId: 1,
+    projectId: newId(),
+    kind: 'labour',
+    quantity: '1',
+    rate: '850.00',
+  },
+  'projects.cost.reverse': { entityId: 1, lineId: newId() },
+};
+
 const INPUTS: Record<string, unknown> = {
   // A customer's price tier decides every price they are quoted (PRICE-1).
   'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
@@ -357,6 +369,8 @@ const INPUTS: Record<string, unknown> = {
   ...U1_QUOTE_INPUTS,
   // J2: a company's lenders are kept by the Executive (admin.entities.write).
   ...J2_LENDER_INPUTS,
+  // J6: a project's cost lines (finance.cost.read).
+  ...J6_COST_INPUTS,
 };
 
 /** The commands only people may call (`peopleOnly`), read from the registry. */
@@ -579,6 +593,23 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   // J2: lenders and customer loans are kept by people only.
   ...J2_LENDER_INPUTS,
   ...J2_LOAN_INPUTS,
+  // J6: checklists, quality checks and cost lines are people's work in Phase 4.
+  'projects.checklist.publish': {
+    entityId: 1,
+    segment: 'farmer_pumps',
+    stepKey: 'install',
+    items: [{ key: 'earthing', label: 'Earthing done', kind: 'yes_no' }],
+  },
+  'projects.qc.submit': {
+    entityId: 1,
+    projectId: newId(),
+    milestoneKey: 'install',
+    checklistId: newId(),
+    answers: [{ key: 'earthing', value: true }],
+  },
+  'projects.qc.signoff': { entityId: 1, inspectionId: newId() },
+  'projects.qc.reject': { entityId: 1, inspectionId: newId(), reason: 'Blurred photo' },
+  ...J6_COST_INPUTS,
 };
 
 describe('commands for people only', () => {

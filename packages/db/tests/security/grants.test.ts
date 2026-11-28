@@ -208,6 +208,11 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // sanction, the disbursal, the reference and the rejection (column grants).
     lenders: { i: true, u: false },
     customer_loans: { i: true, u: false },
+    // J6: a published checklist and a cost line never change (a correction is a reversal line);
+    // an inspection changes only in its decision (column grants; project-qc-costs.test.ts).
+    checklists: { i: true, u: false },
+    qc_inspections: { i: true, u: false },
+    project_cost_lines: { i: true, u: false },
   };
 
   /**
@@ -543,6 +548,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.project_customers(uuid[])',
       'app.project_is_mine(uuid)',
       'app.project_missing_documents(uuid,text)',
+      // J6: whether a step's quality check lets it be marked done (the QC tab and the step's guard).
+      'app.project_qc_signed_off(uuid,text)',
       // The quote print loader of the render worker (0110).
       'app.quote_for_print(uuid)',
       // The ⌘K search's candidate quotes (0110).

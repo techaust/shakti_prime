@@ -107,11 +107,12 @@ create policy qc_inspections_decide on qc_inspections for update to app_user
               and entity_id = any ((select app.entity_ids())::int[]));
 --> statement-breakpoint
 -- No agent submits or decides an inspection (the commands are for people only, and the database
--- holds the same line); a decision is taken once and keeps everything the submitter wrote.
+-- holds the same line for every request: a request always names its caller, and the policies
+-- refuse one that does not); a decision is taken once and keeps everything the submitter wrote.
 create or replace function app.qc_inspections_guard() returns trigger
   language plpgsql security definer set search_path = '' as $$
 begin
-  if not app.request_is_person() then
+  if app.user_id() is not null and not app.request_is_person() then
     raise exception 'only a person records a quality check' using errcode = 'insufficient_privilege';
   end if;
   if tg_op = 'UPDATE'
@@ -160,14 +161,14 @@ create policy project_cost_lines_insert on project_cost_lines for insert to app_
 --> statement-breakpoint
 -- A new contractor's charge names an active vendor of kind contractor; a reversal mirrors the line
 -- it reverses (same project, kind, vendor and rate, the quantity negated), which is itself no
--- reversal. Only a person writes a cost line. Reads the vendor and the reversed line as the owner,
+-- reversal. Only a person writes a cost line (as for an inspection). Reads the vendor and the reversed line as the owner,
 -- because the vendor master is read with inventory and procurement grants a cost holder may lack.
 create or replace function app.project_cost_lines_guard() returns trigger
   language plpgsql security definer set search_path = '' as $$
 declare
   v_original public.project_cost_lines%rowtype;
 begin
-  if not app.request_is_person() then
+  if app.user_id() is not null and not app.request_is_person() then
     raise exception 'only a person records a cost line' using errcode = 'insufficient_privilege';
   end if;
   if new.reverses_id is null then

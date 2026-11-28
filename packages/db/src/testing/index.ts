@@ -435,6 +435,12 @@ export const ENTITY_TABLES = [
   // the customer's relationship in the loan's company (docs/03-roadmap-appendix/phase4.md §6.2)
   'lenders',
   'customer_loans',
+  // J6: a company's checklists, read by any holder of projects.read; a project's inspections, read
+  // with it; its cost lines, read only with finance.cost.read for the company
+  // (docs/03-roadmap-appendix/phase4.md §7.3)
+  'checklists',
+  'qc_inspections',
+  'project_cost_lines',
 ] as const;
 
 /**

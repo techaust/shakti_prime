@@ -18,8 +18,9 @@ import { requireEntity } from '../crm/opportunity-shared';
  * A project's labour, contractor and other direct charges (docs/03-roadmap-appendix/phase4.md
  * §7.3, question 10 (a), PRD PRJ-05): written by a person holding `finance.cost.read` who also
  * writes the project, and never changed afterwards; a correction is a reversal line. Restricted:
- * the audit row names the line's id and kind only, no event is raised, and the answer is the
- * strict `CostLineDto`, which only a holder of the cost grant receives.
+ * the audit row names the line's id and kind only (its input too: `auditInput`), no event is
+ * raised, and the answer is the strict `CostLineDto`, which only a holder of the cost grant
+ * receives.
  */
 
 const COST_AUDIT_FIELDS = ['costKind', 'reversedLineId'] as const;
@@ -61,6 +62,13 @@ export const addCostLine = defineCommand({
   ...COST_GRANTS,
   input: AddCostLineInput,
   output: CostLineDto,
+  // The audit row keeps which line was asked for, never its quantity, rate or note.
+  auditInput: ({ entityId, projectId, kind, vendorId }) => ({
+    entityId,
+    projectId,
+    kind,
+    vendorId,
+  }),
   auditFields: [...COST_AUDIT_FIELDS],
   constraintReasons: COST_CONSTRAINTS,
   async handler(ctx, input) {
@@ -105,6 +113,7 @@ export const reverseCostLine = defineCommand({
   ...COST_GRANTS,
   input: ReverseCostLineInput,
   output: CostLineDto,
+  auditInput: ({ entityId, lineId }) => ({ entityId, lineId }),
   auditFields: [...COST_AUDIT_FIELDS],
   constraintReasons: COST_CONSTRAINTS,
   async handler(ctx, input) {

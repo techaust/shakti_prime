@@ -30,7 +30,6 @@ const needs = (permission: PermissionKey, minScope: Scope): Requirement => ({
 export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> = {
   job_photo: { write: null, read: null },
   survey_photo: { write: null, read: null },
-  qc_photo: { write: null, read: null },
   receipt: { write: null, read: null },
   signature: { write: null, read: null },
   selfie: { write: null, read: null },
@@ -63,6 +62,9 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
   },
   // Q1: a sheet of QR labels, printed by the render worker and opened by whoever handles stock.
   label_sheet: { write: needs('files.process', 'entity'), read: 'inventory.stock.move' },
+  // J6: a quality check's photo, taken by whoever writes the project (the engineer on it at `own`
+  // scope) and read with the project's QC tab (docs/03-roadmap-appendix/phase4.md §7.3).
+  qc_photo: { write: needs('projects.write', 'own'), read: 'projects.read' },
 };
 
 /** The answer `app.file_purpose_grant(purpose, access)` gives, in its own shape. */

@@ -78,6 +78,10 @@ import {
   SubsidySchemeSchema,
   // J1 projects
   MilestoneStateSchema,
+  // J6 QC and cost lines
+  CostLineKindSchema,
+  QcInspectionStateSchema,
+  VendorKindSchema,
   ProjectFlowSchema,
   ProjectSegmentSchema,
   ProjectStateSchema,
@@ -334,6 +338,15 @@ const PAIRS: Record<string, readonly string[]> = {
   customer_loans_gates_dispatch_check: ['dispatch', ...LOAN_DISPATCH_GATES],
   // Only a rejected loan's gates are waived.
   customer_loans_waiver_check: ['rejected'],
+  // J6: a checklist's segment; an inspection's states, a decided one saying when and by whom and
+  // a turned-down one why; a cost line's kinds, a contractor's naming the vendor; a vendor's kind.
+  checklists_segment_check: ProjectSegmentSchema.options,
+  qc_inspections_state_check: QcInspectionStateSchema.options,
+  qc_inspections_decided_check: ['submitted'],
+  qc_inspections_reject_reason_check: ['rejected'],
+  project_cost_lines_kind_check: CostLineKindSchema.options,
+  project_cost_lines_vendor_check: ['contractor'],
+  vendors_kind_check: VendorKindSchema.options,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

@@ -224,6 +224,11 @@ const RULES: Record<MatrixTable, TableRule> = {
   project_assignments: { read: grant('projects.read', 'own'), leak: otherCompany },
   project_milestones: { read: grant('projects.read', 'own'), leak: otherCompany },
   project_flow_templates: { read: grant('projects.read', 'own'), leak: otherCompany },
+  // J6: the step's checklist with projects.read at any scope; the project's inspection with it;
+  // its cost line only with finance.cost.read for the company (whose holders read the project).
+  checklists: { read: grant('projects.read', 'own'), leak: otherCompany },
+  qc_inspections: { read: grant('projects.read', 'own'), leak: otherCompany },
+  project_cost_lines: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   // J2: a company's lenders to every principal acting in it; a loan with the customer in its
   // company, as the customer's relationship there is read.
   lenders: { read: CONTEXT, leak: otherCompany },

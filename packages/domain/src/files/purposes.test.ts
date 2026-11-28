@@ -25,6 +25,7 @@ describe('file purposes', () => {
         'signed_quote',
         'vendor_quote',
         'label_sheet',
+        'qc_photo',
       ].sort(),
     );
     expect(uploadPermission.of({ purpose: 'import' })).toEqual({
