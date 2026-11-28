@@ -5,9 +5,9 @@
 | Branch | `feat/hr1-people` on GitHub, from `main` after the approved design (#296) |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): permissions, approvals, a state machine |
-| Usage | briefed 27-11-2026; early check built on Opus 5.5 at high (the lead's cloud VM, moved from seat 4) |
-| State | early check |
-| Next step | the lead reads the early-check diff, then the builder continues with the screens |
+| Usage | briefed 27-11-2026; early check and done built on Opus 5.5 at high (the lead's cloud VM; seat 2 added three wip commits between) |
+| State | done |
+| Next step | the review, then the lead integrates (Linux baselines and checks-ok for `apps/web/js-budget.json`) |
 
 ## Brief
 Build [phase5 §5](../../03-roadmap-appendix/phase5.md#5-the-money-model) (its HR group, except attendance, incentives and salary sheets) as the employee directory, shifts, holidays and leave of HR-01 and HR-02. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points settled here:
@@ -96,6 +96,72 @@ Opus 5.5 at high. Skills loaded: `add-table`, `add-command`. Stopped at the earl
 **Changes to shared tests:** `data-docs.test.ts` named `employees` as an example of a planned table; it now names `salary_sheets`. The people-only sweep compared a `localeCompare` order with a plain sort, which `hr.leave_type.set` breaks; both lists now sort with `localeCompare`.
 
 **Uncertain or for the lead:** the migrations' numbers and the 0240/0241 cited in DATABASE move at the merge. During the first run, four stray agent principals from an earlier version of `hr.test.ts` broke `fail-closed.test.ts` on the old database; the test now uses the seeded agent's id, and the database has since been recreated.
+
+### Done, 28-11-2026, the lead's cloud VM
+Opus 5.5 at high. Built on the early check, which the lead accepted with assumptions 1 to 12, and on seat 2's commits 94179dbe, 953508a0 and 073eaefd. Those commits added the query tests, the definer `app.hr_own_manager_name()` (migration 0242, so a person's own page shows their manager), the employee form's people read from `principals`, and the journeys with their seed. My uncommitted edits from before the stop were already in them.
+
+**Built since the early check (files):**
+- Contracts: `packages/contracts/src/hr/screens.ts` (the inputs and DTOs of the reads).
+- Queries: `packages/domain/src/queries/hr/hr.ts`: `listEmployees` (keyset by name), `getEmployee` (a person's page: record, manager, shift, balance of each type offered, newest 50 requests and movements), `getHrChoices`, `getLeaveScreen` (own records, types, balances, requests; what waits for an approver, never their own, with the balance), `listShifts`, `listLeaveTypes`, `listHolidays`.
+- Actions: `apps/web/src/actions/hr.ts` (eleven commands, seven queries, each `executeQuery` named).
+- Screens:
+  - `apps/web/src/app/(bos)/hr/`: `people`, `people/[id]`, `leave`, `shifts`, `holidays`, `leave-types`, each with its loading state, plus `layout.tsx` and `companies.ts`.
+  - `apps/web/src/components/hr/`: `people-screen`, `employee-form`, `person-screen`, `leave-screen`, `shifts-screen`, `holidays-screen`, `leave-types-screen`, `hr-text`, `iso-day`.
+- Menu (`apps/web/src/nav.ts`):
+  - People (`hr.leave.approve` at team scope: HR, the Executive, the GM and team leads);
+  - Leave (`hr.leave.request` at own scope: every staff role);
+  - Shifts, Holidays and Leave types (`hr.employee.write` for every company).
+  - `/hr` is in `BOS_PREFIXES`, and its client scope is `common` and `hr`.
+- Copy: the `hr` namespace, the five menu labels and home hints in `en.json`; six new button keys in `tools/copy-lint/copy-lint.config.json`.
+- Documents: the HR1 Built record in `docs/03-roadmap-appendix/phase5.md` §6.4; `pnpm db:docs` regenerated.
+- Tests: the seven queries in the reader parity sweep.
+
+**Tests (whole slice):**
+- Command tests: 19.
+- Query tests (`packages/domain/tests/queries/hr.test.ts`): 12.
+- Row security tests: 9.
+- Leave-day unit tests: 5.
+- The six tables in the role × company matrix.
+- The commands in the people-only sweep; the queries in the reader parity sweep.
+- Journeys (`apps/web/e2e/hr.spec.ts`): 3, each with axe.
+  - A tele-caller asks for a day of leave, her team lead approves it and her balance falls by that day.
+  - HR sets a holiday for RCREF, sees it in its year and takes it off again.
+  - The snapshot Executive reads the staff list and opens a person's page.
+
+**Checks run (local Postgres on 54331, migrated and seeded fresh):**
+- `pnpm test:security`: db 1818 passed, domain 1550 passed, web 461 passed (4 of 4 tasks).
+- Unit tests: contracts 340, db 162, domain 2841 passed; web 1159 passed, 1 skipped.
+- `pnpm typecheck`: 10 of 10 tasks.
+- `pnpm copy-lint`: clean.
+- `pnpm build`: passed.
+- `pnpm --filter web js-budget`: every page is within its budget (71 pages).
+- Journeys: `pnpm --filter web e2e:seed` and `playwright test e2e/hr.spec.ts` ran here and signed in. 25 passed across three projects: the setup sign-ins and the three journeys on desktop-light, desktop-dark and phone.
+- Screenshots: the three `snap()` pictures this run wrote outside the Linux Playwright image were removed, not committed. The lead makes the Linux baselines (`hr-people`, `leave-approve-dialog`, `holiday-add-dialog`).
+- Final check: the whole-repository `pnpm lint` passed. It was run before the last `db:docs` refresh, which changed only `docs/data/*.md`.
+
+**`EXPLAIN (ANALYZE)` under row security** (`app_user`; 3,000 staff in company 1, 500 of them managed by one lead, 6,000 requests of which 111 wait, 6,000 movements; the rows were removed afterwards; full output in my scratchpad `hr1/explain.out`):
+1. HR › People, first page (HR): Seq Scan on `employees` (3,001 rows), manager by `employees_pkey` (memoized), sort on `lower(name), id`: 4.97 ms.
+2. People searched by part of a name: Seq Scan with the `ilike` filter, 111 rows: 3.82 ms.
+3. People for a team lead, through `app.hr_manages()`: 501 rows read: 10.59 ms.
+4. Leave waiting, for the team lead: Bitmap on `leave_requests_waiting_idx` AND `leave_requests_type_idx`, employees by `employees_pkey`: 3.19 ms.
+5. Leave waiting, for HR: the same plan: 0.67 ms.
+6. A person's page: requests by `leave_requests_employee_idx` (0.45 ms); balances by `leave_balances_employee_idx` (0.42 ms).
+
+The staff list scans and sorts in memory, because the policy's `entity_id = any(...)` and the sort on `lower(name)` do not meet the `(entity_id, lower(name), id)` index across companies. At a few thousand staff this is under 11 ms. If the staff list ever runs to tens of thousands, a `(lower(name), id)` index would serve it.
+
+**Checks file changed (needs the owner's `checks-ok`):** `apps/web/js-budget.json`.
+- Budgets for the six HR pages, each at its size plus 5 %.
+- `/price-master`, `/catalogue`, `/admin/integrations` and `/calling` raised by 1 kB for the shell's five HR menu entries, as H1 did for its three. Their measured sizes are in the reasons.
+- Swapping the new menu icons for icons the shell already ships made no measurable difference (within 0.1 kB), so the menu keeps its own icons.
+
+**Decisions taken beyond the brief:**
+1. The HR settings live at `/hr/shifts`, `/hr/holidays` and `/hr/leave-types` (the menu's admin group), under the HR scope, not under `/settings`. This keeps the `hr` messages out of every settings page.
+2. A person's page uses the Leave screen's guard (`hr.leave.request`), so everyone can open their own from Leave ("Your details"). Row security shows the not-found screen for anyone else's.
+3. The approver's dialog shows the person's balance and the days asked. Nothing refuses an approval for want of balance (assumption 5).
+
+**Not done or uncertain:**
+- The migrations' numbers (0240, 0241, 0242), and the numbers DATABASE cites, move at the merge.
+- J5's `unavailability` is still not on main. The seam is the event `hr.leave.approved` (assumption 10).
 
 ## Review
 
