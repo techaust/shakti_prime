@@ -227,6 +227,10 @@ import { disburseCustomerLoan } from '../commands/crm/loans-disburse';
 import { rejectCustomerLoan } from '../commands/crm/loans-reject';
 import { waiveLoanGates } from '../commands/crm/loans-waive';
 import { createLender, updateLender } from '../commands/crm/loans-lenders';
+// J6 QC checklists, inspections and cost lines.
+import { publishChecklist } from '../commands/projects/qc-checklist';
+import { rejectQc, signoffQc, submitQc } from '../commands/projects/qc-inspections';
+import { addCostLine, reverseCostLine } from '../commands/projects/cost-lines';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -472,6 +476,13 @@ export const commands = Object.freeze({
   [waiveLoanGates.name]: waiveLoanGates,
   [createLender.name]: createLender,
   [updateLender.name]: updateLender,
+  // J6 QC checklists, inspections and cost lines (docs/03-roadmap-appendix/phase4.md §7.3).
+  [publishChecklist.name]: publishChecklist,
+  [submitQc.name]: submitQc,
+  [signoffQc.name]: signoffQc,
+  [rejectQc.name]: rejectQc,
+  [addCostLine.name]: addCostLine,
+  [reverseCostLine.name]: reverseCostLine,
 } as const satisfies Record<string, AnyCommand>);
 
 /**

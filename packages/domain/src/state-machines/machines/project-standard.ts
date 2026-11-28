@@ -16,6 +16,11 @@ export interface MilestoneFact {
    * answered none); read only for the step being completed.
    */
   documentsComplete: boolean;
+  /**
+   * The step has no checklist, or one of its inspections is signed off
+   * (`app.project_qc_signed_off()`, J6); read only for the step being completed.
+   */
+  qcSignedOff: boolean;
 }
 
 export interface ProjectStandardRecord {
@@ -56,6 +61,16 @@ const milestoneDocuments: G = {
     return milestone?.documentsComplete === true
       ? undefined
       : { code: 'validation_failed', reason: 'documents_missing' };
+  },
+};
+
+const milestoneQc: G = {
+  description: "the milestone's quality check is signed off when it has a checklist (PRJ-02)",
+  check: (record, { params }) => {
+    const milestone = record.milestones.find((m) => m.code === params.milestoneCode);
+    return milestone?.qcSignedOff === true
+      ? undefined
+      : { code: 'validation_failed', reason: 'qc_not_signed_off' };
   },
 };
 
@@ -110,7 +125,7 @@ export const projectStandardMachine = defineMachine<
       event: 'milestone.complete',
       to: 'active',
       permission: 'projects.write',
-      guard: allOf(nextMilestone, milestoneDocuments),
+      guard: allOf(nextMilestone, milestoneDocuments, milestoneQc),
       effects: [
         { key: 'mark_milestone', description: 'set the milestone done with `done_at`' },
         { key: 'emit', description: 'event for the milestone WhatsApp message' },

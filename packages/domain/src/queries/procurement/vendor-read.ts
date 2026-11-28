@@ -9,6 +9,7 @@ import {
   type VendorQuoteDto,
   type VendorQuoteStatus,
   type VendorSheetDto,
+  VendorKindSchema,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, desc, eq } from 'drizzle-orm';
@@ -80,6 +81,7 @@ export function toVendorDto(row: VendorRow): VendorDto {
     address: toAddress(row.addressJson),
     paymentTermsDays: row.paymentTermsDays,
     leadTimeDays: row.leadTimeDays,
+    kind: VendorKindSchema.parse(row.kind),
     isActive: row.isActive,
     notes: row.notes,
     updatedAt: row.updatedAt.toISOString(),

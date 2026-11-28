@@ -933,6 +933,28 @@ const eventCatalogue = {
       })
       .strict(),
   },
+  // J6 QC inspections (docs/03-roadmap-appendix/phase4.md §7.3): ids only. A cost line raises
+  // no event, so no cost value ever leaves for the queue (PRD PRJ-05).
+  'projects.qc.submitted': {
+    meaning: "A project's quality checklist for a step was filled and submitted for sign-off.",
+    emittedBy: ['projects.qc.submit'],
+    subscribed: false,
+    payload: z.object({ projectId: IdSchema, milestoneId: IdSchema }).strict(),
+  },
+  'projects.qc.signed_off': {
+    meaning:
+      "A project's submitted quality check was signed off by someone other than its submitter, so its step may be marked done.",
+    emittedBy: ['projects.qc.signoff'],
+    subscribed: false,
+    payload: z.object({ projectId: IdSchema, milestoneId: IdSchema }).strict(),
+  },
+  'projects.qc.rejected': {
+    meaning:
+      "A project's submitted quality check was turned down with what to put right; a new one is submitted for the step.",
+    emittedBy: ['projects.qc.reject'],
+    subscribed: false,
+    payload: z.object({ projectId: IdSchema, milestoneId: IdSchema }).strict(),
+  },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 
 export type EventType = keyof typeof eventCatalogue;

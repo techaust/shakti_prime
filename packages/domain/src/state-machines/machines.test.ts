@@ -15,6 +15,7 @@ import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
 import { projectSuryaGharMachine } from './machines/project-surya-ghar';
+import { qcInspectionMachine } from './machines/qc-inspection';
 import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
 import { serialMachine } from './machines/serial';
@@ -50,6 +51,8 @@ interface Fixture {
 }
 
 const SERIAL_BIN = newId();
+/** J6: a signer who submitted the inspection themselves. */
+const SUBMITTER = everything();
 
 const FIXTURES: Fixture[] = [
   { machine: agentActionMachine, record: {}, params: {} },
@@ -145,14 +148,14 @@ const FIXTURES: Fixture[] = [
     machine: projectStandardMachine,
     record: {
       milestones: [
-        { code: 'survey', done: true, documentsComplete: true },
-        { code: 'dispatch', done: false, documentsComplete: true },
+        { code: 'survey', done: true, documentsComplete: true, qcSignedOff: true },
+        { code: 'dispatch', done: false, documentsComplete: true, qcSignedOff: true },
       ],
     },
     params: { milestoneCode: 'dispatch', reason: 'waiting for the site' },
     events: {
       complete: {
-        record: { milestones: [{ code: 'survey', done: true, documentsComplete: true }] },
+        record: { milestones: [{ code: 'survey', done: true, documentsComplete: true, qcSignedOff: true }] },
       },
     },
   },
@@ -218,6 +221,12 @@ const FIXTURES: Fixture[] = [
     machine: playbookDirectiveMachine,
     record: { checked: true, conflictsWith: [] },
     params: { reason: 'superseded by the new pricing rule' },
+  },
+  // J6: someone other than the submitter decides a complete inspection.
+  {
+    machine: qcInspectionMachine,
+    record: { submittedBy: newId(), answersComplete: true },
+    params: { reason: 'the earthing photo is blurred' },
   },
   {
     machine: tallyVoucherMachine,
@@ -696,9 +705,54 @@ const GUARDS: GuardCase[] = [
     fixture: 'project_standard',
     from: 'active',
     event: 'milestone.complete',
-    record: { milestones: [{ code: 'dispatch', done: false, documentsComplete: false }] },
+    record: { milestones: [{ code: 'dispatch', done: false, documentsComplete: false, qcSignedOff: true }] },
     code: 'validation_failed',
     reason: 'documents_missing',
+  },
+  {
+    fixture: 'project_standard',
+    from: 'active',
+    event: 'milestone.complete',
+    record: {
+      milestones: [{ code: 'dispatch', done: false, documentsComplete: true, qcSignedOff: false }],
+    },
+    code: 'validation_failed',
+    reason: 'qc_not_signed_off',
+  },
+  // QC inspection
+  {
+    fixture: 'qc_inspection',
+    from: null,
+    event: 'submit',
+    record: { answersComplete: false },
+    code: 'validation_failed',
+    reason: 'qc_answers_missing',
+  },
+  {
+    fixture: 'qc_inspection',
+    from: 'submitted',
+    event: 'signoff',
+    record: { submittedBy: SUBMITTER.kind === 'principal' ? SUBMITTER.principal.id : null },
+    actor: SUBMITTER,
+    code: 'forbidden',
+    reason: 'qc_signer_is_submitter',
+  },
+  {
+    fixture: 'qc_inspection',
+    from: 'submitted',
+    event: 'reject',
+    record: { submittedBy: SUBMITTER.kind === 'principal' ? SUBMITTER.principal.id : null },
+    actor: SUBMITTER,
+    code: 'forbidden',
+    reason: 'qc_signer_is_submitter',
+  },
+  {
+    fixture: 'qc_inspection',
+    from: 'submitted',
+    event: 'reject',
+    params: { reason: null },
+    code: 'validation_failed',
+    reason: 'transition_reason_missing',
   },
   {
     fixture: 'project_standard',
@@ -706,8 +760,8 @@ const GUARDS: GuardCase[] = [
     event: 'complete',
     record: {
       milestones: [
-        { code: 'survey', done: true, documentsComplete: true },
-        { code: 'dispatch', done: false, documentsComplete: true },
+        { code: 'survey', done: true, documentsComplete: true, qcSignedOff: true },
+        { code: 'dispatch', done: false, documentsComplete: true, qcSignedOff: true },
       ],
     },
     code: 'conflict',

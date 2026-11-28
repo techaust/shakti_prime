@@ -44,6 +44,17 @@ async function missingDocuments(
 }
 
 /**
+ * Whether the step's quality check lets it be marked done (`app.project_qc_signed_off()`, J6): it
+ * has no checklist, or one of its inspections is signed off.
+ */
+async function qcSignedOff(ctx: CommandContext, projectId: string, key: string): Promise<boolean> {
+  const rows = (await ctx.tx.execute(
+    sql`select app.project_qc_signed_off(${projectId}::uuid, ${key}) as ok`,
+  )) as unknown as { ok: boolean }[];
+  return rows[0]?.ok === true;
+}
+
+/**
  * `projects.milestone.complete`: the next open step of the checklist, once every mandatory
  * document it requires is filed (the guard `documents_missing`, which names what is missing). A
  * Field Engineer completes the steps of a project they are on.
@@ -56,6 +67,8 @@ export const completeMilestone = defineCommand({
   input: CompleteMilestoneInput,
   output: ProjectDto,
   auditFields: [...MILESTONE_AUDIT_FIELDS],
+  // J6: the database holds the quality check's line on every path too.
+  constraintReasons: { qc_not_signed_off: 'qc_not_signed_off' },
   async handler(ctx, input) {
     const row = await lockProject(ctx, input.entityId, input.projectId);
     requireStandardFlow(row);
@@ -65,12 +78,17 @@ export const completeMilestone = defineCommand({
       throw new DomainError('not_found', 'step not found', { reason: 'milestone_missing' });
     }
     const missing = await missingDocuments(ctx, row.id, step.key);
+    const qcDone = await qcSignedOff(ctx, row.id, step.key);
     try {
       transition(
         projectStandardMachine,
         projectRecordOf(
           row,
-          milestoneFacts(steps, { key: step.key, documentsComplete: missing.length === 0 }),
+          milestoneFacts(steps, {
+            key: step.key,
+            documentsComplete: missing.length === 0,
+            qcSignedOff: qcDone,
+          }),
         ),
         'milestone.complete',
         { actor: personActor(ctx), now: ctx.now, params: { milestoneCode: step.key } },

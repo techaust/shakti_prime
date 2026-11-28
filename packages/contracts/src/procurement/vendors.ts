@@ -31,6 +31,13 @@ const PinSchema = z
   .trim()
   .regex(/^[1-9][0-9]{5}$/);
 
+/**
+ * `vendors.kind` (J6, docs/03-roadmap-appendix/phase4.md §7.3, question 10 (a)): a supplier of
+ * goods, or a contractor whose charges are a project's cost lines.
+ */
+export const VendorKindSchema = z.enum(['supplier', 'contractor']);
+export type VendorKind = z.infer<typeof VendorKindSchema>;
+
 const Days = z.number().int().min(0).max(VENDOR_DAYS_MAX);
 
 /** A vendor's address as the vendor sheet takes it; every line optional. */
@@ -94,7 +101,7 @@ function withIdentity<T extends VendorIdentity>(value: T): T {
  * `vendor_gstin_taken`.
  */
 export const CreateVendorInput = z
-  .object(vendorFields)
+  .object({ ...vendorFields, kind: VendorKindSchema.default('supplier') })
   .strict()
   .superRefine(checkIdentity)
   .transform(withIdentity);
@@ -102,7 +109,7 @@ export type CreateVendorInput = z.input<typeof CreateVendorInput>;
 
 /** `procurement.vendor.update`: every field of the vendor sheet, sent as the sheet shows it. */
 export const UpdateVendorInput = z
-  .object({ vendorId: IdSchema, ...vendorFields })
+  .object({ vendorId: IdSchema, ...vendorFields, kind: VendorKindSchema.optional() })
   .strict()
   .superRefine(checkIdentity)
   .transform(withIdentity);
@@ -166,6 +173,7 @@ export const VendorDto = z
     address: VendorAddressSchema,
     paymentTermsDays: z.number().int().nullable(),
     leadTimeDays: z.number().int().nullable(),
+    kind: VendorKindSchema,
     isActive: z.boolean(),
     notes: z.string().nullable(),
     updatedAt: z.iso.datetime(),
@@ -223,6 +231,7 @@ export const VendorListRowDto = z
     city: z.string().nullable(),
     paymentTermsDays: z.number().int().nullable(),
     leadTimeDays: z.number().int().nullable(),
+    kind: VendorKindSchema,
     isActive: z.boolean(),
     itemCount: z.number().int().min(0),
   })

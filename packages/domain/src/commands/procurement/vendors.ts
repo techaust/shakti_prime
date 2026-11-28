@@ -33,6 +33,8 @@ export const VENDOR_AUDIT_FIELDS = [
   'leadTimeDays',
   'isActive',
   'note',
+  // J6: a supplier or a contractor.
+  'vendorKind',
 ] as const;
 
 /** The address on one line, as the Activity log shows it. */
@@ -55,6 +57,7 @@ function auditedVendor(row: VendorRow) {
     leadTimeDays: row.leadTimeDays,
     isActive: row.isActive,
     note: row.notes,
+    vendorKind: row.kind,
   };
 }
 
@@ -109,6 +112,7 @@ export const createVendor = defineCommand({
         paymentTermsDays: input.paymentTermsDays ?? null,
         leadTimeDays: input.leadTimeDays ?? null,
         notes: input.notes ?? null,
+        kind: input.kind,
         createdBy: ctx.principal.id,
       })
       .returning();
@@ -154,6 +158,8 @@ export const updateVendor = defineCommand({
         paymentTermsDays: input.paymentTermsDays ?? null,
         leadTimeDays: input.leadTimeDays ?? null,
         notes: input.notes ?? null,
+        // A sheet that leaves the kind out keeps it.
+        kind: input.kind ?? before.kind,
         updatedBy: ctx.principal.id,
       })
       .where(eq(schema.vendors.id, input.vendorId))

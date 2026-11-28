@@ -18,12 +18,13 @@ export async function readMilestones(tx: RequestTx, projectId: string): Promise<
 /** The steps as the `project_standard` machine's guards read them. */
 export function milestoneFacts(
   rows: readonly MilestoneRow[],
-  complete?: { key: string; documentsComplete: boolean },
+  complete?: { key: string; documentsComplete: boolean; qcSignedOff: boolean },
 ): MilestoneFact[] {
   return rows.map((m) => ({
     code: m.key,
     done: m.state !== 'open',
     documentsComplete: complete?.key === m.key ? complete.documentsComplete : true,
+    qcSignedOff: complete?.key === m.key ? complete.qcSignedOff : true,
   }));
 }
 

@@ -59,6 +59,7 @@ export async function listVendors(
       city: sql<string | null>`${v.addressJson} ->> 'city'`,
       paymentTermsDays: v.paymentTermsDays,
       leadTimeDays: v.leadTimeDays,
+      kind: v.kind,
       isActive: v.isActive,
       // qualified by hand: drizzle writes a bare column name inside a raw fragment
       itemCount: sql<number>`(select count(*)::int from item_vendors iv where iv.vendor_id = vendors.id)`,
