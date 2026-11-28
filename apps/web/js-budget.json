@@ -114,8 +114,8 @@
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the walk-in form. Measured 189.8 kB on 30-09-2026, plus 5 %."
     },
     "/price-master": {
-      "maxKb": 247,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the item and kit price grids, saved views and the price dialog; the list, approve and history views load when first opened. Measured 235.0 kB on 04-10-2026, plus 5 %."
+      "maxKb": 248,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the item and kit price grids, saved views and the price dialog; the list, approve and history views load when first opened. Measured 235.0 kB on 04-10-2026, plus 5 %. Raised by 1 kB on 28-11-2026 for the shell's Lenders menu entry (J2), taken into F1: measured 247.1 kB."
     },
     "/set-password": {
       "maxKb": 175,
