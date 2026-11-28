@@ -8,8 +8,10 @@ import {
   principalFor,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { sql } from 'drizzle-orm';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
+import { executeQuery } from '../../src/command/execute';
 import { runCommand } from '../../src/command/run-command';
 import {
   cancelStockCount,
@@ -26,6 +28,8 @@ import {
   getStockCountSheet,
   listStockCounts,
 } from '../../src/queries/inventory/counts';
+import { transition } from '../../src/state-machines/define-machine';
+import { serialMachine } from '../../src/state-machines/machines/serial';
 import { onHand, serialOf } from '../stock/stock-fixture';
 
 /**
@@ -96,6 +100,7 @@ afterAll(async () => {
 let exec: Principal;
 let manager: Principal;
 let counter: Principal;
+let blindCounter: Principal;
 
 interface CountOut {
   id: string;
@@ -152,6 +157,10 @@ beforeAll(async () => {
     { key: 'inventory.stock.read', scope: 'entity' },
   ];
   counter = await createTestPrincipal('store_manager', [1], { permissions });
+  // The design's counter: inventory.stock.move alone, reading no stock.
+  blindCounter = await createTestPrincipal('store_manager', [1], {
+    permissions: [{ key: 'inventory.stock.move', scope: 'entity' }],
+  });
 });
 
 describe('inventory.count.*: who may', () => {
@@ -329,6 +338,76 @@ describe('a counter counts blind', () => {
     );
     expect(rows.length).toBeGreaterThan(0);
     expect(JSON.stringify(rows)).not.toMatch(/"40(\.0+)?"|:40[,}]/);
+    await run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Test over' });
+  });
+
+  it('is counted by someone who does not read stock, who sees no balance, movement or serial', async () => {
+    const f = await countFixture();
+    await gain(f.binA, f.cable, { qty: '40' });
+    await gain(f.binA, f.pump, { serialNos: serialNos(f, 1, 2) });
+    const count = await run(manager, startStockCount, { entityId: 1, hubId: f.hub, scope: 'hub' });
+
+    // The list, with the hub's name, and the sheet with the bins to count in.
+    const page = await asPrincipal(blindCounter, (ctx) =>
+      listStockCounts(ctx, { entityId: 1, state: 'open', limit: 100 }),
+    );
+    expect(page.items.find((c) => c.id === count.id)).toMatchObject({
+      hubCode: `H${f.tag}`,
+      hubName: `Count hub ${f.tag}`,
+    });
+    const before = await sheet(blindCounter, count.id);
+    expect(before.count.hubCode).toBe(`H${f.tag}`);
+    expect(before.bins.map((b) => b.code)).toEqual(['A1', 'B1', 'RECEIVING']);
+    expect(before.rows).toHaveLength(2);
+    expect(
+      keysOf(before).filter((k) => /expected|variance|difference|value|qty_on/i.test(k)),
+    ).toEqual([]);
+
+    await run(blindCounter, recordStockCount, {
+      countId: count.id,
+      binId: f.binA,
+      itemId: f.cable,
+      qty: '39',
+    });
+    await run(blindCounter, recordStockCount, {
+      countId: count.id,
+      binId: f.binA,
+      itemId: f.pump,
+      serialNos: serialNos(f, 1, 2),
+    });
+    const submitted = await run(blindCounter, submitStockCount, { countId: count.id });
+    expect(submitted.state).toBe('review');
+
+    // Nothing of the stock itself, on either pool: no balance, movement, serial, hub or bin.
+    for (const reader of [false, true]) {
+      const seen = await executeQuery(
+        blindCounter,
+        { entityIds: [1] },
+        async ({ tx }) => {
+          const [n] = (await tx.execute(sql`
+          select (select count(*)::int from stock_balances where bin_id = ${f.binA}) as balances,
+                 (select count(*)::int from stock_movements where to_bin_id = ${f.binA}) as movements,
+                 (select count(*)::int from serials where item_id = ${f.pump}) as serials,
+                 (select count(*)::int from warehouses where id = ${f.hub}) as hubs,
+                 (select count(*)::int from bins where warehouse_id = ${f.hub}) as bins`)) as unknown as Record<
+            string,
+            number
+          >[];
+          return n;
+        },
+        { name: 'blindCounterReads', pool: reader ? 'reader' : 'app_user' },
+      );
+      expect({ reader, ...seen }).toEqual({
+        reader,
+        balances: 0,
+        movements: 0,
+        serials: 0,
+        hubs: 0,
+        bins: 0,
+      });
+    }
+    // The review stays the Inventory Manager's.
+    await expect(review(blindCounter, count.id)).rejects.toMatchObject({ code: 'forbidden' });
     await run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Test over' });
   });
 });
@@ -550,6 +629,64 @@ describe('a posted count', () => {
     expect(note?.note).toBe('Not on the shelf; asked the site team');
   });
 
+  it('refuses a faulty serial missing, on the review and at the post, before any movement', async () => {
+    const f = await countFixture();
+    const [s1, s2] = serialNos(f, 1, 2);
+    await gain(f.binA, f.pump, { serialNos: [s1 ?? '', s2 ?? ''] });
+    // s2 went to a customer as a replacement and came back faulty into A1, as R3 will record it:
+    // each step through the serial machine, then written as the ledger would leave it.
+    const actor = { kind: 'principal' as const, principal: exec };
+    const out = transition(serialMachine, { state: 'in_stock', binId: f.binA }, 'replace', {
+      actor,
+      now: new Date(),
+      params: { fromBinId: f.binA },
+    });
+    const back = transition(serialMachine, { state: out.to, binId: null }, 'return_faulty', {
+      actor,
+      now: new Date(),
+      params: {},
+    });
+    expect(back.to).toBe('faulty');
+    await asMigrator(
+      (m) => m`update serials set state = ${back.to}
+                where item_id = ${f.pump} and serial_no = ${s2 ?? ''}`,
+    );
+    const count = await run(manager, startStockCount, {
+      entityId: 1,
+      hubId: f.hub,
+      scope: 'items',
+      itemIds: [f.pump],
+    });
+    // The faulty unit is not on the shelf.
+    await run(counter, recordStockCount, {
+      countId: count.id,
+      binId: f.binA,
+      itemId: f.pump,
+      serialNos: [s1],
+    });
+    await run(counter, submitStockCount, { countId: count.id });
+    const seen = await review(manager, count.id);
+    expect(seen.lines.find((l) => l.serialNo === s2)).toMatchObject({
+      variance: '-1.000',
+      postRefusal: 'stock_count_serial_faulty',
+    });
+    expect(seen.lines.find((l) => l.serialNo === s1)?.postRefusal).toBeNull();
+    await expect(
+      run(manager, postStockCount, { countId: count.id, note: 'Quarterly count' }),
+    ).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'stock_count_serial_faulty', serialNo: s2 },
+    });
+    const [moved] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from stock_movements where ref_id = ${count.id}`,
+    );
+    expect(moved?.n).toBe(0);
+    expect(await serialOf(f.pump, s2 ?? '')).toMatchObject({ state: 'faulty', binId: f.binA });
+    expect((await review(manager, count.id)).count.state).toBe('review');
+    await run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Test over' });
+  });
+
   it('waits for every item to be counted and every recount to be taken', async () => {
     const f = await countFixture();
     await gain(f.binA, f.cable, { qty: '12' });
@@ -637,17 +774,37 @@ describe('a posted count', () => {
       qty: '7',
     });
     await run(counter, submitStockCount, { countId: count.id });
+    const valuer = { ...exec, entityIds: [1] };
+    // An item with no average has no value, not a value of nothing.
     await asMigrator(
-      (m) => m`update item_costs set moving_avg_cost = 12.5000
+      (m) => m`update item_costs set moving_avg_cost = null
                 where entity_id = 1 and item_id = ${f.cable}`,
     );
-    const withCost = await review({ ...exec, entityIds: [1] }, count.id);
+    const noCost = await review(valuer, count.id);
+    expect(noCost.lines.find((l) => l.binId === f.binA)?.value).toBeNull();
+    expect(noCost.netValue).toBe('0.00');
+    await asMigrator(
+      (m) => m`update item_costs set moving_avg_cost = 12.5000, last_positive_avg_cost = 12.5000
+                where entity_id = 1 and item_id = ${f.cable}`,
+    );
+    const withCost = await review(valuer, count.id);
     expect(withCost.showsValues).toBe(true);
     expect(withCost.lines.find((l) => l.binId === f.binA)?.value).toBe('-37.50');
     expect(withCost.netValue).toBe('-37.50');
     const without = await review(manager, count.id);
     expect(without.lines.every((l) => l.value === null)).toBe(true);
-    await run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Test over' });
+
+    // Posted, the value is what the movement posted at, whatever the average does later.
+    await run(manager, postStockCount, { countId: count.id, note: 'Quarterly count' });
+    await asMigrator(
+      (m) => m`update item_costs set moving_avg_cost = 99.0000
+                where entity_id = 1 and item_id = ${f.cable}`,
+    );
+    const posted = await review(valuer, count.id);
+    expect(posted.count.state).toBe('posted');
+    expect(posted.lines.find((l) => l.binId === f.binA)?.value).toBe('-37.50');
+    expect(posted.netValue).toBe('-37.50');
+    expect((await review(manager, count.id)).netValue).toBeNull();
   });
 
   it('lists a company’s counts by state for counters and readers of stock', async () => {

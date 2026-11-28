@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import en from '../messages/en.json';
-import { activeNavId, NAV_ITEMS, navRequires } from './nav';
+import { activeNavId, NAV_ITEMS, navAnyOf, navRequires } from './nav';
 import { visibleNav } from './screens/menu-access';
 import { isBosPath } from './session-gate';
 
@@ -38,6 +38,15 @@ describe('visibleNav', () => {
     expect(ids([{ key: 'audit.read', scope: 'entity' }])).toContain('admin-activity');
     expect(ids([{ key: 'imports.write', scope: 'entity' }])).toContain('imports');
     expect(ids([{ key: 'admin.entities.write', scope: 'all' }])).toContain('settings-companies');
+  });
+
+  it('shows a screen with a choice of grants to a holder of any one of them', () => {
+    expect(ids([{ key: 'inventory.stock.move', scope: 'entity' }])).toContain('inventory-counts');
+    expect(ids([{ key: 'inventory.stock.read', scope: 'entity' }])).toContain('inventory-counts');
+    expect(ids([{ key: 'inventory.stock.move', scope: 'own' }])).not.toContain('inventory-counts');
+    expect(ids([{ key: 'inventory.stock.adjust', scope: 'all' }])).not.toContain(
+      'inventory-counts',
+    );
   });
 
   it('shows every screen, in menu order, to someone holding every grant group-wide', () => {
@@ -81,6 +90,17 @@ describe('page guards', () => {
     for (const item of NAV_ITEMS) {
       expect(pageSource(item.href), item.id).toContain(`screenAccess(navRequires('${item.id}'))`);
     }
+  });
+
+  it('a menu screen with a choice of grants checks the choice too', () => {
+    for (const item of NAV_ITEMS.filter((i) => i.anyOf !== undefined)) {
+      expect(pageSource(item.href), item.id).toContain(`navAnyOf('${item.id}')`);
+    }
+    expect(navAnyOf('inventory-counts')).toEqual([
+      { key: 'inventory.stock.read', scope: 'entity' },
+      { key: 'inventory.stock.move', scope: 'entity' },
+    ]);
+    expect(navAnyOf('leads')).toEqual([]);
   });
 
   it('no page reads the session by hand', () => {
