@@ -5,9 +5,9 @@
 | Branch | `feat/h3-stock-counts` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): the ledger, values behind `finance.cost.read`, row security |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account from 27-11-2026 14:35 UTC; screens finished on seat 2, Opus 5.5 at high, 28-11-2026 01:40 to 06:00 UTC; fix round (lane 106), Opus 5.5 at high, 28-11-2026; the owner's answers (lane 112), Opus 5.5 at high, 28-11-2026 |
-| State | owner answers built |
-| Next step | the lead reads the owner-answers round; integration renumbers after 0246 and makes the Linux baselines of `stock-counts.spec.ts` |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder Opus 5.5 at high on the seat's own account from 27-11-2026 14:35 UTC; screens finished on seat 2, Opus 5.5 at high, 28-11-2026 01:40 to 06:00 UTC; fix round (lane 106), Opus 5.5 at high, 28-11-2026; the owner's answers (lane 112) and the addendum's fixes (lane 114), Opus 5.5 at high, 28-11-2026 |
+| State | addendum fixes |
+| Next step | integration: C1 with H2 (whichever merges second), renumbering after 0246, and the Linux baselines of `stock-counts.spec.ts` |
 
 ## Brief
 Build [phase3 §7.3](../../03-roadmap-appendix/phase3.md#73-h3-stock-counts) as written. The exit gate's physical audit runs on this tool (§11). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -371,6 +371,59 @@ The security suites (`turbo run test:security --concurrency=1 --continue`):
 12. A count is live for blinding from `open`, not only `counting` and `review` (the addendum's wording), so the shelves are hidden from the start.
 13. An items count hides only its items in its bins. A bins or whole-hub count hides every item in its bins.
 14. The Executive holds `inventory.count.record` at `all`, as every Executive column does; the Executive also holds `inventory.stock.adjust`, so is never blinded.
+
+### 28-11-2026, lane 114 (addendum fixes)
+Opus 5.5 at high. This lane fixes L1 to L4 of the addendum's re-check, as the lead's triage says. C1 is left to the integration, and `main` was not taken in. No skill was loaded again.
+
+**L1: the screens say stock is being counted, never that the company holds none.**
+- New definer `app.stock_count_hides(company, item)` in `0241_h3_stock_counts_rls.sql`, which is unmerged and edited in place.
+  - It is stable and sets `search_path = ''`.
+  - It is executable by `app_user` and `app_reader`, and revoked from `public` and `readonly_reporter`.
+  - It is true only for the blinded counter (`inventory.count.record` without `inventory.stock.adjust`) and only in a company the request acts in, when a live count:
+    - with an item: covers a bin that holds some of that item;
+    - with no item: is live anywhere in the company.
+- H1's `StockBalancePageDto` and `StockCardDto` gain `hiddenByCount`, set through that definer (`hiddenByCount()` in `queries/inventory/stock.ts`).
+- The stock card:
+  - shows "Some of this item's stock is being counted, so it doesn't show here. It shows again once the count is posted." when some hubs still show;
+  - replaces its empty state ("The company holds none of this item.") with "This item's stock is being counted, so it doesn't show here. It shows again once the count is posted."
+- The stock list shows "Some stock is being counted, so it doesn't show here. It shows again once the count is posted."
+- The Store Manager journey now asserts the counting sentence and that "holds none" is absent.
+
+**L2: the three missing cases**, added to the db blind case (`stock-counts.test.ts`):
+- a count still `open` hides the bin on both pools;
+- a movement out of the counted bin (`from_bin_id`) is hidden and shown again;
+- Accounts reads the counted bin throughout.
+
+The same case also covers:
+- `app.stock_count_hides()` for the Store Manager (true), Accounts and the Inventory Manager (false), using an item held only in the counted bin so the answer is this test's own;
+- L4 below.
+
+The domain Store Manager case also asserts `hiddenByCount`: true on the list and the card during the count for the Store Manager, false for the Inventory Manager, and false on the card after the post.
+
+**L3:** the `inventory-counts` menu comment now names `inventory.count.record`.
+
+**L4:** `app.stock_count_hidden()` answers only for a company the request acts in (`p_entity = any (app.entity_ids())`). Tested with a company 3 count of the same bin:
+- a Store Manager acting in company 1 gets false for company 3;
+- one acting in company 3 gets true;
+- `app.stock_count_hides(3, …)` is false from company 1.
+
+**Checks** (each through `heavy.sh`; the slot database was migrated and seeded fresh, and the security suite ran before any journey):
+
+| Check | Result |
+|---|---|
+| `pnpm test:security` | db 1,807, domain 1,531, web 461: all passed |
+| `pnpm format:check`, `pnpm copy-lint` | clean |
+| `db:docs`, `machines:docs` | no change |
+| `pnpm typecheck` | 10 successful |
+| `pnpm lint` | clean |
+| Unit tests | contracts 340, db 162, domain 2,868, web 1,253 (1 skipped), ui 107, tokens 146, copy-lint 17, voice 49, voice-agent 23 |
+| `pnpm build` | passed |
+| `js-budget` | 69 pages within budget; `/inventory/stock` 239.0 of 250 kB, the stock card 239.2 of 251 |
+| Journeys (`e2e:seed`, then `stock-counts.spec.ts` and `inventory.spec.ts`, `--ignore-snapshots --retries 0`) | 38 passed, 1 failed |
+
+The failure is H1's "as an Executive, the stock screens" on the phone project, at its time limit. It failed again when run alone. It ended on `/inventory/hubs`, which the security suite had just filled with its test hubs (70 hubs in use; the page snapshot shows them), so the phone's accessibility check does not finish in time. The Executive holds `inventory.stock.adjust`, so this round changes nothing they see beyond one definer call per list and card. I expect it to pass on the Linux image's fresh database per project.
+
+**For integration:** C1 (H2's `app.line_availability()` for a blinded counter) is still open for whichever of H2 and H3 merges second.
 
 ## Review
 
