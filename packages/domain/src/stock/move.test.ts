@@ -19,7 +19,11 @@ describe('stockRefusal', () => {
     );
     expect(e).toBeInstanceOf(DomainError);
     expect(e?.code).toBe('conflict');
-    expect(e?.details).toEqual({ itemId: 'i', binCode: 'A1', reason: 'stock_reserved_insufficient' });
+    expect(e?.details).toEqual({
+      itemId: 'i',
+      binCode: 'A1',
+      reason: 'stock_reserved_insufficient',
+    });
   });
 
   it('answers reserved stock above what a bin holds as stock that is short, never an internal error', () => {

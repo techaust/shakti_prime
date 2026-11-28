@@ -144,7 +144,9 @@ async function violations(
             itemId: String(i),
             perKit: Math.round((n.needed * 1000) / qty),
           }));
-          const held = new Map(list.map((n, i) => [String(i), Math.round((n.needed - n.short) * 1000)]));
+          const held = new Map(
+            list.map((n, i) => [String(i), Math.round((n.needed - n.short) * 1000)]),
+          );
           expected = qty - Math.min(qty, kitAvailability(parts, held).kits);
         }
       }
@@ -305,7 +307,9 @@ describe('needs put back on order', () => {
     for (let round = 0; round < 6; round += 1) {
       const item = newId();
       await asMigrator(
-        (m) => m`insert into items (id, sku, name, category, hsn, unit, is_serial_tracked, is_active)
+        (
+          m,
+        ) => m`insert into items (id, sku, name, category, hsn, unit, is_serial_tracked, is_active)
           values (${item}, ${`RQP-${f.tag}-${String(round)}`}, ${`Pool item ${f.tag} ${String(round)}`},
                   'pump', '8413', 'nos', false, true)`,
       );
@@ -390,10 +394,12 @@ async function expectShared(orders: readonly string[], arrived: number, label: s
        where n.sales_order_id = any (${orders}::uuid[])
        order by n.queued_at, n.id`,
   );
-  expect(needs.reduce((sum, n) => sum + Number(n.held), 0), label).toBeLessThanOrEqual(arrived);
+  expect(
+    needs.reduce((sum, n) => sum + Number(n.held), 0),
+    label,
+  ).toBeLessThanOrEqual(arrived);
   const firstWaiting = needs.findIndex((n) => Number(n.waiting) > 0);
   if (firstWaiting >= 0) {
     for (const later of needs.slice(firstWaiting + 1)) expect(Number(later.held), label).toBe(0);
   }
 }
-

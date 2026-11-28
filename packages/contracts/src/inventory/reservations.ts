@@ -86,7 +86,9 @@ export type ReservationChangedDto = z.infer<typeof ReservationChangedDto>;
  * transaction, so each fill takes its orders' locks before the item's balances and never holds one
  * item's balances while it waits for another item's orders.
  */
-export const FillBackordersInput = z.object({ entityId: EntityIdSchema, itemId: IdSchema }).strict();
+export const FillBackordersInput = z
+  .object({ entityId: EntityIdSchema, itemId: IdSchema })
+  .strict();
 export type FillBackordersInput = z.input<typeof FillBackordersInput>;
 
 /** How many backorders a fill served: counts of rows, never a quantity of stock. */

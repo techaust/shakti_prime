@@ -250,7 +250,13 @@ async function main(): Promise<void> {
       select id from items where sku like ${`${PREFIX}${hub.slice(-6)}-%`} order by id limit 200`,
   );
   const lines = JSON.stringify(
-    items.map((it, i) => ({ line_id: null, position: i + 1, item_id: it.id, kit_id: null, qty: '3' })),
+    items.map((it, i) => ({
+      line_id: null,
+      position: i + 1,
+      item_id: it.id,
+      kit_id: null,
+      qty: '3',
+    })),
   );
   const t1 = performance.now();
   await asPrincipal(manager, (ctx) =>

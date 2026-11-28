@@ -720,7 +720,9 @@ describe('the platform’s jobs', () => {
       { itemId: f.service, qty: '1' },
     ]);
     await asMigrator(
-      (m) => m`update sales_orders set state = 'confirmed', confirmed_at = now() - interval '3 days',
+      (
+        m,
+      ) => m`update sales_orders set state = 'confirmed', confirmed_at = now() - interval '3 days',
                  confirmed_by = ${lc.id} where id = ${orderId}`,
     );
     const backfill = () =>

@@ -97,9 +97,9 @@ async function holding<T>(
   const released = new Promise<void>((resolve) => (release = resolve));
   const done = asPrincipal(principal, async (context) => {
     const out = await work(context);
-    const [me] = (await context.tx.execute(
-      sql`select pg_backend_pid() as pid`,
-    )) as unknown as { pid: number }[];
+    const [me] = (await context.tx.execute(sql`select pg_backend_pid() as pid`)) as unknown as {
+      pid: number;
+    }[];
     held(me?.pid ?? 0);
     await released;
     return out;

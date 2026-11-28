@@ -24,7 +24,8 @@ afterAll(async () => {
   // The items go out of the catalogue's lists once the file is done (the suites never clean the
   // shared tables, and other files read the first 200 active items).
   await asMigrator(
-    (m) => m`update items set archived_at = now() where id = any (${[...stocked, service]}::uuid[])`,
+    (m) =>
+      m`update items set archived_at = now() where id = any (${[...stocked, service]}::uuid[])`,
   );
   await closeDb();
 });
@@ -232,7 +233,10 @@ describe('app.free_availability() and atp.ts', () => {
             continue;
           }
           expect(
-            { status: row?.status, free: row?.qty_free == null ? null : toThousandths(row.qty_free) },
+            {
+              status: row?.status,
+              free: row?.qty_free == null ? null : toThousandths(row.qty_free),
+            },
             `${label}, line ${String(i + 1)}`,
           ).toEqual({ status: want.status, free: want.available });
         }

@@ -205,7 +205,13 @@ describe('documentAvailability', () => {
       { status: 'partly_covered', available: 1_000 },
     ]);
     expect(
-      documentAvailability([kit(1_000, ...parts)], new Map([['p', 1_000], ['i', 5_000]])),
+      documentAvailability(
+        [kit(1_000, ...parts)],
+        new Map([
+          ['p', 1_000],
+          ['i', 5_000],
+        ]),
+      ),
     ).toEqual([{ status: 'short', available: 0 }]);
     expect(documentAvailability([{ parts: [], kit: true, qty: 1_000 }], free)).toEqual([null]);
   });
@@ -219,7 +225,9 @@ describe('documentAvailability', () => {
           ? item(r.pick(ids), r.int(1, 10_000))
           : kit(
               r.int(1, 5) * 1_000,
-              ...ids.filter(() => r.chance()).map((itemId) => ({ itemId, perKit: r.int(1, 3_000) })),
+              ...ids
+                .filter(() => r.chance())
+                .map((itemId) => ({ itemId, perKit: r.int(1, 3_000) })),
             ),
       );
       const answers = documentAvailability(lines, free);
@@ -240,8 +248,7 @@ describe('documentAvailability', () => {
         // In millionths, so the sum is exact.
         const demand = lines.reduce(
           (sum, l) =>
-            sum +
-            l.parts.filter((p) => p.itemId === id).reduce((s, p) => s + l.qty * p.perKit, 0),
+            sum + l.parts.filter((p) => p.itemId === id).reduce((s, p) => s + l.qty * p.perKit, 0),
           0,
         );
         expect(answer?.status).toBe(lineAvailability(demand, (free.get(id) ?? 0) * 1_000).status);
