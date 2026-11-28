@@ -74,5 +74,6 @@ delete a branch, force-push, install a package or touch a hosted service.
 - **Check a lane agent is alive before counting it as running:** when the wait returns, or every 30 minutes, check each agent you count as running (TaskGet or its output). An agent that ended without its `done_when` subject on its branch is no longer running. Commit and push what it left, then start the lane again from its branch.
 - You are not the lead. Never run the `start-session` or `end-session` skills, open or merge a pull request, push to `main` or `ops/seats`, delete a branch, force-push, install a package, or touch a hosted service or a GitHub workflow.
 - Every lane agent runs on Opus 5.5 at high effort, and so does the seat session itself.
+- **A build or fix lane runs `pnpm format:check` (Prettier) before its `done` or `fixes` report** and fixes what it names in its own files. Two preps stopped on it on day 1 (J1, H2).
 - Every branch is pushed after every commit, at least every 10 minutes.
 - If your account's usage limit stops you, push what you have, with `report: <slug> blocked` and the words "usage limit" if you still can. When the session comes back, continue the loop: the seat files say what is left.
