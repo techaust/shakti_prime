@@ -277,3 +277,40 @@ Not run: the journeys (`e2e/finance.spec.ts`: Accounts' payments and proforma, t
 **Verdict:** both high findings are dealt with as triaged. Finding 1 is fixed. Finding 2 stays open for the lead at integration, together with finding 4's three registry lines and a loan-held test on J2's real definer. Nothing new is high. N1 to N5 are low follow-ups.
 
 ## Integration
+
+### Integration prep (28-11-2026, cloud VM, worktree `fn1-proformas`, Postgres 54331; `integrate.sh` on 54340)
+`main` at 994631ae (#305, the calling-hours fix; J2, TC1 and the axe title wait before it) taken in by the merge commit dcb96132, as [slice-integration §5](../../runbooks/slice-integration.md#5-take-main-into-the-slice) says: `merge-union.py` on the lists, `merge-json.py` on `en.json` (no key changed on both sides), `merge-copylint.py`, the rest by hand; `pnpm install --offline --frozen-lockfile`; `renumber-migrations.mjs origin/main 33e408cd`; `pnpm db:generate` "No schema changes, nothing to migrate"; `pnpm db:docs` and `machines:docs`.
+
+**Migrations:** FN1's six move after J2's 0246, with journal times after it: 0243 → 0247 `fn1_proformas`, 0244 → 0248 `fn1_proformas_rls`, 0245 → 0249 `fn1_proforma_pdf`, 0246 → 0250 `fn1_proforma_pdf_rls`, 0247 → 0251 `fn1_fix_round`, 0248 → 0252 `fn1_fix_round_rls`. DATABASE's FN1 rows cite the new numbers (17 lines); the code cites none.
+
+**Every redefinition, against `main`'s latest:**
+
+| Object | `main`'s latest | Result |
+|---|---|---|
+| `notifications_type_check`, `notification_preferences_type_check` | J2's 0245 (adds `loan_rejected`) | **Broken by the merge, fixed.** FN1's 0251 rebuilt both from 0228 with `payments_not_planned`, which would have dropped `loan_rejected`. Both now hold J2's list plus `payments_not_planned`; the schema's `NOTICE_TYPES` matches, and `enum-sync` passes. |
+| `app.order_loan_gate()` | J2's 0244 | **Redefined (lead's item 1).** 0248 §8 is J2's body word for word, with one line added to `v_operations`: `or app.has_perm('finance.milestones.process:all')`, so the first check and the operations path answer the platform. The stand-in block is gone. Revoke and grant as J2's. DATABASE's J2 row names the platform and 0248, and the stand-in row is removed. |
+| `files_purpose_check` | Q1's 0241 | Same: 0249 is Q1's list plus `proforma_pdf` (diffed). |
+| `app.file_purpose_grant()` | Q1's 0242 | Same: 0250 is Q1's body plus `proforma_pdf` in write (`files.process:entity`) and read (`finance.read`) (diffed). |
+| `app.platform_only_permissions()` | W2's 0222 (J2 does not touch it) | Same: 0248 is 0222's nineteen keys plus `finance.milestones.process` (diffed). |
+| `app.next_document_no()` | 0201 | Not redefined by FN1; `finance.proforma.issue` calls it through `nextDocumentNo(ctx, …, 'proforma')`. Nothing on `main` changed it since. |
+| `document_sequences_doc_type_check` | 0007 (`quote`, `sales_order`, `proforma`, `challan`, `purchase_order`) | Not redefined by FN1; `proforma` is in it. |
+| Foreign keys | — | FN1 adds keys only on its own four tables; none on `main`'s tables is redefined. `sales_orders_payment_plan_failure_check` is FN1's own new check. |
+
+**Shared lists:** a key used twice was searched for in every file both sides changed (merged lines counted against each parent): none. The union had put a duplicate `'app.order_loan_gate(uuid)'` in `grants.test.ts`'s `app_reader` list (J2's and FN1's lines); one is kept, in order. The catalogue and menu unions needed their closing braces between the two sides' entries.
+
+**Hand merges:** the order page reads the order, J2's Loan tab and FN1's Payments tab at once and shows both (Loan first); `/orders` loads the `finance` and `loans` messages; the menu holds Lenders and Payment terms; the e2e seed runs both journeys' set-ups.
+
+**The lead's three items:**
+1. `app.order_loan_gate()` as above; the db test "app.order_loan_gate() answers the platform planning milestones" passes on J2's body.
+2. `EVENT_WORKERS` subscribes `crm.loan.sanctioned`, `crm.loan.disbursed` and `crm.loan.gates_released` to `handleOrderLoanMoved` (`finance.milestone.refresh`); the three are `subscribed: true` in the catalogue and in `catalogue.test.ts`'s list. The publisher makes their URL groups (`evt-<type>`) itself.
+3. Domain `finance.test.ts`: "holds a loan-gated payment while J2's loan gate holds the order, and brings it due once the loan is sanctioned": terms with a `sanctioned` gate on the advance, a loan applied through `crm.loan.create`, the platform's plan leaves the advance pending and a refresh brings nothing due; after `crm.loan.sanction` (its event names the order) the refresh brings exactly the advance due. Two comments that named the stand-in now name J2's gate.
+
+**Fixed after the parts ran, as the merge broke them:** the new test's `expect.objectContaining` failed lint (`no-unsafe-assignment`; c9bc2f18). `js-budget` put `/admin/integrations` at 241.3 kB (budget 241) and `/calling` at 207.1 kB (207): each side's menu entry fitted alone, both together did not. Each was raised by 1 kB with the reason (9e422660); `/catalogue` measures 245.7 kB under its 246.
+
+**`integrate.sh` in parts** (through `heavy.sh`, never the e2e step); parts 1 to 3 on c9bc2f18, part 4 on 9e422660 (only `js-budget.json` changed):
+- `install lint format copylint generated typecheck`: `=== INTEGRATION PARTIAL (install lint format copylint generated typecheck)` (the first run, on dcb96132, failed lint on the one line above).
+- `unit`: `=== INTEGRATION PARTIAL (unit)`. contracts 347, db 163, domain 2894, web 1283 (1 skipped), tokens 146, ui 107, copy-lint 17, voice 49, voice-agent 23, tally-connector 68 (1 skipped).
+- `security dbverify`: `=== INTEGRATION PARTIAL (security dbverify)`. db 66 files, 1925 passed; domain 113 files, 1587 passed (`commands/finance` 27, `commands/loans` 22); web 40 files, 466 passed. `db:verify`: every migration is applied as it is on disk.
+- `audit build jsbudget gitleaks`: `=== INTEGRATION PARTIAL (audit build jsbudget gitleaks)` (the first run failed `jsbudget` as above). The audit has nothing new, no page is over its budget, and gitleaks scanned 30 commits with no leaks.
+
+**For the lead:** the journeys (`finance.spec.ts`, `print.spec.ts`, and J2's loan journeys beside them on the order page) and the Linux baselines were not run. The order page now shows both tabs, so its baselines change. `js-budget.json` is a checks file, so the pull request waits for the owner's `checks-ok`. The reviewer's N1 to N5 stay open as low follow-ups.
