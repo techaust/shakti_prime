@@ -59,7 +59,7 @@ describe('the worker contracts (docs/06-api.md §3.6)', () => {
       PdfRenderJob.safeParse({
         eventId: IDS.eventB,
         entityId: 1,
-        target: { kind: 'labels', labelKind: 'serial', size: '50x25', ids },
+        target: { kind: 'labels', sheetId: IDS.event, labelKind: 'serial', size: '50x25', ids },
       }).success;
     expect(labels([IDS.serialA, IDS.serialB])).toBe(true);
     expect(labels([])).toBe(false);

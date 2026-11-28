@@ -14,6 +14,7 @@ import { INBOUND_MATCH_LIMIT } from '../commands/calls/inbound';
 import { PROVIDER_CALL_ENDS } from '../commands/calls/provider-calls';
 import { StockReasonSchema } from '../inventory/enums';
 import { StockQtySchema } from '../inventory/stock';
+import { LABEL_SHEET_MAX, LabelSizeSchema, PrintableLabelKindSchema } from '../inventory/labels';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -471,6 +472,26 @@ const eventCatalogue = {
         documentType: PdfDocumentTypeSchema,
         documentId: IdSchema,
         version: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  // Q1 labels
+  /**
+   * A sheet of QR labels to print (docs/03-roadmap-appendix/phase3.md §7.4): delivered as a
+   * `PdfRenderJob` of `kind: 'labels'` to `/api/v1/workers/pdf/render`, which stores the PDF under
+   * the sheet's id. The labels' own words are read by the worker, never carried here.
+   */
+  'print.labels.requested': {
+    meaning:
+      'A sheet of QR labels is to be printed: the render worker reads the serials or bins, prints the labels at the stock size and stores the PDF.',
+    emittedBy: ['inventory.label.print', 'inventory.label.reprint'],
+    subscribed: true,
+    payload: z
+      .object({
+        sheetId: IdSchema,
+        labelKind: PrintableLabelKindSchema,
+        size: LabelSizeSchema,
+        ids: z.array(IdSchema).min(1).max(LABEL_SHEET_MAX),
       })
       .strict(),
   },

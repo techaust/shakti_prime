@@ -277,11 +277,18 @@ describe('POST /api/v1/workers/pdf/render (ADR 0009)', () => {
     expect(refused.headers.get('upstash-nonretryable-error')).toBe('true');
   });
 
-  it('refuses a sheet of labels and a document no loader prints, for good', async () => {
+  it('refuses a sheet of package labels and a document no loader prints, for good', async () => {
+    // Package labels wait for dispatch (D2), which adds packages and their loader.
     const labels = JSON.stringify({
       eventId: newId(),
       entityId: ENTITY,
-      target: { kind: 'labels', labelKind: 'serial', size: '50x25', ids: [newId()] },
+      target: {
+        kind: 'labels',
+        sheetId: newId(),
+        labelKind: 'package',
+        size: '100x50',
+        ids: [newId()],
+      },
     });
     const challan = JSON.stringify({
       ...proofJob(),
