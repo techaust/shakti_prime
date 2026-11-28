@@ -169,10 +169,17 @@ describe('item and kit sheets', () => {
 
 describe('listKitPrices and listPriceChanges (Price Master)', () => {
   it('lists the kits still sold with their price on one list, a kit not priced with none', async () => {
-    const page = await asPrincipal(reader(), (ctx) =>
-      listKitPrices(ctx, { priceListId: ids.sharedList, limit: 200 }),
-    );
-    const mine = page.items.filter((k) => k.name.startsWith(tag));
+    // Every page: the database is never cleaned, so the run's kit can sort past the first page.
+    const rows = [];
+    let cursor: string | undefined;
+    do {
+      const page = await asPrincipal(reader(), (ctx) =>
+        listKitPrices(ctx, { priceListId: ids.sharedList, limit: 200, cursor }),
+      );
+      rows.push(...page.items);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor !== undefined);
+    const mine = rows.filter((k) => k.name.startsWith(tag));
     expect(mine).toEqual([expect.objectContaining({ kitId: ids.kit, price: '9000.00' })]);
     await expect(
       asPrincipal(principalFor('field_engineer', [1]), (ctx) =>
