@@ -1,6 +1,7 @@
 import { newId, type Principal, type RoleKey } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import {
+  asPrincipal,
   closeDb,
   createTestPrincipal,
   PIPELINE_SEED,
@@ -10,7 +11,13 @@ import {
 import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { removeAskData, seedAskData, type AskData } from '../fixtures/ask-data';
+import { serialOf, stockFixture } from '../stock/stock-fixture';
+import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { executeQuery } from '../../src/command/execute';
+import { runCommand } from '../../src/command/run-command';
+import { adjustStock } from '../../src/commands/inventory/stock';
+import { labelPayload } from '../../src/labels/payload';
+import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
 import { loadShadowReport } from '../../src/queries/agents/shadow-report';
@@ -131,6 +138,8 @@ import {
 import { dealerCreditHistory, listDealerCredit } from '../../src/queries/sales/dealer-credit';
 // H1 stock ledger
 import { listHubs } from '../../src/queries/inventory/hubs';
+// Q1 labels
+import { loadLabelsForPrint, resolveScannedCode } from '../../src/queries/inventory/labels';
 import {
   getSerial,
   getStockCard,
@@ -187,8 +196,32 @@ const RINGING = {
 /** Ask's seeded records (an item with its cost side, a vault file, two rules), for its reads. */
 let askData: AskData;
 
+/** A serial of company 1 in a storage bin, for the labels' reads (Q1). */
+const labelled = { serialId: '', binId: '' };
+
 beforeAll(async () => {
-  askData = await seedAskData((await createTestPrincipal('executive')).id);
+  const exec = await createTestPrincipal('executive');
+  askData = await seedAskData(exec.id);
+  const f = await stockFixture(exec.id);
+  const serialNo = `RP-${f.tag}`;
+  await asPrincipal({ ...exec, entityIds: [1] }, (context) =>
+    runCommand(
+      adjustStock,
+      { context, audit, outbox },
+      {
+        entityId: 1,
+        itemId: f.pump,
+        binId: f.binA,
+        adjustment: 'gain',
+        serialNos: [serialNo],
+        note: 'Reader parity stock',
+      },
+    ),
+  );
+  const serial = await serialOf(f.pump, serialNo);
+  if (serial === undefined) throw new Error('the serial was not made');
+  labelled.serialId = serial.id;
+  labelled.binId = f.binA;
 });
 
 afterAll(async () => {
@@ -383,6 +416,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
     readLineAvailability(ctx, { entityId: 1, kind: 'quote', id: newId() }),
   listReservations: (ctx) => listReservations(ctx, { entityId: 1, itemId: newId() }),
   listItemBackorders: (ctx) => listItemBackorders(ctx, { entityId: 1, itemId: newId() }),
+  // Q1 labels: the render worker's read of a sheet.
+  loadLabelsForPrint: (ctx) => loadLabelsForPrint(ctx, 'serial', [labelled.serialId]),
 };
 
 /**
@@ -390,6 +425,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
  * pools for every caller.
  */
 const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
+  // Q1 labels: a scanned bin label and the render worker's read of a bin sheet, on a real bin.
+  resolveScannedBin: (ctx) =>
+    resolveScannedCode(ctx, { code: labelPayload('bin', labelled.binId) }),
+  loadBinLabelsForPrint: (ctx) => loadLabelsForPrint(ctx, 'bin', [labelled.binId]),
   // The approved Playbook, the agents' and Ask's one read of it (K2).
   approvedPlaybook: (ctx) => approvedPlaybook(ctx, {}),
   // Ask's cited records' words and an item's cost side (B1), on real records.
@@ -433,6 +472,10 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
       { entityId: 1, opportunityId: newId(), lines: [{ itemId: newId(), qty: '1' }] },
       QUOTES_AT,
     ),
+  // Q1 labels: what a scanned label names, under the caller's own policies, for a real serial
+  // (company 1's, so the callers of other companies are answered `unknown`) and a real bin.
+  resolveScannedCode: (ctx) =>
+    resolveScannedCode(ctx, { code: labelPayload('serial', labelled.serialId) }),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */

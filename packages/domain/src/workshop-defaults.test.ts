@@ -30,6 +30,8 @@ describe('workshop defaults', () => {
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
       // H1 stock ledger
       stock: { reversalDays: 7, reservationHoldDays: 15, reservationReminderDays: 2 },
+      // Q1 labels
+      labels: { sizeByKind: { serial: '50x25', bin: '50x25', package: '100x50' } },
       crm: {
         dispositions: [
           { key: 1, code: 'interested', label: 'Interested', nextAction: 'callback' },

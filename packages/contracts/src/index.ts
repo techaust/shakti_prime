@@ -29,6 +29,8 @@ export * from './inventory/enums';
 export * from './inventory/stock';
 // H2 reservations and availability
 export * from './inventory/reservations';
+// Q1 labels
+export * from './inventory/labels';
 export * from './catalogue/serial-pattern';
 export * from './numbering/document-no';
 export * from './tax/engine';

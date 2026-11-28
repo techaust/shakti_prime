@@ -106,6 +106,8 @@ import {
   WAREHOUSE_KINDS,
   // H2 reservations
   RESERVATION_STATES,
+  // Q1 labels
+  LABEL_KINDS,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
@@ -620,6 +622,8 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(RESERVATION_STATES, value)
           ? t(`values.reservationState.${value}`)
           : wordsOf(value);
+      case 'labelKind':
+        return oneOf(LABEL_KINDS, value) ? t(`values.labelKind.${value}`) : wordsOf(value);
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
       case 'fileStatus':

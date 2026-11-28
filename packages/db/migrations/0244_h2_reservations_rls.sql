@@ -94,9 +94,10 @@ create or replace function app.platform_only_permissions() returns text[]
 $$;
 --> statement-breakpoint
 
--- 5. app.stock_move(): H1's definer (0231) with one rule more, in pass 2: an outbound line never
---    takes a bin below its reserved quantity (stock_reserved_insufficient, naming the item and the
---    bin). Everything else is as 0231 wrote it.
+-- 5. app.stock_move(): X4's definer (the stock reasons migration, the reason registry) with one
+--    rule more, in pass 2 under the balance lock: an outbound line never takes a bin below its
+--    reserved quantity (stock_reserved_insufficient, naming the item and the bin), checked after
+--    X4's stock_insufficient. Everything else is as X4 wrote it.
 create or replace function app.stock_move(p_movements jsonb)
   returns uuid[]
   language plpgsql volatile security definer set search_path = '' as $$
@@ -113,6 +114,10 @@ declare
   v_ids uuid[] := '{}';
   v_reason text;
   v_perm text;
+  v_reverses text;
+  v_keyed boolean;
+  v_rev_perm text;
+  v_rev_ok boolean;
   v_item_active boolean;
   v_item_tracked boolean;
   v_stocked boolean;
@@ -161,20 +166,23 @@ begin
     v_line.ord := v_ord;
     v_reason := v_el ->> 'reason';
     v_line.reason := v_reason;
-    v_perm := case
-      when v_reason in ('opening', 'adjust_gain', 'adjust_loss', 'damage', 'count', 'reversal')
-        then 'inventory.stock.adjust:entity'
-      when v_reason = 'transfer' then 'inventory.stock.move:entity'
-      else null end;
+    v_reverses := '';
+    select g.permission into v_perm
+      from app.stock_reason_grants g where g.reason = v_reason;
     if v_perm is null then
       perform app.stock_refuse('stock_reason_not_open', pg_catalog.jsonb_build_object('line', v_ord));
     end if;
-    if not app.has_perm(v_perm) then
+    -- A reversal's grant waits for its move row, below.
+    if v_reason <> 'reversal' and not app.has_perm(v_perm) then
       raise exception '% is required for a % movement', v_perm, v_reason using errcode = '42501';
     end if;
     v_line.ref_type := nullif(pg_catalog.btrim(v_el ->> 'ref_type'), '');
     v_line.note := nullif(pg_catalog.btrim(v_el ->> 'note'), '');
     v_line.ref_id := (v_el ->> 'ref_id')::uuid;
+    v_line.account_id := (v_el ->> 'account_id')::uuid;
+    v_line.site_id := (v_el ->> 'site_id')::uuid;
+    v_line.delivered_at := (v_el ->> 'delivered_at')::timestamptz;
+    v_line.warranty_until := (v_el ->> 'warranty_until')::date;
     if (v_line.ref_type is null) <> (v_line.ref_id is null)
        or pg_catalog.char_length(coalesce(v_line.ref_type, '')) > 40
        or pg_catalog.char_length(coalesce(v_line.note, '')) > 300 then
@@ -194,12 +202,7 @@ begin
       if not found or not (v_orig.entity_id = any (v_entities)) then
         perform app.stock_refuse('stock_movement_missing', pg_catalog.jsonb_build_object('line', v_ord));
       end if;
-      if v_orig.reason not in ('opening', 'adjust_gain', 'adjust_loss', 'damage', 'count', 'transfer') then
-        perform app.stock_refuse('stock_reversal_not_allowed', pg_catalog.jsonb_build_object('line', v_ord));
-      end if;
-      if v_orig.reversed then
-        perform app.stock_refuse('stock_already_reversed', pg_catalog.jsonb_build_object('line', v_ord));
-      end if;
+      v_reverses := v_orig.reason;
       v_line.entity_id := v_orig.entity_id;
       v_line.item_id := v_orig.item_id;
       v_line.serial_id := v_orig.serial_id;
@@ -226,12 +229,37 @@ begin
          or (v_line.unit_cost is not null and (v_line.from_bin is not null or v_line.unit_cost < 0)) then
         perform app.stock_refuse('stock_movement_shape', pg_catalog.jsonb_build_object('line', v_ord));
       end if;
-      -- Each reason's direction: into a bin, out of a bin, or between two.
-      if (v_reason in ('opening', 'adjust_gain') and (v_line.from_bin is not null or v_line.to_bin is null))
-         or (v_reason in ('adjust_loss', 'damage') and (v_line.to_bin is not null or v_line.from_bin is null))
-         or (v_reason = 'count' and v_line.from_bin is not null and v_line.to_bin is not null)
-         or (v_reason = 'transfer' and (v_line.from_bin is null or v_line.to_bin is null)) then
-        perform app.stock_refuse('stock_movement_shape', pg_catalog.jsonb_build_object('line', v_ord));
+    end if;
+
+    -- The line's direction (into a bin, out of a bin, or between two) and its serial's move: the
+    -- reason's row for it, a reversal's keyed by the reason it reverses before H1's for any reason.
+    select m.from_states, m.creates, m.to_state, m.reverses_reason <> ''
+      into v_line.move_from, v_line.move_creates, v_line.move_to, v_keyed
+      from app.stock_reason_moves m
+     where m.reason = v_reason
+       and m.direction = case when v_line.from_bin is null then 'in'
+                              when v_line.to_bin is null then 'out' else 'transfer' end
+       and m.reverses_reason in ('', v_reverses)
+     order by m.reverses_reason desc
+     limit 1;
+    if not found then
+      perform app.stock_refuse('stock_movement_shape', pg_catalog.jsonb_build_object('line', v_ord));
+    end if;
+    if v_reason = 'reversal' then
+      -- The reversed reason's grant when its own row moves the line, else the reversal row's.
+      select g.permission, g.reversible into v_rev_perm, v_rev_ok
+        from app.stock_reason_grants g where g.reason = v_reverses;
+      if v_keyed and v_rev_perm is not null then
+        v_perm := v_rev_perm;
+      end if;
+      if not app.has_perm(v_perm) then
+        raise exception '% is required for a % movement', v_perm, v_reason using errcode = '42501';
+      end if;
+      if not coalesce(v_rev_ok, false) then
+        perform app.stock_refuse('stock_reversal_not_allowed', pg_catalog.jsonb_build_object('line', v_ord));
+      end if;
+      if v_orig.reversed then
+        perform app.stock_refuse('stock_already_reversed', pg_catalog.jsonb_build_object('line', v_ord));
       end if;
     end if;
 
@@ -303,12 +331,12 @@ begin
           if v_serial.entity_id <> v_line.entity_id then
             -- Another company's serial is never named to this one: its number is taken for a new
             -- serial, and unknown to a movement of one.
-            perform app.stock_refuse(case when v_reason in ('opening', 'adjust_gain')
+            perform app.stock_refuse(case when v_line.move_creates
                                           then 'stock_serial_exists' else 'stock_serial_unknown' end,
               pg_catalog.jsonb_build_object('line', v_ord, 'serialNo', v_line.serial_no));
           end if;
           v_line.serial_id := v_serial.id;
-        elsif not (v_reason in ('opening', 'adjust_gain')) then
+        elsif not v_line.move_creates then
           perform app.stock_refuse('stock_serial_unknown',
             pg_catalog.jsonb_build_object('line', v_ord, 'serialNo', v_line.serial_no));
         end if;
@@ -321,6 +349,24 @@ begin
       end if;
       if v_line.serial_id is not null then
         v_serial_ids := v_serial_ids || v_line.serial_id;
+      end if;
+    end if;
+
+    -- A delivery's customer: only on a line whose serial goes to a customer, and one the line's
+    -- company knows, with a site of that customer.
+    if v_line.account_id is not null or v_line.site_id is not null
+       or v_line.delivered_at is not null or v_line.warranty_until is not null then
+      if not v_line.tracked or v_line.move_to is distinct from 'with_customer'
+         or (v_line.site_id is not null and v_line.account_id is null) then
+        perform app.stock_refuse('stock_movement_shape', pg_catalog.jsonb_build_object('line', v_ord));
+      end if;
+      if (v_line.account_id is not null
+          and not exists (select 1 from public.account_entities ae
+                           where ae.account_id = v_line.account_id and ae.entity_id = v_line.entity_id))
+         or (v_line.site_id is not null
+             and not exists (select 1 from public.customer_sites s
+                              where s.id = v_line.site_id and s.account_id = v_line.account_id)) then
+        perform app.stock_refuse('stock_customer_missing', pg_catalog.jsonb_build_object('line', v_ord));
       end if;
     end if;
     v_lines := v_lines || v_line;
@@ -405,40 +451,49 @@ begin
     -- The serial follows its movement.
     if v_line.tracked then
       if v_line.serial_id is null then
-        -- A new serial (opening or adjust_gain); a race on its number meets the unique index.
+        -- A new serial (a move row that creates); a race on its number meets the unique index.
         insert into public.serials (id, entity_id, item_id, serial_no, state, bin_id, created_by)
-        values (app.uuid_v7(), v_line.entity_id, v_line.item_id, v_line.serial_no, 'in_stock',
+        values (app.uuid_v7(), v_line.entity_id, v_line.item_id, v_line.serial_no, v_line.move_to,
                 v_line.to_bin, v_actor)
         returning id into v_line.serial_id;
       else
         select s.state, s.bin_id, s.serial_no into v_serial from public.serials s where s.id = v_line.serial_id;
         if v_line.from_bin is null then
-          -- Into a bin: a serial that left the company's stock comes back.
-          if v_serial.state <> 'scrapped' then
+          -- Into a bin: a serial comes back only from the move row's states.
+          if not (v_serial.state = any (v_line.move_from)) then
             perform app.stock_refuse(case when v_line.reason = 'reversal' then 'stock_serial_not_in_bin'
-                                          else 'stock_serial_exists' end,
+                                          when v_line.move_creates or v_serial.bin_id is not null
+                                            then 'stock_serial_exists'
+                                          else 'stock_serial_state' end,
               pg_catalog.jsonb_build_object('line', v_line.ord, 'serialNo', v_serial.serial_no));
           end if;
-          update public.serials
-             set state = 'in_stock', bin_id = v_line.to_bin, state_changed_at = pg_catalog.now(),
-                 updated_by = v_actor
-           where id = v_line.serial_id;
         else
-          if v_serial.state <> 'in_stock' or v_serial.bin_id is distinct from v_line.from_bin then
+          if v_serial.bin_id is distinct from v_line.from_bin then
             perform app.stock_refuse('stock_serial_not_in_bin',
               pg_catalog.jsonb_build_object('line', v_line.ord, 'serialNo', v_serial.serial_no,
                                             'binId', v_line.from_bin));
           end if;
-          if v_line.to_bin is null then
-            update public.serials
-               set state = 'scrapped', bin_id = null, state_changed_at = pg_catalog.now(),
-                   updated_by = v_actor
-             where id = v_line.serial_id;
-          else
-            update public.serials set bin_id = v_line.to_bin, updated_by = v_actor
-             where id = v_line.serial_id;
+          if not (v_serial.state = any (v_line.move_from)) then
+            perform app.stock_refuse('stock_serial_state',
+              pg_catalog.jsonb_build_object('line', v_line.ord, 'serialNo', v_serial.serial_no,
+                                            'binId', v_line.from_bin));
           end if;
         end if;
+        -- To the move row's state; its bin as serials_bin_check has it, and a delivery's customer.
+        update public.serials
+           set state = v_line.move_to,
+               bin_id = case when v_line.move_to in ('with_customer', 'with_supplier', 'scrapped')
+                             then null else v_line.to_bin end,
+               state_changed_at = case when state = v_line.move_to then state_changed_at
+                                       else pg_catalog.now() end,
+               account_id = case when v_line.move_to = 'with_customer' then v_line.account_id else account_id end,
+               site_id = case when v_line.move_to = 'with_customer' then v_line.site_id else site_id end,
+               delivered_at = case when v_line.move_to = 'with_customer' then v_line.delivered_at
+                                   else delivered_at end,
+               warranty_until = case when v_line.move_to = 'with_customer' then v_line.warranty_until
+                                     else warranty_until end,
+               updated_by = v_actor
+         where id = v_line.serial_id;
       end if;
     end if;
 

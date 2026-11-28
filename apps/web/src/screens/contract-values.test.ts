@@ -138,6 +138,10 @@ import {
   AvailabilityStatusSchema,
   ReservationStateSchema,
   WarehouseKindSchema,
+  // Q1 labels
+  LABEL_REPRINT_MAX,
+  LABEL_SHEET_MAX,
+  LabelKindSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
@@ -269,6 +273,10 @@ import {
   // H2 reservations
   AVAILABILITY_STATUSES as AVAILABILITY_STATUSES_WEB,
   RESERVATION_STATES as RESERVATION_STATES_WEB,
+  // Q1 labels
+  LABEL_KINDS as LABEL_KINDS_WEB,
+  LABEL_REPRINT_MAX as LABEL_REPRINT_MAX_WEB,
+  LABEL_SHEET_MAX as LABEL_SHEET_MAX_WEB,
 } from './contract-values';
 import {
   BARCODE_MAX_LENGTH,
@@ -394,6 +402,10 @@ describe('the contract values copied for the browser', () => {
     // H2 reservations
     expect(RESERVATION_STATES_WEB).toEqual(ReservationStateSchema.options);
     expect(AVAILABILITY_STATUSES_WEB).toEqual(AvailabilityStatusSchema.options);
+    // Q1 labels
+    expect(LABEL_KINDS_WEB).toEqual(LabelKindSchema.options);
+    expect(LABEL_SHEET_MAX_WEB).toBe(LABEL_SHEET_MAX);
+    expect(LABEL_REPRINT_MAX_WEB).toBe(LABEL_REPRINT_MAX);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);

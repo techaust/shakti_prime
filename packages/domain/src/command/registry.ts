@@ -166,6 +166,8 @@ import {
   releaseReservation,
 } from '../commands/inventory/reservations';
 import { fillBackorders, scanReservations } from '../commands/inventory/reservations-jobs';
+// Q1 labels
+import { printLabels, reprintLabels } from '../commands/inventory/labels';
 import {
   approvePriceList,
   archivePriceList,
@@ -325,6 +327,9 @@ export const commands = Object.freeze({
   [moveReservation.name]: moveReservation,
   [fillBackorders.name]: fillBackorders,
   [scanReservations.name]: scanReservations,
+  // Q1 labels
+  [printLabels.name]: printLabels,
+  [reprintLabels.name]: reprintLabels,
   [updateItem.name]: updateItem,
   [archiveItem.name]: archiveItem,
   [createKit.name]: createKit,

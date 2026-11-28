@@ -577,7 +577,10 @@
     "bin_missing": "We couldn't find that bin. Refresh the page to see the current list.",
     "bin_archived": "This bin is no longer in use, so it can't be changed.",
     "bin_required": "Every hub keeps its receiving and dispatch bins, so this bin can't be archived.",
-    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it."
+    "item_barcode_taken": "Another item already has this barcode. Check the barcode, or open the item that has it.",
+    "stock_serial_state": "That serial number can't be moved this way from where it is now. Check where it is and try again.",
+    "stock_customer_missing": "We couldn't find that customer or site. Choose the customer again, then try again.",
+    "label_target_missing": "We couldn't find one of the serial numbers or bins to label. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -2009,7 +2012,9 @@
       "reservationRelease": "Stock hold released",
       "reservationMove": "Stock hold moved to another hub",
       "reservationFill": "Stock set aside for waiting orders",
-      "reservationScan": "Ended stock holds checked"
+      "reservationScan": "Ended stock holds checked",
+      "labelPrint": "Labels printed",
+      "labelReprint": "Label printed again"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2080,7 +2085,8 @@
       "reservationMoved": "Stock hold moved to another hub",
       "reservationLapsed": "Stock holds ended",
       "reservationExpiring": "Stock holds end soon",
-      "stockMoved": "Stock moved"
+      "stockMoved": "Stock moved",
+      "labelsRequested": "Labels sent for printing"
     },
     "sheet": {
       "title": "{action}",
@@ -2432,7 +2438,10 @@
       "purchaseUnit": "Unit it is bought in",
       "purchaseUnitFactor": "Stock units in one bought unit",
       "serialPattern": "Shape of its serial numbers",
-      "isStocked": "Kept in stock"
+      "isStocked": "Kept in stock",
+      "labelKind": "Kind of label",
+      "labelCount": "Labels on the sheet",
+      "labelNote": "Why it was printed again"
     },
     "values": {
       "percent": "{value}%",
@@ -2625,6 +2634,11 @@
         "picked": "Picked",
         "released": "Released",
         "lapsed": "Ended"
+      },
+      "labelKind": {
+        "serial": "Serial number",
+        "bin": "Bin",
+        "package": "Package"
       }
     }
   },
@@ -2677,7 +2691,12 @@
     "label": {
       "serial": "Serial number",
       "item": "Item code",
-      "scan": "Scan for warranty"
+      "hub": "Hub",
+      "dispatch": "Dispatch number",
+      "package": "Package",
+      "packageOf": "{n} of {count}",
+      "place": "Deliver to",
+      "fileName": "{count, plural, one {# label} other {# labels}}.pdf"
     },
     "company": {
       "gstin": "GSTIN",
@@ -3590,7 +3609,8 @@
       "whatsapp_media": "File sent on WhatsApp",
       "call_recording": "Call recording",
       "call_transcript": "Call transcript",
-      "vendor_quote": "Supplier quote"
+      "vendor_quote": "Supplier quote",
+      "label_sheet": "Labels to print"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -6902,6 +6922,30 @@
       "supplierWarrantyUntil": "Supplier's warranty until",
       "notSet": "Not set",
       "movements": "Movements"
+    },
+    "labels": {
+      "printLabels": "Print labels for {name}",
+      "firstLabel": "Print the label",
+      "reprintLabel": "Print the label again",
+      "printHubTitle": "Bin labels for {name}",
+      "printHubIntro": "{count, plural, one {One label} other {# labels}}, one for each bin of this hub. Open the sheet when it is ready and print it on the hub's label printer.",
+      "printBinTitle": "Label for bin {bin}",
+      "printBinIntro": "One label for this bin of {hub}. Open it when it is ready and print it on the hub's label printer.",
+      "printSerialTitle": "Label for {serial}",
+      "printSerialIntro": "One label for this serial number. Open it when it is ready and print it on the hub's label printer.",
+      "reprintBinTitle": "New label for bin {bin}",
+      "reprintBinIntro": "A new label for this bin of {hub}. Say why it needs one; the reason is kept with the bin's history.",
+      "reprintSerialTitle": "New label for {serial}",
+      "reprintSerialIntro": "A new label for this serial number. Say why it needs one; the reason is kept with the serial's history.",
+      "note": "Why it needs a new label",
+      "noteHelper": "Such as a torn, faded or lost label. 3 to 300 characters.",
+      "noteInvalid": "Say why in 3 to 300 characters.",
+      "printSubmit": "Print labels",
+      "printOneSubmit": "Print the label",
+      "working": "Printing {count, plural, one {the label} other {# labels}}. This takes a few seconds.",
+      "ready": "{count, plural, one {The label is} other {The labels are}} ready to print.",
+      "slow": "The labels are taking longer than usual. Close this and try again in a minute.",
+      "openLabels": "Open the labels"
     }
   },
   "holds": {

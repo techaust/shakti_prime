@@ -78,6 +78,8 @@ describe('the event catalogue', () => {
         'messaging.message.received',
         'platform.probe.requested',
         'print.document.requested',
+        // A sheet of QR labels (Q1).
+        'print.labels.requested',
         'sales.order.confirmed',
         'sales.order.credit_held',
         'sales.quote.accepted',

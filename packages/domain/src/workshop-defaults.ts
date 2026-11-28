@@ -4,6 +4,8 @@ import {
   type AccountType,
   type DispositionNextAction,
   type DocType,
+  type LabelKind,
+  type LabelSize,
   type PriceTierCode,
   type PipeMaterial,
   type PumpType,
@@ -51,6 +53,11 @@ export interface WorkshopDefaults {
     readonly reservationHoldDays: number;
     /** Days before a reservation lapses that its order's owner and the Inventory Manager are told. */
     readonly reservationReminderDays: number;
+  };
+  // Q1 labels
+  readonly labels: {
+    /** The label stock each kind prints on, in millimetres (docs/03-roadmap-appendix/phase3.md §2 q9). */
+    readonly sizeByKind: Readonly<Record<LabelKind, LabelSize>>;
   };
   readonly crm: {
     readonly dispositions: readonly {
@@ -295,6 +302,15 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     reservationHoldDays: 15,
     /** Phase 3 design §2 question 3 (a), §10: told 2 days before it lapses. For STOCK-4. */
     reservationReminderDays: 2,
+  },
+  // Q1 labels
+  labels: {
+    /**
+     * Phase 3 design question 9 (a), decided by the owner on 23-11-2026: serials and bins on
+     * 50 × 25 mm stock, packages on 100 × 50 mm. The client's printer and stock are checked in the
+     * final phase (INV-07).
+     */
+    sizeByKind: { serial: '50x25', bin: '50x25', package: '100x50' },
   },
   crm: {
     /**

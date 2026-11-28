@@ -149,6 +149,9 @@ const ACTIONS = {
   'inventory.reservation.move': 'reservationMove',
   'inventory.reservation.fill': 'reservationFill',
   'inventory.reservation.scan': 'reservationScan',
+  // Q1 labels
+  'inventory.label.print': 'labelPrint',
+  'inventory.label.reprint': 'labelReprint',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -338,6 +341,8 @@ const EVENT_NAMES = {
   'platform.probe.requested': 'deliveryCheckRequested',
   'files.file.uploaded': 'fileUploaded',
   'print.document.requested': 'documentRequested',
+  // Q1 labels
+  'print.labels.requested': 'labelsRequested',
   'sales.quote.created': 'quoteCreated',
   'sales.quote.sent': 'quoteSent',
   'sales.quote.superseded': 'quoteSuperseded',
@@ -522,6 +527,8 @@ const CODE_GROUPS = [
   'stockReason',
   // H2 reservations
   'reservationState',
+  // Q1 labels
+  'labelKind',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -704,6 +711,10 @@ const FIELD_KINDS = [
   ['filled', 'number'],
   ['lapsed', 'number'],
   ['reminded', 'number'],
+  // QR labels printed (Q1)
+  ['labelKind', 'labelKind'],
+  ['labelCount', 'number'],
+  ['labelNote', 'text'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],
