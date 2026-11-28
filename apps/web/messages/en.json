@@ -593,7 +593,24 @@
     "loan_lender_missing": "This lender is no longer on the company's list. Choose another lender.",
     "loan_lender_from_list": "Choose the lender from the list. Ask an Executive to add a lender that is missing.",
     "lender_name_taken": "This company already has a lender with this name.",
-    "lender_missing": "We couldn't find this lender. Refresh the page and try again."
+    "lender_missing": "We couldn't find this lender. Refresh the page and try again.",
+    "qc_answers_missing": "Answer every item of the checklist, each number within its range, then submit again.",
+    "qc_signer_is_submitter": "Someone other than the person who submitted this quality check must sign it off or send it back.",
+    "qc_not_signed_off": "This step has a quality checklist. It can be marked done once its quality check is signed off.",
+    "qc_photo_missing": "One of the photos isn't ready yet or wasn't added by you. Wait for the photos to finish uploading, or add them again.",
+    "qc_checklist_changed": "A new version of this checklist was published a moment ago. Refresh the page and fill it again.",
+    "qc_no_checklist": "This step has no quality checklist, so there is nothing to submit.",
+    "qc_step_closed": "This step is already closed, so its quality check can't be submitted.",
+    "qc_project_not_active": "This project is on hold or closed, so its quality check can't be submitted now.",
+    "qc_already_submitted": "This step already has a quality check waiting for sign-off, or one signed off.",
+    "qc_inspection_missing": "We couldn't find this quality check. Refresh the page to see the project's checks.",
+    "qc_inspection_transition_not_allowed": "This quality check has already been decided. Refresh the page to see where it stands.",
+    "checklist_changed": "Someone published this checklist a moment ago. Refresh the page and try again.",
+    "cost_vendor_not_contractor": "Choose a contractor from the list. A supplier's charges are not recorded here.",
+    "cost_line_reversed": "This charge has already been reversed.",
+    "cost_line_is_reversal": "A reversal can't itself be reversed. Add the charge again instead.",
+    "cost_line_missing": "We couldn't find this charge. Refresh the page to see the project's costs.",
+    "cost_amount_too_large": "This amount is too large to record. Check the quantity and the rate."
   },
   "auth": {
     "signIn": {
@@ -2076,7 +2093,13 @@
       "loanReject": "Loan turned down",
       "loanGatesWaive": "Order stopped waiting for a loan",
       "lenderCreate": "Lender added",
-      "lenderUpdate": "Lender changed"
+      "lenderUpdate": "Lender changed",
+      "checklistPublish": "Quality checklist published",
+      "qcSubmit": "Quality check submitted",
+      "qcSignoff": "Quality check signed off",
+      "qcReject": "Quality check sent back",
+      "costAdd": "Project cost added",
+      "costReverse": "Project cost reversed"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -2153,7 +2176,10 @@
       "loanSanctioned": "Loan sanctioned",
       "loanDisbursed": "Loan paid out",
       "loanRejected": "Loan turned down",
-      "loanGatesReleased": "Loan let the order go ahead"
+      "loanGatesReleased": "Loan let the order go ahead",
+      "qcSubmitted": "Quality check submitted",
+      "qcSignedOff": "Quality check signed off",
+      "qcRejected": "Quality check sent back"
     },
     "sheet": {
       "title": "{action}",
@@ -2521,7 +2547,15 @@
       "loanReference": "Lender's reference",
       "dispatchGate": "Dispatch waits for",
       "rejectedReason": "Why the lender turned it down",
-      "waiverReason": "Why the order no longer waits for a loan"
+      "waiverReason": "Why the order no longer waits for a loan",
+      "stepKey": "Step",
+      "items": "Items",
+      "inspectionState": "Quality check status",
+      "checklistVersion": "Checklist version",
+      "qcRejectReason": "Why it was sent back",
+      "costKind": "Kind of cost",
+      "reversedLineId": "Reverses an earlier cost",
+      "vendorKind": "Supplier or contractor"
     },
     "values": {
       "percent": "{value}%",
@@ -2733,6 +2767,20 @@
         "serial": "Serial number",
         "bin": "Bin",
         "package": "Package"
+      },
+      "qcInspectionState": {
+        "submitted": "Waiting for sign-off",
+        "signed_off": "Signed off",
+        "rejected": "Sent back"
+      },
+      "costLineKind": {
+        "labour": "Labour",
+        "contractor": "Contractor",
+        "other_direct": "Other direct cost"
+      },
+      "vendorKind": {
+        "supplier": "Supplier",
+        "contractor": "Contractor"
       }
     }
   },

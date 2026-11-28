@@ -28,6 +28,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
 | Knowledge Vault file | **yes** | 5 | 7 | 0 | [knowledge-file.md](knowledge-file.md) |
 | Serial | **yes** | 8 | 18 | 14 | [serial.md](serial.md) |
+| QC inspection | **yes** | 3 | 3 | 6 | [qc-inspection.md](qc-inspection.md) |
 
 ## Workshop defaults
 

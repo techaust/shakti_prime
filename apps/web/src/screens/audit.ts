@@ -305,6 +305,13 @@ const ACTIONS = {
   'crm.loan.gates.waive': 'loanGatesWaive',
   'crm.lender.create': 'lenderCreate',
   'crm.lender.update': 'lenderUpdate',
+  // J6 QC checklists, inspections and cost lines
+  'projects.checklist.publish': 'checklistPublish',
+  'projects.qc.submit': 'qcSubmit',
+  'projects.qc.signoff': 'qcSignoff',
+  'projects.qc.reject': 'qcReject',
+  'projects.cost.add': 'costAdd',
+  'projects.cost.reverse': 'costReverse',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -402,6 +409,10 @@ const EVENT_NAMES = {
   'crm.loan.disbursed': 'loanDisbursed',
   'crm.loan.rejected': 'loanRejected',
   'crm.loan.gates_released': 'loanGatesReleased',
+  // J6 QC inspections
+  'projects.qc.submitted': 'qcSubmitted',
+  'projects.qc.signed_off': 'qcSignedOff',
+  'projects.qc.rejected': 'qcRejected',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -560,6 +571,10 @@ const CODE_GROUPS = [
   'loanDispatchGate',
   // Q1 labels
   'labelKind',
+  // J6 QC and cost lines
+  'qcInspectionState',
+  'costLineKind',
+  'vendorKind',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -972,6 +987,16 @@ const FIELD_KINDS = [
   ['dispatchGate', 'loanDispatchGate'],
   ['rejectedReason', 'text'],
   ['waiverReason', 'text'],
+  // J6 QC checklists, inspections and cost lines: a cost line is named by its kind alone, never
+  // its quantity, rate or amount (PRD PRJ-05).
+  ['stepKey', 'text'],
+  ['items', 'listCount'],
+  ['inspectionState', 'qcInspectionState'],
+  ['checklistVersion', 'number'],
+  ['qcRejectReason', 'text'],
+  ['costKind', 'costLineKind'],
+  ['reversedLineId', 'recorded'],
+  ['vendorKind', 'vendorKind'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

@@ -634,6 +634,13 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(LOAN_DISPATCH_GATES, value) ? loans(`dispatchGate.${value}`) : wordsOf(value);
       case 'labelKind':
         return oneOf(LABEL_KINDS, value) ? t(`values.labelKind.${value}`) : wordsOf(value);
+      // J6: a value its catalogue does not name reads in plain words.
+      case 'qcInspectionState':
+      case 'costLineKind':
+      case 'vendorKind': {
+        const key = `values.${group}.${value}` as Parameters<typeof t>[0];
+        return t.has(key) ? t(key) : wordsOf(value);
+      }
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
       case 'fileStatus':

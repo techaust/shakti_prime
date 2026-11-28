@@ -426,7 +426,7 @@ describe('projects.qc.signoff and .reject: decided by someone other than the sub
     expect(row?.after).toEqual({
       milestoneKey: STEP,
       inspectionState: 'rejected',
-      rejectReason: 'The earthing photo is blurred',
+      qcRejectReason: 'The earthing photo is blurred',
     });
     const second = await submit(engineer, projectId);
     expect(second.state).toBe('submitted');

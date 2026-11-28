@@ -33,7 +33,7 @@ const QC_AUDIT_FIELDS = [
   'milestoneKey',
   'inspectionState',
   'checklistVersion',
-  'rejectReason',
+  'qcRejectReason',
 ] as const;
 
 type InspectionRow = typeof schema.qcInspections.$inferSelect;
@@ -227,7 +227,11 @@ async function decide(
     aggregateId: row.id,
     entityId: row.entityId,
     before: { milestoneKey: step?.key ?? null, inspectionState: row.state },
-    after: { milestoneKey: step?.key ?? null, inspectionState: moved.to, rejectReason },
+    after: {
+      milestoneKey: step?.key ?? null,
+      inspectionState: moved.to,
+      qcRejectReason: rejectReason,
+    },
   });
   return after;
 }

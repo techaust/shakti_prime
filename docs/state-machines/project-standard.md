@@ -22,7 +22,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | Event | From → To | Permitted actor | Guard | Effects | Emits |
 |---|---|---|---|---|---|
 | `create` | (new) → `active` | `projects.write` at entity scope or wider or the platform | – | `copy_checklist`: copy the steps of the company's newest flow template for the segment, else the default steps | `projects.project.drafted` |
-| `milestone.complete` *(proposed)* | `active` → `active` | `projects.write` | the milestone is the next open one in checklist order; the milestone's required documents are in the vault (PRJ-03) | `mark_milestone`: set the milestone done with `done_at`; `emit`: event for the milestone WhatsApp message | `projects.project.milestone_completed` |
+| `milestone.complete` *(proposed)* | `active` → `active` | `projects.write` | the milestone is the next open one in checklist order; the milestone's required documents are in the vault (PRJ-03); the milestone's quality check is signed off when it has a checklist (PRJ-02) | `mark_milestone`: set the milestone done with `done_at`; `emit`: event for the milestone WhatsApp message | `projects.project.milestone_completed` |
 | `hold` *(proposed)* | `active` → `on_hold` | `projects.write` at entity scope or wider | a reason is given | – | `projects.project.held` |
 | `resume` *(proposed)* | `on_hold` → `active` | `projects.write` at entity scope or wider | – | – | – |
 | `complete` *(proposed)* | `active` → `completed` | `projects.write` at entity scope or wider | every milestone is done | `handover_kit` *(proposed)*: send the handover kit on WhatsApp (J11); `register_warranty` *(proposed)*: register warranty per serial (J11) | `projects.project.completed` |
