@@ -81,7 +81,9 @@ async function explained<T>(
 /**
  * The plans of the statements inside a definer: the request's settings copied into a migrator
  * connection (the definers run as their owner either way), with `auto_explain` sending each
- * nested statement's plan back as a notice.
+ * nested statement's plan back as a notice. postgres.js hands a notice to `console.log` when its
+ * connection has no handler, so the notices are caught there; a statement run once per line is
+ * printed once, with how many times it ran and its slowest run.
  */
 async function insideDefiner(label: string, principal: Principal, call: string): Promise<void> {
   const settings = await asPrincipal(principal, async ({ tx }) => {
@@ -96,10 +98,7 @@ async function insideDefiner(label: string, principal: Principal, call: string):
   });
   await asMigrator(async (m) => {
     const notices: string[] = [];
-    // postgres.js reads the handler from its options at each notice; its types leave it out.
-    (m.options as { onnotice?: (notice: { message: string }) => void }).onnotice = (notice) => {
-      notices.push(notice.message);
-    };
+    const log = console.log;
     const reserved = await m.reserve();
     try {
       await reserved`set auto_explain.log_min_duration = 0`;
@@ -117,13 +116,32 @@ async function insideDefiner(label: string, principal: Principal, call: string):
         set_config('app.team_id', '', true), set_config('app.agent_thread_id', '', true),
         set_config('app.voice_session_id', '', true),
         set_config('app.request_id', ${settings.request_id ?? newId()}, true)`;
-      notices.length = 0;
+      console.log = (notice: { message?: string }) => {
+        notices.push(notice.message ?? '');
+      };
       await reserved.unsafe(call);
+      console.log = log;
       await reserved`rollback`;
     } finally {
+      console.log = log;
       reserved.release();
     }
-    out(`\n=== ${label}: inside the definer ===\n${notices.join('\n---\n')}\n`);
+    // Grouped by statement: its text up to the plan, then the slowest run's plan.
+    const groups = new Map<string, { runs: number; slowest: number; plan: string }>();
+    for (const notice of notices) {
+      const ms = Number(/duration: ([\d.]+) ms/.exec(notice)?.[1] ?? '0');
+      const text =
+        notice.replace(/^duration:.*\n/, '').split(/\n(?=Query Parameters:|\S.*\(cost=)/)[0] ?? '';
+      const group = groups.get(text) ?? { runs: 0, slowest: -1, plan: '' };
+      group.runs += 1;
+      if (ms > group.slowest) Object.assign(group, { slowest: ms, plan: notice });
+      groups.set(text, group);
+    }
+    out(`\n=== ${label}: inside the definer ===\n`);
+    for (const group of groups.values()) {
+      out(`\n--- ran ${String(group.runs)} times, slowest ${group.slowest.toFixed(3)} ms ---\n`);
+      out(`${group.plan}\n`);
+    }
   });
 }
 
