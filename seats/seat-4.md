@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 2
-updated: 28-11-2026 05:00 UTC
+updated: 28-11-2026 06:36 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -106,3 +106,11 @@ run_file: docs/runs/phase4/f1-field-foundation.md
 wait_for: none
 done_when: report: f1-field-foundation prepped after j2
 note: a second prep: main moved (J2 #300 merged with migrations 0243 to 0246, then possibly TC1 #303 and the calling-hours fix). Take main in again as the prep prompt says; F1's migrations move after main's last one with journal times after main's. Diff app.platform_only_permissions(), the notification checks and anything else F1 redefines against main's latest. Add a second "Integration prep" entry, and commit with the subject "report: f1-field-foundation prepped after j2" (not "prepped").
+
+lane: 108
+role: prep
+branch: feat/h2-reservations
+run_file: docs/runs/phase3/h2-reservations.md
+wait_for: none
+done_when: report: h2-reservations prepped after j2
+note: a second prep: main moved (J2 #300 with migrations 0243 to 0246 and notifications_type_check / notification_preferences_type_check widened with loan_rejected; TC1; the axe title wait; the calling-hours fix). Take main in again as the prep prompt says; H2's migrations move after 0246 (F1, J1, TC2 and HR1 also wait with 0247 onward; whoever merges later renumbers again). H2 redefines app.stock_move() (X4's 0240 body plus H2's one rule), app.platform_only_permissions() and the notification checks: each carries every line of main's latest plus H2's own. Add a second "Integration prep" entry and commit with the subject "report: h2-reservations prepped after j2".
