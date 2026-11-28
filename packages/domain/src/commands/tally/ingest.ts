@@ -13,6 +13,7 @@ import {
   RecordTallyAlertInput,
   type TallyHeldReason,
   type TallyHeldRow,
+  type TallyReviewReason,
   type TallyLedgerBalance,
   type TallyVoucher,
 } from '@shakti/contracts';
@@ -134,6 +135,12 @@ function voucherRow(voucher: TallyVoucher, state: TallyVoucherState) {
 }
 
 /**
+ * A review-queue row's reason for a row the connector could not carry. It names why the row waits
+ * for Accounts, not an error a person meets, so it has no sentence in the error catalogue.
+ */
+const CONNECTOR_REFUSED: TallyReviewReason = 'connector_refused';
+
+/**
  * `tally.batch.ingest`: one signed batch of one Tally company. Its `fromAlterId` must equal the
  * cursor the BOS holds (locked for the call), so a gap or an overlap answers `cursor_mismatch` and
  * the connector reads the cursor again; a resend under the same `Idempotency-Key` is answered from
@@ -149,6 +156,7 @@ function voucherRow(voucher: TallyVoucher, state: TallyVoucherState) {
  * for Accounts' review queue with their reason, beside the rows the connector refused, and the
  * answer lists them. One audit row per batch, on the company's cursor, with the counts only.
  */
+
 export const ingestTallyBatch = defineCommand({
   name: 'tally.batch.ingest',
   permission: 'tally.connector.sync',
@@ -321,7 +329,7 @@ export const ingestTallyBatch = defineCommand({
         kind: r.kind,
         guid: r.guid,
         alter_id: r.alterId,
-        reason: 'connector_refused',
+        reason: CONNECTOR_REFUSED,
         field: r.field,
       });
     }

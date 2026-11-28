@@ -58,6 +58,7 @@ export const TALLY_SNAPSHOT_STATES = [
  * carry it (a batch's `refused`), or the BOS held it back from its batch (`TALLY_HELD_REASONS`).
  */
 export const TALLY_REVIEW_REASONS = ['connector_refused', ...TALLY_HELD_REASONS] as const;
+export type TallyReviewReason = (typeof TALLY_REVIEW_REASONS)[number];
 
 /** `tally.batch.ingest`: one batch of a company, its body exactly as the connector signed it. */
 export const TallyBatchIngestInput = z
