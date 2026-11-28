@@ -18984,6 +18984,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "field": {
           "name": "field",
           "type": "text",
@@ -19021,10 +19027,10 @@
             }
           ],
           "isUnique": false,
-          "with": {},
-          "method": "btree",
           "where": "\"tally_refused_rows\".\"resolved_at\" is null",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
         "tally_refused_rows_connector_idx": {
           "name": "tally_refused_rows_connector_idx",
@@ -19037,50 +19043,50 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "tally_refused_rows_entity_id_entities_id_fk": {
           "name": "tally_refused_rows_entity_id_entities_id_fk",
           "tableFrom": "tally_refused_rows",
+          "tableTo": "entities",
           "columnsFrom": [
             "entity_id"
           ],
-          "tableTo": "entities",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "tally_refused_rows_connector_id_tally_connectors_id_fk": {
           "name": "tally_refused_rows_connector_id_tally_connectors_id_fk",
           "tableFrom": "tally_refused_rows",
+          "tableTo": "tally_connectors",
           "columnsFrom": [
             "connector_id"
           ],
-          "tableTo": "tally_connectors",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "tally_refused_rows_guid_unique": {
           "name": "tally_refused_rows_guid_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "entity_id",
             "tally_company",
             "kind",
             "guid"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -19088,6 +19094,10 @@
         "tally_refused_rows_kind_check": {
           "name": "tally_refused_rows_kind_check",
           "value": "\"tally_refused_rows\".\"kind\" in ('voucher', 'ledger')"
+        },
+        "tally_refused_rows_reason_check": {
+          "name": "tally_refused_rows_reason_check",
+          "value": "\"tally_refused_rows\".\"reason\" in ('connector_refused', 'other_company', 'type_changed', 'not_debtor')"
         },
         "tally_refused_rows_alter_id_check": {
           "name": "tally_refused_rows_alter_id_check",
@@ -19213,6 +19223,12 @@
           "notNull": true,
           "default": "'{}'::text[]"
         },
+        "compared_at": {
+          "name": "compared_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "confirmed_at": {
           "name": "confirmed_at",
           "type": "timestamp with time zone",
@@ -19251,9 +19267,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "tally_snapshots_entity_created_idx": {
           "name": "tally_snapshots_entity_created_idx",
@@ -19272,9 +19288,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "tally_snapshots_held_idx": {
           "name": "tally_snapshots_held_idx",
@@ -19293,10 +19309,10 @@
             }
           ],
           "isUnique": false,
-          "with": {},
-          "method": "btree",
           "where": "\"tally_snapshots\".\"state\" = 'held'",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
         "tally_snapshots_connector_idx": {
           "name": "tally_snapshots_connector_idx",
@@ -19309,61 +19325,61 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "tally_snapshots_entity_id_entities_id_fk": {
           "name": "tally_snapshots_entity_id_entities_id_fk",
           "tableFrom": "tally_snapshots",
+          "tableTo": "entities",
           "columnsFrom": [
             "entity_id"
           ],
-          "tableTo": "entities",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "tally_snapshots_connector_id_tally_connectors_id_fk": {
           "name": "tally_snapshots_connector_id_tally_connectors_id_fk",
           "tableFrom": "tally_snapshots",
+          "tableTo": "tally_connectors",
           "columnsFrom": [
             "connector_id"
           ],
-          "tableTo": "tally_connectors",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "tally_snapshots_confirmed_by_principals_id_fk": {
           "name": "tally_snapshots_confirmed_by_principals_id_fk",
           "tableFrom": "tally_snapshots",
+          "tableTo": "principals",
           "columnsFrom": [
             "confirmed_by"
           ],
-          "tableTo": "principals",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "tally_snapshots_id_entity_unique": {
           "name": "tally_snapshots_id_entity_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "id",
             "entity_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -19387,6 +19403,10 @@
         "tally_snapshots_parts_check": {
           "name": "tally_snapshots_parts_check",
           "value": "\"tally_snapshots\".\"parts\" between 1 and 20"
+        },
+        "tally_snapshots_compared_check": {
+          "name": "tally_snapshots_compared_check",
+          "value": "(\"tally_snapshots\".\"compared_at\" is null) = (\"tally_snapshots\".\"state\" = 'receiving')"
         },
         "tally_snapshots_missing_guids_check": {
           "name": "tally_snapshots_missing_guids_check",

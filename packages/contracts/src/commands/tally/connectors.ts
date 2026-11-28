@@ -74,9 +74,9 @@ export const MapTallyCompanyInput = z
   .strict();
 export type MapTallyCompanyInput = z.input<typeof MapTallyCompanyInput>;
 
-/** `tally.connector.unmap`: the company stops being served by the connector. */
+/** `tally.connector.unmap`: one Tally company stops being served by the connector. */
 export const UnmapTallyCompanyInput = z
-  .object({ connectorId: IdSchema, entityId: EntityIdSchema })
+  .object({ connectorId: IdSchema, entityId: EntityIdSchema, tallyCompany: TallyCompanySchema })
   .strict();
 export type UnmapTallyCompanyInput = z.input<typeof UnmapTallyCompanyInput>;
 

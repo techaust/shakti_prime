@@ -333,8 +333,12 @@ grant execute on function app.tally_vouchers_known(smallint, text, text[]) to ap
 --> statement-breakpoint
 
 -- 7. A batch's vouchers, each with the state the command's machine gave it: a new GUID is stored,
---    a known one is replaced only by a higher AlterID (newest wins), and a GUID another company or
---    Tally company holds is refused. Purchases and debit notes go to the restricted table.
+--    a known one of the same company and Tally company is replaced only by a higher AlterID
+--    (newest wins). The command holds back a GUID another company holds, or one that moved between
+--    the two tables (app.tally_guids_elsewhere); as a second check, and for one stored by another
+--    company's batch at the same moment, the call is refused when, after the writes, a GUID of the
+--    batch is held by another company or Tally company, or sits in both tables. Purchases and
+--    debit notes go to the restricted table.
 create or replace function app.tally_vouchers_write(p_entity smallint, p_company text, p_rows jsonb)
   returns integer
   language plpgsql volatile security definer set search_path = '' as $$
@@ -346,17 +350,6 @@ begin
   perform app.tally_require_connector(p_entity, p_company);
   if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) > 500 then
     raise exception 'the rows are not a batch' using errcode = '23514';
-  end if;
-  if exists (
-       select 1 from jsonb_to_recordset(p_rows) as r(guid text)
-        where exists (select 1 from public.tally_vouchers v
-                       where v.guid = r.guid
-                         and (v.entity_id <> p_entity or v.tally_company <> p_company))
-           or exists (select 1 from public.tally_purchase_vouchers v
-                       where v.guid = r.guid
-                         and (v.entity_id <> p_entity or v.tally_company <> p_company))) then
-    raise exception 'a voucher belongs to another company'
-      using errcode = '23505', constraint = 'tally_vouchers_guid_unique';
   end if;
   insert into public.tally_vouchers as v
     (id, entity_id, tally_company, connector_id, guid, alter_id, type, type_name, voucher_no,
@@ -384,7 +377,8 @@ begin
          updated_at = excluded.updated_at, refused_at = null,
          deleted_at = case when excluded.state in ('tombstoned', 'reversed')
                            then coalesce(v.deleted_at, excluded.updated_at) end
-   where v.alter_id < excluded.alter_id;
+   where v.alter_id < excluded.alter_id and v.entity_id = excluded.entity_id
+     and v.tally_company = excluded.tally_company;
   get diagnostics v_n = row_count;
   v_count := v_count + v_n;
   insert into public.tally_purchase_vouchers as v
@@ -413,9 +407,29 @@ begin
          updated_at = excluded.updated_at, refused_at = null,
          deleted_at = case when excluded.state in ('tombstoned', 'reversed')
                            then coalesce(v.deleted_at, excluded.updated_at) end
-   where v.alter_id < excluded.alter_id;
+   where v.alter_id < excluded.alter_id and v.entity_id = excluded.entity_id
+     and v.tally_company = excluded.tally_company;
   get diagnostics v_n = row_count;
-  -- A later version than one the connector refused is current again.
+  -- Read after the writes, so a row another company's batch committed meanwhile is seen too.
+  if exists (
+       select 1 from jsonb_to_recordset(p_rows) as r(guid text)
+        where exists (select 1 from public.tally_vouchers v
+                       where v.guid = r.guid
+                         and (v.entity_id <> p_entity or v.tally_company <> p_company))
+           or exists (select 1 from public.tally_purchase_vouchers v
+                       where v.guid = r.guid
+                         and (v.entity_id <> p_entity or v.tally_company <> p_company))) then
+    raise exception 'a voucher belongs to another company'
+      using errcode = '23505', constraint = 'tally_vouchers_guid_unique';
+  end if;
+  if exists (
+       select 1 from jsonb_to_recordset(p_rows) as r(guid text)
+        where exists (select 1 from public.tally_vouchers v where v.guid = r.guid)
+          and exists (select 1 from public.tally_purchase_vouchers v where v.guid = r.guid)) then
+    raise exception 'a voucher moved between a purchase and a sale'
+      using errcode = '23514', constraint = 'tally_voucher_type_changed';
+  end if;
+  -- A later version than one the connector refused or the BOS held is current again.
   update public.tally_refused_rows f
      set resolved_at = v_now
     from jsonb_to_recordset(p_rows) as r(guid text, alter_id bigint)
@@ -430,7 +444,10 @@ revoke execute on function app.tally_vouchers_write(smallint, text, jsonb) from 
 grant execute on function app.tally_vouchers_write(smallint, text, jsonb) to app_user;
 --> statement-breakpoint
 
--- 8. A batch's ledgers: the newest AlterID of a GUID wins; a GUID of another company is refused.
+-- 8. A batch's ledgers under Sundry Debtors: the newest AlterID of a GUID of the same company and
+--    Tally company wins. The command holds back a GUID another company holds and a ledger under
+--    another of Tally's groups; as a second check, the call is refused when, after the writes, a
+--    GUID of the batch is held by another company or Tally company.
 create or replace function app.tally_ledgers_write(p_entity smallint, p_company text, p_rows jsonb)
   returns integer
   language plpgsql volatile security definer set search_path = '' as $$
@@ -441,14 +458,6 @@ begin
   perform app.tally_require_connector(p_entity, p_company);
   if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) > 2000 then
     raise exception 'the rows are not a batch' using errcode = '23514';
-  end if;
-  if exists (
-       select 1 from jsonb_to_recordset(p_rows) as r(guid text)
-        where exists (select 1 from public.tally_ledgers l
-                       where l.guid = r.guid
-                         and (l.entity_id <> p_entity or l.tally_company <> p_company))) then
-    raise exception 'a ledger belongs to another company'
-      using errcode = '23505', constraint = 'tally_ledgers_guid_unique';
   end if;
   insert into public.tally_ledgers as l
     (id, entity_id, tally_company, connector_id, guid, alter_id, name, parent, gstin,
@@ -462,8 +471,17 @@ begin
          name = excluded.name, parent = excluded.parent, gstin = excluded.gstin,
          opening_balance = excluded.opening_balance, closing_balance = excluded.closing_balance,
          as_of = excluded.as_of, updated_at = excluded.updated_at
-   where l.alter_id < excluded.alter_id;
+   where l.alter_id < excluded.alter_id and l.entity_id = excluded.entity_id
+     and l.tally_company = excluded.tally_company;
   get diagnostics v_n = row_count;
+  if exists (
+       select 1 from jsonb_to_recordset(p_rows) as r(guid text)
+        where exists (select 1 from public.tally_ledgers l
+                       where l.guid = r.guid
+                         and (l.entity_id <> p_entity or l.tally_company <> p_company))) then
+    raise exception 'a ledger belongs to another company'
+      using errcode = '23505', constraint = 'tally_ledgers_guid_unique';
+  end if;
   update public.tally_refused_rows f
      set resolved_at = v_now
     from jsonb_to_recordset(p_rows) as r(guid text, alter_id bigint)
@@ -478,10 +496,12 @@ revoke execute on function app.tally_ledgers_write(smallint, text, jsonb) from p
 grant execute on function app.tally_ledgers_write(smallint, text, jsonb) to app_user;
 --> statement-breakpoint
 
--- 8b. Rows of a batch's range the connector could not carry (the contract refused a field): each
---     kept once per GUID, the latest refusal, for Accounts' review queue as "refused by the
---     connector"; a stored voucher older than the refused version is no longer current
---     (`refused_at`) until a later version arrives.
+-- 8b. Rows of a batch's range that wait for Accounts' review queue, each with its reason: the
+--     connector could not carry it (the contract refused a field), or the command held it back so
+--     the rest of the batch applies (another company holds the GUID, a voucher moved between a
+--     purchase and a sale, a ledger not under Sundry Debtors). Each kept once per GUID, the latest;
+--     a stored voucher of the company older than the waiting version is no longer current
+--     (`refused_at`) until a later version is stored.
 create or replace function app.tally_refused_write(p_entity smallint, p_company text, p_rows jsonb)
   returns integer
   language plpgsql volatile security definer set search_path = '' as $$
@@ -494,12 +514,14 @@ begin
     raise exception 'the rows are not a batch' using errcode = '23514';
   end if;
   insert into public.tally_refused_rows as f
-    (id, entity_id, tally_company, connector_id, kind, guid, alter_id, field, refused_at)
-  select r.id, p_entity, p_company, app.user_id(), r.kind, r.guid, r.alter_id, r.field, v_now
-    from jsonb_to_recordset(p_rows) as r(id uuid, kind text, guid text, alter_id bigint, field text)
+    (id, entity_id, tally_company, connector_id, kind, guid, alter_id, reason, field, refused_at)
+  select r.id, p_entity, p_company, app.user_id(), r.kind, r.guid, r.alter_id, r.reason, r.field,
+         v_now
+    from jsonb_to_recordset(p_rows)
+           as r(id uuid, kind text, guid text, alter_id bigint, reason text, field text)
   on conflict (entity_id, tally_company, kind, guid) do update
-     set alter_id = excluded.alter_id, field = excluded.field, connector_id = excluded.connector_id,
-         refused_at = excluded.refused_at, resolved_at = null
+     set alter_id = excluded.alter_id, reason = excluded.reason, field = excluded.field,
+         connector_id = excluded.connector_id, refused_at = excluded.refused_at, resolved_at = null
    where f.alter_id < excluded.alter_id or f.resolved_at is not null;
   get diagnostics v_n = row_count;
   update public.tally_vouchers v set refused_at = v_now, updated_at = v_now
@@ -517,6 +539,40 @@ $$;
 revoke execute on function app.tally_refused_write(smallint, text, jsonb) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.tally_refused_write(smallint, text, jsonb) to app_user;
+--> statement-breakpoint
+
+-- 8c. Of a batch's GUIDs, those another company or Tally company holds (`p_kind` voucher: in
+--     either voucher table; ledger), for the command to hold them back for Accounts. Asked by the
+--     company's connector; answers GUIDs only, which the connector itself sent.
+create or replace function app.tally_guids_elsewhere(p_entity smallint, p_company text,
+                                                     p_kind text, p_guids text[])
+  returns setof text
+  language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform app.tally_require_connector(p_entity, p_company);
+  if p_kind = 'voucher' then
+    return query
+      select v.guid from public.tally_vouchers v
+       where v.guid = any (p_guids)
+         and (v.entity_id <> p_entity or v.tally_company <> p_company)
+      union
+      select v.guid from public.tally_purchase_vouchers v
+       where v.guid = any (p_guids)
+         and (v.entity_id <> p_entity or v.tally_company <> p_company);
+  elsif p_kind = 'ledger' then
+    return query
+      select l.guid from public.tally_ledgers l
+       where l.guid = any (p_guids)
+         and (l.entity_id <> p_entity or l.tally_company <> p_company);
+  else
+    raise exception 'no such kind' using errcode = '23514';
+  end if;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.tally_guids_elsewhere(smallint, text, text, text[]) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.tally_guids_elsewhere(smallint, text, text, text[]) to app_user;
 --> statement-breakpoint
 
 -- 8a. Party ledger balances sent with the daily snapshot: a ledger's closing balance changes when a
@@ -571,7 +627,7 @@ begin
      set guid_count = p_guid_count, live = p_live, tombstoned = p_tombstoned,
          missing = p_missing, reappeared = p_reappeared, state = p_state,
          held_guids = coalesce(p_held_guids, '{}'), missing_guids = coalesce(p_missing_guids, '{}'),
-         received_guids = '{}'
+         received_guids = '{}', compared_at = pg_catalog.now()
    where s.id = p_id and s.state = 'receiving' and s.connector_id = app.user_id()
      and s.entity_id = p_entity and s.tally_company = p_company;
   if found then
@@ -579,10 +635,10 @@ begin
   end if;
   insert into public.tally_snapshots
     (id, entity_id, tally_company, connector_id, as_of, from_date, guid_count, live, tombstoned,
-     missing, reappeared, state, held_guids, missing_guids)
+     missing, reappeared, state, held_guids, missing_guids, compared_at)
   values (p_id, p_entity, p_company, app.user_id(), p_as_of, p_from_date, p_guid_count, p_live,
           p_tombstoned, p_missing, p_reappeared, p_state, coalesce(p_held_guids, '{}'),
-          coalesce(p_missing_guids, '{}'));
+          coalesce(p_missing_guids, '{}'), pg_catalog.now());
 end
 $$;
 --> statement-breakpoint
@@ -673,8 +729,9 @@ grant execute on function app.tally_snapshot_held(uuid) to app_user;
 
 -- 11. Tombstones: each named voucher of the snapshot's company still live and stored no later
 --     than the snapshot was taken becomes a tombstone, and one row is appended per voucher. Run
---     by the connector for the snapshot it has just written (applied), or by a person with
---     finance.recon.write confirming a held one, which is then confirmed.
+--     by the connector for the snapshot it compared in this same transaction (applied), or by a
+--     person with finance.recon.write confirming a held one, which is then confirmed: only the
+--     GUIDs that snapshot holds are marked, whatever else the call names.
 create or replace function app.tally_tombstone(p_snapshot uuid, p_guids text[], p_new_ids uuid[])
   returns integer
   language plpgsql volatile security definer set search_path = '' as $$
@@ -689,7 +746,8 @@ begin
   end if;
   if app.has_perm('tally.connector.sync:entity') then
     perform app.tally_require_connector(v_snap.entity_id, v_snap.tally_company);
-    if v_snap.state <> 'applied' or v_snap.connector_id <> app.user_id() then
+    if v_snap.state <> 'applied' or v_snap.connector_id <> app.user_id()
+       or v_snap.compared_at is distinct from pg_catalog.now() then
       raise exception 'only the snapshot just recorded is applied' using errcode = '42501';
     end if;
   elsif app.request_is_person() and app.has_perm('finance.recon.write:entity')
@@ -698,6 +756,8 @@ begin
       raise exception 'the snapshot is no longer waiting'
         using errcode = '40001', constraint = 'tally_snapshot_not_held';
     end if;
+    p_guids := array(select g from unnest(coalesce(p_guids, '{}')) g
+                      where g = any (v_snap.held_guids));
   else
     raise exception 'finance.recon.write is required' using errcode = '42501';
   end if;
@@ -837,9 +897,9 @@ grant execute on function app.tally_connector_alerted(uuid, text) to app_user;
 --> statement-breakpoint
 
 -- 13. Admin › Integrations › Tally (admin.integrations.write, an Executive in person): register a
---     connector as a principal of its own, map and unmap companies of the request, rotate a key
---     (both valid until the old one is retired) and revoke the connector, which frees its
---     companies. A key is written only sealed by the field cipher.
+--     connector as a principal of its own, map a Tally company to a company of the request and
+--     unmap it, rotate a key (both valid until the old one is retired) and revoke the connector,
+--     which frees its companies. A key is written only sealed by the field cipher.
 create or replace function app.tally_require_admin() returns void
   language plpgsql stable security definer set search_path = '' as $$
 begin
@@ -890,7 +950,8 @@ revoke execute on function app.tally_connector_map(uuid, text, smallint) from pu
 --> statement-breakpoint
 grant execute on function app.tally_connector_map(uuid, text, smallint) to app_user;
 --> statement-breakpoint
-create or replace function app.tally_connector_unmap(p_connector uuid, p_entity smallint)
+create or replace function app.tally_connector_unmap(p_connector uuid, p_entity smallint,
+                                                     p_company text)
   returns integer
   language plpgsql volatile security definer set search_path = '' as $$
 declare
@@ -901,15 +962,15 @@ begin
     raise exception 'the company is outside the request' using errcode = '42501';
   end if;
   delete from public.tally_connector_companies m
-   where m.connector_id = p_connector and m.entity_id = p_entity;
+   where m.connector_id = p_connector and m.entity_id = p_entity and m.tally_company = p_company;
   get diagnostics v_n = row_count;
   return v_n;
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.tally_connector_unmap(uuid, smallint) from public, readonly_reporter;
+revoke execute on function app.tally_connector_unmap(uuid, smallint, text) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.tally_connector_unmap(uuid, smallint) to app_user;
+grant execute on function app.tally_connector_unmap(uuid, smallint, text) to app_user;
 --> statement-breakpoint
 create or replace function app.tally_connector_rotate(p_connector uuid, p_next_sealed jsonb,
                                                       p_next_hint text)

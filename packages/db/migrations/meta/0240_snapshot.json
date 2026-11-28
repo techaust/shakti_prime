@@ -18984,6 +18984,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "field": {
           "name": "field",
           "type": "text",
@@ -19088,6 +19094,10 @@
         "tally_refused_rows_kind_check": {
           "name": "tally_refused_rows_kind_check",
           "value": "\"tally_refused_rows\".\"kind\" in ('voucher', 'ledger')"
+        },
+        "tally_refused_rows_reason_check": {
+          "name": "tally_refused_rows_reason_check",
+          "value": "\"tally_refused_rows\".\"reason\" in ('connector_refused', 'other_company', 'type_changed', 'not_debtor')"
         },
         "tally_refused_rows_alter_id_check": {
           "name": "tally_refused_rows_alter_id_check",
@@ -19212,6 +19222,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::text[]"
+        },
+        "compared_at": {
+          "name": "compared_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "confirmed_at": {
           "name": "confirmed_at",
@@ -19387,6 +19403,10 @@
         "tally_snapshots_parts_check": {
           "name": "tally_snapshots_parts_check",
           "value": "\"tally_snapshots\".\"parts\" between 1 and 20"
+        },
+        "tally_snapshots_compared_check": {
+          "name": "tally_snapshots_compared_check",
+          "value": "(\"tally_snapshots\".\"compared_at\" is null) = (\"tally_snapshots\".\"state\" = 'receiving')"
         },
         "tally_snapshots_missing_guids_check": {
           "name": "tally_snapshots_missing_guids_check",

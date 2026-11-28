@@ -147,7 +147,10 @@ export const mapTallyCompany = defineCommand({
   },
 });
 
-/** `tally.connector.unmap`: the company stops being served by the connector. */
+/**
+ * `tally.connector.unmap`: one Tally company stops being served by the connector; the group
+ * company's other Tally companies (one per financial year, say) stay linked.
+ */
 export const unmapTallyCompany = defineCommand({
   name: 'tally.connector.unmap',
   permission: 'admin.integrations.write',
@@ -159,19 +162,22 @@ export const unmapTallyCompany = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const before = await readTallyConnector(ctx, input.connectorId);
-    const mapped = before.companies.filter((co) => co.entityId === input.entityId);
-    if (mapped.length === 0) {
+    const mapped = before.companies.some(
+      (co) => co.entityId === input.entityId && co.tallyCompany === input.tallyCompany,
+    );
+    if (!mapped) {
       throw new DomainError('not_found', 'the company is not mapped to the connector', {
         reason: 'tally_company_not_mapped',
       });
     }
     await ctx.tx.execute(sql`
-      select app.tally_connector_unmap(${input.connectorId}::uuid, ${input.entityId}::smallint)`);
+      select app.tally_connector_unmap(${input.connectorId}::uuid, ${input.entityId}::smallint,
+                                       ${input.tallyCompany}::text)`);
     ctx.audit({
       aggregateType: 'tally_connector',
       aggregateId: input.connectorId,
       entityId: input.entityId,
-      before: { tallyCompany: mapped.map((co) => co.tallyCompany).join(', ') },
+      before: { tallyCompany: input.tallyCompany },
       after: { tallyCompany: null },
     });
     return readTallyConnector(ctx, input.connectorId);

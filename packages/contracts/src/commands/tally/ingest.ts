@@ -6,9 +6,12 @@ import {
   ConnectorHeartbeatRequest,
   ConnectorSnapshotRequest,
   ConnectorSnapshotResponse,
+  TALLY_HELD_REASONS,
   TallyCompanySchema,
+  TallyVoucherTypeSchema,
   type TallyVoucherType,
 } from '../../api/connector';
+import { CursorSchema, PageLimitSchema } from '../../api/common';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 // TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3, docs/06-api.md §3.5): what a
@@ -49,6 +52,12 @@ export const TALLY_SNAPSHOT_STATES = [
   'confirmed',
   'superseded',
 ] as const;
+
+/**
+ * Why a row waits in `tally_refused_rows` for Accounts' review queue: the connector could not
+ * carry it (a batch's `refused`), or the BOS held it back from its batch (`TALLY_HELD_REASONS`).
+ */
+export const TALLY_REVIEW_REASONS = ['connector_refused', ...TALLY_HELD_REASONS] as const;
 
 /** `tally.batch.ingest`: one batch of a company, its body exactly as the connector signed it. */
 export const TallyBatchIngestInput = z
@@ -161,3 +170,41 @@ export const HeldTallySnapshotDto = z
   })
   .strict();
 export type HeldTallySnapshotDto = z.infer<typeof HeldTallySnapshotDto>;
+
+/** Tally checks: one page of the records a held snapshot would mark removed. */
+export const HeldTallyVouchersQuery = z
+  .object({
+    snapshotId: IdSchema,
+    cursor: CursorSchema.optional(),
+    limit: PageLimitSchema,
+  })
+  .strict();
+export type HeldTallyVouchersQuery = z.input<typeof HeldTallyVouchersQuery>;
+
+/**
+ * A record a held snapshot would mark removed, as Accounts check it in Tally: its number, date,
+ * party and type. Never an amount: a purchase's is a supplier rate.
+ */
+export const HeldTallyVoucherDto = z
+  .object({
+    guid: z.string().min(1),
+    type: TallyVoucherTypeSchema,
+    voucherNo: z.string(),
+    voucherDate: z.iso.date(),
+    partyName: z.string().nullable(),
+  })
+  .strict();
+export type HeldTallyVoucherDto = z.infer<typeof HeldTallyVoucherDto>;
+
+/**
+ * A page of them, newest first, with how many the viewer can see in all; a purchase or debit note
+ * shows only to those who read supplier rates (`procurement.rate.read`).
+ */
+export const HeldTallyVoucherPageDto = z
+  .object({
+    total: z.number().int().min(0),
+    items: z.array(HeldTallyVoucherDto),
+    nextCursor: z.string().nullable(),
+  })
+  .strict();
+export type HeldTallyVoucherPageDto = z.infer<typeof HeldTallyVoucherPageDto>;

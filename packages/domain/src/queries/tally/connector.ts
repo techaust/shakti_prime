@@ -2,15 +2,20 @@ import {
   ConnectorHealth,
   DomainError,
   HeldTallySnapshotDto,
+  HeldTallyVoucherDto,
+  HeldTallyVoucherPageDto,
+  HeldTallyVouchersQuery,
   TallyCursorDto,
   type TallyConnectorDto,
   type TallyCursorQuery,
 } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import { sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { FieldEnvelopeSchema, type FieldEnvelope } from '../../privacy/field-cipher';
 import { readTallyConnector } from '../../commands/tally/connectors';
 import { connectorHealth } from '../../tally/sync-rules';
+import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 
 // TC2: the two reads a connector's routes make (docs/06-api.md §3.5), each through its definer as
 // the connector's own principal, which reads no table.
@@ -238,4 +243,88 @@ export async function listHeldTallySnapshots(ctx: Ctx): Promise<HeldTallySnapsho
       receivedAt: new Date(r.created_at).toISOString(),
     }),
   );
+}
+
+/** The position after a page's last record: its date and its GUID. */
+const HeldCursorBody = z
+  .object({ date: z.iso.date(), guid: z.string().min(1).max(100) })
+  .strict();
+
+/** The records a held snapshot would mark removed that the viewer's policies let it read. */
+const heldVouchers = (snapshotId: string) => sql`
+  with s as (
+    select entity_id, tally_company, held_guids from tally_snapshots
+     where id = ${snapshotId}::uuid and state = 'held'
+  )
+  select v.guid, v.type, v.voucher_no, v.voucher_date, v.party_name
+    from s join tally_vouchers v
+      on v.guid = any (s.held_guids) and v.entity_id = s.entity_id
+     and v.tally_company = s.tally_company
+  union all
+  select v.guid, v.type, v.voucher_no, v.voucher_date, v.party_name
+    from s join tally_purchase_vouchers v
+      on v.guid = any (s.held_guids) and v.entity_id = s.entity_id
+     and v.tally_company = s.tally_company`;
+
+/**
+ * Tally checks: one page of the records a held snapshot of the request's companies would mark
+ * removed, newest first, with their number, date, party and type and never an amount, under the
+ * viewer's own policies: `finance.read` for sales, receipts and credit notes, and
+ * `procurement.rate.read` as well for purchases and debit notes, so `total` counts what this
+ * viewer can see. A snapshot no longer held (confirmed, or replaced by a newer one) answers
+ * `tally_snapshot_missing`. Served by each voucher table's GUID index.
+ */
+export async function listHeldTallyVouchers(
+  ctx: Ctx,
+  raw: unknown,
+): Promise<HeldTallyVoucherPageDto> {
+  const input = parseQueryInput(HeldTallyVouchersQuery, raw, 'listHeldTallyVouchers');
+  const after =
+    input.cursor === undefined ? undefined : decodeCursor(HeldCursorBody, input.cursor);
+  const [snapshot] = (await ctx.tx.execute(sql`
+    select id from tally_snapshots
+     where id = ${input.snapshotId}::uuid and state = 'held'
+       and entity_id = any (${`{${ctx.entityIds.join(',')}}`}::smallint[])`)) as unknown as {
+    id: string;
+  }[];
+  if (snapshot === undefined) {
+    throw new DomainError('not_found', 'no such held snapshot', {
+      reason: 'tally_snapshot_missing',
+    });
+  }
+  const [counted] = (await ctx.tx.execute(sql`
+    select count(*)::int as total from (${heldVouchers(input.snapshotId)}) held`)) as unknown as {
+    total: number;
+  }[];
+  const rows = (await ctx.tx.execute(sql`
+    select guid, type, voucher_no, voucher_date::text as voucher_date, party_name
+      from (${heldVouchers(input.snapshotId)}) held
+     where ${after?.date ?? null}::date is null
+        or (voucher_date, guid) < (${after?.date ?? null}::date, ${after?.guid ?? null}::text)
+     order by voucher_date desc, guid desc
+     limit ${input.limit + 1}`)) as unknown as {
+    guid: string;
+    type: string;
+    voucher_no: string;
+    voucher_date: string;
+    party_name: string | null;
+  }[];
+  const page = rows.slice(0, input.limit);
+  const last = page.at(-1);
+  return HeldTallyVoucherPageDto.parse({
+    total: counted?.total ?? 0,
+    items: page.map((r) =>
+      HeldTallyVoucherDto.parse({
+        guid: r.guid,
+        type: r.type,
+        voucherNo: r.voucher_no,
+        voucherDate: r.voucher_date,
+        partyName: r.party_name,
+      }),
+    ),
+    nextCursor:
+      rows.length > input.limit && last !== undefined
+        ? encodeCursor({ date: last.voucher_date, guid: last.guid })
+        : null,
+  });
 }

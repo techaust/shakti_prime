@@ -317,6 +317,8 @@ export const tallySnapshots = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /** When the whole snapshot was compared with the stored vouchers; null while receiving. */
+    comparedAt: timestamp('compared_at', { withTimezone: true }),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     confirmedBy: uuid('confirmed_by').references(() => principals.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -341,6 +343,10 @@ export const tallySnapshots = pgTable(
       sql`${t.state} = 'receiving' or cardinality(${t.receivedGuids}) = 0`,
     ),
     check('tally_snapshots_parts_check', sql`${t.parts} between 1 and 20`),
+    check(
+      'tally_snapshots_compared_check',
+      sql`(${t.comparedAt} is null) = (${t.state} = 'receiving')`,
+    ),
     uniqueIndex('tally_snapshots_parts_of_unique').on(t.connectorId, t.partsOf),
     check('tally_snapshots_missing_guids_check', sql`cardinality(${t.missingGuids}) <= 1000`),
     check(
@@ -391,9 +397,10 @@ export const tallyVoucherTombstones = pgTable(
 );
 
 /**
- * A voucher or ledger the connector read but the contract could not carry (a batch's `refused`),
- * by GUID and the first field refused, for Accounts' review queue as "refused by the connector".
- * One row per GUID, the latest refusal; resolved when a later version of the GUID arrives.
+ * A voucher or ledger of a batch's range that waits for Accounts' review queue instead of being
+ * stored: one the connector read but the contract could not carry (a batch's `refused`), or one
+ * the BOS held back so the rest of the batch applies (`reason`). One row per GUID, the latest;
+ * resolved when a later version of the GUID is stored.
  */
 export const tallyRefusedRows = pgTable(
   'tally_refused_rows',
@@ -409,6 +416,14 @@ export const tallyRefusedRows = pgTable(
     kind: text('kind').notNull(),
     guid: text('guid').notNull(),
     alterId: bigint('alter_id', { mode: 'number' }).notNull(),
+    /**
+     * Why the row waits: the connector could not carry it (`connector_refused`), or the BOS held
+     * it back from a batch that otherwise applied: its GUID is held by another company or Tally
+     * company (`other_company`), it moved between a purchase and a sale (`type_changed`), or a
+     * ledger is not under Sundry Debtors (`not_debtor`).
+     */
+    reason: text('reason').notNull(),
+    /** The field refused or in conflict: the contract's, or `company`, `type` or `parent`. */
     field: text('field').notNull(),
     refusedAt: timestamp('refused_at', { withTimezone: true }).notNull(),
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
@@ -416,6 +431,10 @@ export const tallyRefusedRows = pgTable(
   (t) => [
     unique('tally_refused_rows_guid_unique').on(t.entityId, t.tallyCompany, t.kind, t.guid),
     check('tally_refused_rows_kind_check', sql`${t.kind} in ('voucher', 'ledger')`),
+    check(
+      'tally_refused_rows_reason_check',
+      sql`${t.reason} in ('connector_refused', 'other_company', 'type_changed', 'not_debtor')`,
+    ),
     check('tally_refused_rows_alter_id_check', sql`${t.alterId} >= 0`),
     index('tally_refused_rows_open_idx')
       .on(t.entityId, t.refusedAt.desc())

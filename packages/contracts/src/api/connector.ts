@@ -253,6 +253,27 @@ export const ConnectorBatchRequest = z
   });
 export type ConnectorBatchRequest = z.infer<typeof ConnectorBatchRequest>;
 
+/**
+ * TC2: why the BOS held a row of a batch back for Accounts instead of storing it, so the rest of
+ * the batch applies and the cursor moves on: its GUID is held by another company or Tally company
+ * (`other_company`), a voucher moved between a purchase and a sale (`type_changed`), or a ledger
+ * sits under one of Tally's own groups other than Sundry Debtors (`not_debtor`).
+ */
+export const TALLY_HELD_REASONS = ['other_company', 'type_changed', 'not_debtor'] as const;
+export const TallyHeldReasonSchema = z.enum(TALLY_HELD_REASONS);
+export type TallyHeldReason = z.infer<typeof TallyHeldReasonSchema>;
+
+/** TC2: a row of a batch the BOS held back for Accounts' review queue, with why. */
+export const TallyHeldRow = z
+  .object({
+    kind: z.enum(['voucher', 'ledger']),
+    guid: TallyGuidSchema,
+    alterId: AlterIdSchema,
+    reason: TallyHeldReasonSchema,
+  })
+  .strict();
+export type TallyHeldRow = z.infer<typeof TallyHeldRow>;
+
 const batchAcceptedShape = {
   vouchersNew: z.number().int().min(0),
   vouchersChanged: z.number().int().min(0),
@@ -263,6 +284,11 @@ const batchResponseShape = {
   company: TallyCompanySchema,
   /** The cursor after this batch; the connector's next `fromAlterId`. */
   lastAlterId: AlterIdSchema,
+  /**
+   * TC2: rows the BOS held back for Accounts (the batch applied without them); the connector
+   * need not send them again. The BOS always answers it; absent, none.
+   */
+  held: z.array(TallyHeldRow).max(CONNECTOR_BATCH_MAX_REFUSED).optional(),
 };
 export const ConnectorBatchResponse = z
   .object({ ...batchResponseShape, accepted: z.object(batchAcceptedShape).strict() })

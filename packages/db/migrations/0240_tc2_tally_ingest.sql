@@ -113,11 +113,13 @@ CREATE TABLE "tally_refused_rows" (
 	"kind" text NOT NULL,
 	"guid" text NOT NULL,
 	"alter_id" bigint NOT NULL,
+	"reason" text NOT NULL,
 	"field" text NOT NULL,
 	"refused_at" timestamp with time zone NOT NULL,
 	"resolved_at" timestamp with time zone,
 	CONSTRAINT "tally_refused_rows_guid_unique" UNIQUE("entity_id","tally_company","kind","guid"),
 	CONSTRAINT "tally_refused_rows_kind_check" CHECK ("tally_refused_rows"."kind" in ('voucher', 'ledger')),
+	CONSTRAINT "tally_refused_rows_reason_check" CHECK ("tally_refused_rows"."reason" in ('connector_refused', 'other_company', 'type_changed', 'not_debtor')),
 	CONSTRAINT "tally_refused_rows_alter_id_check" CHECK ("tally_refused_rows"."alter_id" >= 0)
 );
 --> statement-breakpoint
@@ -140,6 +142,7 @@ CREATE TABLE "tally_snapshots" (
 	"received_guids" text[] DEFAULT '{}'::text[] NOT NULL,
 	"held_guids" text[] DEFAULT '{}'::text[] NOT NULL,
 	"missing_guids" text[] DEFAULT '{}'::text[] NOT NULL,
+	"compared_at" timestamp with time zone,
 	"confirmed_at" timestamp with time zone,
 	"confirmed_by" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -151,6 +154,7 @@ CREATE TABLE "tally_snapshots" (
           and ("tally_snapshots"."confirmed_at" is null) = ("tally_snapshots"."state" <> 'confirmed')),
 	CONSTRAINT "tally_snapshots_receiving_check" CHECK ("tally_snapshots"."state" = 'receiving' or cardinality("tally_snapshots"."received_guids") = 0),
 	CONSTRAINT "tally_snapshots_parts_check" CHECK ("tally_snapshots"."parts" between 1 and 20),
+	CONSTRAINT "tally_snapshots_compared_check" CHECK (("tally_snapshots"."compared_at" is null) = ("tally_snapshots"."state" = 'receiving')),
 	CONSTRAINT "tally_snapshots_missing_guids_check" CHECK (cardinality("tally_snapshots"."missing_guids") <= 1000),
 	CONSTRAINT "tally_snapshots_held_check" CHECK ("tally_snapshots"."state" = 'held' or cardinality("tally_snapshots"."held_guids") = 0)
 );

@@ -11,6 +11,8 @@ import {
   TallySnapshotRecordInput,
   RecordTallyAlertDto,
   RecordTallyAlertInput,
+  type TallyHeldReason,
+  type TallyHeldRow,
   type TallyLedgerBalance,
   type TallyVoucher,
 } from '@shakti/contracts';
@@ -30,6 +32,7 @@ import {
   diffSnapshot,
   type StoredVoucher,
 } from '../../tally/sync-rules';
+import { isDebtorLedgerParent } from '../../tally/ledger-groups';
 import { assertEntityInScope } from '../imports/shared';
 
 // TC2 Tally ingest (docs/03-roadmap-appendix/phase5.md §6.3, docs/06-api.md §3.5, ADR 0013). The
@@ -57,6 +60,30 @@ interface KnownVoucher {
   voucher_date: string;
   received_at: string | Date;
 }
+
+/** Of these GUIDs of a batch, those another company or Tally company holds. */
+async function guidsElsewhere(
+  ctx: CommandContext,
+  entityId: number,
+  company: string,
+  kind: 'voucher' | 'ledger',
+  guids: readonly string[],
+): Promise<Set<string>> {
+  if (guids.length === 0) return new Set();
+  const rows = (await ctx.tx.execute(sql`
+    select guid from app.tally_guids_elsewhere(${entityId}::smallint, ${company}::text,
+                                               ${kind}::text, ${textArray(guids)}::text[]) as guid`)) as unknown as {
+    guid: string;
+  }[];
+  return new Set(rows.map((r) => r.guid));
+}
+
+/** The field a held row is in conflict on, for the review queue. */
+const HELD_FIELD: Record<TallyHeldReason, string> = {
+  other_company: 'company',
+  type_changed: 'type',
+  not_debtor: 'parent',
+};
 
 /** The stored vouchers of a company with these GUIDs, or every one of them (null). */
 async function knownVouchers(
@@ -114,7 +141,13 @@ function voucherRow(voucher: TallyVoucher, state: TallyVoucherState) {
  * already stored at that AlterID or later is left as it is. New vouchers are `ingest`ed, changed
  * ones `alter`ed (a tombstoned one keeps its state), purchases and debit notes go to the
  * restricted table, ledgers keep their newest AlterID, and the cursor moves forward to the batch's
- * `maxAlterId`. One audit row per batch, on the company's cursor, with the counts only.
+ * `maxAlterId`.
+ *
+ * A row that cannot be stored as it is does not stop the batch, since the cursor could never pass
+ * it: a GUID another company or Tally company holds, a voucher that moved between a purchase and a
+ * sale, and a ledger under a group other than Sundry Debtors (`isDebtorLedgerParent`) are held back
+ * for Accounts' review queue with their reason, beside the rows the connector refused, and the
+ * answer lists them. One audit row per batch, on the company's cursor, with the counts only.
  */
 export const ingestTallyBatch = defineCommand({
   name: 'tally.batch.ingest',
@@ -129,6 +162,7 @@ export const ingestTallyBatch = defineCommand({
     'vouchersUnchanged',
     'ledgers',
     'refused',
+    'held',
   ],
   // A batch holds party names and amounts; the audit row keeps its range and sizes only.
   auditInput: (input) => ({
@@ -143,6 +177,7 @@ export const ingestTallyBatch = defineCommand({
   constraintReasons: {
     tally_vouchers_guid_unique: 'tally_voucher_other_company',
     tally_ledgers_guid_unique: 'tally_voucher_other_company',
+    tally_voucher_type_changed: 'tally_voucher_type_changed',
     tally_cursors_alter_id_check: 'cursor_mismatch',
   },
   async handler(ctx, input) {
@@ -187,6 +222,21 @@ export const ingestTallyBatch = defineCommand({
         )
       ).map((k) => [k.guid, k]),
     );
+    const vouchersElsewhere = await guidsElsewhere(
+      ctx,
+      input.entityId,
+      batch.company,
+      'voucher',
+      checked.outcome.fresh.map((v) => v.guid),
+    );
+    const held: TallyHeldRow[] = [];
+    const hold = (
+      kind: TallyHeldRow['kind'],
+      row: { guid: string; alterId: number },
+      reason: TallyHeldReason,
+    ) => {
+      held.push({ kind, guid: row.guid, alterId: row.alterId, reason });
+    };
     const rows: ReturnType<typeof voucherRow>[] = [];
     let vouchersNew = 0;
     let vouchersChanged = 0;
@@ -194,6 +244,10 @@ export const ingestTallyBatch = defineCommand({
     for (const ref of checked.outcome.fresh) {
       const voucher = byGuid.get(ref.guid);
       if (voucher === undefined) continue;
+      if (vouchersElsewhere.has(voucher.guid)) {
+        hold('voucher', voucher, 'other_company');
+        continue;
+      }
       const stored = known.get(ref.guid);
       if (stored === undefined) {
         rows.push(voucherRow(voucher, fire(null, 'ingest', CONNECTOR, ctx.now)));
@@ -205,9 +259,8 @@ export const ingestTallyBatch = defineCommand({
         continue;
       }
       if (RESTRICTED_TYPES.has(stored.type) !== RESTRICTED_TYPES.has(voucher.type)) {
-        throw new DomainError('conflict', 'a voucher changed between purchase and sale', {
-          reason: 'tally_voucher_type_changed',
-        });
+        hold('voucher', voucher, 'type_changed');
+        continue;
       }
       // A tombstoned voucher sent again keeps its state; the next snapshot lists it as reappeared.
       const state =
@@ -222,12 +275,30 @@ export const ingestTallyBatch = defineCommand({
         select app.tally_vouchers_write(${input.entityId}::smallint, ${batch.company}::text,
                                         ${JSON.stringify(rows)}::jsonb)`);
     }
+    const ledgersElsewhere = await guidsElsewhere(
+      ctx,
+      input.entityId,
+      batch.company,
+      'ledger',
+      batch.ledgers.map((l) => l.guid),
+    );
+    const kept = batch.ledgers.filter((l) => {
+      if (!isDebtorLedgerParent(l.parent)) {
+        hold('ledger', l, 'not_debtor');
+        return false;
+      }
+      if (ledgersElsewhere.has(l.guid)) {
+        hold('ledger', l, 'other_company');
+        return false;
+      }
+      return true;
+    });
     let ledgers = 0;
-    if (batch.ledgers.length > 0) {
+    if (kept.length > 0) {
       const [written] = (await ctx.tx.execute(sql`
         select app.tally_ledgers_write(${input.entityId}::smallint, ${batch.company}::text,
           ${JSON.stringify(
-            batch.ledgers.map((l) => ({
+            kept.map((l) => ({
               id: newId(),
               guid: l.guid,
               alter_id: l.alterId,
@@ -241,21 +312,32 @@ export const ingestTallyBatch = defineCommand({
           )}::jsonb) as n`)) as unknown as { n: number }[];
       ledgers = written?.n ?? 0;
     }
-    // Rows of the range the connector could not carry wait for Accounts, and a stored earlier
-    // version of each is no longer current.
+    // Rows of the range the connector could not carry, and those held back above, wait for
+    // Accounts, and a stored earlier version of each is no longer current. One row per GUID.
     const refusedRows = batch.refused ?? [];
-    if (refusedRows.length > 0) {
+    const waiting = new Map<string, Record<string, unknown>>();
+    for (const r of refusedRows) {
+      waiting.set(`${r.kind}:${r.guid}`, {
+        kind: r.kind,
+        guid: r.guid,
+        alter_id: r.alterId,
+        reason: 'connector_refused',
+        field: r.field,
+      });
+    }
+    for (const h of held) {
+      waiting.set(`${h.kind}:${h.guid}`, {
+        kind: h.kind,
+        guid: h.guid,
+        alter_id: h.alterId,
+        reason: h.reason,
+        field: HELD_FIELD[h.reason],
+      });
+    }
+    if (waiting.size > 0) {
       await ctx.tx.execute(sql`
         select app.tally_refused_write(${input.entityId}::smallint, ${batch.company}::text,
-          ${JSON.stringify(
-            refusedRows.map((r) => ({
-              id: newId(),
-              kind: r.kind,
-              guid: r.guid,
-              alter_id: r.alterId,
-              field: r.field,
-            })),
-          )}::jsonb)`);
+          ${JSON.stringify([...waiting.values()].map((w) => ({ id: newId(), ...w })))}::jsonb)`);
     }
     const lastAlterId = checked.outcome.cursor;
     await ctx.tx.execute(sql`
@@ -267,9 +349,9 @@ export const ingestTallyBatch = defineCommand({
       aggregateId: cursor.id,
       entityId: input.entityId,
       before: { lastAlterId: at },
-      after: { lastAlterId, ...accepted, refused: refusedRows.length },
+      after: { lastAlterId, ...accepted, refused: refusedRows.length, held: held.length },
     });
-    return { company: batch.company, accepted, lastAlterId };
+    return { company: batch.company, accepted, lastAlterId, held };
   },
 });
 

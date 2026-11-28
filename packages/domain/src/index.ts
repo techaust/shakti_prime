@@ -600,6 +600,7 @@ export {
   HEARTBEAT_SILENCE_MS,
   shouldAlertSilence,
 } from './tally/sync-rules';
+export { isDebtorLedgerParent } from './tally/ledger-groups';
 export type {
   BatchCheck,
   BatchOutcome,
@@ -948,6 +949,7 @@ export {
 export {
   findTallyConnector,
   listHeldTallySnapshots,
+  listHeldTallyVouchers,
   listTallyConnectors,
   readTallyConnectorAlerts,
   readTallyConnectorHealth,
