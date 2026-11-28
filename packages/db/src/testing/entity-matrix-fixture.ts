@@ -128,6 +128,9 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   shifts: 'x.id::text',
   holidays: 'x.id::text',
   leave_types: 'x.id::text',
+  // J2 customer loans.
+  lenders: 'x.id::text',
+  customer_loans: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -192,6 +195,11 @@ export async function removeEntityMatrixFixture(): Promise<void> {
   const like = `${P}%`;
   await asMigrator((m) =>
     m.begin(async (tx) => {
+      // J2: a loan names its order and the company's lender.
+      await tx`alter table customer_loans disable trigger customer_loans_guard`;
+      await tx`delete from customer_loans where id::text like ${like}`;
+      await tx`alter table customer_loans enable trigger customer_loans_guard`;
+      await tx`delete from lenders where id::text like ${like}`;
       // Orders and their commission first: they name a quote, a lead and a commission rule.
       await tx`alter table commission_accruals disable trigger commission_accruals_guard`;
       await tx`delete from commission_accruals where id::text like ${like}`;
@@ -439,6 +447,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     shifts: [],
     holidays: [],
     leave_types: [],
+    // J2 customer loans.
+    lenders: [],
+    customer_loans: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -588,6 +599,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['print_proof', per(e, 0x19), 'application/pdf'],
           // U1: a supplier's quote document, read with procurement.rate.read.
           ['vendor_quote', per(e, 0x82), 'application/pdf'],
+          // Q1: a sheet of QR labels, read with inventory.stock.move.
+          ['label_sheet', per(e, 0x90), 'application/pdf'],
         ] as const;
         // The company's vault file (staff knowledge) on its vault upload, with one chunk.
         const vaultFile = per(e, 0x42);
@@ -1015,10 +1028,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
       rows.leave_types.push({ key: groupLeaveType, entities: null });
       for (const e of ALL_ENTITY_IDS) {
         const only = [e];
-        const [shiftE, holidayE, typeE] = [per(e, 0x90), per(e, 0x91), per(e, 0x92)];
-        const [own, managed, unmanaged] = [per(e, 0x93), per(e, 0x94), per(e, 0x95)];
-        const [ownAsk, managedAsk, unmanagedAsk] = [per(e, 0x96), per(e, 0x97), per(e, 0x98)];
-        const [ownMove, managedMove, unmanagedMove] = [per(e, 0x99), per(e, 0x9a), per(e, 0x9b)];
+        const [shiftE, holidayE, typeE] = [per(e, 0xa0), per(e, 0xa1), per(e, 0xa2)];
+        const [own, managed, unmanaged] = [per(e, 0xa3), per(e, 0xa4), per(e, 0xa5)];
+        const [ownAsk, managedAsk, unmanagedAsk] = [per(e, 0xa6), per(e, 0xa7), per(e, 0xa8)];
+        const [ownMove, managedMove, unmanagedMove] = [per(e, 0xa9), per(e, 0xaa), per(e, 0xab)];
         await tx`insert into shifts (id, entity_id, name, start_time, end_time, lunch_min, grace_min, weekly_off_days, created_by)
           values (${shiftE}, ${e}, 'matrix shift', '09:30', '18:00', 30, 10, '{7}', ${ownerId})`;
         await tx`insert into holidays (id, entity_id, on_date, name, created_by)
@@ -1055,6 +1068,18 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           { key: managedMove, entities: only, hr: 'managed' },
           { key: unmanagedMove, entities: only, hr: 'unmanaged' },
         );
+      }
+
+      // J2: each company's lender, and a loan on its dealer order, read with the customer there.
+      for (const e of ALL_ENTITY_IDS) {
+        const lender = per(e, 0x90);
+        const loan = per(e, 0x91);
+        await tx`insert into lenders (id, entity_id, name, created_by)
+          values (${lender}, ${e}, ${`matrix lender ${e.toString()}`}, ${ownerId})`;
+        await tx`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, created_by)
+          values (${loan}, ${e}, ${per(e, 0x02)}, ${per(e, 0x32)}, ${lender}, 1.00, ${ownerId})`;
+        rows.lenders.push({ key: lender, entities: [e] });
+        rows.customer_loans.push({ key: loan, entities: [e], leadIn: [e] });
       }
 
       // The shared customer: one account, contact and site, related to companies 1 and 2.

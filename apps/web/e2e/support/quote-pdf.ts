@@ -23,7 +23,7 @@ const CATALOGUE = new URL('../../messages/en.json', import.meta.url).href;
  * print module is imported, in the worker that prints.
  */
 let catalogueAsModule = false;
-function loadCatalogueAsModule(): void {
+export function loadCatalogueAsModule(): void {
   if (catalogueAsModule) return;
   registerHooks({
     load(url, context, nextLoad) {

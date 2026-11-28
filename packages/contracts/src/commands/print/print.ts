@@ -9,8 +9,11 @@ import { FileKeySchema } from '../files/uploads';
  * Chromium, records the PDF with `files.document.record` and attaches it to the document.
  */
 
-/** The purposes a rendered PDF is stored under: a quote, or a company's proof page. */
-export const RENDERED_FILE_PURPOSES = ['quote_pdf', 'print_proof'] as const;
+/**
+ * The purposes a rendered PDF is stored under: a quote, a company's proof page, or a sheet of QR
+ * labels (Q1).
+ */
+export const RENDERED_FILE_PURPOSES = ['quote_pdf', 'print_proof', 'label_sheet'] as const;
 export const RenderedFilePurposeSchema = z.enum(RENDERED_FILE_PURPOSES);
 export type RenderedFilePurpose = z.infer<typeof RenderedFilePurposeSchema>;
 

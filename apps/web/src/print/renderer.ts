@@ -9,7 +9,8 @@ import {
   type LaunchOptions,
   type Page,
 } from 'playwright-core';
-import { LABEL_SIZES, type LabelSize } from './label-template';
+import type { LabelSize } from '@shakti/contracts';
+import { LABEL_STOCK } from './label-template';
 
 export interface PdfOptions {
   format?: 'A4';
@@ -118,7 +119,7 @@ export async function createPrintRenderer(
     },
 
     async renderLabel(html, size) {
-      const { widthMm, heightMm } = LABEL_SIZES[size];
+      const { widthMm, heightMm } = LABEL_STOCK[size];
       const page = await load(context, html);
       try {
         return await page.pdf({

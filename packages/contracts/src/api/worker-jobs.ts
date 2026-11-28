@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DeliveredEvent, EventTypeSchema, parseEventPayload } from '../events/catalogue';
 import { isNoticeEvent } from '../notifications';
+import { LABEL_SHEET_MAX, LabelKindSchema, LabelSizeSchema } from '../inventory/labels';
 import { PdfDocumentTypeSchema } from './print-documents';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { KnowledgeSensitivitySchema } from '../knowledge';
@@ -144,10 +145,6 @@ export type MessagingSendResult = z.infer<typeof MessagingSendResult>;
 
 export { PDF_DOCUMENT_TYPES, PdfDocumentTypeSchema, type PdfDocumentType } from './print-documents';
 
-/** Label stock sizes in millimetres, one label per page (docs/04-architecture-appendix/print.md). */
-export const LabelSizeSchema = z.enum(['50x25', '100x50']);
-export const LabelKindSchema = z.enum(['serial', 'bin', 'package']);
-
 /**
  * `POST /workers/pdf/render`: one document at a given version, or one sheet of labels. The template
  * reads the document's DTO; money and tax arrive computed and are only formatted. `eventId` is the
@@ -171,9 +168,11 @@ export const PdfRenderJob = z
       z
         .object({
           kind: z.literal('labels'),
+          /** The sheet's id, which its PDF is stored under (`inventory.label.print`). */
+          sheetId: IdSchema,
           labelKind: LabelKindSchema,
           size: LabelSizeSchema,
-          ids: z.array(IdSchema).min(1).max(500),
+          ids: z.array(IdSchema).min(1).max(LABEL_SHEET_MAX),
         })
         .strict(),
     ]),

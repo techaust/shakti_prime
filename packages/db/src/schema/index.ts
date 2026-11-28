@@ -81,3 +81,5 @@ export {
 } from './stock';
 // HR1 people and leave (docs/03-roadmap-appendix/phase5.md §5).
 export { shifts, holidays, leaveTypes, employees, leaveRequests, leaveBalances } from './hr';
+// J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
+export { lenders, customerLoans } from './loans';

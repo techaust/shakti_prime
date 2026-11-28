@@ -71,6 +71,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'serial',
   // HR1 people and leave
   'leave_request',
+  // J2 customer loans
+  'customer_loan',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */

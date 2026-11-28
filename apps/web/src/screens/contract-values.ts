@@ -106,6 +106,11 @@ import type {
   UserSort,
   UserStatus,
   VoiceSessionMode,
+  // J2 customer loans
+  CustomerLoanState,
+  LoanDispatchGate,
+  // Q1 labels
+  LabelKind,
 } from '@shakti/contracts';
 
 // The contract values that code running in the browser reads, copied here because every module
@@ -927,6 +932,8 @@ export const FILE_PURPOSES = [
   'call_transcript',
   // U1 vendors and supplier quotes.
   'vendor_quote',
+  // Q1 labels.
+  'label_sheet',
 ] as const satisfies readonly FilePurpose[];
 
 /** The types an upload may be, each with its short name under `files.types`. */
@@ -1083,3 +1090,33 @@ export const LEAVE_MOVEMENT_KINDS = [
 
 /** The ISO days of the week, Monday (1) to Sunday (7). */
 export const ISO_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+
+// J2 customer loans
+/** A customer loan's states (the `customer-loan` machine). */
+export const CUSTOMER_LOAN_STATES = [
+  'applied',
+  'sanctioned',
+  'disbursed',
+  'rejected',
+] as const satisfies readonly CustomerLoanState[];
+
+/** The states in which a loan is its order's one active loan. */
+export const ACTIVE_LOAN_STATE_VALUES = [
+  'applied',
+  'sanctioned',
+  'disbursed',
+] as const satisfies readonly CustomerLoanState[];
+
+/** What an order's dispatch waits for on its loan. */
+export const LOAN_DISPATCH_GATES = [
+  'disbursed',
+  'sanctioned',
+  'none',
+] as const satisfies readonly LoanDispatchGate[];
+// Q1 labels
+/** What a QR label is for. */
+export const LABEL_KINDS = ['serial', 'bin', 'package'] as const satisfies readonly LabelKind[];
+
+/** At most this many labels in one sheet, and in one reprint. */
+export const LABEL_SHEET_MAX = 500;
+export const LABEL_REPRINT_MAX = 100;

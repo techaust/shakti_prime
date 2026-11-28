@@ -52,7 +52,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-64 types, 21 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+70 types, 23 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -75,6 +75,11 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`crm.opportunity.won`](#crmopportunitywon) | An open lead was closed as won. | `crm.opportunity.win` | none |
 | [`crm.opportunity.lost`](#crmopportunitylost) | An open or nurtured lead was closed as lost with a reason code. | `calls.call.log`, `crm.opportunity.lose` | none |
 | [`crm.sizing.recorded`](#crmsizingrecorded) | A person recorded a pump or rooftop sizing of a lead, worked out on the server, with whether it is within the engineering limits and the reason codes when it is not. | `crm.sizing.record` | none |
+| [`crm.loan.created`](#crmloancreated) | A customer's loan was applied for on an order, with what it holds back. | `crm.loan.create` | none |
+| [`crm.loan.sanctioned`](#crmloansanctioned) | The lender sanctioned a customer's loan for an amount. | `crm.loan.sanction` | none |
+| [`crm.loan.disbursed`](#crmloandisbursed) | The lender paid out a customer's sanctioned loan. | `crm.loan.disburse` | none |
+| [`crm.loan.rejected`](#crmloanrejected) | The lender turned down a customer's loan; the owner of the order's lead, or of the customer where the order has none, is told so another route can be offered. | `crm.loan.reject` | `POST /api/v1/workers/outbox/crm.loan.rejected` (QStash URL group `evt-crm.loan.rejected`) |
+| [`crm.loan.gates_released`](#crmloangates_released) | What a customer's loan held back is released: the order's dispatch may leave, as the loan reached the state it waited for or the order no longer waits on a turned-down loan. | `crm.loan.sanction`, `crm.loan.disburse`, `crm.loan.gates.waive` | none |
 
 ### Pricing
 
@@ -151,6 +156,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+| [`print.labels.requested`](#printlabelsrequested) | A sheet of QR labels is to be printed: the render worker reads the serials or bins, prints the labels at the stock size and stores the PDF. | `inventory.label.print`, `inventory.label.reprint` | `POST /api/v1/workers/outbox/print.labels.requested` (QStash URL group `evt-print.labels.requested`) |
 
 ### knowledge
 
@@ -471,7 +477,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript`, `vendor_quote` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence`, `call_recording`, `whatsapp_media`, `call_transcript`, `vendor_quote`, `label_sheet` |
 | `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested
@@ -481,6 +487,15 @@ No fields apart from `v`.
 | `documentType` | one of `quote`, `proforma`, `delivery_challan`, `handover_kit`, `company_letterhead_proof` |
 | `documentId` | id |
 | `version` | whole number from 1 |
+
+### print.labels.requested
+
+| Field | Type |
+|---|---|
+| `sheetId` | id |
+| `labelKind` | one of `serial`, `bin` |
+| `size` | one of `50x25`, `100x50` |
+| `ids` | list of ids, at least 1 |
 
 ### knowledge.file.index_requested
 
@@ -677,3 +692,46 @@ No fields apart from `v`.
 | `vendorId` | id |
 | `itemId` | id |
 | `forGroup` | true or false |
+
+### crm.loan.created
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
+| `state` | always `applied` |
+
+### crm.loan.sanctioned
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
+| `state` | always `sanctioned` |
+
+### crm.loan.disbursed
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
+| `state` | always `disbursed` |
+
+### crm.loan.rejected
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `salesOrderId` | id |
+| `opportunityId` | id or null |
+| `fromState` | one of `applied`, `sanctioned` |
+| `state` | always `rejected` |
+| `rejectedBy` | id |
+
+### crm.loan.gates_released
+
+| Field | Type |
+|---|---|
+| `salesOrderId` | id |
+| `state` | one of `sanctioned`, `disbursed`, `rejected` |
+| `dispatch` | true or false |

@@ -41,6 +41,8 @@ describe('workshop defaults', () => {
         leaveTypes: [],
         holidays: [],
       },
+      // Q1 labels
+      labels: { sizeByKind: { serial: '50x25', bin: '50x25', package: '100x50' } },
       crm: {
         dispositions: [
           { key: 1, code: 'interested', label: 'Interested', nextAction: 'callback' },
