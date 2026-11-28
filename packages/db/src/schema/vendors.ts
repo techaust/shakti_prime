@@ -41,6 +41,11 @@ export const vendors = pgTable(
     addressJson: jsonb('address_json').notNull().default({}),
     paymentTermsDays: smallint('payment_terms_days'),
     leadTimeDays: smallint('lead_time_days'),
+    /**
+     * J6: a `supplier` of goods, or a `contractor` whose charges are a project's cost lines
+     * (docs/03-roadmap-appendix/phase4.md §7.3, question 10 (a)).
+     */
+    kind: text('kind').notNull().default('supplier'),
     isActive: boolean('is_active').notNull().default(true),
     notes: text('notes'),
     ...timestamps,
@@ -70,6 +75,7 @@ export const vendors = pgTable(
       'vendors_lead_time_check',
       sql`${t.leadTimeDays} is null or ${t.leadTimeDays} between 0 and 365`,
     ),
+    check('vendors_kind_check', sql`${t.kind} in ('supplier', 'contractor')`),
     check('vendors_notes_check', sql`${t.notes} is null or length(${t.notes}) <= 2000`),
     uniqueIndex('vendors_gstin_unique')
       .on(t.gstin)

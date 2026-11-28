@@ -1821,6 +1821,20 @@
       "when": 1795808159502,
       "tag": "0259_j1_review_fixes",
       "breakpoints": true
+    },
+    {
+      "idx": 260,
+      "version": "7",
+      "when": 1795865771862,
+      "tag": "0260_j6_qc_costs",
+      "breakpoints": true
+    },
+    {
+      "idx": 261,
+      "version": "7",
+      "when": 1795865787786,
+      "tag": "0261_j6_qc_costs_rls",
+      "breakpoints": true
     }
   ]
 }

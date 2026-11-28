@@ -86,3 +86,5 @@ export { mobileDevices } from './mobile-devices';
 export { featureFlags } from './feature-flags';
 // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
 export { lenders, customerLoans } from './loans';
+// J6 QC checklists, inspections and project cost lines (docs/03-roadmap-appendix/phase4.md §7.3).
+export { checklists, qcInspections, projectCostLines } from './project-qc';
