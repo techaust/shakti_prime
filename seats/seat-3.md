@@ -1,6 +1,6 @@
 seat: 3
 max_agents: 5
-updated: 28-11-2026 05:26 UTC
+updated: 28-11-2026 06:17 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 6
@@ -106,3 +106,11 @@ run_file: docs/runs/phase5/hr1-people.md
 wait_for: docs(runs): hr1-people, the lead's triage of the review
 done_when: report: hr1-people fixes
 note: the one fix round: findings 1 to 6 as the lead's triage at the end of the Review section says. Do not take main in (the prep does).
+
+lane: 107
+role: prep
+branch: feat/hr1-people
+run_file: docs/runs/phase5/hr1-people.md
+wait_for: report: hr1-people fixes
+done_when: report: hr1-people prepped
+note: the lead read the fix round's diff and accepted it. main now holds J2 (0243 to 0246), TC1, the axe title wait and the calling-hours fix. HR1's migrations move after main's last (0246; F1, J1 and TC2 also wait with 0247 onward, and whoever merges later renumbers again). HR1 redefines none of the shared definers: confirm it against main's latest, and grep the shared lists for a key used twice.
