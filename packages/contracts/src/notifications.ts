@@ -44,6 +44,9 @@ const Count = z.number().int().min(0);
  * - `reservation_expiring`: stock held for your order, or for an order of your company when you
  *   manage its stock, is released within the reminder days unless someone extends it (H2,
  *   docs/03-roadmap-appendix/phase3.md §7.1).
+ * - `project_order_cancelled`: the order of a project you run was cancelled after work on it was
+ *   recorded, so the project was left for you to close (J1; its Project Managers when nobody runs
+ *   it).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -62,6 +65,8 @@ export const NOTICE_TYPES = [
   'enquiry_attached',
   // H2 reservations.
   'reservation_expiring',
+  // J1: a project kept for a cancelled order.
+  'project_order_cancelled',
   // J2: a lender turned down a customer's loan.
   'loan_rejected',
 ] as const;
@@ -77,6 +82,8 @@ export const NOTICE_SUBJECT_TYPES = [
   'inbox_item',
   'sales_order',
   'whatsapp_thread',
+  // J1.
+  'project',
 ] as const;
 export const NoticeSubjectTypeSchema = z.enum(NOTICE_SUBJECT_TYPES);
 export type NoticeSubjectType = z.infer<typeof NoticeSubjectTypeSchema>;
@@ -284,6 +291,8 @@ export const NOTICE_EVENT_TYPES = [
   'crm.lead.attached',
   // H2: an order's held stock about to be released.
   'inventory.reservation.expiring',
+  // J1: a project kept for a cancelled order.
+  'projects.project.order_cancelled',
   // J2: a customer's loan turned down, told to the lead's owner (the machine's `notify_owner`).
   'crm.loan.rejected',
 ] as const;
@@ -400,6 +409,15 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       providerCallId: IdSchema,
       opportunityId: IdSchema,
       ownerId: IdSchema.nullable(),
+    })
+    .strict(),
+  // J1: a project kept for its cancelled order: its owner is told, else its Project Managers.
+  z
+    .object({
+      event: z.literal('projects.project.order_cancelled'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      projectId: IdSchema,
     })
     .strict(),
   // J2: a loan turned down: the owner of the order's lead, or of the customer where the order has

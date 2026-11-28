@@ -123,6 +123,8 @@ const INPUTS: Record<string, unknown> = {
     expectedVersion: '0'.repeat(64),
   },
   'admin.session.revoke': { sessionId: newId() },
+  // F1: the feature flags.
+  'admin.flag.set': { key: 'field.refusal_sweep', entityId: null, enabled: true },
   'admin.user.lock.clear': { userId: newId() },
   'admin.user.invite': {
     email: 'agent-refusal@shakti.test',
@@ -412,6 +414,9 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     reason: 'Refused for agents',
   },
   'inventory.reservation.move': { entityId: 1, reservationId: newId(), hubId: newId() },
+  // F1: a feature flag and a person's phone are switched and signed out by people only.
+  'admin.flag.set': INPUTS['admin.flag.set'],
+  'field.device.revoke': { id: newId() },
   // Q1 labels: printing a sheet of labels is a person's work at the hub.
   'inventory.label.print': { entityId: 1, labelKind: 'bin', ids: [newId()] },
   'inventory.label.reprint': {
@@ -570,6 +575,20 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'procurement.vendor.archive': { vendorId: newId() },
   'procurement.vendor.contact.set': { vendorId: newId(), contacts: [] },
   'procurement.item_vendor.set': { vendorId: newId(), itemId: newId() },
+  // J1: projects are made, moved and staffed by people only in Phase 4; the Project Orchestrator's
+  // declared grants wait for Phase 6, and no agent drafts a project.
+  'projects.project.create': { entityId: 1, orderId: newId() },
+  'projects.milestone.complete': { entityId: 1, projectId: newId(), milestoneKey: 'survey' },
+  'projects.project.hold': { entityId: 1, projectId: newId(), reason: 'rain' },
+  'projects.project.resume': { entityId: 1, projectId: newId() },
+  'projects.project.complete': { entityId: 1, projectId: newId() },
+  'projects.project.cancel': { entityId: 1, projectId: newId(), reason: 'withdrawn' },
+  'projects.project.assign': { entityId: 1, projectId: newId(), ownerId: null, assigneeIds: [] },
+  'projects.template.publish': {
+    entityId: 1,
+    segment: 'farmer_pumps',
+    steps: [{ key: 'survey', title: 'Survey', requires: [] }],
+  },
   // J2: lenders and customer loans are kept by people only.
   ...J2_LENDER_INPUTS,
   ...J2_LOAN_INPUTS,
@@ -1086,6 +1105,10 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     // H2: the backorder fill and the daily reservation scan, the platform's alone.
     'inventory.reservation.fill': { entityId: 1, itemId: newId() },
     'inventory.reservation.scan': { entityId: 1 },
+    // J1: a project drafted from a confirmed order, the platform's alone.
+    'projects.project.draft': { entityId: 1, orderId: newId() },
+    // J1: the project of a cancelled order, closed or kept by the platform alone.
+    'projects.project.cancel_for_order': { entityId: 1, orderId: newId() },
   };
 
   it('the Concierge holds exactly its own-scope grants: no cost, price, sales or platform-only grant', () => {

@@ -97,6 +97,7 @@ export function OrderScreen({
   company,
   availability,
   stock,
+  project,
   children,
 }: {
   initial: SalesOrderDto;
@@ -112,6 +113,8 @@ export function OrderScreen({
         canAdjust: boolean;
       }
     | undefined;
+  /** J1: the order's project, its link or Start project, from the page. */
+  project?: ReactNode;
   /** The order's further tabs below its lines and holds (J2: the Loan tab). */
   children?: ReactNode;
 }) {
@@ -141,6 +144,7 @@ export function OrderScreen({
           >
             {order.customerName}
           </Link>
+          {project}
         </span>
       }
       actions={

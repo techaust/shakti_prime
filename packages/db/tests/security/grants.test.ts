@@ -201,6 +201,13 @@ describe('app_user role (docs/05-database.md §3)', () => {
     // owner (reservations.test.ts).
     reservation_needs: { i: false, u: false },
     reservations: { i: false, u: false },
+    // J1: a project and its steps are made only by app.create_project() and change only in their
+    // state columns (column grants); the people on a project are added and removed as a set; a
+    // published checklist never changes (projects.test.ts).
+    projects: { i: false, u: false },
+    project_milestones: { i: false, u: false },
+    project_assignments: { i: true, u: false, d: true },
+    project_flow_templates: { i: true, u: false },
     // J2: a lender changes only its name and whether it is active; a loan only its state, the
     // sanction, the disbursal, the reference and the rejection (column grants).
     lenders: { i: true, u: false },
@@ -540,6 +547,11 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.playable_recordings(uuid[])',
       // The quote builder's lines' availability before the quote is made (H2).
       'app.preview_availability(smallint,jsonb)',
+      // J1: the customer and village of the projects a caller reads, the `own` predicate the
+      // project read policies ask, and the documents a step still needs.
+      'app.project_customers(uuid[])',
+      'app.project_is_mine(uuid)',
+      'app.project_missing_documents(uuid,text)',
       // The quote print loader of the render worker (0110).
       'app.quote_for_print(uuid)',
       // The ⌘K search's candidate quotes (0110).

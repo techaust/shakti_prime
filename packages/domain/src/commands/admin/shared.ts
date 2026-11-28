@@ -2,7 +2,7 @@ import {
   DomainError,
   newId,
   type EntityRoleInput,
-  type SessionRevokeReason,
+  type MobileAccountChangeReason,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -114,11 +114,16 @@ export async function assertAnExecutiveRemains(
   }
 }
 
-/** Marks every live session of a user revoked; returns the ids so the caller can drop caches. */
+/**
+ * Marks every live session of a user revoked, and signs every phone of theirs out of the field app
+ * with the same reason (SECURITY §2: a change that signs a person out everywhere reaches their
+ * phones too); returns the sessions' ids so the caller can drop caches. The phones' next calls are
+ * refused with `device_revoked`.
+ */
 export async function revokeUserSessions(
   ctx: CommandContext,
   userId: string,
-  reason: SessionRevokeReason,
+  reason: MobileAccountChangeReason,
 ): Promise<string[]> {
   const s = schema.sessions;
   const rows = await ctx.tx
@@ -126,7 +131,44 @@ export async function revokeUserSessions(
     .set({ revokedAt: ctx.now, revokedReason: reason })
     .where(and(eq(s.userId, userId), isNull(s.revokedAt)))
     .returning({ id: s.id });
+  await signOutPhones(ctx, [userId], reason);
   return rows.map((r) => r.id);
+}
+
+/**
+ * Signs every phone of the people out of the field app in the command's transaction, with the
+ * reason their website sessions end with (SECURITY §2), and answers how many were signed in. The
+ * phones' update policy mirrors the sessions', so it holds back a person who also works in a
+ * company outside the request; a caller that must reach every phone compares the answer with
+ * `livePhoneCount`.
+ */
+export async function signOutPhones(
+  ctx: CommandContext,
+  userIds: readonly string[],
+  reason: MobileAccountChangeReason,
+): Promise<number> {
+  if (userIds.length === 0) return 0;
+  const d = schema.mobileDevices;
+  const rows = await ctx.tx
+    .update(d)
+    .set({ revokedAt: ctx.now, revokedReason: reason, revokedBy: ctx.principal.id })
+    .where(and(inArray(d.userId, [...userIds]), isNull(d.revokedAt)))
+    .returning({ id: d.id });
+  return rows.length;
+}
+
+/** How many phones of the people are signed in to the field app, as the caller can see them. */
+export async function livePhoneCount(
+  ctx: CommandContext,
+  userIds: readonly string[],
+): Promise<number> {
+  if (userIds.length === 0) return 0;
+  const d = schema.mobileDevices;
+  const [row] = await ctx.tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(d)
+    .where(and(inArray(d.userId, [...userIds]), isNull(d.revokedAt)));
+  return row?.n ?? 0;
 }
 
 export async function insertEntityRoles(

@@ -7,6 +7,7 @@ import {
 import {
   executeCommand,
   queueWhatsAppAnswer,
+  STANDARD_MILESTONES,
   WORKSHOP_DEFAULTS,
   type StatusLine,
 } from '@shakti/domain';
@@ -44,25 +45,45 @@ const ORDER_STATES = [
 const isOneOf = <T extends string>(values: readonly T[], value: string): value is T =>
   (values as readonly string[]).includes(value);
 
+const PROJECT_STATES = ['active', 'on_hold', 'completed'] as const;
+
 function stateWords(t: Words, line: StatusLine): string {
   if (line.kind === 'quote') {
     return isOneOf(QUOTE_STATES, line.state) ? t(`quoteStates.${line.state}`) : t('unknownState');
   }
+  if (line.kind === 'project') {
+    return isOneOf(PROJECT_STATES, line.state)
+      ? t(`projectStates.${line.state}`)
+      : t('unknownState');
+  }
   return isOneOf(ORDER_STATES, line.state) ? t(`orderStates.${line.state}`) : t('unknownState');
 }
 
+/** A project's current step in words: the Executive's title, else the default step's name. */
+function stepWords(t: Words, step: NonNullable<StatusLine['step']>): string {
+  if (step.title !== null) return step.title;
+  return isOneOf(STANDARD_MILESTONES, step.key) ? t(`defaultSteps.${step.key}`) : t('unknownStep');
+}
+
 /**
- * The STATUS answer (PRD WA-03): the customer's own quotes and orders in the company, newest
- * first, as `app.status_summary()` read them for the chat; a plain sentence when there are none.
+ * The STATUS answer (PRD WA-03): the customer's own quotes, orders and projects in the company,
+ * newest first, as `app.status_summary()` read them for the chat, a project with its next step;
+ * a plain sentence when there are none.
  */
 export function statusAnswer(lines: readonly StatusLine[]): string {
   const t = answerWords();
   if (lines.length === 0) return t('statusNone');
   const rows = lines.map((line) => {
+    if (line.kind === 'project') {
+      const values = { ref: line.ref, state: stateWords(t, line) };
+      return line.step !== null && line.state === 'active'
+        ? t('statusProjectStep', { ...values, step: stepWords(t, line.step) })
+        : t('statusProject', values);
+    }
     const values = {
       ref: line.ref,
       state: stateWords(t, line),
-      total: formatRupees(line.grandTotal),
+      total: formatRupees(line.grandTotal ?? '0'),
     };
     if (line.kind === 'order') return t('statusOrder', values);
     return line.state === 'sent' && line.validUntil !== null

@@ -142,6 +142,11 @@ import {
   AvailabilityStatusSchema,
   ReservationStateSchema,
   WarehouseKindSchema,
+  // J1 projects
+  MilestoneStateSchema,
+  ProjectFlowSchema,
+  ProjectSegmentSchema,
+  ProjectStateSchema,
   // Q1 labels
   LABEL_REPRINT_MAX,
   LABEL_SHEET_MAX,
@@ -277,6 +282,12 @@ import {
   // H2 reservations
   AVAILABILITY_STATUSES as AVAILABILITY_STATUSES_WEB,
   RESERVATION_STATES as RESERVATION_STATES_WEB,
+  // J1 projects
+  DEFAULT_PROJECT_STEPS,
+  MILESTONE_STATES,
+  PROJECT_FLOWS,
+  PROJECT_SEGMENTS,
+  PROJECT_STATES,
   // J2 customer loans
   ACTIVE_LOAN_STATE_VALUES,
   CUSTOMER_LOAN_STATES as CUSTOMER_LOAN_STATES_WEB,
@@ -301,6 +312,8 @@ import {
   VOICE_STATE_VALUES,
   VOICE_TOPIC,
 } from './voice-values';
+// J1: the standard steps, as the workshop defaults hold them.
+import { WORKSHOP_DEFAULTS } from '@shakti/domain';
 
 describe('the contract values copied for the browser', () => {
   it('list every code of their schema, in the same order', () => {
@@ -410,6 +423,12 @@ describe('the contract values copied for the browser', () => {
     // H2 reservations
     expect(RESERVATION_STATES_WEB).toEqual(ReservationStateSchema.options);
     expect(AVAILABILITY_STATUSES_WEB).toEqual(AvailabilityStatusSchema.options);
+    // J1 projects
+    expect(PROJECT_STATES).toEqual(ProjectStateSchema.options);
+    expect(PROJECT_FLOWS).toEqual(ProjectFlowSchema.options);
+    expect(PROJECT_SEGMENTS).toEqual(ProjectSegmentSchema.options);
+    expect(MILESTONE_STATES).toEqual(MilestoneStateSchema.options);
+    expect(DEFAULT_PROJECT_STEPS).toEqual(WORKSHOP_DEFAULTS.projects.standardSteps);
     // J2 customer loans
     expect(CUSTOMER_LOAN_STATES_WEB).toEqual(CONTRACT_CUSTOMER_LOAN_STATES);
     expect(ACTIVE_LOAN_STATE_VALUES).toEqual(CONTRACT_ACTIVE_LOAN_STATES);

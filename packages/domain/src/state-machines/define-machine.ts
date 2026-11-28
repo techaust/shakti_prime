@@ -52,6 +52,8 @@ export interface Guard<R, P> {
 export interface Effect {
   key: string;
   description: string;
+  /** Not built with the machine's commands: a later slice applies it, marked for review. */
+  proposed?: boolean;
 }
 
 /** The record a machine reads: its state (null before it exists) and the facts its guards use. */

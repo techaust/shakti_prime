@@ -87,5 +87,9 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // lapses reservations past their hold and finds those due a reminder through definers, and
     // reads no stock, order or reservation by a person's rule.
     { key: 'inventory.reservations.process', scope: 'all' },
+    // J1: a project drafted from a confirmed order of an install segment with a site
+    // (`projects.project.draft`): it reads the order's facts and makes the project with its copied
+    // checklist through two definers, and reads no order or customer by a person's rule.
+    { key: 'projects.draft', scope: 'all' },
   ],
 };

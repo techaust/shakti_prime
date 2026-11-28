@@ -45,6 +45,8 @@ export const PERMISSION_KEYS = [
   'documents.read',
   'documents.write',
   'documents.sensitive.read',
+  // F1 (docs/03-roadmap-appendix/phase4.md §4): signing a person's phone out of the field app.
+  'field.device.revoke',
   'finance.proforma.write',
   'finance.payment.write',
   'finance.recon.write',
@@ -161,6 +163,11 @@ export const PERMISSION_KEYS = [
   // the reminder before (docs/03-roadmap-appendix/phase3.md §4, §7.1): held only by the platform's
   // worker principal, which reserves, lapses and reminds through narrow definers, nothing more.
   'inventory.reservations.process',
+  // J1: drafting a project from a confirmed order of an install segment
+  // (docs/03-roadmap-appendix/phase4.md §6.1): held only by the platform's worker principal, which
+  // reads the order's facts and makes the project with its copied checklist through two narrow
+  // definers, nothing more.
+  'projects.draft',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -249,6 +256,8 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'messaging.media.expire',
   // H2 reservations.
   'inventory.reservations.process',
+  // J1 projects.
+  'projects.draft',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -362,6 +371,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'documents.read': ['own', 'entity', 'all'],
   'documents.write': ['own', 'entity', 'all'],
   'documents.sensitive.read': ['entity', 'all'],
+  // F1 (phase4 §4).
+  'field.device.revoke': ['entity', 'all'],
   'finance.proforma.write': ['entity', 'all'],
   'finance.payment.write': ['entity', 'all'],
   'finance.recon.write': ['entity', 'all'],
@@ -421,6 +432,8 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'messaging.media.expire': ['all'],
   // H2 reservations.
   'inventory.reservations.process': ['all'],
+  // J1 projects.
+  'projects.draft': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

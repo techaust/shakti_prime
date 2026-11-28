@@ -81,5 +81,10 @@ export {
 } from './stock';
 // H2 reservations and availability (docs/03-roadmap-appendix/phase3.md §7.1).
 export { reservationNeeds, reservations } from './reservations';
+// J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §5, §6.1).
+export { projects, projectAssignments, projectFlowTemplates, projectMilestones } from './projects';
+// F1 field app foundation (docs/03-roadmap-appendix/phase4.md §6.4).
+export { mobileDevices } from './mobile-devices';
+export { featureFlags } from './feature-flags';
 // J2 customer loans (docs/03-roadmap-appendix/phase4.md §6.2).
 export { lenders, customerLoans } from './loans';

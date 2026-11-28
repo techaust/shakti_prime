@@ -16,6 +16,12 @@ import { authAccounts, authVerifications, sessions, users, userTwoFactor } from 
  */
 export { auditLogs } from './schema/audit-logs';
 
+/**
+ * The field app's phones (F1): the auth module signs a phone in, rotates its refresh token and
+ * signs it out through this connection. Not part of `authSchema`, which is Better Auth's.
+ */
+export { mobileDevices } from './schema/mobile-devices';
+
 /** Keys are the Better Auth model names the adapter looks up (`user.modelName` and friends). */
 export const authSchema = {
   users,

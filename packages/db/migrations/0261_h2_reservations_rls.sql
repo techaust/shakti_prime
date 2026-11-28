@@ -81,7 +81,7 @@ create trigger sales_order_lines_append_only before update or delete on sales_or
 --> statement-breakpoint
 
 -- 4. The platform-only permissions, with H2's inventory.reservations.process (main's latest list,
---    0222, and the new key).
+--    J1's, and the new key).
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
   select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
@@ -90,7 +90,8 @@ create or replace function app.platform_only_permissions() returns text[]
                'webhooks.process', 'crm.dnd.record', 'knowledge.playbook.check',
                'calls.process', 'crm.ingest.run', 'messaging.process',
                'voice.session.record', 'sales.quote.accept.remote',
-               'messaging.media.expire', 'inventory.reservations.process']::text[]
+               'messaging.media.expire', 'projects.draft',
+               'inventory.reservations.process']::text[]
 $$;
 --> statement-breakpoint
 

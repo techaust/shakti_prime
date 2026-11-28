@@ -21,6 +21,7 @@ describe('workshop defaults', () => {
           proforma: 'PI',
           challan: 'DC',
           purchase_order: 'PO',
+          project: 'PRJ',
         },
         separator: '/',
         serialDigits: 4,
@@ -30,6 +31,8 @@ describe('workshop defaults', () => {
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
       // H1 stock ledger
       stock: { reversalDays: 7, reservationHoldDays: 15, reservationReminderDays: 2 },
+      // J1 projects
+      projects: { standardSteps: ['survey', 'dispatch', 'install', 'commission', 'handover'] },
       // Q1 labels
       labels: { sizeByKind: { serial: '50x25', bin: '50x25', package: '100x50' } },
       crm: {
@@ -202,6 +205,8 @@ describe('workshop defaults', () => {
         sanctionedLoadRatio: 1,
         dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
       },
+      // F1: five days offline (ADR 0012, PROJ-4) and the first release as the oldest app served.
+      field: { offlineDays: 5, minimumAppVersion: '1.0.0' },
       // BLUEPRINT §7.9, for the CA to confirm.
       retention: {
         unqualifiedLeadMonths: 24,
@@ -212,6 +217,7 @@ describe('workshop defaults', () => {
         whatsappMediaYears: 3,
         askDays: 90,
         callRecordingMonths: 12,
+        projectYears: 8,
       },
     });
   });

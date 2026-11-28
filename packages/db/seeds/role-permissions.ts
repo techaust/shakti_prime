@@ -169,6 +169,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'projects.gate.approve': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
   'projects.qc.signoff': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
   'projects.schedule.write': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
+  // F1 (phase4 §4).
+  'field.device.revoke': { ...EXEC, general_manager: 'entity', project_manager: 'entity' },
   'documents.read': {
     ...EXEC,
     general_manager: 'entity',
@@ -350,6 +352,9 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   // H2: the platform's backorder fill and reservation scan; no person's role holds it (SECURITY
   // §3.3).
   'inventory.reservations.process': {},
+  // J1: the platform's drafting of a project from a confirmed order; no person's role holds it
+  // (SECURITY §3.3).
+  'projects.draft': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

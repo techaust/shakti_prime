@@ -69,41 +69,48 @@ export async function readMilestoneSubject(
   };
 }
 
-/** One line of a STATUS answer: one of the customer's quotes or orders. */
+/** One line of a STATUS answer: one of the customer's quotes, orders or projects. */
 export interface StatusLine {
-  kind: 'quote' | 'order';
+  kind: 'quote' | 'order' | 'project';
   ref: string;
   state: string;
-  /** As stored, for the answer to format, never to compute. */
-  grandTotal: string;
+  /** As stored, for the answer to format, never to compute; null for a project. */
+  grandTotal: string | null;
   validUntil: Date | null;
   createdAt: Date;
+  /** A project's current step: the first one still open, by its key and its title, if any. */
+  step: { key: string; title: string | null } | null;
 }
 
+const STATUS_KINDS = ['quote', 'order', 'project'] as const;
+
 /**
- * What STATUS answers on a chat (PRD WA-03, docs/03-roadmap-appendix/phase2.md §7.1), through
- * `app.status_summary()` (`messaging.process`): the chat's customer's own quotes (sent, accepted or
- * expired) and orders in the chat's company, newest first, five of each; nothing for a chat
- * matched to no customer.
+ * What STATUS answers on a chat (PRD WA-03, docs/03-roadmap-appendix/phase2.md §7.1, phase4.md
+ * §6.1), through `app.status_summary()` (`messaging.process`): the chat's customer's own quotes
+ * (sent, accepted or expired), orders and projects (not cancelled, with their current step) in the
+ * chat's company, newest first, five of each; nothing for a chat matched to no customer.
  */
 export async function readStatusSummary(ctx: Ctx, threadId: string): Promise<StatusLine[]> {
   const rows = (await ctx.tx.execute(sql`
-    select kind, ref, state, grand_total, valid_until, created_at
+    select kind, ref, state, grand_total, valid_until, created_at, step_key, step_title
       from app.status_summary(${threadId}::uuid)`)) as unknown as {
     kind: string;
     ref: string;
     state: string;
-    grand_total: string;
+    grand_total: string | null;
     valid_until: Date | string | null;
     created_at: Date | string;
+    step_key: string | null;
+    step_title: string | null;
   }[];
   return rows.map((r) => ({
-    kind: r.kind === 'order' ? 'order' : 'quote',
+    kind: STATUS_KINDS.find((k) => k === r.kind) ?? 'quote',
     ref: r.ref,
     state: r.state,
     grandTotal: r.grand_total,
     validUntil: r.valid_until === null ? null : new Date(r.valid_until),
     createdAt: new Date(r.created_at),
+    step: r.step_key === null ? null : { key: r.step_key, title: r.step_title },
   }));
 }
 

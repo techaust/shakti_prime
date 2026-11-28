@@ -12,6 +12,8 @@ import { handleFileUploaded } from '../files/handle-file-uploaded';
 import { indexJobOf } from '../knowledge/job';
 import { discardVaultMasker, maskingConfigured, vaultMasker } from '../ocr/vault-masker';
 import { handleHandoverEvent } from '../handover/handover-event';
+import { handleProjectDraft } from '../projects/draft-event';
+import { handleOrderCancelled } from '../projects/order-cancelled-event';
 import { handleNoticeEvent } from '../notify/notify-event';
 import { handleTriageEvent } from '../triage/triage-event';
 import { handleBriefEvent, handleCallSummaryEvent } from '../copilot/copilot-event';
@@ -199,11 +201,22 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       await handleQuoteSent(event, ctx);
     },
   },
+  // J1: a confirmed order that needs installing also gets its project (docs/03-roadmap-appendix/
+  // phase4.md §6.1), drafted first, since it waits on no outside service; once per order.
   'sales.order.confirmed': {
     ordering: 'every',
     handle: async (event, ctx) => {
+      await handleProjectDraft(event, ctx);
       const { handleOrderConfirmed } = await import('../messaging/milestones');
       await handleOrderConfirmed(event, ctx);
+    },
+  },
+  // J1: a cancelled order's project is cancelled while none of its steps is done, else kept and
+  // its Project Manager told (`projects.project.order_cancelled`, a notice).
+  'sales.order.cancelled': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      await handleOrderCancelled(event, ctx);
     },
   },
   // A quote's Accept or Talk to us pressed on WhatsApp (§7.1): checked and answered by the
@@ -249,6 +262,8 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'inventory.reservation.moved': { ordering: 'every', handle: fill },
   'inventory.reservation.lapsed': { ordering: 'every', handle: fill },
   'inventory.reservation.expiring': { ordering: 'every', handle: notify },
+  // J1: a project kept for its cancelled order, told to its owner or the Project Managers.
+  'projects.project.order_cancelled': { ordering: 'every', handle: notify },
   // J2: a loan turned down, told to the owner of the order's lead or customer.
   'crm.loan.rejected': { ordering: 'every', handle: notify },
 };

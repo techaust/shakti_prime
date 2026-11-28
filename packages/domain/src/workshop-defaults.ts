@@ -13,6 +13,7 @@ import {
   type SubsidyScheme,
   type SupplySource,
 } from '@shakti/contracts';
+import { STANDARD_MILESTONES } from './state-machines/machines/project-standard';
 
 export interface WorkshopDefaults {
   readonly tax: {
@@ -54,6 +55,15 @@ export interface WorkshopDefaults {
     /** Days before a reservation lapses that its order's owner and the Inventory Manager are told. */
     readonly reservationReminderDays: number;
   };
+  // J1 projects
+  readonly projects: {
+    /**
+     * The steps a standard project copies when its company has published no checklist for its
+     * segment (docs/03-roadmap-appendix/phase4.md §10, PROJ-2), by key; the screens name each from
+     * the message catalogue (`projects.defaultSteps.*`).
+     */
+    readonly standardSteps: readonly string[];
+  };
   // Q1 labels
   readonly labels: {
     /** The label stock each kind prints on, in millimetres (docs/03-roadmap-appendix/phase3.md §2 q9). */
@@ -73,6 +83,16 @@ export interface WorkshopDefaults {
   readonly calling: CallingDefaults;
   readonly whatsapp: WhatsAppDefaults;
   readonly sizing: SizingDefaults;
+  // F1 field app foundation (docs/03-roadmap-appendix/phase4.md §10).
+  readonly field: {
+    /** Days an engineer may work with no data connection before the app asks them to sync (PROJ-4). */
+    readonly offlineDays: number;
+    /**
+     * The oldest field app the server still serves (FLD-03): every mobile route refuses an older
+     * one with `app_update_required`. A deployment raises it with `FIELD_MIN_APP_VERSION`.
+     */
+    readonly minimumAppVersion: string;
+  };
   readonly retention: {
     /**
      * Months after its last activity when an unqualified lead with no transaction is anonymised
@@ -113,6 +133,11 @@ export interface WorkshopDefaults {
      * call and its file's row (BLUEPRINT §7.9, docs/03-roadmap-appendix/phase2.md §6.3). At least 1.
      */
     readonly callRecordingMonths: number;
+    /**
+     * J1: years a project, its checklist and the people on it are kept after it was completed or
+     * cancelled (BLUEPRINT §7.9 keeps financial records and sales orders 8 years); then archived.
+     */
+    readonly projectYears: number;
   };
 }
 
@@ -267,6 +292,8 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
       proforma: 'PI',
       challan: 'DC',
       purchase_order: 'PO',
+      // J1: the design's own code for a project (docs/03-roadmap-appendix/phase4.md §5).
+      project: 'PRJ',
     },
     separator: '/',
     serialDigits: 4,
@@ -302,6 +329,15 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     reservationHoldDays: 15,
     /** Phase 3 design §2 question 3 (a), §10: told 2 days before it lapses. For STOCK-4. */
     reservationReminderDays: 2,
+  },
+  // J1 projects
+  projects: {
+    /**
+     * Phase 4 design §10 (PROJ-2): survey, dispatch, install, commission and handover
+     * (BLUEPRINT §8.5), until the client gives the steps per segment; an Executive publishes the
+     * company's own on Settings › Project steps.
+     */
+    standardSteps: STANDARD_MILESTONES,
   },
   // Q1 labels
   labels: {
@@ -560,6 +596,14 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
    * BLUEPRINT §7.9: unqualified leads with no transaction are anonymised 24 months after their
    * last activity. Retention periods are confirmed with the CA (docs/13-client-packs/workshop-pack.md).
    */
+  /**
+   * F1 (docs/03-roadmap-appendix/phase4.md §2 question 7, §10): five days offline (ADR 0012) until
+   * the workshop answers PROJ-4; the first release of the app is the oldest one served.
+   */
+  field: {
+    offlineDays: 5,
+    minimumAppVersion: '1.0.0',
+  },
   retention: {
     unqualifiedLeadMonths: 24,
     /**
@@ -588,5 +632,10 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      * (phase 2 design §13, question 10).
      */
     callRecordingMonths: 12,
+    /**
+     * J1: a project is kept as its order is, 8 years after it ended (BLUEPRINT §7.9's financial
+     * records and sales orders), a named default pending the CA (phase 4 design §5).
+     */
+    projectYears: 8,
   },
 };

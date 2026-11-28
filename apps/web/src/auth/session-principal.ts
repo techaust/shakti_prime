@@ -10,6 +10,7 @@ import { resolvePrincipalFromGrants, type KeyValue, type UserAccess } from '@sha
 import { APIError } from 'better-auth/api';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import type { Auth } from './create-auth';
+import { authDeviceStore } from './mobile-devices';
 import { principalCache } from './principal-cache';
 
 /** How often `last_seen_at` is written. */
@@ -173,8 +174,9 @@ export async function revokeOtherSessions(
 
 /**
  * After a first authenticator enrolment: enrolment is a privilege change, so every other sign-in
- * of the user ends (docs/07-security.md §2) and their cached principal is dropped. The enrolment
- * re-issued the session, so the one to keep is named by the cookie it just set (`issued`).
+ * of the user ends (docs/07-security.md §2), their field app phones included, and their cached
+ * principal is dropped. The enrolment re-issued the session, so the one to keep is named by the
+ * cookie it just set (`issued`).
  */
 export async function finishEnrolment(
   before: ResolvedSession | undefined,
@@ -187,5 +189,6 @@ export async function finishEnrolment(
     sessionTokenFromSetCookie(issued),
     'totp_enrolled',
   );
+  await authDeviceStore.signOutEverywhere(before.session.userId, 'totp_enrolled', new Date());
   await invalidatePrincipal(keyValue, before.session.userId);
 }

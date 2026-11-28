@@ -71,6 +71,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'serial',
   // H2 reservations
   'reservation',
+  // J1 projects
+  'project_standard',
   // J2 customer loans
   'customer_loan',
 ]);

@@ -59,6 +59,10 @@ import { ensureScreenPopJourneys } from './screen-pop';
 import { ensureShadowPackJourney } from './shadow-pack';
 import { ensureStockJourneys } from './stock';
 import { ensureReservationJourneys } from './reservations';
+// J1 projects
+import { ensureProjectJourneys } from './projects';
+// F1 field app foundation.
+import { ensureFieldPhones } from './field';
 // Q1 labels
 import { ensureLabelJourneys } from './labels';
 import { suggestFollowUp } from './stand-in-agent';
@@ -70,6 +74,8 @@ import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
   CALLING_NUMBERS,
+  FIELD_PHONES,
+  fieldPhoneOwnerKey,
   E2E_PASSWORD,
   emailFor,
   INBOX_SUGGESTIONS,
@@ -922,6 +928,28 @@ await ensureStockJourneys(ids.executive ?? '');
 // H2 reservations, after the stock journeys' hub and bins.
 progress('the reservation journeys');
 const reservations = await ensureReservationJourneys(ids.executive ?? '', ids.converter ?? '');
+
+// J1 projects
+progress('the project journeys');
+await ensureProjectJourneys({
+  executive: ids.executive ?? '',
+  projectManager: ids.projectManager ?? '',
+  fieldEngineer: ids.fieldEngineer ?? '',
+});
+// F1: the phones of Team members › Phones, one owner per project in company 1.
+progress('the field app phones');
+const phoneOwners = {} as Record<ProjectName, string>;
+for (const project of PROJECTS) {
+  const owner = FIELD_PHONES.owners[project];
+  phoneOwners[project] = await ensureUser(
+    emailFor(fieldPhoneOwnerKey(project)),
+    owner.name,
+    'field_engineer',
+    [1],
+  );
+}
+await ensureFieldPhones(ids.snapshotCaller ?? '', phoneOwners);
+
 // Q1 labels: a serial per project, in the stock journeys' first bin.
 progress('the labels journeys');
 await ensureLabelJourneys(ids.executive ?? '');

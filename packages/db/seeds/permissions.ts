@@ -39,6 +39,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'projects.gate.approve': 'Approve subsidy and project gates',
   'projects.qc.signoff': 'Sign off quality checks',
   'projects.schedule.write': 'Schedule engineer visits',
+  // F1 (phase4 §4).
+  'field.device.revoke': "Sign a person's phone out of the field app",
   'documents.read': 'See documents',
   'documents.write': 'Add documents',
   'documents.sensitive.read': 'See identity documents',
@@ -101,6 +103,8 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   // H2 reservations.
   'inventory.reservations.process':
     'Set stock aside for waiting orders as it arrives, and end holds that have run out',
+  // J1 projects.
+  'projects.draft': 'Start a project when an order that needs installing is confirmed',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({
