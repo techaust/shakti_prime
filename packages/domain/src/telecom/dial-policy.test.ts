@@ -65,6 +65,49 @@ describe('TRAI calling hours, 09:00 to 21:00 IST', () => {
   });
 });
 
+describe('the hours at the edges the journeys cross (09:10, 09:20, 20:30 and 21:05 IST)', () => {
+  /** A time on 28-11-2026 in IST: the edges, read on the IST day whatever the UTC date. */
+  const at = (hhmm: string) => ist(`2026-11-28T${hhmm}:00`);
+  const dial = (when: Date) => checkDial({ ...promotional, at: when });
+
+  it.each([
+    ['09:10', true],
+    ['09:20', true],
+    ['20:30', true],
+    ['21:05', false],
+  ])('a dial at %s IST is allowed: %s', (hhmm, inHours) => {
+    expect(withinCallingHours(at(hhmm))).toBe(inHours);
+    expect(dial(at(hhmm))).toEqual(
+      inHours ? { allowed: true } : { allowed: false, refusals: ['outside_calling_hours'] },
+    );
+  });
+
+  it('reads 21:05 IST as outside though it is 15:35 on the same UTC date, and 09:10 inside though it is 03:40 UTC', () => {
+    expect(at('21:05').toISOString()).toBe('2026-11-28T15:35:00.000Z');
+    expect(at('09:10').toISOString()).toBe('2026-11-28T03:40:00.000Z');
+    expect(istMinuteOfDay(at('21:05'))).toBe(21 * 60 + 5);
+    expect(istMinuteOfDay(at('09:10'))).toBe(9 * 60 + 10);
+  });
+
+  it('logs a call made at each edge as the hours say', () => {
+    expect(callLogRefusal(at('09:10'), at('09:12'))).toBeUndefined();
+    expect(callLogRefusal(at('09:20'), at('09:25'))).toBeUndefined();
+    expect(callLogRefusal(at('20:30'), at('20:35'))).toBeUndefined();
+    // A call from 20:30 is still logged at 21:05, within the grace after 21:00.
+    expect(callLogRefusal(at('20:30'), at('21:05'))).toBeUndefined();
+    expect(callLogRefusal(at('21:05'), at('21:06'))).toBe('outside_calling_hours');
+  });
+
+  it('names the next start from 21:05 as 09:00 the next IST day, and leaves the others as they are', () => {
+    expect(nextCallingWindowStart(at('21:05')).toISOString()).toBe(
+      ist('2026-11-29T09:00:00').toISOString(),
+    );
+    for (const hhmm of ['09:10', '09:20', '20:30']) {
+      expect(nextCallingWindowStart(at(hhmm))).toEqual(at(hhmm));
+    }
+  });
+});
+
 describe('numbers', () => {
   it('strips the country code and trunk prefix', () => {
     expect(nationalNumber('+91-98765-43210')).toBe('9876543210');

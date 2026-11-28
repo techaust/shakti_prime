@@ -107,6 +107,9 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
   // would measure as low contrast: wait until the page is still and every notice on show is
   // mounted and opaque (`waitUntilStill`).
   const settled = await page.evaluate(waitUntilStill, STILL_WAIT);
+  // Next streams a page's metadata after its body, so <title> can still be empty when the page
+  // looks finished; axe would then report document-title (phone stock card, 28-11-2026).
+  await expect(page).toHaveTitle(/\S/);
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   if (options.include !== undefined) builder = builder.include(options.include);
   // With the frames gone, axe runs in the page alone: its cross-frame step opens a blank page to

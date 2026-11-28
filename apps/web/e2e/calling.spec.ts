@@ -9,7 +9,7 @@ import {
   tableOrCards,
   test,
 } from './support/fixtures';
-import { insideCallingHours, outsideCallingHours, setServerClock } from './support/clock';
+import { callingHours, setClocks } from './support/clock';
 import { SNAPSHOT_LEADS, storageStatePath } from './support/users';
 
 /** A mobile number no earlier run used, typed the way a caller types it. */
@@ -72,9 +72,9 @@ test.describe('calling as a tele-caller', () => {
     page,
     context,
   }) => {
-    // The server's clock says 11 PM, whatever the wall clock is: calls are allowed from 9 AM to
-    // 9 PM in India (TRAI), and the workspace says so instead.
-    await setServerClock(context, outsideCallingHours());
+    // The clocks say 10 PM in India, whatever the wall clock is: calls are allowed from 9 AM to
+    // 9 PM (TRAI), and the workspace says so instead (e2e/support/clock.ts).
+    await setClocks(context, callingHours('outside'));
     const lead = await addLead(page, 'Mohan Lal Saini');
     await page.goto('/calling');
     await expect(page.getByRole('heading', { name: 'Calling', level: 1 })).toBeVisible();
@@ -96,8 +96,9 @@ test.describe('calling as a tele-caller', () => {
     browser,
   }) => {
     test.setTimeout(180_000);
-    // The server's clock says 11 AM, inside the calling hours, whatever the wall clock is.
-    await setServerClock(context, insideCallingHours());
+    // The clocks say 11 AM in India, inside the calling hours, whatever the wall clock is; the
+    // browser's proposes the callback, the server's checks it.
+    await setClocks(context, callingHours('inside'));
     const unanswered = await addLead(page, 'Mohan Lal Saini');
     const callback = await addLead(page, 'Geeta Devi Yadav');
     const qualified = await addLead(page, 'Ramesh Kumar Meena');
@@ -197,7 +198,7 @@ test.describe('calling in the snapshot company', () => {
     context,
   }) => {
     // Inside the calling hours, so the call plan in the picture never depends on the wall clock.
-    await setServerClock(context, insideCallingHours());
+    await setClocks(context, callingHours('inside'));
     await page.goto('/calling');
     const queue = page.getByRole('region', { name: 'Queue' });
     for (const lead of SNAPSHOT_LEADS) {
