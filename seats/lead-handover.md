@@ -1,10 +1,10 @@
 # Lead handover (the lead writes this; seats ignore it)
 
-Updated 27-11-2026 22:35 UTC by the lead of day 1. Read this with `docs/10-status.md` (on `main` after #301) before acting.
+Updated 28-11-2026 00:10 UTC by the lead of day 1. Read this with `docs/10-status.md` (on `main` after #301) before acting.
 
 ## Pull requests
 - **#300 J2 customer loans:** integrated; CI green. Waits for the owner's `checks-ok` (`js-budget.json`: `/settings/lenders` 203 kB, `/catalogue` 245 → 246). After the label, start a merge look by hand: `gh api -X POST repos/techaust/shakti_prime/actions/workflows/automerge.yml/dispatches -f ref=main -f 'inputs[pull_request]=300'`. Migrations 0243 to 0246, then `migrate-hosted`.
-- **#302 X1 demo-data test:** test-only; merges on green by itself.
+- **#302 X1 demo-data test:** merged (held run re-run by hand, then a look started).
 - **#303 TC1 Tally connector:** integrated; waits for `checks-ok` (Windows job, ESLint fence, the connector's scripts). No migration. Read the first Windows run.
 
 ## Integration queue, in order
@@ -14,7 +14,13 @@ Updated 27-11-2026 22:35 UTC by the lead of day 1. Read this with `docs/10-statu
 4. **U2:** second round running (seat 2); then re-check 2 (seat 1). R2 moves the PDF to the render worker.
 5. **R3:** fix round (seat 3), then re-check (seat 1).
 6. **The calling-hours fix:** fix round (seat 3); the lead reads the diff.
-7. **H3, J3, TC2, HR1, FN1:** building or in review (see each run file).
+7. **U2:** re-check 2 passed; seat 1 preps it after H2's prep.
+8. **FN1:** re-check passed. At integration, after J2 merges:
+   - redefine `app.order_loan_gate()` from J2's latest, with `finance.milestones.process:all` answering;
+   - add finding 4's three worker-registry lines for J2's loan events;
+   - add a loan-held test on J2's real definer.
+9. **TC2:** fix round (seat 3); the lead reads the diff. M4 (snapshots in parts) is TC4's.
+10. **H3, J3, HR1:** building (see each run file).
 
 ## The watch list at every merge (shared definers and checks)
 Each later slice carries every earlier line of `main`'s latest:
