@@ -639,6 +639,8 @@ export const PROJECT_JOURNEY = {
   customer: 'Journey project customer',
   village: 'Journey village',
 } as const;
+
+/**
  * F1: the phones of Admin › Team members › Phones (field-phones.spec.ts), written by the seed
  * (`e2e/setup/field.ts`) as the auth module would: for the screenshot, a phone of the snapshot
  * company's tele-caller at fixed times, only ever shown; and per project, a field engineer of
