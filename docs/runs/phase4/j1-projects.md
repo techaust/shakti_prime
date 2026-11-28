@@ -7,7 +7,7 @@
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): row security with a new `own` scope, a platform-only drafting worker |
 | Usage | briefed 27-11-2026; built from 27-11-2026 on Opus 5.5 at high effort, on the seat's own account; the fix round on 27-11-2026, Opus 5.5 at high effort |
 | State | integrated |
-| Next step | the owner's `checks-ok`, then the pull request merges on green; if F1 (#306) merges first, J1 takes `main` again and moves its migrations after F1's |
+| Next step | the pull request merges on green (the owner's `checks-ok` is on) |
 
 ## Brief
 Build [phase4 §5](../../03-roadmap-appendix/phase4.md#5-the-project-model) and [§6.1](../../03-roadmap-appendix/phase4.md#61-j1-projects-and-the-standard-flow) as written, with questions 1 (a) and 2 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -479,4 +479,12 @@ Reviewed `git diff origin/main...feat/j1-projects` at `11c3a2fc` (main at `59736
 - **Baselines:** J1's own (`account-projects`, `project-page`, `project-page-engineer`, `project-steps`, `projects-engineer` and the start and hold dialogs) are new. The home pages, the settings screens and the other screens that show the menu's new Projects and Project steps entries are remade (35 files). Pictures looked at: the project page at phone width and the Executive's home.
   - Copy follow-up: the home cards "Projects" and "Project steps" lack the full stop the other cards' descriptions have.
 - **Checks files** (the owner's `checks-ok`): `apps/web/js-budget.json` (`/price-master` 248 and `/calling` 208, the merge's sums).
+
+### 28-11-2026, after F1 merged (the lead's cloud VM)
+- **Main taken in:** F1 #306 (`6465a262`), by a merge commit, with conflicts in the lists, the journal and snapshots, `js-budget.json` and the copy-lint config. The lists were joined with `merge-union.py`, each hunk read; one comment opener was put back in `e2e/support/users.ts`. `main`'s journal, snapshots and `docs/data/` were taken.
+- **Migrations:** they move after F1's 0252: 0247 to 0253 become **0253 to 0259**, with journal times after F1's. DATABASE's J1 citations are moved by six (15 lines, J1's own lines only). `db:generate`: no changes. `db:docs` and `machines:docs` were rerun.
+- **Redefinitions:** F1 redefines none of the shared definers, so J1's checks against `main`'s latest stand as before. The `notifications` checks keep J2's `loan_rejected` with J1's `project_order_cancelled`.
+- **`integrate.sh` in four parts on a fresh Postgres:** every step rc=0, each part `INTEGRATION PARTIAL`. Security suites: db 2,015, domain 1,597 and web 500 passed. `db:verify` clean.
+  - The first unit run failed on stale data documents, because `db:docs` ran before the citation edit; they were regenerated.
+- **The whole journey set in the Linux Playwright image, one project at a time on fresh databases:** desktop-light 244 and 244, desktop-dark 231 and 231, phone 231 and 231. No baseline changed.
 
