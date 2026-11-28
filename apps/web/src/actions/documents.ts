@@ -25,6 +25,7 @@ import {
   unfileDocument as unfileDocumentCommand,
   viewDocument,
 } from '@shakti/domain';
+import { hostedRuntime } from '../auth/deps';
 import { requireFileStore } from '../files/uploads';
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
@@ -97,7 +98,8 @@ export async function fileDocument(
       { entityIds: [input.entityId], requestId: meta.requestId },
       fileDocumentCommand,
       input,
-      commandOptions(meta, idempotencyKey),
+      // Off a hosted runtime no scanner looks at a file, and the command files it unscanned.
+      { ...commandOptions(meta, idempotencyKey), hosted: hostedRuntime() },
     );
   });
 }
