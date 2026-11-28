@@ -46,6 +46,13 @@ function counter(entityIds: readonly number[] = [1]): Principal {
   return principalFor('store_manager', entityIds, { permissions });
 }
 
+/** A counter who does not read stock: inventory.stock.move alone, the design's counter. */
+function blindCounter(entityIds: readonly number[] = [1]): Principal {
+  return principalFor('store_manager', entityIds, {
+    permissions: [{ key: 'inventory.stock.move', scope: 'entity' }],
+  });
+}
+
 /** The database's own error, whether thrown bare or wrapped by Drizzle. */
 async function failure(promise: Promise<unknown>): Promise<{ code?: string; message: string }> {
   try {
@@ -281,6 +288,8 @@ describe('the definers’ grants', () => {
       stock_count_sheet: [true, true],
       stock_count_progress: [true, true],
       stock_count_review: [true, true],
+      stock_count_hub: [true, true],
+      stock_count_bins: [true, true],
       stock_count_refuse: [false, false],
       stock_count_of: [false, false],
       stock_count_moved: [false, false],
@@ -323,13 +332,95 @@ describe('a count’s state', () => {
     for (const [state, write] of Object.entries(writes)) {
       const e = await failure(as(who, false, write));
       expect({ state, e }).toMatchObject({ state, e: { code: '23514' } });
-      expect(e.message).toMatch(/does not move/);
+      // Posting from open carries posting stamps outside their step; cancelling needs adjust.
+      expect(e.message).toMatch(/does not move|its own step/);
     }
     const [still] = await asMigrator(
       (m) => m<{ state: string }[]>`
       select state from stock_counts where id = ${countId}`,
     );
     expect(still?.state).toBe('open');
+  });
+
+  it('changes a stamp only with its own step', async () => {
+    const who = counter();
+    const writes = {
+      submitted: sql`update stock_counts set submitted_at = now(), submitted_by = ${who.id},
+                            updated_by = ${who.id} where id = ${countId}`,
+      noted: sql`update stock_counts set post_note = 'by hand', updated_by = ${who.id}
+                  where id = ${countId}`,
+      posted: sql`update stock_counts set posted_at = now(), posted_by = ${who.id},
+                         updated_by = ${who.id} where id = ${countId}`,
+      cancelReason: sql`update stock_counts set cancel_reason = 'by hand', updated_by = ${who.id}
+                         where id = ${countId}`,
+      stateTime: sql`update stock_counts set state_changed_at = now(), updated_by = ${who.id}
+                      where id = ${countId}`,
+      // A step that carries another step's stamp: open to counting with a posting note.
+      withAnother: sql`update stock_counts set state = 'counting', state_changed_at = now(),
+                              post_note = 'by hand', updated_by = ${who.id}
+                        where id = ${countId}`,
+    };
+    for (const [stamp, write] of Object.entries(writes)) {
+      const e = await failure(as(who, false, write));
+      expect({ stamp, e }).toMatchObject({ stamp, e: { code: '23514' } });
+      expect(e.message).toMatch(/its own step/);
+    }
+    const [still] = await asMigrator(
+      (m) => m<{ state: string; note: string | null; submitted: string | null }[]>`
+      select state, post_note as note, submitted_at::text as submitted
+        from stock_counts where id = ${countId}`,
+    );
+    expect(still).toEqual({ state: 'open', note: null, submitted: null });
+  });
+
+  it('takes a counter who does not read stock through the definers, and shows them no stock', async () => {
+    const who = blindCounter();
+    // The count, its hub's name, the sheet and the bins to count in.
+    const [listed] = await as<{ code: string }>(
+      who,
+      false,
+      sql`select w.code from stock_counts c, app.stock_count_hub(c.warehouse_id) w
+           where c.id = ${countId}`,
+    );
+    expect(listed?.code).toBe(`SC${tag}`);
+    const sheet = await as<{ bin_code: string }>(
+      who,
+      false,
+      sql`select bin_code from app.stock_count_sheet(${countId}::uuid)`,
+    );
+    expect(sheet.length).toBeGreaterThan(0);
+    const bins = await as<{ code: string }>(
+      who,
+      true,
+      sql`select code from app.stock_count_bins(${countId}::uuid)`,
+    );
+    expect(bins.map((b) => b.code)).toEqual(['SC-A1', 'SC-B1']);
+    // Nothing of the stock itself: balances, movements, serials' bins, hubs or bins by hand.
+    for (const reader of POOLS) {
+      for (const table of ['stock_balances', 'stock_movements', 'serials', 'warehouses', 'bins']) {
+        const [n] = await as<{ n: number }>(
+          who,
+          reader,
+          sql.raw(`select count(*)::int as n from ${table}`),
+        );
+        expect({ table, reader, n: n?.n }).toEqual({ table, reader, n: 0 });
+      }
+    }
+    // The hub's name and the bins are the count's only: another company's counter reads neither.
+    const other = blindCounter([2]);
+    expect(await as(other, false, sql`select * from app.stock_count_hub(${hub}::uuid)`)).toEqual(
+      [],
+    );
+    expect(
+      await failure(as(other, false, sql`select * from app.stock_count_bins(${countId}::uuid)`)),
+    ).toMatchObject({ code: '42501' });
+    // Someone who neither reads stock nor counts reads no hub name.
+    const caller = principalFor('store_manager', [1], {
+      permissions: [{ key: 'crm.lead.read', scope: 'own' }],
+    });
+    expect(await as(caller, false, sql`select * from app.stock_count_hub(${hub}::uuid)`)).toEqual(
+      [],
+    );
   });
 
   it('is never started for someone else, or past open', async () => {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   fromMilli,
   planCountMoves,
+  serialLineRefusal,
   toMilli,
   varianceMilli,
   type CountLineFacts,
@@ -172,5 +173,77 @@ describe('planCountMoves', () => {
     expect(
       refusal([line({ serialId: 's6', finalQty: '1.000', serialState: 'with_customer' })]),
     ).toMatchObject({ reason: 'stock_count_serial_elsewhere' });
+  });
+
+  it('refuses a serial held for an order or a claim, missing or found in another bin, before any movement', () => {
+    const refusal = (lines: CountLineFacts[]) => {
+      try {
+        planCountMoves(1, COUNT, lines, note);
+      } catch (e) {
+        return e instanceof DomainError ? e.details : undefined;
+      }
+      return undefined;
+    };
+    const missing = (state: CountLineFacts['serialState']) =>
+      line({
+        serialId: 's7',
+        serialNo: 'P-7',
+        finalQty: '0.000',
+        expectedAtCount: '1.000',
+        serialState: state,
+        serialBinId: A,
+      });
+    const elsewhere = (state: CountLineFacts['serialState']) =>
+      line({
+        binId: B,
+        serialId: 's8',
+        serialNo: 'P-8',
+        finalQty: '1.000',
+        expectedAtCount: '0.000',
+        serialState: state,
+        serialBinId: A,
+      });
+    // An untracked shortfall comes first in the lines, and still nothing is planned.
+    const short = line({ finalQty: '1.000', expectedAtCount: '2.000' });
+    expect(refusal([short, missing('faulty')])).toMatchObject({
+      reason: 'stock_count_serial_faulty',
+      serialNo: 'P-7',
+    });
+    expect(refusal([short, missing('reserved')])).toMatchObject({
+      reason: 'stock_count_serial_reserved',
+    });
+    expect(refusal([missing('picked')])).toMatchObject({ reason: 'stock_count_serial_reserved' });
+    expect(refusal([elsewhere('faulty')])).toMatchObject({ reason: 'stock_count_serial_faulty' });
+    expect(refusal([elsewhere('reserved')])).toMatchObject({
+      reason: 'stock_count_serial_reserved',
+    });
+    expect(refusal([elsewhere('in_transit')])).toMatchObject({
+      reason: 'stock_count_serial_elsewhere',
+    });
+    // Free stock posts.
+    expect(refusal([missing('in_stock')])).toBeUndefined();
+    expect(refusal([elsewhere('in_stock')])).toBeUndefined();
+  });
+});
+
+describe('serialLineRefusal', () => {
+  it('names nothing for an untracked line, a match, a line not counted, or free stock', () => {
+    expect(serialLineRefusal(line({ finalQty: '1.000', expectedAtCount: '3.000' }))).toBeNull();
+    const serial = { serialId: 's9', serialBinId: A, serialState: 'faulty' as const };
+    expect(
+      serialLineRefusal(line({ ...serial, finalQty: '1.000', expectedAtCount: '1.000' })),
+    ).toBeNull();
+    expect(serialLineRefusal(line({ ...serial, finalQty: null }))).toBeNull();
+    expect(
+      serialLineRefusal(
+        line({ ...serial, serialState: 'scrapped', finalQty: '1.000', expectedAtCount: '0.000' }),
+      ),
+    ).toBeNull();
+    // A serial that moved since its count is counted again first, whatever its state.
+    expect(
+      serialLineRefusal(
+        line({ ...serial, finalQty: '0.000', expectedAtCount: '1.000', serialMovedSince: true }),
+      ),
+    ).toBe('stock_count_serial_moved');
   });
 });

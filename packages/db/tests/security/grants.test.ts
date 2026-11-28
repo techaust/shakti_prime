@@ -551,6 +551,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       'app.status_summary(uuid)',
       // H3: a stock count's sheet for its counter, its progress, and its review for the Inventory
       // Manager, each checking its grant (stock-counts.test.ts).
+      'app.stock_count_bins(uuid)',
+      'app.stock_count_hub(uuid)',
       'app.stock_count_progress(uuid)',
       'app.stock_count_review(uuid)',
       'app.stock_count_sheet(uuid)',
