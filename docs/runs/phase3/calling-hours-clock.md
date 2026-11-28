@@ -5,9 +5,9 @@
 | Branch | `fix/calling-hours-clock` on GitHub, from `main` `5913766` |
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): telecom hours rules on the calling screen |
-| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder (lane moved from seat 2) on Opus 5.5 at high, started 27-11-2026 16:55 UTC, done 27-11-2026 21:15 UTC on Opus 5.5 at high |
-| State | built |
-| Next step | the reviewer |
+| Usage | briefed at lead 5h 1 %, 27-11-2026 14:30 UTC; builder (lane moved from seat 2) on Opus 5.5 at high, started 27-11-2026 16:55 UTC, done 27-11-2026 21:15 UTC on Opus 5.5 at high; fix round (lane 94, moved from seat 3) on Opus 5.5 at high, done 28-11-2026 03:00 UTC |
+| State | fixed (one fix round) |
+| Next step | the lead reads the diff and integrates |
 
 ## Brief
 STATUS's open follow-up: the click-to-dial journeys fail in CI before 09:20 IST and after 20:30 IST (#284's runs before 09:20 failed on phone and dark, and passed after). The suspect is the app's clock-shift path outside calling hours, which may also reach real callers. Find the root cause and fix it in code, not only in the journey.
@@ -121,6 +121,73 @@ Shared registration points take one line or one block each, kept together under 
 5. Skills: none loaded. The repository's skills are for tables, commands and React performance; this change adds none of those.
 
 **Uncertain:** the CI failure of #284 is not shown to be this cause. If the next CI run outside 09:20 to 20:30 IST still fails, the job's report artifact (`e2e-report-<project>`) names the step. With this change every run takes the moved path, so such a failure now shows on every run, not only by the hour.
+
+### 28-11-2026 IST, cloud VM lane 94 (moved from seat 3), the fix round
+
+Opus 5.5 at high. The VM restarted during the round. Both fix commits had been pushed before it did, so nothing was lost. Only the build run in progress was killed, and the build and every check below were run again after the restart.
+
+**M2, recorded as the lead named it.** #284's run 45272652862 (`eaa6c148`, 23-11-2026 21:44 UTC, before 09:20 IST), job 138036312995, phone project, failed `e2e/click-to-dial.spec.ts:86`, "keeps a lead's dialled call when another lead's call is saved (T3 re-check 12)", at line 59. It was flaky, then failed. That is the moved-clock path the wall clock used to choose before 09:20 and after 20:30 IST. Step 3 of the first round made the path deterministic: the journey moves its clocks on every run. This round puts every calling journey on one clock line per side of the hours (L1, L3). The call bar change (first round and M1) is a separate fix for devices whose clock is wrong.
+
+**M1, the offset from the moment the dial was sent** (`apps/web/src/components/calling/call-bar.tsx`):
+- The server's `startedAt` is taken at the start of the dial action (`dialCall`'s `now`, before the checks and the provider's connect).
+- The bar now sets that start against `sentAt`, the browser's moment of sending the dial, taken just before `dial.load(...)`. It no longer uses the moment the answer arrived.
+- The two differ only by the trip to the server. A device with a correct clock now counts a call in full, however long the dial took.
+- The `serverClockOffset(startedAt, sentAt)` comment says why.
+
+**L1, one clock line per side of the hours for the whole run** (`apps/web/e2e/support/clock.ts`):
+- `runStart(folder)`: the moment the run started, the same for every worker, retry and project.
+  - The first worker to ask writes it into the project's output folder, which Playwright empties as each run starts.
+  - It is written under a name of its own and then linked into place, so no worker reads it half written. A file that cannot be read is replaced.
+  - A start older than 4 hours is taken afresh, so a folder kept between runs (interface mode) still leaves each line on its side of the hours.
+- `callingHoursShift(side, start)` gives the same shift for the whole run: the moved clock reads 11 AM in India (inside) or 10 PM (outside) at the run's start and keeps running.
+- `callingHours(side)` is that shift for the current run.
+- A later test or retry therefore starts after the calls the earlier ones placed. The reviewer's retry case (`dial_in_progress` from a call ringing in the future) cannot happen.
+- `setClocks(context, shift, { deviceAheadMs })` installs Playwright's clock on the first move and sets it again on a later move, so a test can move its clocks twice.
+- The comments in `clock.ts` and `apps/web/src/test-clock.ts` now state this rule in place of "the clock only moves forward".
+- Nothing is written on the outside line, since no call is placed or saved there, so the two lines never order each other's rows.
+
+**L2, the call bar under a skewed device clock** (`click-to-dial.spec.ts`, new test "keeps counting a call on a phone whose clock runs hours fast"):
+- The server is on the inside line and the browser runs 5 hours ahead of it.
+- C dials. While the call rings or runs, the bar's time is seconds from the press (`0:0x`), not five hours.
+- The call reaches "Call ended" with `0:03` and is saved with 3.
+- Before the first round's fix, the bar stopped reading such a call after "three hours" (by the device's clock) and stayed on "Placing the call". This test then fails at "Call ended". If `Date.now()` returns to the tick, the test fails at the time check.
+- It is a journey, not a vitest component test: the repository has no DOM library (no jsdom, happy-dom or Testing Library), and the component tests render static markup only, with no effects and no clicks. The decision is recorded under Decisions below.
+
+**L3, the four other journeys** (`calling.spec.ts`, `converting.spec.ts`, `channels.spec.ts`, `uat.spec.ts`):
+- Every `setServerClock(context, insideCallingHours() | outsideCallingHours())` is now `setClocks(context, callingHours('inside' | 'outside'))`, which moves both clocks onto the run's line on every run.
+- `converting`'s main test moves outside, then back inside, on one page (the second move sets the installed clock again).
+- `uat`'s converter context gets its clocks before its first page opens.
+- `insideCallingHours()` and `outsideCallingHours()` are removed, so no helper chooses a path by the wall clock.
+- `setServerClock` is no longer exported. Each journey now moves the browser's clock with the server's, so the callback the browser proposes (10 AM the next day) is always ahead of the server's clock.
+- `apps/web/tests/measures/browser.ts`, the only other caller, now takes `shiftToIstMinute(INSIDE_CALLING_HOURS_MINUTE)` once per measure (moved every run, constant across its rounds).
+
+**Tests (counts):**
+- `call-bar.test.ts`: 6 tests (+1). The offset is now read from the send moment, and a new test checks that a device with a correct clock counts a call in full however long the dial took. The skew tests now use `sentAt`.
+- `e2e/support/clock.test.ts`: 7 tests (+1). The 3 tests of the removed wall-clock helpers are replaced by 4:
+  - `runStart` returns the first worker's start to later workers and retries;
+  - a start 4 hours old, or a file that cannot be read, is started afresh;
+  - each line stays on its side of the hours for 4 hours, from any start over two days at 7-minute steps;
+  - one shift holds for the whole run.
+  The `shiftToIstMinute` edge tests are kept.
+- `click-to-dial.spec.ts`: 5 tests (+1 journey, L2).
+
+**Checks (through `heavy.sh`):**
+- `pnpm --filter web typecheck`: exit 0. Eslint on `apps/web/e2e`, `apps/web/src/components/calling`, `apps/web/src/test-clock.ts` and `apps/web/tests/measures`: exit 0.
+- Web unit tests `src/components/calling`, `e2e/support`, `src/test-clock.test.ts` and `src/screens/calling`: 6 files, 45 passed.
+- `pnpm db:migrate` and `pnpm db:seed` on the new slot database (54334), then `pnpm build`: exit 0. `pnpm --filter web js-budget`: every page is within its budget (65 pages).
+- Journeys: `e2e:seed`, then the run named for the five changed specs, which ran the whole journey suite, on the three projects with no retries and `--ignore-snapshots`.
+  - 651 tests: 631 passed, 20 skipped, 0 failed (21.0 min).
+  - The run started at 08:05 IST, outside the calling hours, on the moved lines.
+  - The L2 journey passed in desktop-light, desktop-dark and phone.
+- Pictures were not compared: this VM's fonts differ from the Linux image's (first round). No picture's content was meant to change. The lead's `e2e:snap` compares them.
+- `pnpm typecheck`: 10 successful, 10 total. The whole-repository `pnpm lint`: exit 0.
+- Not run: the security suite, `copy-lint`, `db:docs`, `machines:docs` and `EXPLAIN`. No schema, policy, definer, command, query, catalogue string or list changed.
+
+**Decisions the triage did not settle:**
+1. **L2 as a journey.** No component test can drive the bar's effects without a DOM library, and adding one is a package install. The journey runs the real component in Chromium under a skewed device clock.
+2. **The run's start in the output folder.** A shift computed in each worker would reset on a retry, because Playwright starts a new worker for it. The output folder is the one place every worker of a run shares, and Playwright empties it per run. No Playwright configuration changed.
+3. **The inside line can be up to a day ahead of the wall clock**, where it was up to about 13 hours before. Lists and seeded rows read the real clock; only the calling paths (`testNow()`) read the moved one. The full journey run passed with the change.
+4. **`tests/measures/browser.ts` changed one line** to drop the removed helper. It moves only the server's clock; the call bar now counts on the server's clock whatever the browser's says.
 
 ## Review
 
