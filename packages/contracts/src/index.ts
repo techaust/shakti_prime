@@ -129,3 +129,5 @@ export * from './commands/webhooks/inbox';
 export * from './procurement/index';
 // J1 projects and the standard flow (docs/03-roadmap-appendix/phase4.md §5, §6.1).
 export * from './projects/index';
+// J2 customer loans
+export * from './crm/loans';

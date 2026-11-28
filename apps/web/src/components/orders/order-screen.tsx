@@ -81,11 +81,14 @@ export function OrderScreen({
   initial,
   company,
   project,
+  children,
 }: {
   initial: SalesOrderDto;
   company: string;
   /** J1: the order's project, its link or Start project, from the page. */
   project?: ReactNode;
+  /** The order's further tabs below its lines (J2: the Loan tab). */
+  children?: ReactNode;
 }) {
   const t = useTranslations('orders');
   const [order, setOrder] = useState(initial);
@@ -204,6 +207,7 @@ export function OrderScreen({
 
       <QuoteLinesTable lines={order.lines} caption={t('page.linesCaption')} />
       <QuoteTotals totals={order.totals} supplyKind={order.supplyKind} />
+      {children}
 
       {asking === undefined ? null : (
         <ReasonDialog

@@ -95,6 +95,8 @@ export const EVENT_JOB_ROUTES: Readonly<
   'crm.lead.attached': { path: NOTIFY_PATH, body: (event) => event },
   // J1: a project kept for its cancelled order.
   'projects.project.order_cancelled': { path: NOTIFY_PATH, body: (event) => event },
+  // J2 customer loans.
+  'crm.loan.rejected': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {

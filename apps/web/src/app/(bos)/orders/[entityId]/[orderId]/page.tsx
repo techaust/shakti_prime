@@ -5,7 +5,9 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { getOrderLoans } from '../../../../../actions/loans';
 import { getOrder } from '../../../../../actions/orders';
+import { OrderLoanPanel } from '../../../../../components/loans/order-loan-panel';
 import { OrderScreen } from '../../../../../components/orders/order-screen';
 import { StartProject } from '../../../../../components/projects/start-project';
 import { orderProject } from '../../../../../actions/projects';
@@ -31,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * One order (docs/03-roadmap-appendix/phase1.md §8.3): its lines and totals, and confirming, releasing or
- * cancelling it. An order the caller may not read, or an address that names none, shows the
+ * cancelling it; below them its Loan tab (docs/03-roadmap-appendix/phase4.md §6.2). An order the caller may not read, or an address that names none, shows the
  * not-found screen.
  */
 export default async function OrderPage({ params }: { params: Promise<Params> }) {
@@ -41,7 +43,12 @@ export default async function OrderPage({ params }: { params: Promise<Params> })
   if (!Number.isInteger(entityId) || entityId < 1 || entityId > 32_767 || !UUID.test(orderId)) {
     notFound();
   }
-  const order = await getOrder({ entityId, orderId });
+  // The order and its Loan tab (J2) are read at once; a caller who may not read the customer's
+  // loans sees the order without the tab.
+  const [order, loans] = await Promise.all([
+    getOrder({ entityId, orderId }),
+    getOrderLoans({ entityId, orderId }),
+  ]);
   if (!order.ok && ['order_missing', 'forbidden'].includes(order.error)) notFound();
   const t = await getTranslations('orders');
   // J1: the order's project, or Start project for a manager when a confirmed order has none.
@@ -72,7 +79,9 @@ export default async function OrderPage({ params }: { params: Promise<Params> })
       initial={order.data}
       company={companyNames(access)[order.data.entityId] ?? ''}
       project={projectPart}
-    />
+    >
+      {loans.ok ? <OrderLoanPanel initial={loans.data} /> : null}
+    </OrderScreen>
   ) : (
     <Page
       title={t('title')}

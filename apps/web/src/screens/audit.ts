@@ -291,6 +291,14 @@ const ACTIONS = {
   'projects.project.assign': 'projectAssign',
   'projects.template.publish': 'projectStepsPublish',
   'projects.project.cancel_for_order': 'projectCancelForOrder',
+  // J2 customer loans
+  'crm.loan.create': 'loanCreate',
+  'crm.loan.sanction': 'loanSanction',
+  'crm.loan.disburse': 'loanDisburse',
+  'crm.loan.reject': 'loanReject',
+  'crm.loan.gates.waive': 'loanGatesWaive',
+  'crm.lender.create': 'lenderCreate',
+  'crm.lender.update': 'lenderUpdate',
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS] | 'other';
@@ -382,6 +390,12 @@ const EVENT_NAMES = {
   'projects.project.completed': 'projectCompleted',
   'projects.project.cancelled': 'projectCancelled',
   'projects.project.order_cancelled': 'projectOrderCancelled',
+  // J2 customer loans
+  'crm.loan.created': 'loanCreated',
+  'crm.loan.sanctioned': 'loanSanctioned',
+  'crm.loan.disbursed': 'loanDisbursed',
+  'crm.loan.rejected': 'loanRejected',
+  'crm.loan.gates_released': 'loanGatesReleased',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -535,6 +549,9 @@ const CODE_GROUPS = [
   'hubKind',
   'binKind',
   'stockReason',
+  // J2 customer loans
+  'loanState',
+  'loanDispatchGate',
   // Q1 labels
   'labelKind',
 ] as const;
@@ -938,6 +955,15 @@ const FIELD_KINDS = [
   ['ownerId', 'recorded'],
   ['assigneeIds', 'listCount'],
   ['steps', 'listCount'],
+  // J2 customer loans and lenders (a lender's name and state are `name` and `isActive`).
+  ['loanState', 'loanState'],
+  ['loanAmount', 'money'],
+  ['sanctionedAmount', 'money'],
+  ['lenderName', 'text'],
+  ['loanReference', 'text'],
+  ['dispatchGate', 'loanDispatchGate'],
+  ['rejectedReason', 'text'],
+  ['waiverReason', 'text'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

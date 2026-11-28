@@ -255,6 +255,8 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'crm.lead.attached': { ordering: 'every', handle: notify },
   // J1: a project kept for its cancelled order, told to its owner or the Project Managers.
   'projects.project.order_cancelled': { ordering: 'every', handle: notify },
+  // J2: a loan turned down, told to the owner of the order's lead or customer.
+  'crm.loan.rejected': { ordering: 'every', handle: notify },
 };
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */

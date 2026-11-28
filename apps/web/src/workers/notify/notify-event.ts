@@ -68,6 +68,13 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
       };
     case 'projects.project.order_cancelled':
       return { ...base, event: 'projects.project.order_cancelled', projectId: event.aggregateId };
+    case 'crm.loan.rejected':
+      return {
+        ...base,
+        event: 'crm.loan.rejected',
+        loanId: event.aggregateId,
+        rejectedBy: String(p.rejectedBy),
+      };
     default:
       throw new DomainError('validation_failed', `${event.type} does not notify`, {
         type: event.type,

@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { loadAccount360 } from '../../../../actions/crm';
 import { listAccountDuplicates } from '../../../../actions/duplicates';
 import { accountProjects } from '../../../../actions/projects';
+import { listAccountLoans } from '../../../../actions/loans';
 import { AccountScreen } from '../../../../components/customers/account-screen';
 import { AccountProjects } from '../../../../components/projects/account-projects';
 import { FailureMessage } from '../../../../components/screens/failure';
@@ -51,9 +52,13 @@ export default async function AccountPage({
   });
   if (!view.ok && view.error === 'account_missing') notFound();
   // The duplicate cards of the company shown (CRM-03); a page without them still shows the rest.
-  const duplicates = view.ok
-    ? await listAccountDuplicates({ entityId: view.data.entityId, accountId })
-    : undefined;
+  const [duplicates, loans] = view.ok
+    ? await Promise.all([
+        listAccountDuplicates({ entityId: view.data.entityId, accountId }),
+        // J2: its loans in the company shown; a page without them still shows the rest.
+        listAccountLoans({ entityId: view.data.entityId, accountId }),
+      ])
+    : [undefined, undefined];
   // J1: the customer's projects in that company, for a caller who reads projects.
   const projects =
     view.ok && hasGrant(principal.permissions, 'projects.read', 'own')
@@ -67,6 +72,7 @@ export default async function AccountPage({
       {...(view.data.canEdit ? { proofLimit: proofLimit() } : {})}
       duplicates={duplicates?.ok === true ? duplicates.data : undefined}
       projects={projects?.ok === true ? <AccountProjects projects={projects.data} /> : undefined}
+      loans={loans?.ok === true ? loans.data : undefined}
     />
   ) : (
     <Page title={t('title')}>

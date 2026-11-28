@@ -49,6 +49,7 @@ import { ensureConvertingJourneys } from './converting';
 import { ensureConciergeJourneys } from './concierge';
 import { ensureCopilotJourneys } from './copilot';
 import { deliverWaitingEvents } from './deliver-waiting';
+import { ensureLoanJourneys } from './loans';
 import { ensureOrderJourneys } from './orders';
 import { archiveAddedPartners, resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
@@ -911,6 +912,10 @@ const whatsappQuotes = await ensureWhatsAppQuoteJourneys(ids.executive ?? '');
 progress('the orders and dealers');
 const orders = await ensureOrderJourneys(ids.executive ?? '');
 
+// J2 customer loans
+progress('the loan journeys');
+const loans = await ensureLoanJourneys(ids.executive ?? '');
+
 // H1 stock ledger
 progress('the stock journeys');
 await ensureStockJourneys(ids.executive ?? '');
@@ -1148,6 +1153,7 @@ const seeded: SeededUsers = {
   orders,
   uat,
   recordings,
+  loans,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();

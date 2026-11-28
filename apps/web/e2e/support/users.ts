@@ -103,6 +103,15 @@ export const SIGNED_IN_ROLES = [
     entityIds: [2],
     twoFactor: true,
   },
+  // J2: the General Manager of the journeys' company, who records a customer's loan on an order
+  // through its sanction and payout (loans.spec.ts).
+  {
+    key: 'journeyManager',
+    name: 'Dinesh Gurjar',
+    roleKey: 'general_manager',
+    entityIds: [2],
+    twoFactor: true,
+  },
   // The Inventory Manager of company 1, who adjusts and moves stock (H1, inventory.spec.ts) and adds
   // vendors and records their quotes (U1, procurement.spec.ts).
   {
@@ -454,6 +463,22 @@ export interface UatJourneySeed {
   dealers: Record<ProjectName, { accountId: string; name: string }>;
 }
 
+// J2 customer loans
+/**
+ * Per project: a dealer of the journeys' company whose fresh draft order its General Manager
+ * records a loan on, through sanction and payout (loans.spec.ts).
+ */
+export const LOAN_DEALERS: Record<ProjectName, string> = {
+  'desktop-light': 'Nawalgarh Solar Agencies',
+  'desktop-dark': 'Fatehpur Pump Traders',
+  phone: 'Lachhmangarh Krishi Store',
+};
+
+/** What the loan journeys need of the seed: per project, the dealer and its fresh order. */
+export interface LoanJourneySeed {
+  orders: Record<ProjectName, { accountId: string; orderId: string; dealer: string }>;
+}
+
 /** The dealer the seed keeps in the snapshot company, with one draft order, for the screenshots. */
 export const SNAPSHOT_DEALER = 'Shekhawati Solar Distributors';
 
@@ -496,6 +521,8 @@ export interface SeededUsers {
   orders: OrderJourneySeed;
   /** The UAT journeys' fixtures. */
   uat: UatJourneySeed;
+  /** J2: the loan journeys' orders. */
+  loans: LoanJourneySeed;
   /**
    * The vault recordings' ids, so their pages open by address however far down the vault list
    * later files push them.

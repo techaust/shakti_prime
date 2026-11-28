@@ -3,6 +3,7 @@
 import type {
   Account360Dto,
   AccountDuplicatesDto,
+  AccountLoanRowDto,
   CustomerLeadDto,
   CustomerTaskDto,
   TimelinePageDto,
@@ -21,6 +22,7 @@ import {
   untagLead,
 } from '../../actions/crm';
 import { openFile } from '../../actions/files';
+import { AccountLoans } from '../loans/account-loans';
 import {
   ACCOUNT_TYPES,
   CONSENT_CHANNELS,
@@ -103,6 +105,7 @@ export function AccountScreen({
   proofLimit,
   duplicates,
   projects,
+  loans,
 }: {
   initial: Account360Dto;
   companies: Record<number, string>;
@@ -112,6 +115,8 @@ export function AccountScreen({
   duplicates?: AccountDuplicatesDto | undefined;
   /** J1: the customer's projects in this company, for a caller who reads projects. */
   projects?: ReactNode;
+  /** J2: the customer's loans in this company, when the caller reads them. */
+  loans?: readonly AccountLoanRowDto[] | undefined;
 }) {
   const t = useTranslations('customers');
   const leadsT = useTranslations('leads');
@@ -256,6 +261,7 @@ export function AccountScreen({
           <Quotes view={view} />
           <Orders view={view} />
           {projects}
+          {loans === undefined ? null : <AccountLoans loans={loans} />}
           <Tasks
             view={view}
             onAdd={() => {

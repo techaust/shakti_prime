@@ -25,7 +25,7 @@ export interface NoticeLinkFacts {
  * WhatsApp after it lapsed (where its order is, or the re-quote), or sent on WhatsApp but not
  * delivered (where its PDF is), their Agent Inbox for an enquiry passed to them
  * (where its interest and note are, and Done), the order for one held for credit (where the
- * Executive releases it), the project kept for a cancelled order (where its manager closes it), the chat for a WhatsApp customer waiting for a reply, and the customer's
+ * Executive releases it) and for an order whose loan was turned down (where its Loan tab is), the project kept for a cancelled order (where its manager closes it), the chat for a WhatsApp customer waiting for a reply, and the customer's
  * Account 360, in the notice's
  * company, for a lead given to them, a possible duplicate or a late first call.
  */
@@ -37,6 +37,7 @@ export function noticeHref(notice: NoticeLinkFacts): Route {
     case 'enquiry_routed':
       return '/inbox';
     case 'order_credit_held':
+    case 'loan_rejected':
       return orderHref(notice.entityId, notice.subjectId);
     case 'project_order_cancelled':
       return projectHref(notice.entityId, notice.subjectId);

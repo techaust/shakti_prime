@@ -1706,50 +1706,78 @@
     {
       "idx": 243,
       "version": "7",
-      "when": 1795789948293,
-      "tag": "0243_j1_projects",
+      "when": 1795789970707,
+      "tag": "0243_j2_customer_loans",
       "breakpoints": true
     },
     {
       "idx": 244,
       "version": "7",
-      "when": 1795790085881,
-      "tag": "0244_j1_projects_rls",
+      "when": 1795789987756,
+      "tag": "0244_j2_customer_loans_rls",
       "breakpoints": true
     },
     {
       "idx": 245,
       "version": "7",
-      "when": 1795795960259,
-      "tag": "0245_j1_status_summary",
+      "when": 1795792875141,
+      "tag": "0245_j2_loan_rejected_notice",
       "breakpoints": true
     },
     {
       "idx": 246,
       "version": "7",
-      "when": 1795796600615,
-      "tag": "0246_j1_project_customers",
+      "when": 1795792882017,
+      "tag": "0246_j2_loan_rejected_notice_owner",
       "breakpoints": true
     },
     {
       "idx": 247,
       "version": "7",
-      "when": 1795797104438,
-      "tag": "0247_j1_projects_list_order",
+      "when": 1795792883017,
+      "tag": "0247_j1_projects",
       "breakpoints": true
     },
     {
       "idx": 248,
       "version": "7",
-      "when": 1795808129572,
-      "tag": "0248_j1_order_cancelled_notice",
+      "when": 1795792884017,
+      "tag": "0248_j1_projects_rls",
       "breakpoints": true
     },
     {
       "idx": 249,
       "version": "7",
+      "when": 1795795960259,
+      "tag": "0249_j1_status_summary",
+      "breakpoints": true
+    },
+    {
+      "idx": 250,
+      "version": "7",
+      "when": 1795796600615,
+      "tag": "0250_j1_project_customers",
+      "breakpoints": true
+    },
+    {
+      "idx": 251,
+      "version": "7",
+      "when": 1795797104438,
+      "tag": "0251_j1_projects_list_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 252,
+      "version": "7",
+      "when": 1795808129572,
+      "tag": "0252_j1_order_cancelled_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 253,
+      "version": "7",
       "when": 1795808159502,
-      "tag": "0249_j1_review_fixes",
+      "tag": "0253_j1_review_fixes",
       "breakpoints": true
     }
   ]

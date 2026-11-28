@@ -126,6 +126,9 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   project_assignments: 'x.id::text',
   project_milestones: 'x.id::text',
   project_flow_templates: 'x.id::text',
+  // J2 customer loans.
+  lenders: 'x.id::text',
+  customer_loans: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -185,6 +188,11 @@ export async function removeEntityMatrixFixture(): Promise<void> {
   const like = `${P}%`;
   await asMigrator((m) =>
     m.begin(async (tx) => {
+      // J2: a loan names its order and the company's lender.
+      await tx`alter table customer_loans disable trigger customer_loans_guard`;
+      await tx`delete from customer_loans where id::text like ${like}`;
+      await tx`alter table customer_loans enable trigger customer_loans_guard`;
+      await tx`delete from lenders where id::text like ${like}`;
       // Orders and their commission first: they name a quote, a lead and a commission rule.
       // J1: a project names its order and its checklist; published checklists never change, so
       // their trigger is set aside for the fixture's own rows.
@@ -429,6 +437,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     project_assignments: [],
     project_milestones: [],
     project_flow_templates: [],
+    // J2 customer loans.
+    lenders: [],
+    customer_loans: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -1009,6 +1020,18 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
       rows.vendor_contacts.push({ key: vendorContact, entities: everyCompany });
       rows.item_vendors.push({ key: itemVendor, entities: everyCompany });
       rows.vendor_quotes.push({ key: groupQuote, entities: null });
+
+      // J2: each company's lender, and a loan on its dealer order, read with the customer there.
+      for (const e of ALL_ENTITY_IDS) {
+        const lender = per(e, 0x90);
+        const loan = per(e, 0x91);
+        await tx`insert into lenders (id, entity_id, name, created_by)
+          values (${lender}, ${e}, ${`matrix lender ${e.toString()}`}, ${ownerId})`;
+        await tx`insert into customer_loans (id, entity_id, account_id, sales_order_id, lender_id, amount, created_by)
+          values (${loan}, ${e}, ${per(e, 0x02)}, ${per(e, 0x32)}, ${lender}, 1.00, ${ownerId})`;
+        rows.lenders.push({ key: lender, entities: [e] });
+        rows.customer_loans.push({ key: loan, entities: [e], leadIn: [e] });
+      }
 
       // The shared customer: one account, contact and site, related to companies 1 and 2.
       const team1 = teamIds[1] ?? '';

@@ -22,6 +22,7 @@ import {
   ListChecks,
   ListTodo,
   MessageCircleQuestion,
+  Landmark,
   MessageSquareText,
   Package,
   PhoneCall,
@@ -431,6 +432,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: ListChecks,
     group: 'admin',
     requires: [{ key: 'projects.write', scope: 'all' }],
+  },
+  // J2 customer loans: each company's lenders (crm.lender.create and .update).
+  {
+    id: 'settings-lenders',
+    href: '/settings/lenders',
+    label: 'settingsLenders',
+    icon: Landmark,
+    group: 'admin',
+    requires: [{ key: 'admin.entities.write', scope: 'all' }],
   },
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];

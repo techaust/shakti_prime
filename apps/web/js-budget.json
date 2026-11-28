@@ -79,7 +79,7 @@
     },
     "/catalogue": {
       "maxKb": 246,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the items grid with its search, category filter and saved views; the item sheet and forms load when first opened. Measured 233.2 kB on 04-10-2026, plus 5 %. Raised by 1 kB on 27-11-2026 for the shell's two Projects menu entries (J1): measured 245.1 kB."
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the items grid with its search, category filter and saved views; the item sheet and forms load when first opened. Measured 233.2 kB on 04-10-2026, plus 5 %. Raised by 1 kB on 27-11-2026 for the shell's two Projects menu entries (J1) and its Lenders menu entry (J2): each measured 245.1 kB alone."
     },
     "/catalogue/kits": {
       "maxKb": 241,
@@ -140,6 +140,10 @@
     "/settings/lead-sources": {
       "maxKb": 207,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the company's forms, websites and keys with the key form; the source form with its field map loads when first opened. Measured 197.1 kB on 14-11-2026, plus 5 %."
+    },
+    "/settings/lenders": {
+      "maxKb": 203,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and one company's lenders with their switches; the add and rename dialog loads when first opened. Measured 193.1 kB on 27-11-2026, plus 5 %."
     },
     "/settings/pipelines": {
       "maxKb": 205,

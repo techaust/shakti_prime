@@ -68,6 +68,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'serial',
   // J1 projects
   'project_standard',
+  // J2 customer loans
+  'customer_loan',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */
