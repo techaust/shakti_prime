@@ -484,6 +484,8 @@ Re-checked `git diff c1497422..a217563d` (the fix round) against the nine findin
 
 ## Integration
 
+**The lead, 28-11-2026 00:30 UTC: the prep's format step.** Prettier was run with `--write` on the eight files listed, which are H2's own fix-round files (whitespace and line breaks only, `8 files changed, 48 insertions(+), 17 deletions(-)`). `prettier --check .` now passes on the whole repository. Every other part of the seat's prep passed on the same code before the rewrite, so the prep is taken as complete. The lead's integration reruns typecheck and the suites after taking `main` again.
+
 ### 28-11-2026, cloud (seat worktree `h2-reservations`, Postgres on 54331; integrate.sh on 54340): Integration prep, blocked
 **Blocked on one step outside the merge:** `format` (`prettier --check .`) fails on eight of H2's own files from the fix rounds. `main` touches none of them, so the merge did not cause it. As the lane says, I left them unchanged:
 
