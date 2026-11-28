@@ -228,4 +228,15 @@ Not checked:
   - A trial `git merge-tree` against `main` conflicts in 28 files, all shared registration points or generated files (`en.json`, `js-budget.json`, the registries, the testing lists, `docs/data`, the snapshots and the journal).
   - `apps/web/js-budget.json` needs the owner's `checks-ok`.
 
+### 28-11-2026, the lead's triage
+- **Fix in the one fix round:**
+  - **1:** as written. The saved shift and manager join the options when they are missing, labelled as archived or left. `checkManager` runs only when the manager changes. Add a test that an edit keeping an archived shift and a departed manager keeps both.
+  - **2:** the DTO route. `getEmployee` (and any list) returns `phone` only to a caller holding `hr.employee.write:all`. The person's page hides the row otherwise, and the sentence stays true. Add a test that a team lead and the GM get no phone.
+  - **3:** as written. One HR journey adds and archives a shift, adds a leave type and gives a balance, with axe at each step and `snap()` of the Shifts and Leave types lists.
+  - **4:** as written, with a new reason and a catalogue sentence, and a test.
+  - **5:** yes. Add an `auditInput` with `phoneOnRecord`, and a test that checks `input_json` too.
+  - **6:** a per-company transaction-scoped advisory lock in the employee commands that change a manager.
+- **Follow-up, not fixed here:** **7** (HR asking for leave for a person with no sign-in, and cancelling an approved leave) waits for the client's HR-2 answers, and is recorded in STATUS.
+- Run `pnpm format:check` before the `report: hr1-people fixes` commit.
+
 ## Integration
