@@ -91,7 +91,7 @@ const U1_QUOTE_INPUTS: Record<string, unknown> = {
 const TC2_CONNECTOR_INPUTS: Record<string, unknown> = {
   'tally.connector.register': { name: 'Refused connector', key: 'k'.repeat(43) },
   'tally.connector.map': { connectorId: newId(), tallyCompany: 'Refused company', entityId: 1 },
-  'tally.connector.unmap': { connectorId: newId(), entityId: 1 },
+  'tally.connector.unmap': { connectorId: newId(), entityId: 1, tallyCompany: 'Tally company' },
   'tally.connector.rotate': { connectorId: newId(), key: 'k'.repeat(43) },
   'tally.connector.retire_key': { connectorId: newId() },
   'tally.connector.revoke': { connectorId: newId() },

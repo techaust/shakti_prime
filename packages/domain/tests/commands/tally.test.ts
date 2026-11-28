@@ -629,7 +629,7 @@ describe('rows held back from a batch', () => {
       nextYear(
         0,
         10,
-        [voucher(1, 4), voucher(300, 5)],
+        [voucher(1, 4), voucher(400, 5)],
         [ledger(100, 6), ledger(102, 7, 'Sundry Creditors')],
       ),
       { idempotencyKey: newId() },
@@ -644,13 +644,13 @@ describe('rows held back from a batch', () => {
         { kind: 'ledger', guid: guid(102), alterId: 7, reason: 'not_debtor' },
       ],
     });
-    expect(await stateOf('tally_vouchers', guid(300))).toBe('received');
+    expect(await stateOf('tally_vouchers', guid(400))).toBe('received');
     // The next batch is not stopped by the rows held before it.
     const next = await executeCommand(
       connectorPrincipal(),
       { entityIds: [1] },
       ingestTallyBatch,
-      nextYear(10, 12, [voucher(301, 11)], []),
+      nextYear(10, 12, [voucher(401, 11)], []),
       { idempotencyKey: newId() },
     );
     expect(next).toMatchObject({ lastAlterId: 12, held: [] });
@@ -767,7 +767,7 @@ describe('unmap and revoke', () => {
     });
     expect(unmapped.companies.map((c) => c.tallyCompany)).toEqual([NEXT_YEAR]);
     const [audit] = await asMigrator(
-      (m) => m<{ before: unknown }[]>`select before from audit_logs
+      (m) => m<{ before: unknown }[]>`select before_json as before from audit_logs
         where aggregate_id = ${connector.id} and command = 'tally.connector.unmap'
           and outcome = 'ok' order by created_at desc limit 1`,
     );
