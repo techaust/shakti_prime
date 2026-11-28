@@ -50,7 +50,7 @@ Each later slice carries every earlier line of `main`'s latest:
 
 ## Usage pacing (weekly resets, UTC)
 Lead Thu 07:00 · seat 1 Thu 10:00 · seat 2 Mon 15:00 · seat 3 Tue 16:00 · seat 4 Fri 05:00. Weekly line = 100 % × hours since reset ÷ 168, plus 5; above it drop an agent, more than 10 under it allows up to 5.
-Last reading 28-11 03:48 UTC: lead 5h 6 wk 8 · seat 1 5h 4 wk 28 · seat 2 5h 31 wk 25 · seat 3 5h 1 wk 34 · seat 4 5h 2 wk 16. Lines then: lead 17, seat 1 16 (above: seat 1 runs reviews only, at 3), seat 2 70, seat 3 55, seat 4 19. `max_agents` now: seat 1 3, seat 2 5, seat 3 5, seat 4 2. Seat 1's weekly use is the tightest: keep its lanes to reviews and lower it to 2 if the next reading is still above its line.
+Last reading 28-11 09:00 UTC: lead 5h 5 wk 9 · seat 1 5h 4 wk 29 · seat 2 5h 10 wk 30 · seat 3 5h 0 wk 37 · seat 4 5h 9 wk 17. Lines then: lead 20, seat 1 19 (above: lowered to 2, reviews only), seat 2 73, seat 3 58, seat 4 22 (under by less than 10: no growth). `max_agents` now: seat 1 2, seat 2 5, seat 3 5, seat 4 2.
 
 ## Follow-ups to record in STATUS at end-session
 Also from 28-11 morning: J3 L5 (unfiled customer uploads) and L6 (tesseract.js traced files); `app.file_is_sensitive` has no company filter; HR1 finding 7 (leave for a person with no sign-in, cancelling approved leave; HR-2); the F1 phones picture's masks over the panel; the J1 home cards' missing full stops; the JavaScript budget creep from menu entries (each merge raises shared pages); the container restarts (the lead clears `~/.shakti-heavy.lock` after one, because the stopped run cannot).
