@@ -82,10 +82,10 @@ describe('the event catalogue', () => {
         'print.document.requested',
         // J1: a project kept for its cancelled order, told to its Project Manager.
         'projects.project.order_cancelled',
-        'sales.order.cancelled',
         // A sheet of QR labels (Q1).
         'print.labels.requested',
-        // FN1: a cancelled order's proforma and waiting payments are cancelled with it.
+        // J1 and FN1: a cancelled order's project, and its proforma and waiting payments, are
+        // cancelled with it.
         'sales.order.cancelled',
         'sales.order.confirmed',
         'sales.order.credit_held',
