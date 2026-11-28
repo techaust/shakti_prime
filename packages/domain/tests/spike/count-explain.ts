@@ -81,9 +81,9 @@ async function explained<T>(
 /**
  * The plans of the statements inside a definer: the request's settings copied into a migrator
  * connection (the definers run as their owner either way), with `auto_explain` sending each
- * nested statement's plan back as a notice. postgres.js hands a notice to `console.log` when its
- * connection has no handler, so the notices are caught there; a statement run once per line is
- * printed once, with how many times it ran and its slowest run.
+ * nested statement's plan back as a notice, caught by the connection's notice handler (postgres.js
+ * reads it from its options at each notice; its types leave it out). A statement run once per
+ * line is printed once, with how many times it ran and its slowest run.
  */
 async function insideDefiner(label: string, principal: Principal, call: string): Promise<void> {
   const settings = await asPrincipal(principal, async ({ tx }) => {
@@ -98,7 +98,9 @@ async function insideDefiner(label: string, principal: Principal, call: string):
   });
   await asMigrator(async (m) => {
     const notices: string[] = [];
-    const log = console.log;
+    (m.options as { onnotice?: (notice: { message: string }) => void }).onnotice = (notice) => {
+      notices.push(notice.message);
+    };
     const reserved = await m.reserve();
     try {
       await reserved`set auto_explain.log_min_duration = 0`;
@@ -116,14 +118,9 @@ async function insideDefiner(label: string, principal: Principal, call: string):
         set_config('app.team_id', '', true), set_config('app.agent_thread_id', '', true),
         set_config('app.voice_session_id', '', true),
         set_config('app.request_id', ${settings.request_id ?? newId()}, true)`;
-      console.log = (notice: { message?: string }) => {
-        notices.push(notice.message ?? '');
-      };
       await reserved.unsafe(call);
-      console.log = log;
       await reserved`rollback`;
     } finally {
-      console.log = log;
       reserved.release();
     }
     // Grouped by statement: its text up to the plan, then the slowest run's plan.
@@ -361,6 +358,25 @@ async function main(): Promise<void> {
   out(
     `\ninventory.count.post: ${String(posted.movementIds.length)} movements, ${(performance.now() - started).toFixed(0)} ms\n`,
   );
+
+  // A small count among the lines of every earlier one: five items, 100 lines.
+  const small = await run<{ id: string }>(manager, startStockCount, {
+    entityId: 1,
+    hubId: hub,
+    scope: 'items',
+    itemIds: items.slice(0, 5),
+  });
+  await insideDefiner(
+    'app.stock_count_sheet(), five items',
+    manager,
+    `select count(*) from app.stock_count_sheet('${small.id}'::uuid)`,
+  );
+  await insideDefiner(
+    'app.stock_count_review(), five items',
+    manager,
+    `select count(*) from app.stock_count_review('${small.id}'::uuid)`,
+  );
+  await run(manager, cancelStockCount, { countId: small.id, cancelReason: 'Plan run ended' });
 
   const [left] = await asMigrator(
     (m) => m<{ lines: number; counts: number; movements: number }[]>`
