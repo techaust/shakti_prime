@@ -233,7 +233,7 @@ test.describe('as HR, shifts, leave types and a balance', () => {
     await expectNoAxeViolations(page);
     await (await hydrated(page.getByRole('button', { name: 'Add a shift' }))).click();
     const add = page.getByRole('dialog', { name: 'Add a shift' });
-    await add.getByLabel('For').selectOption({ label: SNAPSHOT_COMPANY.name });
+    await add.getByLabel('For', { exact: true }).selectOption({ label: SNAPSHOT_COMPANY.name });
     await add.getByLabel('Name', { exact: true }).fill(shift);
     await add.getByLabel('Starts at').fill('08:00');
     await add.getByLabel('Ends at').fill('16:30');
@@ -264,7 +264,7 @@ test.describe('as HR, shifts, leave types and a balance', () => {
     await expectNoAxeViolations(page);
     await (await hydrated(page.getByRole('button', { name: 'Add a leave type' }))).click();
     const addType = page.getByRole('dialog', { name: 'Add a leave type' });
-    await addType.getByLabel('For').selectOption({ label: SNAPSHOT_COMPANY.name });
+    await addType.getByLabel('For', { exact: true }).selectOption({ label: SNAPSHOT_COMPANY.name });
     await addType.getByLabel('Name', { exact: true }).fill(leaveType);
     await addType.getByLabel('Days a year').fill('12');
     await addType.getByLabel('Paid leave').check();

@@ -6,8 +6,8 @@
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | B ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): permissions, approvals, a state machine |
 | Usage | briefed 27-11-2026; early check and done built on Opus 5.5 at high (the lead's cloud VM; seat 2 added three wip commits between) |
-| State | done |
-| Next step | the review, then the lead integrates (Linux baselines and checks-ok for `apps/web/js-budget.json`) |
+| State | fixes |
+| Next step | the lead integrates (Linux baselines, and checks-ok for `apps/web/js-budget.json`) |
 
 ## Brief
 Build [phase5 §5](../../03-roadmap-appendix/phase5.md#5-the-money-model) (its HR group, except attendance, incentives and salary sheets) as the employee directory, shifts, holidays and leave of HR-01 and HR-02. Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points settled here:
@@ -162,6 +162,35 @@ The staff list scans and sorts in memory, because the policy's `entity_id = any(
 **Not done or uncertain:**
 - The migrations' numbers (0240, 0241, 0242), and the numbers DATABASE cites, move at the merge.
 - J5's `unavailability` is still not on main. The seam is the event `hr.leave.approved` (assumption 10).
+
+### Fixes, 28-11-2026, the lead's cloud VM
+Opus 5.5 at high. This round applies findings 1 to 6, as the lead's triage asked. Finding 7 stays a follow-up for HR-2. `main` was not taken in.
+
+1. **An edit keeps a shift since archived and a manager who has left.**
+   - The employee form adds the saved shift and manager to its options when the company's choices no longer list them: "{name} (archived)", "{name} (has left)". The person's page passes their names.
+   - `hr.employee.update` checks the manager only when it changes.
+   - Test: an edit that keeps an archived shift and a departed manager keeps both, and a departed manager is still refused as a new choice.
+2. **The phone is for HR alone.**
+   - `getEmployee` returns `phone` only to a holder of `hr.employee.write:all`, and the new `phoneShown` says so. The person's page shows the phone row only then.
+   - Test: HR reads the number; a team lead and the GM get null.
+3. **The settings and balance journey.** A new journey in `apps/web/e2e/hr.spec.ts`: HR adds a shift with two days off and archives it, adds a leave type for the snapshot company, gives the snapshot helper two days of it on her page, and archives the type again. Each step runs axe, with `snap()` pictures `hr-shifts` and `hr-leave-types`; the run's own names are masked.
+4. **Nobody changes the sign-in on their own record.** `hr.employee.update` refuses with `employee_own_sign_in`, which has its sentence in the error catalogue. Test: HR is refused on their own record, and the Executive may change it.
+5. **No phone digits in the audit input.** `hr.employee.create` and `.update` have an `auditInput` that records `phoneOnRecord` in place of `phone`. The audit test now checks `input_json` too.
+6. **Manager changes are serialised per company.** A transaction-scoped advisory lock (`hr.employee.manager:<company>`) is taken before the loop check, in create and in an update that changes the manager. No concurrency test was added.
+
+**Checks (Postgres on 54331, migrated and seeded fresh):**
+- `pnpm test:security`: db 1818 passed, domain 1553 passed, web 461 passed.
+- Unit tests: contracts 340, db 162, domain 2841 passed; web 1159 passed, 1 skipped.
+- `pnpm typecheck` and `pnpm copy-lint`: clean.
+- `pnpm build`: passed. `js-budget`: every page within budget (71 pages).
+- `pnpm format:check`: clean.
+- The whole-repository `pnpm lint` passed; the one later change, to `hr.spec.ts`, was linted on its own.
+- Journeys: `e2e:seed` then `hr.spec.ts` passed 28 of 28 (the sign-ins and four journeys on three projects).
+  - The first run failed: `getByLabel('For')` also matched "Minutes allowed before late", so the spec now uses `exact`.
+  - A rerun without a fresh seed hit the day an earlier run had taken; the run after a fresh seed passed clean.
+- Screenshots: the pictures these runs wrote outside the Linux image were removed. The lead makes the Linux baselines, now five: `hr-people`, `leave-approve-dialog`, `holiday-add-dialog`, `hr-shifts`, `hr-leave-types`.
+
+**Checks files:** none changed in this round. `apps/web/js-budget.json` from the done stage still needs the owner's `checks-ok`.
 
 ## Review
 Reviewed in the lead's cloud VM (Tier B lane, 28-11-2026) on `89862d6d`, against `origin/main` at `5f5ea1e7`. No critical or high finding: nothing blocks the merge. Medium findings 1 to 3 should be fixed before the merge if the lead takes the one-round option, since each is small.
