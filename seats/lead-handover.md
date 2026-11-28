@@ -25,7 +25,7 @@ Updated 28-11-2026 08:05 UTC by the lead of day 1. Read this with `docs/10-statu
 5. **TC2:** prep restarted (lane 104) after the lead's fix (`connector_refused` is a typed review reason). The lead read the fix round and accepted it. Low follow-up for SR1: the per-connector cap is counted before the signature.
 6. **U2:** prepped before J2; needs a new prep.
 7. **J3:** fix round accepted by the lead. Integrate after J1 (foreign key to projects, `app.project_missing_documents()` over its definer) and write `app.file_purpose_grant()` from `main`'s 0242 (H2 at the merge). Needs a prep.
-8. **H3:** fix round accepted. Waits for the owner's questions A (who counts: Store Manager with `inventory.stock.move`, or a counting-only permission; recommended the latter) and B (hide balances of bins under a live count from non-adjust holders; recommended). The answer comes as a small change of its own, then the prep.
+8. **H3:** owner answered A (b) and B (a); addendum built and re-checked sound; L1 to L4 in lane 114. **C1 at integration:** whichever of H2 and H3 merges second makes H2's `app.line_availability()` blind for a counter without adjust while a live count covers the item. Earlier note: fix round accepted. Waits for the owner's questions A (who counts: Store Manager with `inventory.stock.move`, or a counting-only permission; recommended the latter) and B (hide balances of bins under a live count from non-adjust holders; recommended). The answer comes as a small change of its own, then the prep.
 - **No new builds:** the queue is past the limit of 6 built and waiting. Spare seat time goes to preps.
 
 ## The watch list at every merge (shared definers and checks)
