@@ -31,29 +31,33 @@ function withSession(api: ReturnType<typeof fakeApi>) {
 const COLD_START_MS = 20_000;
 
 describe('the sign-in screen', () => {
-  it('signs in with the email and password and moves on to choosing a PIN', async () => {
-    const api = fakeApi();
-    const { session, wrap } = withSession(api);
-    await render(wrap(<SignInScreen />));
-    await fireEvent.changeText(
-      screen.getByLabelText(t('signIn.email')),
-      ' rakesh.meena@shaktisupreme.in ',
-    );
-    await fireEvent.changeText(
-      screen.getByLabelText(t('signIn.password')),
-      'monsoon pump 2026 river',
-    );
-    await fireEvent.press(screen.getByRole('button', { name: t('signIn.submit') }));
-    await waitFor(() => {
-      expect(session.getState()).toEqual({ status: 'locked', hasPin: false });
-    });
-    expect(api.signIn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        email: 'rakesh.meena@shaktisupreme.in',
-        password: 'monsoon pump 2026 river',
-      }),
-    );
-  }, COLD_START_MS);
+  it(
+    'signs in with the email and password and moves on to choosing a PIN',
+    async () => {
+      const api = fakeApi();
+      const { session, wrap } = withSession(api);
+      await render(wrap(<SignInScreen />));
+      await fireEvent.changeText(
+        screen.getByLabelText(t('signIn.email')),
+        ' rakesh.meena@shaktisupreme.in ',
+      );
+      await fireEvent.changeText(
+        screen.getByLabelText(t('signIn.password')),
+        'monsoon pump 2026 river',
+      );
+      await fireEvent.press(screen.getByRole('button', { name: t('signIn.submit') }));
+      await waitFor(() => {
+        expect(session.getState()).toEqual({ status: 'locked', hasPin: false });
+      });
+      expect(api.signIn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'rakesh.meena@shaktisupreme.in',
+          password: 'monsoon pump 2026 river',
+        }),
+      );
+    },
+    COLD_START_MS,
+  );
 
   it('asks for the authenticator code when the role needs one, and shows a refusal in plain words', async () => {
     const api = fakeApi({ signIn: jest.fn(() => no('totp_required')) });
