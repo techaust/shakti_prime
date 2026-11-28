@@ -1,6 +1,6 @@
 seat: 4
 max_agents: 2
-updated: 28-11-2026 06:36 UTC
+updated: 28-11-2026 07:08 UTC
 note: protocol v2 (seats/readme.md); the seven-day push, 27-11 to 03-12-2026. Start lanes in the order listed.
 
 lane: 8
@@ -114,3 +114,11 @@ run_file: docs/runs/phase3/h2-reservations.md
 wait_for: none
 done_when: report: h2-reservations prepped after j2
 note: a second prep: main moved (J2 #300 with migrations 0243 to 0246 and notifications_type_check / notification_preferences_type_check widened with loan_rejected; TC1; the axe title wait; the calling-hours fix). Take main in again as the prep prompt says; H2's migrations move after 0246 (F1, J1, TC2 and HR1 also wait with 0247 onward; whoever merges later renumbers again). H2 redefines app.stock_move() (X4's 0240 body plus H2's one rule), app.platform_only_permissions() and the notification checks: each carries every line of main's latest plus H2's own. Add a second "Integration prep" entry and commit with the subject "report: h2-reservations prepped after j2".
+
+lane: 110
+role: prep
+branch: feat/r3-warranty
+run_file: docs/runs/phase3/r3-warranty.md
+wait_for: none
+done_when: report: r3-warranty prepped
+note: the re-check passed. main holds X4's reason registry (0240, with R3's addenda as data), Q1, J2 (0243 to 0246), TC1, the axe title wait and the calling-hours fix. R3's migrations move after 0246 (F1, J1, TC2, HR1 and H2 also wait with 0247 onward). Check every row R3 adds to X4's registry against main's 0240, and app.next_document_no(), document_sequences_doc_type_check, the notification checks and app.platform_only_permissions() against main's latest.
