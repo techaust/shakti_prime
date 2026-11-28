@@ -26,6 +26,10 @@ function withSession(api: ReturnType<typeof fakeApi>) {
   };
 }
 
+// The first screen rendered pays React Native's cold start; with every workspace's tests running at
+// once (integrate.sh, CI) it passed Jest's 5-second default (28-11-2026).
+const COLD_START_MS = 20_000;
+
 describe('the sign-in screen', () => {
   it('signs in with the email and password and moves on to choosing a PIN', async () => {
     const api = fakeApi();
@@ -49,7 +53,7 @@ describe('the sign-in screen', () => {
         password: 'monsoon pump 2026 river',
       }),
     );
-  });
+  }, COLD_START_MS);
 
   it('asks for the authenticator code when the role needs one, and shows a refusal in plain words', async () => {
     const api = fakeApi({ signIn: jest.fn(() => no('totp_required')) });
