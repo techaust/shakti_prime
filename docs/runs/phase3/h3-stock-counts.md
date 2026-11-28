@@ -324,4 +324,25 @@ Opus 5.5 at high. This is the one fix round: H1 parts (1) and (3), M1, L1 and L2
 - **Waiting on the owner (asked 28-11 06:20 UTC):** question A (who counts: the Store Manager given `inventory.stock.move`, or a counting-only permission) and B (hide balances of bins under a live count, or accept). The answer comes as a separate small change after this round. Do not grant any role a new permission in this round.
 - Run `pnpm format:check` before the `report: h3-stock-counts fixes` commit. Do not take main in (the prep renumbers after 0246).
 
+### 28-11-2026, addendum: the owner's answers to questions A and B (owner, 28-11-2026 ~09:30 UTC: "Go with recommended options")
+- **A (b): a counting-only permission.**
+  - Add `inventory.count.record` (scopes `own` and `entity`, as `inventory.stock.move`) to the permissions list, the seed and the oracle. Grant it at `entity` to the Store Manager, the Inventory Manager and the Executive.
+  - No agent principal holds it, and it is not platform-only.
+  - The counting commands (`inventory.count.record`, submit, and recount where a counter does it) and the counting screen and list use it instead of `inventory.stock.move`. Starting, reviewing, posting and cancelling stay with `inventory.stock.adjust`.
+  - The count definers check it where they checked `inventory.stock.move` for counting.
+  - Update the counts menu entry's `anyOf`, SECURITY §3.2's role table, the H3 line in SECURITY, and phase3 §7.3's Built record.
+  - Customised roles get it only as `pnpm db:seed` gives new permissions (created after their customisation).
+- **B (a): counters count blind.**
+  - Add restrictive select policies on `stock_balances`, `stock_movements` and `serials` (H1's tables) for `app_user` and `app_reader`. A row whose bin is under a live count (state `counting` or `review`, and the bin in the count's scope, through one stable definer with `search_path = ''`) is hidden from a caller who holds `inventory.count.record` and does not hold `inventory.stock.adjust`.
+  - Nobody else is affected: a caller without `inventory.count.record` (sales, quotes, H2's availability, the GM, Accounts) or with `inventory.stock.adjust` reads as before.
+  - The definer is indexed for the live-count lookup. Record its `EXPLAIN (ANALYZE)` on the stock card and the stock list at the volume in the report.
+  - Tests:
+    - the Store Manager (read and count, no adjust) reads no balance, movement or serial bin of a counted bin during the count, and reads them again once it is posted or cancelled;
+    - a bin outside the count is unaffected;
+    - a Sales Executive and the Inventory Manager read the counted bin throughout;
+    - the role × company matrix and `NARROWER` updated.
+  - This is a redefinition of nothing on `main`: new policies only. If H2 or another slice later reads these tables under the viewer, it keeps working for non-counters.
+- **The journey:** the counter journey becomes the Store Manager (count, submit) with axe, and asserts that their stock card shows no quantity for a counted bin while the count is live.
+- Run `pnpm format:check` and the slice's checks, then commit `report: h3-stock-counts owner answers`. Do not take main in.
+
 ## Integration
