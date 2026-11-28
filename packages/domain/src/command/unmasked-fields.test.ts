@@ -150,6 +150,10 @@ const EXEMPT_EXAMPLES: Record<string, Record<string, unknown>> = {
   'notifications.push.unsubscribe': { endpoint: `https://fcm.googleapis.com/fcm/send/${AADHAAR}` },
   // A cell of a phone column, which the command's own masking keeps as the phone it is.
   'imports.job.create': { rows: MOBILE_91 },
+  // J2: a lender's reference for a loan application or account is a long number by design.
+  'crm.loan.create': { reference: AADHAAR },
+  'crm.loan.sanction': { reference: AADHAAR },
+  'crm.loan.disburse': { reference: AADHAAR },
 };
 
 /** What a person might type into a text field: never valid in a field left whole. */

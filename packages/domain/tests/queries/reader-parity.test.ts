@@ -113,6 +113,13 @@ import {
   listImportTemplates,
 } from '../../src/queries/imports/import-queries';
 import { readEntityBankDetails, readSealedBankDetails } from '../../src/queries/org/bank-details';
+import {
+  getOrderLoans,
+  listAccountLoans,
+  listLenders,
+  orderLoanGate,
+  readCustomerLoan,
+} from '../../src/queries/crm/loans';
 import { loadCompanyForPrint } from '../../src/queries/org/company-print';
 import { listEntities } from '../../src/queries/org/list-entities';
 import { listEntityChannels } from '../../src/queries/org/list-channels';
@@ -408,6 +415,11 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
   getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
+  // J2 customer loans
+  readCustomerLoan: (ctx) => readCustomerLoan(ctx, 1, newId()),
+  getOrderLoans: (ctx) => getOrderLoans(ctx, { entityId: 1, orderId: newId() }),
+  listAccountLoans: (ctx) => listAccountLoans(ctx, { entityId: 1, accountId: newId() }),
+  listLenders: (ctx) => listLenders(ctx, { entityId: 1 }),
   // Q1 labels: the render worker's read of a sheet.
   loadLabelsForPrint: (ctx) => loadLabelsForPrint(ctx, 'serial', [labelled.serialId]),
 };
@@ -433,6 +445,8 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
       { kind: 'pipeline_stage', id: STAGE },
     ]),
   itemCostsFor: (ctx) => itemCostsFor(ctx, [askData.itemId]),
+  // J2: an order's loan gates, as app.order_loan_gate() answers them.
+  orderLoanGate: (ctx) => orderLoanGate(ctx, newId()),
   latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
   dialNumber: (ctx) =>
     dialNumber(ctx, { entityId: 1, opportunityId: newId() }, new Date('2026-10-05T06:00:00Z')),
