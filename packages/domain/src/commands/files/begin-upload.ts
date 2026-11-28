@@ -8,12 +8,19 @@ import { assertEntityInScope } from '../imports/shared';
 import { findPersonalNumbers, lastFourOnly, replaceNumbers } from '../../privacy/number-shapes';
 import { fireUpload } from './shared';
 
+/** A run of nine digits or more standing on its own: a bank account number's length, or longer. */
+const LONG_DIGIT_RUN = /(?<!\p{Nd})\p{Nd}{9,}(?!\p{Nd})/gu;
+
 /**
  * A customer document's name as kept (SECURITY §5): every Aadhaar- or phone-shaped number in it,
- * whether or not its check digit holds, keeps only its last four digits.
+ * whether or not its check digit holds, and every other run of nine digits or more (a bank
+ * account number is 9 to 18), keeps only its last four digits.
  */
 export function customerDocumentName(name: string): string {
-  return replaceNumbers(name, findPersonalNumbers(name), (_, written) => lastFourOnly(written));
+  const shaped = replaceNumbers(name, findPersonalNumbers(name), (_, written) =>
+    lastFourOnly(written),
+  );
+  return shaped.replace(LONG_DIGIT_RUN, (run) => lastFourOnly(run));
 }
 
 /**

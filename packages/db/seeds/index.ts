@@ -164,7 +164,8 @@ export async function runSeeds(): Promise<void> {
       if (!groupOutcome) await tx.insert(callDispositions).values(DISPOSITION_SEED);
 
       // J3: a company's document requirements are the Executive's once written; a missing one is
-      // added, and none is changed or brought back once turned off.
+      // added, and none is changed or brought back once turned off. Each id comes from the row's
+      // keys, so the one conflict possible is on those keys.
       await tx
         .insert(documentRequirements)
         .values(DOCUMENT_REQUIREMENT_SEED)

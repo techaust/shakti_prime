@@ -571,7 +571,9 @@
     "document_sensitive_forbidden": "Only people who may see identity and bank papers can file one. Ask your project manager to file it.",
     "document_kind_not_accepted": "This requirement does not take that kind of document. Choose the kind the requirement asks for.",
     "document_missing": "We could not find this document. It may have been unfiled, or you may not be allowed to see it.",
-    "document_already_unfiled": "This document is already unfiled."
+    "document_already_unfiled": "This document is already unfiled.",
+    "document_identity_kind": "This file shows an identity or bank account number, so it can only be filed as an identity proof or bank proof. Ask someone who may file identity papers, such as your project manager.",
+    "document_requirement_taken": "Someone added this requirement to the step just now. Refresh the page and change it there."
   },
   "auth": {
     "signIn": {

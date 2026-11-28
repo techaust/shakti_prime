@@ -90,6 +90,21 @@ async function fileToFile(ctx: CommandContext, input: FileDocumentInput): Promis
   return file;
 }
 
+/**
+ * Whether the file is an identity or bank paper whatever kind is chosen for it: the masking step
+ * hid an Aadhaar or bank account number in it and kept its last four digits, or a document filed
+ * it as sensitive before (`app.file_is_sensitive`, which sees a sensitive document the caller
+ * cannot read).
+ */
+async function fileIsIdentityPaper(ctx: CommandContext, file: FileRow): Promise<boolean> {
+  const kept = scanResultOf(file).lastFour;
+  if ((kept?.aadhaar.length ?? 0) > 0 || (kept?.bankAccount.length ?? 0) > 0) return true;
+  const rows = (await ctx.tx.execute(
+    sql`select app.file_is_sensitive(${file.id}::uuid) as sensitive`,
+  )) as unknown as { sensitive: boolean }[];
+  return rows[0]?.sensitive === true;
+}
+
 /** A kind the requirement accepts in some step of the company, while the requirement is on. */
 async function assertKindAccepted(ctx: CommandContext, input: FileDocumentInput): Promise<void> {
   if (input.requirementKey === null) return;
@@ -117,7 +132,8 @@ async function assertKindAccepted(ctx: CommandContext, input: FileDocumentInput)
  * `documents.document.file`: files a checked customer document against the customer it was uploaded for,
  * on a requirement or as a loose document of its kind. An identity or bank paper is sensitive:
  * only a holder of `documents.sensitive.read` files one, and its number's last four digits, which
- * the masking step kept, become its identity document (SECURITY §5).
+ * the masking step kept, become its identity document (SECURITY §5). A file in which the masking
+ * step hid such a number, or that was once filed as sensitive, is filed only as a sensitive kind.
  */
 export const fileDocument = defineCommand({
   name: 'documents.document.file',
@@ -137,6 +153,12 @@ export const fileDocument = defineCommand({
       });
     }
     const file = await fileToFile(ctx, input);
+    // An identity or bank paper is filed only as one, so it is never read without the grant.
+    if (!sensitive && (await fileIsIdentityPaper(ctx, file))) {
+      throw new DomainError('validation_failed', 'the file is an identity or bank paper', {
+        reason: 'document_identity_kind',
+      });
+    }
     await assertKindAccepted(ctx, input);
 
     const id = newId();
@@ -284,7 +306,8 @@ export const viewDocument = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const document = await readDocument(ctx.tx, input.documentId);
-    if (document?.entityId !== input.entityId) {
+    // An unfiled document opens nothing: its file is read only through a filed one.
+    if (document?.entityId !== input.entityId || document.unfiledAt !== null) {
       throw new DomainError('not_found', `document ${input.documentId} is not readable`, {
         reason: 'document_missing',
       });
@@ -313,6 +336,8 @@ export const setDocumentRequirement = defineCommand({
   peopleOnly: true,
   input: SetDocumentRequirementInput,
   output: DocumentRequirementDto,
+  // Two Executives adding the same requirement at once: the second is told so.
+  constraintReasons: { document_requirements_step_key_unique: 'document_requirement_taken' },
   auditFields: [
     'flow',
     'stepKey',

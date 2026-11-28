@@ -69,20 +69,44 @@ revoke execute on function app.file_is_filed(uuid) from public, readonly_reporte
 --> statement-breakpoint
 grant execute on function app.file_is_filed(uuid) to app_user, app_reader;
 --> statement-breakpoint
+-- Whether any document, filed or unfiled, ever named the file as sensitive: such a file stays an
+-- identity or bank paper whatever is filed from it later, so it is read only with
+-- documents.sensitive.read and filed again only as a sensitive kind. A definer, so a caller
+-- without that grant learns it of a file they could otherwise read, and nothing more.
+create or replace function app.file_is_sensitive(p_file uuid) returns boolean
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not (app.has_perm('documents.read:own') or app.has_perm('documents.write:own')
+          or app.has_perm('files.process:entity')) then
+    return false;
+  end if;
+  return exists (select 1 from public.documents d where d.file_id = p_file and d.sensitive);
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.file_is_sensitive(uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.file_is_sensitive(uuid) to app_user, app_reader;
+--> statement-breakpoint
 
--- 4. customer_document files. Read with a document that names it, under the documents' own rule
---    (so a sensitive one only with documents.sensitive.read), or by the person who uploaded it
---    while it is not filed, so they can file it. The worker's files.process reads every file of
---    its companies through files_read. An upload names a customer of the company the uploader may
+-- 4. customer_document files. Read with a filed document that names it, under the documents' own
+--    rule (so a sensitive one only with documents.sensitive.read), or by the person who uploaded it
+--    while it is not filed, so they can file it. A file any document ever named as sensitive is
+--    read only with documents.sensitive.read, whatever names it now (app.file_is_sensitive), and
+--    an unfiled document opens nothing. The worker's files.process reads every file of its
+--    companies through files_read. An upload names a customer of the company the uploader may
 --    file documents for, and only a customer document names one (files_account_check).
 create policy files_customer_document_read on files for select to app_user, app_reader using (
   purpose = 'customer_document'
   and entity_id = any ((select app.entity_ids())::int[])
   and (exists (select 1 from documents d
-                where d.file_id = files.id and d.entity_id = files.entity_id)
+                where d.file_id = files.id and d.entity_id = files.entity_id
+                  and d.unfiled_at is null)
        or (created_by = (select app.user_id())
            and (select app.has_perm('documents.write:own'))
-           and not app.file_is_filed(files.id))));
+           and not app.file_is_filed(files.id)))
+  and ((select app.has_perm('documents.sensitive.read:entity'))
+       or not app.file_is_sensitive(files.id)));
 --> statement-breakpoint
 create policy files_customer_document_insert on files as restrictive for insert to app_user
   with check (
@@ -242,10 +266,18 @@ create or replace function app.documents_missing(
 ) returns text[]
 language plpgsql stable security definer set search_path = '' as $$
 begin
+  -- A project's step (J1's guard) is asked with its project; a customer's documents with
+  -- documents.read over the customer: the whole company, or own as the customer's owner.
   if not (p_entity_id = any (coalesce(app.entity_ids(), '{}'::int[]))
-          and (app.has_perm('documents.read:own') or app.has_perm('projects.read:own')
-               or app.has_perm('projects.write:own'))) then
-    raise exception 'documents_missing needs documents.read or projects.read in the company'
+          and (app.has_perm('documents.read:entity')
+               or (app.has_perm('documents.read:own')
+                   and exists (select 1 from public.account_entities ae
+                                where ae.account_id = p_account_id
+                                  and ae.entity_id = p_entity_id
+                                  and ae.owner_id = app.user_id()))
+               or (p_project_id is not null
+                   and (app.has_perm('projects.read:own') or app.has_perm('projects.write:own'))))) then
+    raise exception 'documents_missing needs documents.read over the customer, or a project'
       using errcode = 'insufficient_privilege';
   end if;
   return coalesce((

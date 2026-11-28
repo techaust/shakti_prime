@@ -239,17 +239,20 @@ function Filed({
                     )}
                   </span>
                   <span className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      pending={opening}
-                      aria-label={t('section.viewLabel', { kind })}
-                      onClick={() => {
-                        onOpen(d);
-                      }}
-                    >
-                      {t('section.view')}
-                    </Button>
+                    {/* An unfiled document's file is no longer opened through it. */}
+                    {d.unfiledAt === null ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        pending={opening}
+                        aria-label={t('section.viewLabel', { kind })}
+                        onClick={() => {
+                          onOpen(d);
+                        }}
+                      >
+                        {t('section.view')}
+                      </Button>
+                    ) : null}
                     {view.canFile && d.unfiledAt === null ? (
                       <Button
                         size="sm"

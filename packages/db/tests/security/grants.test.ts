@@ -521,6 +521,9 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // J3: a customer document is read by its uploader until it is filed
       // (files_customer_document_read).
       'app.file_is_filed(uuid)',
+      // J3: a file any document named as sensitive stays sensitive (files_customer_document_read,
+      // documents.document.file).
+      'app.file_is_sensitive(uuid)',
       // The ingest lookups of a form, its sealed Page token and a website key, which the lead
       // handlers and the website route ask as queries (I1).
       'app.ingest_key_find(text)',

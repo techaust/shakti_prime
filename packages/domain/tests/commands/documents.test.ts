@@ -24,6 +24,16 @@ import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { listCustomerDocuments, missingDocuments } from '../../src/queries/documents/documents';
 
 const SHA = 'e'.repeat(64);
+/** The checks of a paper the masking step found no number in. */
+const PLAIN_SCAN = {
+  verdict: 'not_scanned',
+  sanitising: 'masked',
+  lastFour: { aadhaar: [], bankAccount: [] },
+};
+/** The checks of a photo in which the masking step hid an Aadhaar number, keeping 0123. */
+const AADHAAR_SCAN = { ...PLAIN_SCAN, lastFour: { aadhaar: ['0123'], bankAccount: [] } };
+/** The checks of a passbook in which it hid a bank account number, keeping 4567. */
+const BANK_SCAN = { ...PLAIN_SCAN, lastFour: { aadhaar: [], bankAccount: ['4567'] } };
 
 let manager: Principal; // Project Manager of company 1
 let gm: Principal; // General Manager of company 1
@@ -68,11 +78,7 @@ async function upload(
   } = {},
 ): Promise<string> {
   const id = newId();
-  const scan = options.scan ?? {
-    verdict: 'not_scanned',
-    sanitising: 'masked',
-    lastFour: { aadhaar: ['0123'], bankAccount: [] },
-  };
+  const scan = options.scan ?? PLAIN_SCAN;
   await asMigrator(
     (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size,
                                 sha256, status, scan_result, account_id, created_by)
@@ -106,7 +112,7 @@ afterAll(closeDb);
 
 describe('documents.document.file', () => {
   it('files an identity paper as sensitive and keeps only its last four digits', async () => {
-    const file = await upload(manager);
+    const file = await upload(manager, { scan: AADHAAR_SCAN });
     const filed = await run(manager, fileDocument, {
       entityId: 1,
       accountId: account,
@@ -271,6 +277,92 @@ describe('documents.document.file', () => {
     ).toMatchObject({ code: 'not_found', reason: 'file_missing' });
   });
 
+  it('files a paper whose number the masking step hid only as an identity or bank paper', async () => {
+    const asPhoto = (fileId: string) => ({
+      entityId: 1,
+      accountId: account,
+      fileId,
+      kind: 'site_photo',
+      requirementKey: null,
+    });
+    // The Field Engineer, offered no identity kind, files an Aadhaar card as a site photo.
+    expect(
+      await refusal(
+        run(engineer, fileDocument, asPhoto(await upload(engineer, { scan: AADHAAR_SCAN }))),
+      ),
+    ).toEqual({ code: 'validation_failed', reason: 'document_identity_kind' });
+    // The Project Manager may file identity papers, and still only as one.
+    const card = await upload(manager, { scan: AADHAAR_SCAN });
+    expect(await refusal(run(manager, fileDocument, asPhoto(card)))).toEqual({
+      code: 'validation_failed',
+      reason: 'document_identity_kind',
+    });
+    const passbook = await upload(manager, { scan: BANK_SCAN });
+    expect(await refusal(run(manager, fileDocument, asPhoto(passbook)))).toEqual({
+      code: 'validation_failed',
+      reason: 'document_identity_kind',
+    });
+    expect(
+      await run(manager, fileDocument, { ...asPhoto(passbook), kind: 'bank_proof' }),
+    ).toMatchObject({ sensitive: true, lastFour: [{ kind: 'bank_proof', lastFour: '4567' }] });
+    expect(
+      await run(manager, fileDocument, {
+        ...asPhoto(card),
+        kind: 'identity_proof',
+        requirementKey: 'identity_proof',
+      }),
+    ).toMatchObject({ sensitive: true });
+  });
+
+  it('opens a file only through a filed document, and keeps a once-sensitive file sensitive', async () => {
+    // A paper the masking step found no number in, filed as a site photo.
+    const file = await upload(manager);
+    const photo = {
+      entityId: 1,
+      accountId: account,
+      fileId: file,
+      kind: 'site_photo',
+      requirementKey: null,
+    };
+    const gmSees = async () => {
+      const rows = (await asPrincipal(gm, ({ tx }) =>
+        tx.execute(sql`select id from files where id = ${file}`),
+      )) as unknown as { id: string }[];
+      return rows.length;
+    };
+    const first = await run(manager, fileDocument, photo);
+    expect(await gmSees()).toBe(1);
+    await run(manager, unfileDocument, {
+      entityId: 1,
+      documentId: first.id,
+      reason: 'Wrong paper',
+    });
+    // Unfiled, the document opens nothing.
+    expect(await gmSees()).toBe(0);
+    expect(
+      await refusal(run(manager, viewDocument, { entityId: 1, documentId: first.id })),
+    ).toEqual({ code: 'not_found', reason: 'document_missing' });
+    // Filed again as the identity paper it is: the old row opens nothing, the new one only with
+    // documents.sensitive.read.
+    const identity = await run(manager, fileDocument, {
+      ...photo,
+      kind: 'identity_proof',
+      requirementKey: 'identity_proof',
+    });
+    expect(await gmSees()).toBe(0);
+    await run(manager, unfileDocument, {
+      entityId: 1,
+      documentId: identity.id,
+      reason: 'Filed for the wrong customer visit',
+    });
+    // Once sensitive, it is filed again only as a sensitive kind, and the GM never reads it.
+    expect(await refusal(run(manager, fileDocument, photo))).toEqual({
+      code: 'validation_failed',
+      reason: 'document_identity_kind',
+    });
+    expect(await gmSees()).toBe(0);
+  });
+
   it('never reaches another person’s unfiled upload', async () => {
     const file = await upload(engineer);
     expect(
@@ -313,7 +405,7 @@ describe('documents.document.unfile and documents.document.view', () => {
   });
 
   it('unfiles with a reason, once, and the identity document goes with it', async () => {
-    const file = await upload(manager);
+    const file = await upload(manager, { scan: AADHAAR_SCAN });
     const filed = await run(manager, fileDocument, {
       entityId: 1,
       accountId: account,
@@ -342,7 +434,7 @@ describe('documents.document.unfile and documents.document.view', () => {
   });
 
   it('refuses to unfile or open a sensitive document to someone without documents.sensitive.read', async () => {
-    const file = await upload(manager);
+    const file = await upload(manager, { scan: AADHAAR_SCAN });
     const filed = await run(manager, fileDocument, {
       entityId: 1,
       accountId: account,
@@ -362,7 +454,7 @@ describe('documents.document.unfile and documents.document.view', () => {
   });
 
   it('audits each opening of a sensitive document, and not of an ordinary one', async () => {
-    const idFile = await upload(manager);
+    const idFile = await upload(manager, { scan: AADHAAR_SCAN });
     const identity = await run(manager, fileDocument, {
       entityId: 1,
       accountId: account,
@@ -436,6 +528,25 @@ describe('documents.requirement.set and the completeness check', () => {
     expect(await missing()).toEqual([]);
     // Back on for the next run of the suites, which shares the database.
     await run(executive, setDocumentRequirement, { ...input, mandatory: false });
+  });
+
+  it('answers own-scope callers only for the customers they own', async () => {
+    const ask = (principal: Principal, accountId: string) =>
+      asPrincipal(principal, ({ tx }) =>
+        missingDocuments(tx, {
+          entityId: 1,
+          accountId,
+          projectId: null,
+          flow: 'standard',
+          stepKey: 'survey',
+        }),
+      );
+    // The Field Engineer reads documents at own scope: their own customer is answered.
+    expect(Array.isArray(await ask(engineer, account))).toBe(true);
+    // Another customer of the company is not, whatever the Field Engineer's project grants.
+    await expect(ask(engineer, otherAccount)).rejects.toThrow();
+    // The GM reads every document of the company.
+    expect(Array.isArray(await ask(gm, account))).toBe(true);
   });
 
   it('is refused in a company outside the request', async () => {
