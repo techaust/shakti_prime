@@ -12,6 +12,7 @@ import { renderLabelsHtml } from './label-template';
 import { renderLetterheadProof } from './letterhead-proof-template';
 import { qrMatrix, qrSvg } from './qr';
 import { renderQuote } from './quote-template';
+import { renderStockCountSheet, type StockCountPrint } from './stock-count-template';
 import { baseCss, lightColor } from './styles';
 
 describe('html', () => {
@@ -208,5 +209,78 @@ describe('the proof page', () => {
     // Letterhead, logo, address, GSTIN and the four bank lines.
     expect(page.match(new RegExp(en.print.proof.missing, 'g'))).toHaveLength(8);
     expect(page).not.toContain(en.print.company.bankHeading);
+  });
+});
+
+describe('the stock count sheet', () => {
+  const sheet = (showsValues: boolean): StockCountPrint => ({
+    company: 'Shakti Supreme',
+    hub: '<Main> godown (GD-1)',
+    scope: 'The whole hub',
+    state: 'Posted',
+    startedAt: '2026-11-27T09:00:00.000Z',
+    startedBy: 'Inventory Manager',
+    postedAt: '2026-11-27T12:45:00.000Z',
+    note: 'Month-end count',
+    lines: [
+      {
+        bin: 'CA-01',
+        item: 'Cable <4 mm>',
+        sku: 'CAB-4',
+        serial: null,
+        atStart: '1250.000',
+        moved: '-10.000',
+        expected: '1240.000',
+        counted: '1238.500',
+        variance: '-1.500',
+        value: showsValues ? '-150.00' : null,
+      },
+      {
+        bin: 'CA-01',
+        item: 'Pump',
+        sku: 'PMP-1',
+        serial: 'SP-003',
+        atStart: '1.000',
+        moved: '0.000',
+        expected: '1.000',
+        counted: null,
+        variance: null,
+        value: null,
+      },
+    ],
+    showsValues,
+    netValue: showsValues ? '-150.00' : null,
+    printedOn: '2026-11-28',
+  });
+
+  it('prints every line with its quantities and difference, escaped, on A4', () => {
+    const { html: page, options } = renderStockCountSheet(sheet(false));
+    expect(page).toContain(en.print.stockCount.title);
+    expect(page).toContain(escapeHtml('<Main> godown (GD-1)'));
+    expect(page).toContain(escapeHtml('Cable <4 mm>'));
+    expect(page).not.toContain('<Main>');
+    expect(page).toContain('1,250');
+    expect(page).toContain('-10');
+    expect(page).toContain('1,238.5');
+    expect(page).toContain('-1.5');
+    expect(page).toContain('SP-003');
+    expect(page).toContain(en.print.stockCount.notCounted);
+    // Started and posted in IST.
+    expect(page).toContain('14:30');
+    expect(page).toContain('18:15');
+    expect(page).toContain(en.print.stockCount.signApproved);
+    expect(page).toMatch(/http-equiv="Content-Security-Policy"\s+content="default-src 'none'/);
+    expect(options).toMatchObject({ format: 'A4' });
+  });
+
+  it('prints values only for a reader of costs', () => {
+    const without = renderStockCountSheet(sheet(false)).html;
+    expect(without).not.toContain(en.print.stockCount.columns.value);
+    expect(without).not.toContain(en.print.stockCount.netValue);
+    expect(without).not.toContain(formatRupees('-150.00'));
+    const withValues = renderStockCountSheet(sheet(true)).html;
+    expect(withValues).toContain(en.print.stockCount.columns.value);
+    expect(withValues).toContain(en.print.stockCount.netValue);
+    expect(withValues).toContain(formatRupees('-150.00'));
   });
 });
