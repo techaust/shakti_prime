@@ -22,6 +22,7 @@ import {
 } from '../../src/commands/inventory/counts';
 import { postStockCount } from '../../src/commands/inventory/counts-post';
 import { adjustStock, transferStock } from '../../src/commands/inventory/stock';
+import { getStockCard, listStockBalances } from '../../src/queries/inventory/stock';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import {
   getStockCountReview,
@@ -409,6 +410,52 @@ describe('a counter counts blind', () => {
     // The review stays the Inventory Manager's.
     await expect(review(blindCounter, count.id)).rejects.toMatchObject({ code: 'forbidden' });
     await run(manager, cancelStockCount, { countId: count.id, cancelReason: 'Test over' });
+  });
+});
+
+describe('blind counting (owner, question B)', () => {
+  it('lets the Store Manager count, with no stock of the counted bin to read until it posts', async () => {
+    const f = await countFixture();
+    await gain(f.binA, f.cable, { qty: '40' });
+    await gain(f.binB, f.cable, { qty: '5' });
+    const storeManager = await createTestPrincipal('store_manager', [1]);
+    const count = await run(manager, startStockCount, {
+      entityId: 1,
+      hubId: f.hub,
+      scope: 'bins',
+      binIds: [f.binA],
+    });
+    /** What the Store Manager reads of the cable in the hub: the bins listed, the card. */
+    const reads = async (who: Principal) =>
+      asPrincipal(who, async (ctx) => {
+        const list = await listStockBalances(ctx, { entityId: 1, hubId: f.hub, limit: 50 });
+        const card = await getStockCard(ctx, { entityId: 1, itemId: f.cable, hubId: f.hub });
+        return {
+          bins: list.items.filter((r) => r.itemId === f.cable).map((r) => r.binId),
+          onHand: card.byHub.find((h) => h.hubId === f.hub)?.onHand ?? null,
+          moved: card.movements.map((m) => m.to?.id ?? m.from?.id).sort(),
+        };
+      });
+    expect(await reads(storeManager)).toEqual({ bins: [f.binB], onHand: '5.000', moved: [f.binB] });
+    // The Inventory Manager reads the counted bin throughout.
+    expect((await reads(manager)).onHand).toBe('45.000');
+
+    await run(storeManager, recordStockCount, {
+      countId: count.id,
+      binId: f.binA,
+      itemId: f.cable,
+      qty: '38',
+    });
+    await run(storeManager, submitStockCount, { countId: count.id });
+    expect((await reads(storeManager)).onHand).toBe('5.000');
+    // Posting, starting and cancelling stay with inventory.stock.adjust.
+    await expect(
+      run(storeManager, postStockCount, { countId: count.id, note: 'Month-end count' }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await run(manager, postStockCount, { countId: count.id, note: 'Month-end count' });
+    const after = await reads(storeManager);
+    expect(after.onHand).toBe('43.000');
+    expect(after.bins.sort()).toEqual([f.binA, f.binB].sort());
   });
 });
 
