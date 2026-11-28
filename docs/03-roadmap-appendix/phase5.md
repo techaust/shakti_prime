@@ -246,6 +246,16 @@ The owner decided all eleven on 27-11-2026, each the recommended option (a).
   - Integration health's connector row: last heartbeat, version, lag.
 - **The silence alert** at 30 minutes, once, through the jobs check and Sentry.
 
+### 6.4 HR1 Employees, shifts, holidays and leave
+**Built:**
+- **Tables:** `employees`, `shifts`, `holidays`, `leave_types`, `leave_requests` and `leave_balances` (movements only), with the definers `app.hr_manages()` (a team lead's people are those whose manager is their own record) and `app.hr_own_manager_name()` (a person's own manager's name), and the guard `app.leave_requests_guard()` (DATABASE §4.1, §6.8).
+- **The `leave-request` machine:** `request`, `approve`, `reject`, `cancel`; never one's own decision; cancel only while it waits.
+- **Commands:** `hr.employee.create`, `.update`, `.deactivate`; `hr.shift.set`; `hr.holiday.set`; `hr.leave_type.set`; `hr.leave.request`, `.approve`, `.reject`, `.cancel`; `hr.leave.adjust`. The new permission `hr.leave.request` (own, every staff role) asks for one's own leave.
+- **Leave days** are the working days of the span by the person's shift and the holidays (`countLeaveDays()`); an approval takes them off the balance once and is not refused for want of balance.
+- **The seam for J5:** `hr.leave.approve` emits `hr.leave.approved` (the request, the person, the first and last day); J5's `unavailability` takes approved leave from it.
+- **Screens:** HR › People (`/hr/people`) and a person's page (`/hr/people/[id]`), HR › Leave (`/hr/leave`), and HR's Shifts, Holidays and Leave types (`/hr/shifts`, `/hr/holidays`, `/hr/leave-types`). The menu shows People to holders of `hr.leave.approve`, Leave to every staff role and the three settings to holders of `hr.employee.write`.
+- **Defaults:** `WORKSHOP_DEFAULTS.hr` (HR-1's answer); no leave type or holiday is seeded.
+
 ## 7. Wave 2
 
 ### 7.1 TC3 Reconciliation
