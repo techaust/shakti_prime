@@ -316,3 +316,45 @@ Not checked:
   - `apps/web/js-budget.json` still needs the owner's `checks-ok`.
   - The Linux baselines are still to make. The five HR menu entries and J2's Lenders entry change every desktop staff picture that shows the menu.
   - F1, J1 and TC2 also wait with migrations from 0247. Whichever of them merges after HR1 renumbers again.
+
+### 28-11-2026, Integration prep after J1 (cloud, worktree `hr1-people`)
+- **Main taken in:** `origin/main` at `eb0f3017` (#307 J1 projects, after #306 F1 field app foundation), by the merge commit `0e9bba9d` over the slice's `e678dedd`.
+  - 29 files conflicted. The lists went through `merge-union.py` and were then read by hand: the e2e seed and users, `audit.ts`, `contract-values` and its test, `session-gate.ts`, the schema index, the testing lists, the matrix fixture, `enum-sync`, `grants`, the command and state-machine registries, the domain index, the workshop defaults and their test, `reader-parity` and `agent-refusals`. `en.json` went through `merge-json.py`, with no key changed on both sides. `copy-lint.config.json` went through `merge-copylint.py`. `docs/data` and `docs/state-machines` were taken from `main` and generated again.
+  - Four hunks lost a closing brace under the union, and each went back: the `hrAdmin` journey user, the `hr` block of `WORKSHOP_DEFAULTS` in its type and in its value, and `agent-refusals`' `hr.leave.adjust` input.
+  - No conflict marker showed one clash: `nav.ts` imported `ListChecks` twice, once for HR1's Leave types and once for J1's Project steps. The typecheck right after the merge failed on it (`TS2300: Duplicate identifier 'ListChecks'`), and HR1's import went. Both admin entries now show the same icon; whether one should change is the lead's call.
+  - `pnpm install --offline --frozen-lockfile`: done in 1.1 s.
+  - `.env` took F1's four new keys (`MOBILE_JWT_PRIVATE_KEY`, `MOBILE_JWT_PUBLIC_KEY`, `FIELD_MIN_APP_VERSION`, `FIELD_LATEST_APP_VERSION`), empty as `.env.example` has them.
+- **Migrations:** `0247_hr1_people`, `0248_hr1_people_rls` and `0249_hr1_people_manager_name` are now `0260_hr1_people`, `0261_hr1_people_rls` and `0262_hr1_people_manager_name`.
+  - Their journal times come after J1's `0259` (`1795808159502`): 0260 is at `1795808160502`, 0261 at `1795808161502` and 0262 at `1795830857500`.
+  - Snapshots 0247 to 0259 are `main`'s (F1's and J1's), and 0260 to 0262 chain from 0259's id.
+  - `pnpm db:generate`: "No schema changes, nothing to migrate".
+  - `pnpm db:docs` and `machines:docs` were run again.
+  - DATABASE now cites 0260 for the six HR tables, 0261 for `app.hr_manages()` and 0262 for `app.hr_own_manager_name()`; F1's `mobile_devices` and `feature_flags` keep 0247.
+- **Redefinitions (§10, Merging with main):** HR1's migrations still redefine no shared object, confirmed against `main` at `eb0f3017`.
+  - Its functions are `app.hr_manages()`, `app.leave_requests_guard()` and `app.hr_own_manager_name()`. None of them, and none of its six tables, appears in any of `main`'s migrations 0000 to 0259.
+  - J1 redefines `app.platform_only_permissions()`, `app.next_document_no()`, `app.projects_guard()` and `app.status_summary()`, and F1 none of note; HR1 touches none of them.
+  - The shared helpers HR1 calls (`app.has_perm()`, `app.request_covers_group()`, `app.user_id()`, `app.raise_append_only()`, `app.set_updated_at()`) are not redefined in 0247 to 0259.
+  - Every check constraint, foreign key, policy and trigger HR1 adds is on its own six tables. Its foreign keys point to `entities`, `principals`, `users` and its own tables, all with `no action`; none to `accounts` or `leads`.
+- **Shared lists, checked for a key used twice:** none.
+  - Each merged list was compared with `main`'s and with the slice's own for keys that appear twice. The keys found (`employees` and the other HR tables in the matrix fixture, `executive` in the e2e seed, `company` and `lead` in the journey users, `hr.leave.request` in `permissions.ts`, `employeeId` and `leaveTypeId` in `agent-refusals`) each sit in two separate maps or calls, as J1's own tables do.
+  - `en.json` has no key twice in any object, and the copy-lint lists none twice.
+  - The matrix fixture's offsets: HR1's `0xa0` to `0xab` are used by no other slice.
+- **Typecheck right after the merge:** `pnpm typecheck` through the lock first failed in `web` on the double `ListChecks` (11 of 12 tasks); after the fix, `pnpm --filter web typecheck` passed.
+- **integrate.sh in parts:** each part ran on a fresh Postgres on 54340, with `urls_not_on_54340=0`, and the e2e step was not run.
+  - `install lint format copylint generated typecheck`: every step `rc=0`, `=== INTEGRATION PARTIAL (install lint format copylint generated typecheck)`.
+  - `unit`: `rc=0`, 12 of 12 tasks, 0 cached, `=== INTEGRATION PARTIAL (unit)`. Counts:
+    - tokens 146, copy-lint 17, ui 107, voice 49, voice-agent 23, contracts 344, db 164 and field 31 passed;
+    - tally-connector 68 passed and 1 skipped (69);
+    - domain 2,864 passed;
+    - web 1,280 passed and 1 skipped (1,281).
+  - `security dbverify`: `rc=0`, `=== INTEGRATION PARTIAL (security dbverify)`.
+    - Counts: db 2,048 (69 files), domain 1,631 (117 files), web 500 (42 files), all passed.
+    - `db:verify` printed "every migration is applied as it is on disk".
+  - `audit build jsbudget gitleaks`, first run: `=== INTEGRATION FAILED` on `jsbudget` (`rc=1`): `/admin/integrations` measured 242.2 kB against 242.
+    - The merge caused it: HR1 and J1 each raised the page by 1 kB for their own menu entries, measured without the other's.
+    - Fix in `e9b961e1`: `/admin/integrations` goes to 243. The other three pages whose budgets conflicted keep the higher side, each reason naming all three slices' entries with the merged measurement: `/catalogue` 247 (246.5 kB), `/price-master` 249 (248.0 kB) and `/calling` 208 (207.6 kB).
+  - `audit build jsbudget gitleaks`, after the fix: every step `rc=0`, `=== INTEGRATION PARTIAL (audit build jsbudget gitleaks)`.
+    - Audit: 3 moderate, already reviewed and ignored.
+    - Build: 2 of 2 tasks, 0 cached.
+    - Budget: "Every page is within its budget (75 pages)".
+    - Gitleaks: 23 commits scanned, no leaks found.
