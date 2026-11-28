@@ -449,4 +449,60 @@ The security suites (`turbo run test:security --concurrency=1 --continue`):
 - **The journey:** the counter journey becomes the Store Manager (count, submit) with axe, and asserts that their stock card shows no quantity for a counted bin while the count is live.
 - Run `pnpm format:check` and the slice's checks, then commit `report: h3-stock-counts owner answers`. Do not take main in.
 
+### 28-11-2026, slice reviewer (lane 113): the owner-answers addendum checked, `788c4bd6..9eb3e8fc`
+I read the diff from my review `788c4bd6` to `9eb3e8fc`. It contains no merge of `main`, so it is the fix round (lane 106) followed by the addendum (lane 112). I checked the addendum's row security, and the fix round only where it bears on H1.
+
+**Verdict: the addendum is sound and H1 is closed. Nothing blocks the merge.** One cross-slice item (C1) is for whichever of H2 and H3 merges second. The rest are low follow-ups.
+
+**H1: closed** (confirmed by reading the code and the tests, which I ran):
+- **Gates:**
+  - The counting page needs only `inventory.count.record:entity` (`[id]/page.tsx`).
+  - The menu entry has no required grant and an `anyOf` of `inventory.stock.read` or `inventory.count.record` at `entity`. The list page refuses anyone holding neither (`navAnyOf`).
+  - `listStockCounts` and `getStockCountSheet` check the counting permission.
+- **No call needs `inventory.stock.read`:** the page no longer calls `listHubs`. The bins come from the count through `app.stock_count_bins()`, and the hub name through `app.stock_count_hub()`. Both have `search_path = ''`, check the grant and the company in their bodies, are granted to `app_user` and `app_reader`, and are revoked from `public` and `readonly_reporter`.
+- **Tests:**
+  - The db and domain suites each have a counter holding `inventory.count.record` alone (`stock-counts.test.ts` 49-52 and 161-163). That counter opens the count, counts and submits, and reads no balance, movement, serial, hub or bin on either pool.
+  - The seeded Store Manager, who also reads stock, sees no stock of the counted bin on `listStockBalances` or `getStockCard` while the count is live.
+
+**The new permission:**
+- `inventory.count.record` has the scopes `own`, `entity` and `all`, the same as `inventory.stock.move`.
+- The seed grants it to the Store Manager and the Inventory Manager at `entity`, and to the Executive at `all`, the Executive's column for every permission (decision 14; the Executive also holds adjust, so it is never blinded).
+- SECURITY §3.2 has the matching row, which the oracle reads, and the role-editor, seed and cost-permission suites pass.
+- No agent principal holds it, and it is not in `app.platform_only_permissions()`, which is untouched.
+- It replaces `inventory.stock.move` only on the counting paths: the two commands, the two machine moves, the `stock_counts` read and update policies, the guard, and the record, sheet, progress, hub and bins definers. Start, recount, post and cancel keep `inventory.stock.adjust`, and H1's stock commands keep `inventory.stock.move`.
+
+**The restrictive policies** (`stock_balances_count_blind`, `stock_movements_count_blind` on either bin, `serials_count_blind`; select only, for `app_user` and `app_reader`):
+- **Who is blinded:** only a caller holding `inventory.count.record` (any scope, since `serializeGrants` expands scopes) without `inventory.stock.adjust:entity`. For everyone else the first part of the check (computed once per query) is false and the per-row definer never runs.
+- **Readers left unchanged:**
+  - The GM, Accounts, `tele_caller_lc`, the Project Manager and the Field Engineer hold no counting permission.
+  - The Inventory Manager and the Executive hold adjust.
+  - H1's and H2's definers, and `app.stock_move()`, read as the table owner, outside these policies.
+- **Fail closed:** a restrictive policy only removes rows. With no settings, `has_perm` is false and the restrictive check passes, but the permissive `*_read` policies still deny on a null `app.entity_ids`, so nothing opens.
+- **`app.stock_count_hidden()`:** stable, `search_path = ''`, granted to `app_user` and `app_reader`, and revoked from `public` and `readonly_reporter`. Its live-count lookup matches the predicate of `stock_counts_live_unique`. It is listed in DATABASE §4.1 and in the reader definer list.
+- **`main`:** nothing on `main` is redefined.
+
+| # | Severity | Where | What | Scenario | Fix | Status |
+|---|---|---|---|---|---|---|
+| C1 | medium (cross-slice, at integration) | `origin/feat/h2-reservations` `0248_h2_reservations_rls.sql` §20, `app.line_availability()`: `v_counts := app.has_perm('inventory.stock.read:entity')`; `app.free_availability()` reads `stock_balances` as owner | SECURITY's new H3 line says availability is unaffected, which holds for non-counters. But the Store Manager is both a counter and a seller (`sales.quote.create:own`, `inventory.stock.read:entity`). Once H2 merges, a quote line shows them the company's free quantity of an item, read by a definer that the blind policies do not reach. | During a live count of the only godown holding an item, the Store Manager adds the item to a draft quote and reads the free quantity: the counted bin's balance less what is reserved. | In whichever slice merges second: H2's `v_counts` is also false while `app.stock_count_hidden()` would hide any bin the line's item is free in (or simply for a holder of `inventory.count.record` without adjust while a live count covers the item). Covered and short statuses stay. Add one H2 test with a live count. | plausible (read on H2's branch; not run) |
+| L1 | low | `apps/web/e2e/stock-counts.spec.ts` 90 (asserts "The company holds none of this item." on the Store Manager's stock card) | Hiding the rows makes H1's stock card and list tell a counter, who also sells, something untrue: that the company holds none. The design's copy rule is plain and true sentences. | A Store Manager asked by a customer during a whole-hub count reads "holds none" and turns the sale away. | A follow-up in H1's screens: when the caller is blinded (`app.stock_count_hidden` for any bin of the item), say that some stock is being counted and shows again once the count is posted. | confirmed (code and journey spec) |
+| L2 | low | `packages/db/tests/security/stock-counts.test.ts` 439-575 | The blind case covers `counting`, `review` and cancelled, the GM, the Lead Converter and the Inventory Manager, both pools, and an items count. It does not cover `open` (decision 12 hides from the start, but nothing tests it), a movement *out of* the counted bin (only `to_bin_id` is tested), or Accounts. | A later edit drops `open` from the state list, or the `from_bin_id` branch, and no test fails. | Add the three cases to the same test. | confirmed |
+| L3 | low | `apps/web/src/nav.ts` (the `inventory-counts` comment) | The comment still says the list reads with "inventory.stock.read or .move" and that "counting needs .move". | Misleads the next reader. | One line: `inventory.count.record`. | confirmed |
+| L4 | low | `app.stock_count_hidden(p_entity, …)` | It answers for any company and does not check `p_entity` against `app.entity_ids()`. A counter in company 1 can learn whether company 3 has a live count covering a bin. No quantity leaks. | None of consequence. | Add `p_entity = any (coalesce(app.entity_ids(), '{}'))` to the `exists`. | confirmed |
+
+**Decision 12** ("live" includes `open`) is stricter than the owner's wording (counting or review) and blinds the Store Manager from the start rather than from the first entry. That matches the intent, but the lead should accept it in the record.
+
+**EXPLAIN:** the builder's table covers the stock list and the stock card at volume, for the Store Manager and the Inventory Manager. The worst case is 233 ms: a counter paging the stock list of the very hub they are counting, where every row is filtered out (about 11 µs per row). Non-counters pay nothing (0.4 ms). This is acceptable. I did not re-run the spike.
+
+**Tests run on the slot database (54331, migrated and seeded fresh), each through the lock:**
+- db `stock-counts`, `stock-ledger`, `grants`, `role-entity-matrix`, `enum-sync`: 378 passed.
+- db `seeds`, `cost-permissions`, `role-editor`: 123 passed.
+- domain `commands/stock-counts`, `queries/reader-parity`, `security/agent-refusals`: 80 passed.
+- web `nav.test.ts`: 12 passed.
+- contracts `permissions.test.ts`: 8 passed.
+- domain unit `counts-plan.test.ts` and `machines.test.ts`: 1,326 passed.
+
+**Not run:**
+- I ran none of the journeys in `apps/web/e2e/stock-counts.spec.ts`, since this session cannot sign in. That covers the Inventory Manager's start, the Store Manager's blind count with the stock card check and the snapshots `count-to-count` and `count-serials`, and the Inventory Manager's review and post with `count-review`. They still need their Linux baselines.
+- I did not run the whole `test:security`, typecheck, lint or build (the builder's are green), nor the M1, L1 and L2 fixes beyond the files above (out of scope for this re-check).
+
 ## Integration
