@@ -35,7 +35,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 ## Notes
 
 - `raise`: From Account 360, or from the serial reported, whose customer the claim takes.
-- `serial.identify`: The serial is the company's, with the claim's customer; out of warranty it is refused with its date, and the claim is rejected.
+- `serial.identify`: The serial is the company's, with the claim's customer; out of warranty it is refused with its date, and the claim is then rejected by hand.
 - `replace`: The failed serial comes back into a quarantine bin as faulty in the same step, or with the RMA.
 
 ## Diagram
