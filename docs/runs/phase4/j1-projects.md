@@ -6,8 +6,8 @@
 | Runs on | a seat (seats protocol v2); the lead integrates in the cloud (owner, 27-11-2026, the seven-day push) |
 | Tier | A ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)): row security with a new `own` scope, a platform-only drafting worker |
 | Usage | briefed 27-11-2026; built from 27-11-2026 on Opus 5.5 at high effort, on the seat's own account; the fix round on 27-11-2026, Opus 5.5 at high effort |
-| State | fixes done (the one fix round) |
-| Next step | the lead: read the fix round's diff, the Linux baselines (two new pictures: `project-start-dialog`, `account-projects`), integration (the owner's `checks-ok` for `js-budget.json`) |
+| State | integrated |
+| Next step | the owner's `checks-ok`, then the pull request merges on green; if F1 (#306) merges first, J1 takes `main` again and moves its migrations after F1's |
 
 ## Brief
 Build [phase4 §5](../../03-roadmap-appendix/phase4.md#5-the-project-model) and [§6.1](../../03-roadmap-appendix/phase4.md#61-j1-projects-and-the-standard-flow) as written, with questions 1 (a) and 2 (a). Follow [AGENTS §6](../../../AGENTS.md#6-database-changes) and [AGENTS §5](../../../AGENTS.md#5-domain-commands). Points the design leaves to you, settled here:
@@ -462,3 +462,21 @@ Reviewed `git diff origin/main...feat/j1-projects` at `11c3a2fc` (main at `59736
 - **Part 3** (`security dbverify`): `=== INTEGRATION PARTIAL (security dbverify)`. Security suite on a fresh Postgres (54340): db 1,998 passed (66 files), domain 1,586 (113 files), web 470 (41 files). db:verify "every migration is applied as it is on disk".
 - **Part 4** (`audit build jsbudget gitleaks`), first run: `=== INTEGRATION FAILED` at jsbudget, which the merge broke: each slice's menu entries passed alone, together `/price-master loads 247.0 kB of JavaScript (gzip), over its budget of 247 kB` and `/calling loads 207.0 kB of JavaScript (gzip), over its budget of 207 kB`. Fixed in `1671f197`: both raised by 1 kB (248 and 208) with the reason. `js-budget.json` is one of the checks files, as J1 and J2 already changed it, so the pull request needs the owner's `checks-ok`. Second run: `=== INTEGRATION PARTIAL (audit build jsbudget gitleaks)`. audit: 3 moderate, all already reviewed and ignored; build with no `.env`: `Tasks: 2 successful, 2 total`, none cached; js-budget "Every page is within its budget (69 pages)"; gitleaks over the branch's own 33 commits: "no leaks found".
 - **Not run:** the `e2e` step, as the lane says. The journeys and the Linux baselines are the lead's; J2's Lenders and J1's Projects menu entries together change the menu on the admin screens' pictures, which neither slice's baselines show yet.
+
+### 28-11-2026, the lead's cloud VM: integrated
+- **Main taken in** after the second prep: TC1 #303, the axe title wait #304 and the calling-hours fix #305 (`994631ae`), by `f37dd57a`, with no conflict. `main` added no migration, so 0247 to 0253 stand. `db:generate`: no changes.
+- **`integrate.sh` on a fresh Postgres on 54340, in four parts through the lock:**
+  - `install lint format copylint generated typecheck`: every step rc=0.
+  - `unit`: every task.
+  - `security dbverify`: db 1,998, domain 1,586 and web 470 passed. `db:verify`: every migration is applied as it is on disk.
+  - `audit build jsbudget gitleaks`: every step rc=0.
+  - Each part ended `INTEGRATION PARTIAL`.
+- **The whole journey set in the Linux Playwright image, one project at a time, each on a fresh database**, update then verify:
+  - desktop-light: 241 passed with 1 flaky (the click-to-dial C test on the update run), then 242 passed on verify.
+  - desktop-dark: 229 and 229 passed.
+  - phone: 229 and 229 passed.
+  - The container restarted during the first desktop-light verify. The lock was cleared, and that verify ran again from the start.
+- **Baselines:** J1's own (`account-projects`, `project-page`, `project-page-engineer`, `project-steps`, `projects-engineer` and the start and hold dialogs) are new. The home pages, the settings screens and the other screens that show the menu's new Projects and Project steps entries are remade (35 files). Pictures looked at: the project page at phone width and the Executive's home.
+  - Copy follow-up: the home cards "Projects" and "Project steps" lack the full stop the other cards' descriptions have.
+- **Checks files** (the owner's `checks-ok`): `apps/web/js-budget.json` (`/price-master` 248 and `/calling` 208, the merge's sums).
+
