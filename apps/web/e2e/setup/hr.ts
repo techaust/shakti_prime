@@ -68,81 +68,80 @@ export async function ensureHrJourneys(ids: {
   snapshotLead: string;
   snapshotTracker: string;
 }): Promise<{ leaveDays: Record<ProjectName, string> }> {
-  return asMigrator((m) =>
-    m.begin(async (tx) => {
-      const by = ids.executive;
-      const lead = await ensureEmployee(
-        tx,
-        {
-          ...HR_JOURNEY.lead,
-          entityId: HR_JOURNEY.entityId,
-          userId: ids.teamLead,
-          managerId: null,
-        },
-        by,
-      );
-      const asker = await ensureEmployee(
-        tx,
-        {
-          ...HR_JOURNEY.asker,
-          entityId: HR_JOURNEY.entityId,
-          userId: ids.teleCaller,
-          managerId: lead,
-        },
-        by,
-      );
+  // Each write is idempotent, so a seed stopped halfway is completed by the next.
+  return asMigrator(async (m) => {
+    const by = ids.executive;
+    const lead = await ensureEmployee(
+      m,
+      {
+        ...HR_JOURNEY.lead,
+        entityId: HR_JOURNEY.entityId,
+        userId: ids.teamLead,
+        managerId: null,
+      },
+      by,
+    );
+    const asker = await ensureEmployee(
+      m,
+      {
+        ...HR_JOURNEY.asker,
+        entityId: HR_JOURNEY.entityId,
+        userId: ids.teleCaller,
+        managerId: lead,
+      },
+      by,
+    );
 
-      const leaveDays = {} as Record<ProjectName, string>;
-      for (const project of PROJECTS) {
-        const typeId = await ensureLeaveType(tx, HR_JOURNEY.leaveTypes[project], by);
-        const [held] = await tx<{ days: string }[]>`
+    const leaveDays = {} as Record<ProjectName, string>;
+    for (const project of PROJECTS) {
+      const typeId = await ensureLeaveType(m, HR_JOURNEY.leaveTypes[project], by);
+      const [held] = await m<{ days: string }[]>`
           select coalesce(sum(days), 0)::text as days from leave_balances
            where employee_id = ${asker} and leave_type_id = ${typeId}`;
-        const short = HR_JOURNEY.startingDays - Number(held?.days ?? '0');
-        if (short > 0) {
-          await tx`insert into leave_balances
+      const short = HR_JOURNEY.startingDays - Number(held?.days ?? '0');
+      if (short > 0) {
+        await m`insert into leave_balances
                      (id, entity_id, employee_id, leave_type_id, kind, days, reason, created_by)
                    values (${newId()}, ${HR_JOURNEY.entityId}, ${asker}, ${typeId}, 'grant',
                            ${short}, ${HR_JOURNEY.grantReason}, ${by})`;
-        }
-        // Each project asks in a decade of its own, so the latest of its own type is the latest
-        // of its decade.
-        const [latest] = await tx<{ day: string | null }[]>`
+      }
+      // Each project asks in a decade of its own, so the latest of its own type is the latest
+      // of its decade.
+      const [latest] = await m<{ day: string | null }[]>`
           select max(to_date)::text as day from leave_requests
            where employee_id = ${asker} and leave_type_id = ${typeId}`;
-        leaveDays[project] =
-          latest?.day === null || latest?.day === undefined
-            ? HR_JOURNEY.firstLeaveDays[project]
-            : dayAfter(latest.day);
-      }
+      leaveDays[project] =
+        latest?.day === null || latest?.day === undefined
+          ? HR_JOURNEY.firstLeaveDays[project]
+          : dayAfter(latest.day);
+    }
 
-      const snapshot = SNAPSHOT_COMPANY.entityId;
-      const snapLead = await ensureEmployee(
-        tx,
-        {
-          ...HR_JOURNEY.snapshot.lead,
-          entityId: snapshot,
-          userId: ids.snapshotLead,
-          managerId: null,
-        },
-        by,
-      );
-      await ensureEmployee(
-        tx,
-        {
-          ...HR_JOURNEY.snapshot.caller,
-          entityId: snapshot,
-          userId: ids.snapshotTracker,
-          managerId: snapLead,
-        },
-        by,
-      );
-      await ensureEmployee(
-        tx,
-        { ...HR_JOURNEY.snapshot.helper, entityId: snapshot, userId: null, managerId: snapLead },
-        by,
-      );
-      return { leaveDays };
-    }),
-  );
+    const snapshot = SNAPSHOT_COMPANY.entityId;
+    const snapLead = await ensureEmployee(
+      m,
+      {
+        ...HR_JOURNEY.snapshot.lead,
+        entityId: snapshot,
+        userId: ids.snapshotLead,
+        managerId: null,
+      },
+      by,
+    );
+    await ensureEmployee(
+      m,
+      {
+        ...HR_JOURNEY.snapshot.caller,
+        entityId: snapshot,
+        userId: ids.snapshotTracker,
+        managerId: snapLead,
+      },
+      by,
+    );
+    await ensureEmployee(
+      m,
+      { ...HR_JOURNEY.snapshot.helper, entityId: snapshot, userId: null, managerId: snapLead },
+      by,
+    );
+    return { leaveDays };
+  });
 }

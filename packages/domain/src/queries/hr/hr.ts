@@ -255,8 +255,9 @@ export async function getHrChoices(ctx: QueryContext, rawInput: unknown): Promis
     .from(e)
     .where(and(eq(e.entityId, input.entityId), eq(e.active, true)))
     .orderBy(sql`lower(${e.name})`, asc(e.id));
-  // Other people's users rows are an admin's to read: names come from `principals` and whether
-  // a person is active from `app.user_is_active()`, as the lead assignees' choice does.
+  // Other people's users rows are an admin's to read, so names come from `principals`. Everyone
+  // holding a role in the company is offered, as the command accepts them; a person whose roles
+  // were taken away holds none.
   const uer = schema.userEntityRoles;
   const p = schema.principals;
   const people = await ctx.tx
@@ -266,7 +267,6 @@ export async function getHrChoices(ctx: QueryContext, rawInput: unknown): Promis
     .where(
       and(
         eq(uer.entityId, input.entityId),
-        sql`app.user_is_active(${p.id})`,
         sql`not exists (select 1 from employees x
                          where x.user_id = ${uer.userId} and x.entity_id = ${input.entityId})`,
       ),
