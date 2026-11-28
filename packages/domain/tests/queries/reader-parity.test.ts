@@ -131,6 +131,16 @@ import {
 import { dealerCreditHistory, listDealerCredit } from '../../src/queries/sales/dealer-credit';
 // H1 stock ledger
 import { listHubs } from '../../src/queries/inventory/hubs';
+// HR1 people and leave
+import {
+  getEmployee,
+  getHrChoices,
+  getLeaveScreen,
+  listEmployees,
+  listHolidays,
+  listLeaveTypes,
+  listShifts,
+} from '../../src/queries/hr/hr';
 import {
   getSerial,
   getStockCard,
@@ -375,6 +385,14 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStockCard: (ctx) => getStockCard(ctx, { entityId: 1, itemId: newId() }, QUOTES_AT),
   getSerial: (ctx) => getSerial(ctx, { entityId: 1, serialId: newId() }, QUOTES_AT),
   readStockValuation: (ctx) => readStockValuation(ctx, { entityId: 1, asOf: '2026-11-01' }),
+  // HR1 people and leave
+  listEmployees: (ctx) => listEmployees(ctx, { limit: 20, includeLeft: true }),
+  getEmployee: (ctx) => getEmployee(ctx, { id: newId() }),
+  getHrChoices: (ctx) => getHrChoices(ctx, { entityId: 1 }),
+  getLeaveScreen: (ctx) => getLeaveScreen(ctx),
+  listShifts: (ctx) => listShifts(ctx, { includeArchived: true }),
+  listLeaveTypes: (ctx) => listLeaveTypes(ctx, { includeArchived: true }),
+  listHolidays: (ctx) => listHolidays(ctx, { year: 2031 }),
 };
 
 /**
